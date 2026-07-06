@@ -1,6 +1,6 @@
 export type NewsType = 'NEWS' | 'ANNOUNCEMENT';
 export type PartnerType = 'SPONSOR' | 'PARTNER';
-export type ContactStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type ContactStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'pending' | 'resolved' | 'archived';
 export type ContactPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface HeroBanner {
@@ -15,6 +15,10 @@ export interface HeroBanner {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  isActive?: boolean;
+  priority?: number;
 }
 
 export interface NewsArticle {
@@ -32,6 +36,13 @@ export interface NewsArticle {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  subtitle?: string;
+  imageUrl?: string;
+  category?: string;
+  author?: string;
+  tags?: string;
+  publishedAt?: string | null;
+  isActive?: boolean;
 }
 
 export interface CmsPartner {
@@ -44,6 +55,11 @@ export interface CmsPartner {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  name?: string;
+  logoUrl?: string;
+  websiteUrl?: string;
+  isActive?: boolean;
+  priority?: number;
 }
 
 export interface AboutUs {
@@ -54,6 +70,11 @@ export interface AboutUs {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  content?: string;
+  mission?: string;
+  vision?: string;
+  imageUrl?: string;
+  isActive?: boolean;
 }
 
 export interface ContactRequest {
@@ -69,6 +90,8 @@ export interface ContactRequest {
   priority: ContactPriority;
   created_at: string;
   updated_at: string;
+  message?: string;
+  createdAt?: string;
 }
 
 export interface FAQ {
@@ -78,6 +101,9 @@ export interface FAQ {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  category?: string;
+  priority?: number;
+  isActive?: boolean;
 }
 
 export interface PaginatedResponse<T> {

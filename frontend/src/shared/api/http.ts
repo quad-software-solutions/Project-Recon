@@ -2,6 +2,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
+  _isRetry?: boolean;
 }
 
 /**
@@ -38,11 +39,6 @@ function subscribeTokenRefresh(cb: (token: string) => void) {
 function onRefreshed(token: string) {
   refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
-}
-
-interface RequestConfig extends RequestInit {
-  params?: Record<string, string>;
-  _isRetry?: boolean;
 }
 
 async function request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {

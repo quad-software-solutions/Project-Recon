@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Mail, Phone, Trash2, Check, Clock, X, Eye, ChevronDown } from 'lucide-react';
-import { api, ContactRequest } from '../../api/cmsApi';
+import { api, ContactRequest } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
 interface Props { addToast: (msg: string, type: 'success' | 'error') => void }

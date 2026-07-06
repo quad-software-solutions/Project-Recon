@@ -4,6 +4,7 @@ import { Users, Edit3, BarChart3, Activity, PanelLeftClose, PanelLeftOpen, Clipb
 import { UserProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
+import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';
@@ -90,6 +91,16 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
       }}
       onLogout={onLogout}
     >
+      <DashboardCommandCenter
+        title="Instructor Command Center"
+        subtitle="Class attendance, grading, lesson planning, and student follow-up."
+        signals={[
+          { label: 'Attendance', value: `${students.filter(s => s.attended).length}/${students.length}`, detail: 'checked in today', icon: Users, tone: students.some(s => s.attended) ? 'emerald' : 'amber' },
+          { label: 'Assignments', value: String(assignments.filter(a => !a.confirmed).length), detail: 'awaiting confirmation', icon: ClipboardList, tone: 'amber' },
+          { label: 'Gradebook', value: 'Open', detail: 'assessment tools ready', icon: BookOpen, tone: 'blue' },
+          { label: 'Activity', value: 'Live', detail: 'student feed available', icon: Activity, tone: 'emerald' },
+        ]}
+      />
       {renderPage()}
     </AppLayout>
   );

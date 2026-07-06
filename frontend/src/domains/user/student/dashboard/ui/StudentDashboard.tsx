@@ -12,6 +12,7 @@ import { UserProfile } from '@/src/shared/types';
 import { ROBOTICS_PROGRAMS, MOCK_VEX_TEAM, MOCK_VEX_MATCHES, MOCK_VEX_AWARDS, MOCK_VEX_ROBOTS } from '@/src/shared/constants/mock-data';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
+import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 
 import heroImg from '@/assets/0M6A6595.00_07_20_18.Still028.jpg';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
@@ -108,6 +109,16 @@ export default function StudentDashboard({ currentUser, onLogout }: StudentDashb
       }}
       onLogout={onLogout}
     >
+      <DashboardCommandCenter
+        title="Learning Command Center"
+        subtitle="Progress, events, certificates, and VEX team readiness."
+        signals={[
+          { label: 'XP', value: currentUser.xpPoints.toLocaleString(), detail: 'current points', icon: Zap, tone: 'amber' },
+          { label: 'Progress', value: `${progressPct}%`, detail: 'active track average', icon: TrendingUp, tone: 'emerald' },
+          { label: 'Programs', value: String(enrolledDetails.length), detail: 'currently enrolled', icon: BookOpen, tone: enrolledDetails.length ? 'blue' : 'amber' },
+          { label: 'VEX Team', value: MOCK_VEX_TEAM.name ? 'Ready' : 'Open', detail: 'team hub status', icon: Users, tone: 'emerald' },
+        ]}
+      />
       {renderPage()}
     </AppLayout>
   );

@@ -7,6 +7,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Briefcase, Eye
 } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
+import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 
 const CHILD_DATA = {
   name: 'Abebe Kebede', age: 15, grade: '10th Grade', school: 'Bole Preparatory',
@@ -256,6 +257,17 @@ export default function ParentDashboard({ currentUser, onLogout }: ParentDashboa
               );
             })}
           </div>
+
+          <DashboardCommandCenter
+            title="Parent Command Center"
+            subtitle="Child progress, billing, attendance, and instructor communication."
+            signals={[
+              { label: 'Attendance', value: `${d.attendance.rate}%`, detail: 'current rate', icon: Activity, tone: 'emerald' },
+              { label: 'Avg Score', value: `${d.avgScore}%`, detail: 'recent assessments', icon: TrendingUp, tone: 'blue' },
+              { label: 'Upcoming Due', value: `${totalUpcoming.toLocaleString()} ETB`, detail: 'billing queue', icon: CreditCard, tone: totalUpcoming > 0 ? 'amber' : 'emerald' },
+              { label: 'Messages', value: String(messages.length), detail: 'conversation history', icon: MessageCircle, tone: 'slate' },
+            ]}
+          />
 
           {tab === 'overview' && (
             <div className="flex flex-col gap-3">

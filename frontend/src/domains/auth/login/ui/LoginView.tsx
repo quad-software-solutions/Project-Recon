@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  User, Lock, Eye, EyeOff, Mail, ArrowRight,
-  ShieldCheck, Sparkles, Info, ChevronRight
+  Lock, Eye, EyeOff, Mail, ArrowRight,
+  ShieldCheck, Sparkles, Info
 } from 'lucide-react';
-import { ActiveTab, UserProfile } from '@/src/shared/types';
+import { UserProfile } from '@/src/shared/types';
 import BrandLogo from '@/src/shared/ui/BrandLogo';
 
 import slide1 from '@/assets/slider/faj.jpg';
@@ -33,9 +33,7 @@ interface LoginViewProps {
 export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateRegister, initialView = 'login' }: LoginViewProps) {
   const [viewMode, setViewMode] = useState<'login' | 'register'>(initialView);
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'Student' | 'Instructor'>('Student');
   const [showPassword, setShowPassword] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -69,45 +67,29 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
       return;
     }
 
-    if (viewMode === 'register' && !name) {
-      setErrorMsg('Please specify your Full Name.');
-      return;
-    }
-
-    if (password.length < 5) {
-      setErrorMsg('Password should be at least 5 characters long.');
+    if (password.length < 8) {
+      setErrorMsg('Password should be at least 8 characters long.');
       return;
     }
 
     setLoading(true);
 
-    if (viewMode === 'login') {
-      import('../api/loginApi').then(({ loginApi }) => {
-        loginApi({ email, password })
-          .then(({ user }) => {
-            onAuthSuccess(user);
-          })
-          .catch((err) => {
-            setErrorMsg(err instanceof Error ? err.message : 'Login failed. Please try again.');
-            setLoading(false);
-          });
-      });
-    } else {
-      // Mock register flow since it's not fully implemented in backend yet
-      setTimeout(() => {
-        setLoading(false);
-        const isTeacher = role === 'Instructor';
-        const mockProfile: UserProfile = {
-          email: email,
-          name: name,
-          role: isTeacher ? 'Instructor' : 'Student',
-          enrolledPrograms: [],
-          xpPoints: 20,
-          badges: ['Starter Badge'],
-        };
-        onAuthSuccess(mockProfile);
-      }, 1200);
+    if (viewMode !== 'login') {
+      setLoading(false);
+      onNavigateRegister?.();
+      return;
     }
+
+    import('../api/loginApi').then(({ loginApi }) => {
+      loginApi({ email, password })
+        .then(({ user }) => {
+          onAuthSuccess(user);
+        })
+        .catch((err) => {
+          setErrorMsg(err instanceof Error ? err.message : 'Login failed. Please try again.');
+          setLoading(false);
+        });
+    });
   };
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
@@ -138,7 +120,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
       }
       try {
         const { resetPasswordApi } = await import('../api/loginApi');
-        await resetPasswordApi(resetEmail, resetOtp, resetNewPassword);
+        await resetPasswordApi(resetOtp, resetNewPassword);
         setResetPhase(3);
         setTimeout(() => {
           setIsForgotPasswordOpen(false);
@@ -282,7 +264,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.15 }}
-                  className="font-black text-white tracking-tight text-[28px] uppercase"
+                  className="font-black text-slate-900 tracking-tight text-[28px] uppercase"
                 >
                   {viewMode === 'login' ? 'Welcome Back' : 'Join the Lab'}
                 </motion.h2>
@@ -294,7 +276,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                 >
                   {viewMode === 'login'
                     ? 'Access your engineering dashboard & simulation laboratories.'
-                    : 'Get credentials to track certifications, compete globally and earn XP.'}
+                    : 'Submit a student registration request for administrator review.'}
                 </motion.p>
               </div>
 
@@ -325,24 +307,6 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   animate="visible"
                   className="flex flex-col gap-5"
                 >
-
-                  {/* Full name */}
-                  {viewMode === 'register' && (
-                    <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Full Name</label>
-                      <div className="relative group">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-red transition-colors" />
-                        <input
-                          type="text"
-                          placeholder="Selam Berhe"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all"
-                        />
-                      </div>
-                    </motion.div>
-                  )}
 
                   {/* Email */}
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
@@ -396,36 +360,6 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   </motion.div>
 
                   {/* Role */}
-                  {viewMode === 'register' && (
-                    <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Choose Your Role</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setRole('Student')}
-                          className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border-2 transition-all ${
-                            role === 'Student'
-                              ? 'bg-brand-red/10 border-brand-red text-brand-red shadow-sm shadow-brand-red/20'
-                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-brand-red/40'
-                          }`}
-                        >
-                          Student Cohort
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRole('Instructor')}
-                          className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border-2 transition-all ${
-                            role === 'Instructor'
-                              ? 'bg-brand-red/10 border-brand-red text-brand-red shadow-sm shadow-brand-red/20'
-                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-brand-red/40'
-                          }`}
-                        >
-                          STEM Instructor
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-
                   {/* Submit */}
                   <motion.div variants={staggerItem}>
                     <button
@@ -444,7 +378,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                         </span>
                       ) : (
                         <>
-                          <span>{viewMode === 'login' ? 'Access Dashboard' : 'Create Profile'}</span>
+                          <span>{viewMode === 'login' ? 'Access Dashboard' : 'Open Registration'}</span>
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </>
                       )}

@@ -20,7 +20,7 @@ import galleryImg6 from '../../assets/0M6A6595.00_00_03_09.Still001.jpg';
 import galleryImg7 from '../../assets/0M6A6595.00_07_19_06.Still027.jpg';
 import galleryImg8 from '../../assets/0M6A6595.00_13_52_12.Still006.jpg';
 import demoVideo from '../../assets/video_2026-06-15_14-39-09.mp4';
-import demoVideo2 from '../assets/demo.mp4';
+import demoVideo2 from '../../assets/demo.mp4';
 
 interface HomePageProps {
   currentUser: UserProfile | null;

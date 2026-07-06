@@ -11,6 +11,7 @@ import { UserProfile, VexRobot } from '@/src/shared/types';
 import { MOCK_ANALYTICS, MOCK_NOTIFICATIONS, MOCK_TOURNAMENTS, MOCK_WORKSHOPS, MOCK_VEX_TEAM, MOCK_VEX_ROBOTS, MOCK_VEX_AWARDS, MOCK_VEX_NOTEBOOK, MOCK_VEX_MATCHES } from '@/src/shared/constants/mock-data';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
+import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 import MediaContent from './MediaContent';
 import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import SponsorManagement from './SponsorManagement';
@@ -106,6 +107,16 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       }}
       onLogout={onLogout}
     >
+      <DashboardCommandCenter
+        title="Operations Command Center"
+        subtitle="Branch activity, CMS work, payments, events, and registration queues."
+        signals={[
+          { label: 'Registrations', value: '18', detail: 'new this week', icon: UserPlus, tone: 'blue' },
+          { label: 'Payments', value: '6', detail: 'need reconciliation', icon: DollarSign, tone: 'amber' },
+          { label: 'Events', value: String(MOCK_TOURNAMENTS.length + MOCK_WORKSHOPS.length), detail: 'active schedules', icon: Calendar, tone: 'emerald' },
+          { label: 'CMS', value: 'Ready', detail: 'content tools online', icon: FileText, tone: 'emerald' },
+        ]}
+      />
       {renderPage()}
     </AppLayout>
   );

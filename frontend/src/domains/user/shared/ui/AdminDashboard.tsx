@@ -5,11 +5,12 @@ import {
   Plus, RefreshCw, AlertTriangle, Clock, CheckCircle, XCircle,
   BookOpen, MessageSquare, GraduationCap, Award, DollarSign, Building,
   Handshake, UserCog, Swords, Medal, Wrench, ClipboardList, Cpu, Star, Target,
-  Edit3, Trash2, Eye, Search, Filter, Download, ChevronDown, Save, X,
+  Edit3, Trash2, Eye, EyeOff, Search, Filter, Download, ChevronDown, Save, X,
   UserPlus, UserCheck, UserX, Lock, Globe, Zap, TrendingUp, TrendingDown,
   Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive,
 } from 'lucide-react';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
+import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import { UserProfile } from '@/src/shared/types';
 import {
@@ -17,6 +18,7 @@ import {
   toggleUserStatusApi,
   archiveUserApi,
   createStaffApi,
+  createBranchManagerApi,
   updateUserApi,
   fetchAuditLogsApi,
   resolveRole,
@@ -183,6 +185,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
   const [formData, setFormData] = useState({
     email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor'
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -227,27 +230,56 @@ function UserManagement({ userRole }: { userRole?: string }) {
     }
   };
 
-  const commonPasswords = new Set([
-    'password', 'password1', 'password123', '12345678', '123456789',
-    '1234567890', 'qwerty123', 'abc123', 'letmein', 'welcome',
-    'admin', 'admin123', 'test123', 'passw0rd', 'hello123',
-  ]);
+  const minPwLength = formData.role === 'super_admin' ? 6 : 8;
 
   const validatePassword = (pw: string): string | null => {
-    if (pw.length < 8) return 'Password must be at least 8 characters';
-    if (commonPasswords.has(pw.toLowerCase())) return 'This password is too common';
-    if (/^\d+$/.test(pw)) return 'Password cannot be entirely numeric';
+    if (pw.length < minPwLength) return `Password must be at least ${minPwLength} characters`;
     return null;
   };
 
   const handleAdd = async () => {
+    setError(null);
+    const email = formData.email.trim();
+    const firstName = formData.first_name.trim();
+    const lastName = formData.last_name.trim();
+
+    if (!email || !firstName || !lastName) {
+      setError('Email, first name, and last name are required.');
+      return;
+    }
+    if (!formData.branch_id) {
+      setError('Please select a branch before creating this user.');
+      return;
+    }
+    if (formData.role === 'branch_manager' && userRole !== 'Admin') {
+      setError('Only an Admin can create a branch manager account.');
+      return;
+    }
+
     const pwError = validatePassword(formData.password);
     if (pwError) {
       setError(pwError);
       return;
     }
     try {
-      await createStaffApi(formData);
+      if (formData.role === 'branch_manager') {
+        await createBranchManagerApi({
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          password: formData.password,
+          branch_id: formData.branch_id,
+        });
+      } else {
+        await createStaffApi({
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          password: formData.password,
+          branch_id: formData.branch_id,
+          role: formData.role,
+        });
+      }
       setShowAddModal(false);
       setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor' });
       await load();
@@ -283,6 +315,16 @@ function UserManagement({ userRole }: { userRole?: string }) {
     ) ?? []
   , [data, search]);
 
+  const userStats = useMemo(() => {
+    const users = data?.results ?? [];
+    return {
+      active: users.filter(u => u.status === 'Active').length,
+      pending: users.filter(u => u.status === 'Pending').length,
+      suspended: users.filter(u => u.status === 'Suspended').length,
+      archived: users.filter(u => u.status === 'Archived').length,
+    };
+  }, [data]);
+
   return (
     <div className="space-y-4">
       {error && (
@@ -292,6 +334,20 @@ function UserManagement({ userRole }: { userRole?: string }) {
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4" /></button>
         </div>
       )}
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {[
+          { label: 'Active', value: userStats.active, color: 'text-emerald-600 bg-emerald-50' },
+          { label: 'Pending', value: userStats.pending, color: 'text-amber-600 bg-amber-50' },
+          { label: 'Suspended', value: userStats.suspended, color: 'text-red-600 bg-red-50' },
+          { label: 'Archived', value: userStats.archived, color: 'text-slate-600 bg-slate-100' },
+        ].map(stat => (
+          <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className={`mb-2 inline-flex rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide ${stat.color}`}>{stat.label}</p>
+            <p className="text-2xl font-black text-slate-900">{stat.value}</p>
+            <p className="text-xs text-slate-400">accounts in current page</p>
+          </div>
+        ))}
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -355,16 +411,22 @@ function UserManagement({ userRole }: { userRole?: string }) {
       {showAddModal && (
         <Modal title="Add Staff User" onClose={() => setShowAddModal(false)}>
           <div className="space-y-3">
-            <div><label className="text-xs font-medium text-slate-500 mb-1 block">Email</label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="user@email.com" /></div>
+
+            <div><label className="text-xs font-medium text-slate-500 mb-1 block">Email</label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. yonas.tadesse@email.com" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">First Name</label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Last Name</label><input value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">First Name</label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Yonas" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Last Name</label><input value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Tadesse" /></div>
             </div>
             <div><label className="text-xs font-medium text-slate-500 mb-1 block">Password</label>
-              <input type="password" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="********" />
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. ••••••••" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               <div className="mt-1.5 space-y-1">
-                {['At least 8 characters', 'Not a common password', 'Not entirely numeric'].map((req, i) => {
-                  const met = i === 0 ? formData.password.length >= 8 : i === 1 ? !commonPasswords.has(formData.password.toLowerCase()) : !/^\d+$/.test(formData.password);
+                {[`At least ${minPwLength} characters`].map((req) => {
+                  const met = formData.password.length >= minPwLength;
                   return (
                     <div key={req} className={`flex items-center gap-1.5 text-xs ${formData.password ? (met ? 'text-green-600' : 'text-red-500') : 'text-slate-400'}`}>
                       <span>{met ? '✓' : '○'}</span> {req}
@@ -377,8 +439,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
               <div><label className="text-xs font-medium text-slate-500 mb-1 block">Role</label>
                 <select value={formData.role} onChange={e => setFormData(p => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30 bg-white">
                   <option value="instructor">Instructor</option>
-                  <option value="branch_manager">Manager</option>
-                  <option value="super_admin">Admin</option>
+                  {userRole === 'Admin' && <option value="branch_manager">Branch Manager</option>}
                 </select>
               </div>
               <div><label className="text-xs font-medium text-slate-500 mb-1 block">Branch</label>
@@ -390,7 +451,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
             </div>
             <div className="flex gap-2 pt-2">
               <button onClick={() => setShowAddModal(false)} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button onClick={handleAdd} className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark">Create</button>
+              <button onClick={handleAdd} disabled={!formData.branch_id} className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50">Create</button>
             </div>
           </div>
         </Modal>
@@ -935,22 +996,55 @@ function RolesPermissions() {
 }
 
 function ContentModeration() {
+  const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [resolved, setResolved] = useState<string[]>([]);
   const flags = [
-    { id: 'f1', title: 'Inappropriate language in thread', author: 'FlagBot', post: 'Re: How to tune PID', date: '2 hours ago', severity: 'medium' },
-    { id: 'f2', title: 'Spam promotional content', author: 'FlagBot', post: 'Cheap robots for sale!', date: '5 hours ago', severity: 'high' },
-    { id: 'f3', title: 'Off-topic discussion', author: 'Coach Nebil', post: 'General chat thread', date: '1 day ago', severity: 'low' },
+    { id: 'f1', title: 'Inappropriate language in thread', author: 'FlagBot', post: 'Re: How to tune PID', date: '2 hours ago', severity: 'medium', queue: 'Forum', excerpt: 'This comment used language that may violate student safety rules.' },
+    { id: 'f2', title: 'Spam promotional content', author: 'FlagBot', post: 'Cheap robots for sale!', date: '5 hours ago', severity: 'high', queue: 'Community', excerpt: 'External sales link detected in a student discussion thread.' },
+    { id: 'f3', title: 'Off-topic discussion', author: 'Coach Nebil', post: 'General chat thread', date: '1 day ago', severity: 'low', queue: 'Forum', excerpt: 'Thread drifted away from the assigned robotics challenge.' },
+    { id: 'f4', title: 'Unverified event photo', author: 'Media Review', post: 'Workshop gallery upload', date: '2 days ago', severity: 'medium', queue: 'Media', excerpt: 'Photo includes students and needs publishing confirmation.' },
   ];
   const severityColor: Record<string, string> = { high: 'text-red-600 bg-red-50', medium: 'text-amber-600 bg-amber-50', low: 'text-slate-600 bg-slate-100' };
+  const visible = flags.filter(f => !resolved.includes(f.id) && (filter === 'all' || f.severity === filter));
+  const stats = [
+    { label: 'Open Flags', value: String(flags.length - resolved.length), detail: 'pending review', icon: AlertTriangle, tone: 'amber' as const },
+    { label: 'High Risk', value: String(flags.filter(f => f.severity === 'high' && !resolved.includes(f.id)).length), detail: 'needs first pass', icon: XCircle, tone: 'red' as const },
+    { label: 'Media Queue', value: String(flags.filter(f => f.queue === 'Media' && !resolved.includes(f.id)).length), detail: 'publish review', icon: Camera, tone: 'blue' as const },
+    { label: 'Resolved', value: String(resolved.length), detail: 'this session', icon: CheckCircle, tone: 'emerald' as const },
+  ];
   return (
     <div className="space-y-4">
-      {flags.map(f => (
+      <DashboardCommandCenter title="Moderation Queue" subtitle="Review student-facing content before it becomes visible." signals={stats} />
+      <div className="flex flex-wrap gap-2">
+        {(['all', 'high', 'medium', 'low'] as const).map(level => (
+          <button key={level} onClick={() => setFilter(level)}
+            className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wide transition-all ${filter === level ? 'bg-brand-red text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}>
+            {level}
+          </button>
+        ))}
+      </div>
+      {visible.map(f => (
         <div key={f.id} className="bg-white border border-slate-200 rounded-xl p-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1"><h3 className="font-semibold text-base text-slate-900">{f.title}</h3><p className="text-sm text-slate-500 mt-1">in <span className="font-medium text-slate-700">{f.post}</span></p><div className="flex items-center gap-3 mt-2 text-xs text-slate-400"><span>Flagged by {f.author}</span><span>{f.date}</span><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${severityColor[f.severity] || ''}`}>{f.severity}</span></div></div>
-            <div className="flex gap-2 shrink-0"><button className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-semibold hover:bg-emerald-100"><CheckCircle className="w-3.5 h-3.5" /> Approve</button><button className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100"><XCircle className="w-3.5 h-3.5" /> Remove</button></div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold text-base text-slate-900">{f.title}</h3>
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-600">{f.queue}</span>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">in <span className="font-medium text-slate-700">{f.post}</span></p>
+              <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{f.excerpt}</p>
+              <div className="flex items-center gap-3 mt-2 text-xs text-slate-400"><span>Flagged by {f.author}</span><span>{f.date}</span><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${severityColor[f.severity] || ''}`}>{f.severity}</span></div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              <button onClick={() => setResolved(prev => [...prev, f.id])} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-semibold hover:bg-emerald-100"><CheckCircle className="w-3.5 h-3.5" /> Approve</button>
+              <button onClick={() => setResolved(prev => [...prev, f.id])} className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100"><XCircle className="w-3.5 h-3.5" /> Remove</button>
+            </div>
           </div>
         </div>
       ))}
+      {visible.length === 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-400">No moderation items match this view.</div>
+      )}
     </div>
   );
 }
@@ -959,6 +1053,8 @@ function AuditLogs() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [actionFilter, setActionFilter] = useState<'all' | 'write' | 'auth' | 'danger'>('all');
 
   const load = async () => {
     setLoading(true);
@@ -989,6 +1085,24 @@ function AuditLogs() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  const visibleLogs = logs.filter(log => {
+    const action = log.action.toLowerCase();
+    const matchesQuery = [log.action, log.actor?.full_name, log.resource_type, log.ip_address].filter(Boolean).some(value => String(value).toLowerCase().includes(query.toLowerCase()));
+    const matchesFilter =
+      actionFilter === 'all' ||
+      (actionFilter === 'auth' && (action.includes('login') || action.includes('logout'))) ||
+      (actionFilter === 'danger' && (action.includes('delete') || action.includes('remove') || action.includes('suspend') || action.includes('archive'))) ||
+      (actionFilter === 'write' && (action.includes('create') || action.includes('update') || action.includes('change') || action.includes('edit')));
+    return matchesQuery && matchesFilter;
+  });
+
+  const signals = [
+    { label: 'Entries', value: String(logs.length), detail: 'loaded from API', icon: FileText, tone: 'slate' as const },
+    { label: 'Writes', value: String(logs.filter(l => /create|update|change|edit/i.test(l.action)).length), detail: 'configuration changes', icon: Edit3, tone: 'amber' as const },
+    { label: 'Auth Events', value: String(logs.filter(l => /login|logout/i.test(l.action)).length), detail: 'access activity', icon: Lock, tone: 'blue' as const },
+    { label: 'Danger Ops', value: String(logs.filter(l => /delete|remove|suspend|archive/i.test(l.action)).length), detail: 'needs review', icon: AlertTriangle, tone: 'red' as const },
+  ];
+
   return (
     <div className="space-y-4">
       {error && (
@@ -998,9 +1112,19 @@ function AuditLogs() {
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4" /></button>
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400">{logs.length} entries</span>
+      <DashboardCommandCenter title="System Logs" subtitle="Trace account, branch, CMS, and security activity." signals={signals} />
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search action, actor, IP..." className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-blue/40" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {(['all', 'write', 'auth', 'danger'] as const).map(item => (
+            <button key={item} onClick={() => setActionFilter(item)} className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wide ${actionFilter === item ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}>{item}</button>
+          ))}
+        <span className="text-xs text-slate-400">{visibleLogs.length} shown</span>
         <button onClick={load} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100" title="Refresh"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -1008,9 +1132,9 @@ function AuditLogs() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />Loading audit logs...</td></tr>
-            ) : logs.length === 0 ? (
+            ) : visibleLogs.length === 0 ? (
               <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400">No audit log entries found</td></tr>
-            ) : logs.map(l => (
+            ) : visibleLogs.map(l => (
               <tr key={l.id} className="hover:bg-slate-50/50">
                 <td className="px-4 py-3 font-medium text-slate-900">{l.action}</td>
                 <td className="px-4 py-3 text-slate-600">{l.actor?.full_name || 'System'}</td>
@@ -1677,18 +1801,18 @@ function SchoolManagementSection() {
         <Modal title="Add School" onClose={() => setShowAddModal(false)}>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Name</label><input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Code</label><input value={formData.code} onChange={e => setFormData(p => ({ ...p, code: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. AAMIN" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Name</label><input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Addis Ababa Science & Technology University" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Code</label><input value={formData.code} onChange={e => setFormData(p => ({ ...p, code: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. AASTU" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Email</label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Phone</label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Email</label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. info@aastu.edu.et" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Phone</label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. +251 911 000 000" /></div>
             </div>
-            <div><label className="text-xs font-medium text-slate-500 mb-1 block">Address</label><input value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
+            <div><label className="text-xs font-medium text-slate-500 mb-1 block">Address</label><input value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Bole, Africa Avenue" /></div>
             <div className="grid grid-cols-3 gap-3">
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">City</label><input value={formData.city} onChange={e => setFormData(p => ({ ...p, city: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">State</label><input value={formData.state_region} onChange={e => setFormData(p => ({ ...p, state_region: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
-              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Country</label><input value={formData.country} onChange={e => setFormData(p => ({ ...p, country: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">City</label><input value={formData.city} onChange={e => setFormData(p => ({ ...p, city: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Addis Ababa" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">State</label><input value={formData.state_region} onChange={e => setFormData(p => ({ ...p, state_region: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Addis Ababa" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Country</label><input value={formData.country} onChange={e => setFormData(p => ({ ...p, country: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Ethiopia" /></div>
             </div>
             <div className="flex gap-2 pt-2">
               <button onClick={() => setShowAddModal(false)} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
@@ -1788,6 +1912,16 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       }}
       onLogout={onLogout}
     >
+      <DashboardCommandCenter
+        title="Admin Control Center"
+        subtitle="Accounts, moderation, security logs, and platform operations."
+        signals={[
+          { label: 'User Queue', value: '24', detail: 'pending account actions', icon: Users, tone: 'blue' },
+          { label: 'Moderation', value: '4', detail: 'open content flags', icon: MessageSquare, tone: 'amber' },
+          { label: 'System Logs', value: 'Live', detail: 'audit API connected', icon: FileText, tone: 'emerald' },
+          { label: 'Health', value: '99.97%', detail: 'platform uptime', icon: Activity, tone: 'emerald' },
+        ]}
+      />
       {renderPage()}
     </AppLayout>
   );

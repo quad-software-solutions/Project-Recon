@@ -163,6 +163,16 @@ export async function createStaffApi(data: {
   await http.post('/accounts/users/staff/', data);
 }
 
+export async function createBranchManagerApi(data: {
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  branch_id: string;
+}): Promise<void> {
+  await http.post('/accounts/users/branch-managers/', data);
+}
+
 /* ─── AUDIT API ─── */
 
 export async function fetchAuditLogsApi(): Promise<AuditLogEntry[]> {

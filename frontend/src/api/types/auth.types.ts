@@ -1,6 +1,11 @@
 export interface LoginRequest {
   email: string;
   password: string;
+  device_id?: string;
+  device_name?: string;
+  device_type?: 'desktop' | 'mobile' | 'tablet' | 'other';
+  fingerprint?: string;
+  user_agent?: string;
 }
 
 export interface LoginResponse {
@@ -13,7 +18,6 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ResetPasswordRequest {
-  email: string;
   otp: string;
   new_password: string;
 }

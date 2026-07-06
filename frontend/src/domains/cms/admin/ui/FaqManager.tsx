@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical } from 'lucide-react';
-import { api, Faq } from '../../api/cmsApi';
+import { api, Faq } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
 interface Props { addToast: (msg: string, type: 'success' | 'error') => void }

@@ -71,10 +71,20 @@ function resolveRole(assignments: Array<{ role: string; is_primary?: boolean; is
  *  4. Map backend user to frontend UserProfile
  */
 export async function loginApi(credentials: LoginCredentials): Promise<AuthResponse> {
+  const deviceId = localStorage.getItem('device_id') || crypto.randomUUID();
+  localStorage.setItem('device_id', deviceId);
+
   // Step 1: Authenticate – get JWT tokens
   const tokenData = await http.post<{ access: string; refresh: string }>(
     '/accounts/login/',
-    { email: credentials.email, password: credentials.password }
+    {
+      email: credentials.email,
+      password: credentials.password,
+      device_id: deviceId,
+      device_name: navigator.platform || 'Browser',
+      fingerprint: deviceId,
+      user_agent: navigator.userAgent,
+    }
   );
 
   // Step 2: Persist tokens
@@ -171,9 +181,8 @@ export async function forgotPasswordApi(email: string): Promise<void> {
 /**
  * Call the backend reset-password endpoint to submit the OTP and new password.
  */
-export async function resetPasswordApi(email: string, otp: string, password: string): Promise<void> {
+export async function resetPasswordApi(otp: string, password: string): Promise<void> {
   await http.post('/accounts/password/reset/', {
-    email,
     otp,
     new_password: password
   });

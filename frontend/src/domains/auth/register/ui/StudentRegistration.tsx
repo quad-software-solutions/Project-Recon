@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Phone, BookOpen, ShieldCheck, Check, CreditCard, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, Info, ArrowRight } from 'lucide-react';
+import { registerApi } from '../api/registerApi';
 
 import slide1 from '@/assets/slider/faj.jpg';
 import slide2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
@@ -56,9 +57,10 @@ export default function StudentRegistration() {
     name: '', studentEmail: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: ''
   });
   const [selectedCourses, setSelectedCourses] = useState<Record<string, 'class' | 'private' | null>>({});
-  const [paymentMethod, setPaymentMethod] = useState<'chappa' | 'stripe'>('chappa');
+  const [paymentMethod, setPaymentMethod] = useState<'chapa' | 'stripe'>('chapa');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -98,16 +100,34 @@ export default function StudentRegistration() {
     setStep(2);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    setSubmitError('');
     if (subtotal === 0) {
-      alert("Please select at least one course.");
+      setSubmitError('Please select at least one course.');
       return;
     }
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      await registerApi({
+        ...formData,
+        selectedCourses: Object.keys(selectedCourses).map(id => {
+          const course = allCourses.find(c => c.id === id)!;
+          const format = selectedCourses[id]!;
+          return {
+            name: course.name,
+            format,
+            price: format === 'private' ? course.pricePrivate : course.priceClass,
+          };
+        }),
+        paymentMethod,
+        total: grandTotal,
+      });
       setIsSubmitting(false);
       setIsSuccess(true);
-    }, 2000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Registration request failed. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -133,10 +153,10 @@ export default function StudentRegistration() {
           </div>
           <h2 className="font-black text-2xl text-slate-900 uppercase tracking-tight mb-2">Registration Complete!</h2>
           <p className="text-slate-600 font-medium mb-8 text-sm leading-relaxed">
-            Thank you for registering <strong className="text-slate-900">{formData.name}</strong>. We have sent a confirmation receipt and dashboard access instructions to <strong className="text-brand-red">{formData.parentEmail}</strong>.
+            Thank you for registering <strong className="text-slate-900">{formData.name}</strong>. Your request was sent to the admissions team. They will confirm payment and dashboard access through <strong className="text-brand-red">{formData.parentEmail}</strong>.
           </p>
           <button onClick={() => window.location.reload()} className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-8 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97]">
-            Go to Dashboard
+            Back to Home
           </button>
         </motion.div>
       </div>
@@ -467,12 +487,12 @@ export default function StudentRegistration() {
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod('chappa')}
+                          onClick={() => setPaymentMethod('chapa')}
                           className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-black uppercase tracking-wider transition-all ${
-                            paymentMethod === 'chappa' ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm shadow-brand-red/20' : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                            paymentMethod === 'chapa' ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm shadow-brand-red/20' : 'border-slate-200 text-slate-600 hover:border-slate-300'
                           }`}
                         >
-                          Chappa
+                          Chapa
                         </button>
                         <button
                           type="button"
@@ -499,6 +519,11 @@ export default function StudentRegistration() {
                           </>
                         )}
                       </button>
+                      {submitError && (
+                        <div className="mt-3 rounded-xl border border-brand-red/20 bg-brand-red/10 p-3 text-xs font-bold text-brand-red">
+                          {submitError}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
