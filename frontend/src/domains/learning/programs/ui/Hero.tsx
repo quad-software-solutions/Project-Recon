@@ -4,15 +4,15 @@ import { ArrowRight, Globe, Award, ShoppingBag, Sparkles } from 'lucide-react';
 import Robotics3DShowcase from '../../../store/products/ui/Robotics3DShowcase';
 import BrandLogo from '@/src/shared/ui/BrandLogo';
 
-import untitledLogo from '@/src/assets/Untitled.png';
-import sliderImg1 from '@/assets/slider/faj.jpg';
-import sliderImg2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
-import sliderImg3 from '@/assets/slider/photo_2026-06-15_18-51-59.jpg';
-import sliderImg4 from '@/assets/slider/photo_2026-06-15_18-52-03.jpg';
-import sliderImg5 from '@/assets/slider/photo_2026-06-15_18-52-07.jpg';
-import sliderImg6 from '@/assets/slider/photo_2026-06-15_18-52-11.jpg';
-import sliderImg7 from '@/assets/slider/photo_2026-06-15_18-52-21.jpg';
-import sliderImg8 from '@/assets/slider/photo_2026-06-15_18-52-25.jpg';
+const untitledLogo = '/placeholder.svg';
+const sliderImg1 = '/placeholder.svg';
+const sliderImg2 = '/placeholder.svg';
+const sliderImg3 = '/placeholder.svg';
+const sliderImg4 = '/placeholder.svg';
+const sliderImg5 = '/placeholder.svg';
+const sliderImg6 = '/placeholder.svg';
+const sliderImg7 = '/placeholder.svg';
+const sliderImg8 = '/placeholder.svg';
 
 const SLIDER_IMAGES = [
   sliderImg1, sliderImg2, sliderImg3, sliderImg4,

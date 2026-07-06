@@ -13,8 +13,8 @@ import { ROBOTICS_PROGRAMS, MOCK_VEX_TEAM, MOCK_VEX_MATCHES, MOCK_VEX_AWARDS, MO
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 
-import heroImg from '@/assets/0M6A6595.00_07_20_18.Still028.jpg';
-import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
+const heroImg = '/placeholder.svg';
+const profileImg = '/placeholder.svg';
 
 import ProfileOverview from './ProfileOverview';
 import AttendanceTracker from './AttendanceTracker';

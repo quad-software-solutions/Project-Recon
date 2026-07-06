@@ -19,10 +19,10 @@ import {
   Inbox
 } from 'lucide-react';
 
-import imgAddis from '@/assets/photo_2026-06-15_14-39-18.jpg';
-import imgUsa from '@/assets/0M6A6519.00_25_12_08.Still037.jpg';
-import imgCanada from '@/assets/photo_2026-06-15_14-39-23.jpg';
-import imgChina from '@/assets/photo_2026-06-15_14-39-40.jpg';
+const imgAddis = '/placeholder.svg';
+const imgUsa = '/placeholder.svg';
+const imgCanada = '/placeholder.svg';
+const imgChina = '/placeholder.svg';
 
 interface MapNode {
   id: string;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserProfile } from '@/src/shared/types';
 import { Mail, Phone, MapPin, School, Calendar, GraduationCap, CheckCircle2, Award, BookOpen } from 'lucide-react';
-import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
+const profileImg = '/placeholder.svg';
 
 interface Props {
   currentUser: UserProfile;

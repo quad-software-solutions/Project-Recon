@@ -7,14 +7,14 @@ import {
 import { ActiveTab, UserProfile } from '@/src/shared/types';
 import BrandLogo from '@/src/shared/ui/BrandLogo';
 
-import slide1 from '@/assets/slider/faj.jpg';
-import slide2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
-import slide3 from '@/assets/slider/photo_2026-06-15_18-51-59.jpg';
-import slide4 from '@/assets/slider/photo_2026-06-15_18-52-03.jpg';
-import slide5 from '@/assets/slider/photo_2026-06-15_18-52-07.jpg';
-import slide6 from '@/assets/slider/photo_2026-06-15_18-52-11.jpg';
-import slide7 from '@/assets/slider/photo_2026-06-15_18-52-21.jpg';
-import slide8 from '@/assets/slider/photo_2026-06-15_18-52-25.jpg';
+const slide1 = '/placeholder.svg';
+const slide2 = '/placeholder.svg';
+const slide3 = '/placeholder.svg';
+const slide4 = '/placeholder.svg';
+const slide5 = '/placeholder.svg';
+const slide6 = '/placeholder.svg';
+const slide7 = '/placeholder.svg';
+const slide8 = '/placeholder.svg';
 
 const SLIDER_IMAGES = [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8];
 

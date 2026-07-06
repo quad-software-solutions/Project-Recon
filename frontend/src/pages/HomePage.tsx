@@ -11,16 +11,16 @@ import Updates from '../domains/learning/programs/ui/Updates';
 import { ROBOTICS_PROGRAMS } from '../shared/constants/mock-data';
 import { UserProfile, Program, ActiveTab } from '../shared/types';
 
-import galleryImg1 from '../../assets/photo_2026-06-15_14-39-46.jpg';
-import galleryImg2 from '../../assets/photo_2026-06-15_14-39-52.jpg';
-import galleryImg3 from '../../assets/photo_2026-06-15_14-39-58.jpg';
-import galleryImg4 from '../../assets/photo_2026-06-15_14-40-04.jpg';
-import galleryImg5 from '../../assets/photo_2026-06-15_14-40-10.jpg';
-import galleryImg6 from '../../assets/0M6A6595.00_00_03_09.Still001.jpg';
-import galleryImg7 from '../../assets/0M6A6595.00_07_19_06.Still027.jpg';
-import galleryImg8 from '../../assets/0M6A6595.00_13_52_12.Still006.jpg';
-import demoVideo from '../../assets/video_2026-06-15_14-39-09.mp4';
-import demoVideo2 from '../assets/demo.mp4';
+const galleryImg1 = '/placeholder.svg';
+const galleryImg2 = '/placeholder.svg';
+const galleryImg3 = '/placeholder.svg';
+const galleryImg4 = '/placeholder.svg';
+const galleryImg5 = '/placeholder.svg';
+const galleryImg6 = '/placeholder.svg';
+const galleryImg7 = '/placeholder.svg';
+const galleryImg8 = '/placeholder.svg';
+const demoVideo = '/placeholder.mp4';
+const demoVideo2 = '/placeholder.mp4';
 
 interface HomePageProps {
   currentUser: UserProfile | null;
