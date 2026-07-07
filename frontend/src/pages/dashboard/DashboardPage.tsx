@@ -3,6 +3,7 @@ import StudentDashboard from '../../domains/user/student/dashboard/ui/StudentDas
 import TeacherDashboard from '../../domains/user/teacher/dashboard/ui/TeacherDashboard';
 import ManagerDashboard from '../../domains/user/manager/dashboard/ui/ManagerDashboard';
 import AdminDashboard from '../../domains/user/shared/ui/AdminDashboard';
+import SecretaryDashboard from '../../domains/user/secretary/dashboard/ui/SecretaryDashboard';
 
 interface DashboardPageProps {
   currentUser: UserProfile;
@@ -18,6 +19,9 @@ export default function DashboardPage({ currentUser, onLogout }: DashboardPagePr
   }
   if (currentUser.role === 'Instructor') {
     return <TeacherDashboard currentUser={currentUser} onLogout={onLogout} />;
+  }
+  if (currentUser.role === 'Secretary') {
+    return <SecretaryDashboard currentUser={currentUser} onLogout={onLogout} />;
   }
   return <StudentDashboard currentUser={currentUser} onLogout={onLogout} />;
 }
