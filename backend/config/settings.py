@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.shared',
     'apps.cms',
+    'apps.academic',
 
 ]
 
