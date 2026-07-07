@@ -24,7 +24,7 @@ import { useAuth } from '../shared/hooks/useAuth';
 import { useCart } from '../shared/hooks/useCart';
 import { useNavigation } from '../shared/hooks/useNavigation';
 
-import { ActiveTab, CartItem, Program, UserProfile } from '../shared/types';
+import { ActiveTab, CartItem, UserProfile } from '../shared/types';
 
 const LoginView = React.lazy(() => import('../domains/auth/login/ui/LoginView'));
 const AuthModal = React.lazy(() => import('../domains/auth/modal/ui/AuthModal'));
@@ -50,18 +50,15 @@ export default function App() {
     handleTabChange('home');
   };
 
-  const [selectedProgramSpec, setSelectedProgramSpec] = useState<Program | null>(null);
+  const [selectedProgramSpec, setSelectedProgramSpec] = useState<any>(null);
 
-  const handleEnrollInProgram = (programId: string) => {
+  const handleEnrollInProgram = (_programId: string) => {
     if (!currentUser) {
       handleTabChange('login');
       return;
     }
-    const alreadyEnrolled = currentUser.enrolledPrograms.includes(programId);
-    if (alreadyEnrolled) return;
     const updatedUser: UserProfile = {
       ...currentUser,
-      enrolledPrograms: [...currentUser.enrolledPrograms, programId],
       xpPoints: currentUser.xpPoints + 50,
       badges: currentUser.badges.includes('Class Pioneer')
         ? currentUser.badges

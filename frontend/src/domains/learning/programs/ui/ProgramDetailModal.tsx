@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Clock, Award, Users, BookOpen } from 'lucide-react';
-import { Program } from '@/src/shared/types';
+import { ProgramDisplay } from '@/src/shared/types';
 
 interface ProgramDetailModalProps {
-  program: Program | null;
+  program: ProgramDisplay | null;
   onClose: () => void;
   onEnroll: (programId: string) => void;
 }

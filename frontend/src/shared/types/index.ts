@@ -19,11 +19,21 @@ export interface CartItem {
 
 export interface Program {
   id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  supports_group: boolean;
+  supports_individual: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProgramDisplay extends Program {
   title: string;
-  category: 'VEX IQ' | 'VEX V5' | 'Enjoy AI' | 'Arduino' | 'STEM Foundations';
-  description: string;
+  category: string;
   detailedDescription: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  level: string;
   ageGroup: string;
   duration: string;
   syllabus: string[];
@@ -52,7 +62,6 @@ export interface UserProfile {
   date_of_birth?: string;
   gender?: string;
   role: 'Student' | 'Instructor' | 'Admin' | 'Manager' | 'Parent' | 'EventManager';
-  enrolledPrograms: string[];
   bio?: string;
   xpPoints: number;
   badges: string[];
@@ -78,19 +87,15 @@ export interface SubscriptionTier {
 
 export interface Certificate {
   id: string;
-  studentName: string;
-  programTitle: string;
-  category: string;
-  issueDate: string;
-  type: 'completion' | 'competition' | 'milestone' | 'award';
-  verificationCode: string;
-  rank?: string;
-  eventName?: string;
-  hoursCompleted?: number;
-  eventId?: string;
-  awardCategory?: string;
-  teamName?: string;
-  schoolName?: string;
+  sub_program: string;
+  title: string;
+  background: string;
+  institute_logo?: string;
+  signature?: string;
+  body_text: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AppNotification {
@@ -316,6 +321,179 @@ export interface VexMatchRecord {
   score: string;
   result: 'win' | 'loss' | 'upcoming';
   notes: string;
+}
+
+/* ─── ACADEMIC TYPES ─── */
+
+export type ClassType = 'GROUP' | 'INDIVIDUAL';
+export type DurationUnit = 'DAY' | 'WEEK' | 'MONTH';
+export type EnrollmentStatus = 'PENDING_PAYMENT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type PaymentMethod = 'CASH' | 'ONLINE';
+export type PaymentProvider = 'CHAPA' | 'STRIPE';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+export type ProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+export type MaterialType = 'PDF' | 'PPT' | 'PPTX' | 'DOC' | 'DOCX' | 'IMAGE' | 'ZIP' | 'OTHER';
+
+export interface StudentProfile {
+  id: string;
+  user: string;
+  branch: string;
+  date_joined: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubProgram {
+  id: string;
+  program: string;
+  name: string;
+  slug: string;
+  description?: string;
+  duration?: number;
+  duration_unit?: DurationUnit;
+  fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AcademicClass {
+  id: string;
+  sub_program: string;
+  branch: string;
+  instructor: string;
+  name: string;
+  class_type: ClassType;
+  capacity?: number;
+  start_date?: string;
+  end_date?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Enrollment {
+  id: string;
+  student: string;
+  class: string;
+  enrolled_at: string;
+  status: EnrollmentStatus;
+  remarks?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnrollmentPeriod {
+  id: string;
+  branch: string;
+  program: string;
+  sub_program: string;
+  class_type: ClassType;
+  title: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnrollmentPayment {
+  id: string;
+  enrollment: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  payment_provider?: PaymentProvider;
+  transaction_reference?: string;
+  payment_date?: string;
+  status: PaymentStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceSession {
+  id: string;
+  class: string;
+  session_date: string;
+  topic?: string;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  attendance_session: string;
+  enrollment: string;
+  status: AttendanceStatus;
+  remarks?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LearningMilestone {
+  id: string;
+  sub_program: string;
+  title: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentProgress {
+  id: string;
+  enrollment: string;
+  milestone: string;
+  status: ProgressStatus;
+  completed_at?: string;
+  remarks?: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LearningMaterial {
+  id: string;
+  sub_program: string;
+  title: string;
+  description?: string;
+  file: string;
+  material_type: MaterialType;
+  uploaded_by: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentAward {
+  id: string;
+  studentName: string;
+  programTitle: string;
+  category: string;
+  issueDate: string;
+  type: 'completion' | 'competition' | 'milestone' | 'award';
+  verificationCode: string;
+  rank?: string;
+  eventName?: string;
+  hoursCompleted?: number;
+  eventId?: string;
+  awardCategory?: string;
+  teamName?: string;
+  schoolName?: string;
+}
+
+export interface StudentCertificate {
+  id: string;
+  student: string;
+  certificate: string;
+  sub_program: string;
+  certificate_number: string;
+  pdf: string;
+  issued_by: string;
+  issued_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type PartnerTier = 'platinum' | 'gold' | 'silver' | 'bronze' | 'community';

@@ -1,4 +1,4 @@
-import { Product, Program, UpdatePost, SubscriptionTier, Certificate, AppNotification, Tournament, MatchResult, ForumPost, VideoCourse, ConsultancyRequest, Referral, LeaderboardEntry, AnalyticsData, Workshop, VexTeam, VexRobot, VexAward, VexNotebookEntry, VexMatchRecord } from '@/src/shared/types';
+import { Product, UpdatePost, SubscriptionTier, StudentAward, AppNotification, Tournament, MatchResult, ForumPost, VideoCourse, ConsultancyRequest, Referral, LeaderboardEntry, AnalyticsData, Workshop, VexTeam, VexRobot, VexAward, VexNotebookEntry, VexMatchRecord } from '@/src/shared/types';
 
 import progImg1 from '@/assets/0M6A6519.00_36_58_18.Still042.jpg';
 import progImg2 from '@/assets/0M6A6519.00_57_00_00.Still045.jpg';
@@ -319,7 +319,7 @@ export const ROBOTICS_PRODUCTS: Product[] = [
   },
 ];
 
-export const ROBOTICS_PROGRAMS: Program[] = [
+export const ROBOTICS_PROGRAMS = [
   {
     id: 'prog-vex-iq',
     title: 'Junior Innovators: VEX IQ Robotics League',
@@ -480,7 +480,7 @@ export const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
 ];
 
 // ── Certificates ──
-export const MOCK_CERTIFICATES: Certificate[] = [
+export const MOCK_CERTIFICATES: StudentAward[] = [
   {
     id: 'cert-001', studentName: 'Abebe Kebede', programTitle: 'VEX V5 Competitive Engineering Academy',
     category: 'VEX V5', issueDate: 'May 28, 2026', type: 'completion',

@@ -65,7 +65,7 @@ function getGreeting() {
 export default function StudentDashboard({ currentUser, onLogout }: StudentDashboardProps) {
   const [activeSection, setActiveSection] = useState<SectionId>('overview');
 
-  const enrolledDetails = ROBOTICS_PROGRAMS.filter(p => currentUser.enrolledPrograms.includes(p.id));
+  const enrolledDetails: typeof ROBOTICS_PROGRAMS = [];
   const streakDays = 12;
   const completedProjects = 14;
   const progressPct = 65;
