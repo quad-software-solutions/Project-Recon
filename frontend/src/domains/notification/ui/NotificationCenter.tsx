@@ -19,7 +19,7 @@ export default function NotificationCenter() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg text-[#737686] hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
+        className="relative p-2 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
         aria-label="Notifications"
       >
         <Bell className="w-[18px] h-[18px]" />
@@ -39,9 +39,9 @@ export default function NotificationCenter() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ duration: 0.2 }}
-              className="absolute right-0 top-11 w-[340px] bg-white rounded-xl border border-[#d9def4]/60 shadow-[0_12px_40px_-8px_rgba(16,20,38,0.15)] z-50 overflow-hidden"
+              className="absolute right-0 top-11 w-[340px] bg-white rounded-xl border border-brand-border/60 shadow-[0_12px_40px_-8px_rgba(16,20,38,0.15)] z-50 overflow-hidden"
             >
-              <div className="px-4 py-3 border-b border-[#d9def4]/30 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-brand-border/30 flex items-center justify-between">
                 <div>
                   <h3 className="font-display font-bold text-sm text-slate-900">Notifications</h3>
                   <p className="text-[10px] text-slate-400 font-mono">{unreadCount} unread</p>
@@ -65,7 +65,7 @@ export default function NotificationCenter() {
                       animate={{ opacity: 1 }}
                       transition={{ delay: i * 0.02 }}
                       onClick={() => markRead(n.id)}
-                      className={`px-4 py-3 border-b border-[#d9def4]/20 flex items-start gap-2.5 cursor-pointer hover:bg-brand-blue/5 transition-colors ${!n.read ? 'bg-brand-blue/[0.03]' : ''}`}
+                      className={`px-4 py-3 border-b border-brand-border/20 flex items-start gap-2.5 cursor-pointer hover:bg-brand-blue/5 transition-colors ${!n.read ? 'bg-brand-blue/[0.03]' : ''}`}
                     >
                       <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs ${color}`}>
                         {n.icon || TYPE_ICONS[n.type]}
@@ -85,7 +85,7 @@ export default function NotificationCenter() {
                 })}
               </div>
 
-              <div className="px-4 py-2.5 border-t border-[#d9def4]/30 text-center">
+              <div className="px-4 py-2.5 border-t border-brand-border/30 text-center">
                 <button className="text-[10px] font-semibold text-brand-blue hover:underline">
                   View all
                 </button>

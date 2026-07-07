@@ -64,7 +64,7 @@ export default function StudentNotes() {
         {(['all', 'positive', 'concern', 'general'] as const).map(tag => (
           <button key={tag} onClick={() => setFilterTag(tag)}
             className={`text-[11px] font-bold px-4 py-2 rounded-lg transition-colors capitalize ${
-              filterTag === tag ? 'bg-[#2563EB] text-slate-900' : 'bg-white text-slate-600 border border-[#e1e2ed] hover:bg-slate-50'
+              filterTag === tag ? 'bg-[#2563EB] text-slate-900' : 'bg-white text-slate-600 border border-brand-border-light hover:bg-slate-50'
             }`}>{tag}</button>
         ))}
       </div>
@@ -72,19 +72,19 @@ export default function StudentNotes() {
       <AnimatePresence>
         {showAdd && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-5 space-y-3">
+            <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-5 space-y-3">
               <div className="flex gap-3">
                 <input value={newStudent} onChange={e => setNewStudent(e.target.value)} placeholder="Student name..."
-                  className="flex-1 bg-slate-50 border border-[#e1e2ed] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB]" />
+                  className="flex-1 bg-slate-50 border border-brand-border-light rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB]" />
                 <select value={newTag} onChange={e => setNewTag(e.target.value as Note['tag'])}
-                  className="bg-slate-50 border border-[#e1e2ed] rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:border-[#2563EB]">
+                  className="bg-slate-50 border border-brand-border-light rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:border-[#2563EB]">
                   <option value="general">General</option>
                   <option value="positive">Positive</option>
                   <option value="concern">Concern</option>
                 </select>
               </div>
               <textarea value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="Write your note..." rows={3}
-                className="w-full bg-slate-50 border border-[#e1e2ed] rounded-lg px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#2563EB]" />
+                className="w-full bg-slate-50 border border-brand-border-light rounded-lg px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#2563EB]" />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowAdd(false)} className="text-xs text-slate-500 hover:bg-slate-100 px-4 py-2 rounded-lg">Cancel</button>
                 <button onClick={addNote} className="bg-[#2563EB] text-white font-bold text-xs px-5 py-2 rounded-lg hover:bg-blue-700">Save Note</button>
@@ -99,7 +99,7 @@ export default function StudentNotes() {
           const t = TAG_STYLES[note.tag];
           return (
             <motion.div key={note.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-5 hover:shadow-md transition-all group">
+              className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center font-bold text-xs text-slate-600">{note.studentName.charAt(0)}</div>

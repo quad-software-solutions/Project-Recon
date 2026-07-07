@@ -51,7 +51,7 @@ export function FeaturePlaceholder({ name, description, icon, className = '' }: 
         transition={{ duration: 0.4, ease: 'easeOut' }}
       >
         <span className="text-6xl block mb-6">{emoji}</span>
-        <h3 className="text-2xl font-bold text-[#101426] mb-3">{name} — Coming Soon</h3>
+        <h3 className="text-2xl font-bold text-brand-ink mb-3">{name} — Coming Soon</h3>
         <p className="text-gray-500 max-w-md mx-auto text-base leading-relaxed">
           {description || `This feature is under development and will be available in a future update.`}
         </p>

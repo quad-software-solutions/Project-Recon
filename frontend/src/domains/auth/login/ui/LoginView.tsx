@@ -182,7 +182,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f8ff] flex flex-col font-sans" id="dedicated-auth-viewport">
+    <div className="min-h-screen bg-brand-paper flex flex-col font-sans" id="dedicated-auth-viewport">
 
       {/* Header */}
       <header className="relative z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 md:px-12 py-3 flex items-center justify-between h-[72px]">

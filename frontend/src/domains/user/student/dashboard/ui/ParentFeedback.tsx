@@ -129,7 +129,7 @@ export default function ParentFeedback() {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-6">
               <h4 className="font-display font-bold text-sm text-slate-900 mb-5 flex items-center gap-2">
                 <MessageCircle className="w-4 h-4 text-[#2563EB]" /> New Feedback Submission
               </h4>
@@ -138,12 +138,12 @@ export default function ParentFeedback() {
                 <div>
                   <label className="font-mono text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Parent / Guardian Name</label>
                   <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Mrs. Tigist A."
-                    className="w-full bg-slate-50 border border-[#e1e2ed] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all" />
+                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all" />
                 </div>
                 <div>
                   <label className="font-mono text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Category</label>
                   <select value={formCategory} onChange={e => setFormCategory(e.target.value as TicketCategory)}
-                    className="w-full bg-slate-50 border border-[#e1e2ed] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] transition-all">
+                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] transition-all">
                     {Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => (
                       <option key={key} value={key}>{cfg.label}</option>
                     ))}
@@ -154,14 +154,14 @@ export default function ParentFeedback() {
               <div className="mb-4">
                 <label className="font-mono text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Subject</label>
                 <input value={formSubject} onChange={e => setFormSubject(e.target.value)} placeholder="Brief summary of your feedback..."
-                  className="w-full bg-slate-50 border border-[#e1e2ed] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all" />
+                  className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all" />
               </div>
 
               <div className="mb-5">
                 <label className="font-mono text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Message</label>
                 <textarea value={formMessage} onChange={e => setFormMessage(e.target.value)} rows={4}
                   placeholder="Describe your concern, suggestion, or comment in detail..."
-                  className="w-full bg-slate-50 border border-[#e1e2ed] rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all" />
+                  className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all" />
               </div>
 
               <div className="flex justify-end gap-3">
@@ -181,7 +181,7 @@ export default function ParentFeedback() {
         {(['all', 'open', 'in-review', 'resolved'] as const).map(tab => (
           <button key={tab} onClick={() => setFilterStatus(tab)}
             className={`text-[11px] font-bold px-4 py-2 rounded-lg transition-colors capitalize ${
-              filterStatus === tab ? 'bg-[#2563EB] text-slate-900' : 'bg-white text-slate-600 border border-[#e1e2ed] hover:bg-slate-50'
+              filterStatus === tab ? 'bg-[#2563EB] text-slate-900' : 'bg-white text-slate-600 border border-brand-border-light hover:bg-slate-50'
             }`}>
             {tab === 'in-review' ? 'In Review' : tab}
           </button>
@@ -191,7 +191,7 @@ export default function ParentFeedback() {
       {/* Ticket List */}
       <div className="flex flex-col gap-4">
         {filtered.length === 0 && (
-          <div className="text-center py-14 bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm">
+          <div className="text-center py-14 bg-white rounded-2xl border border-brand-border-light/60 shadow-sm">
             <MessageCircle className="w-10 h-10 mx-auto mb-3 text-slate-600" />
             <p className="font-sans text-sm text-slate-400">No feedback tickets match this filter.</p>
           </div>
@@ -203,7 +203,7 @@ export default function ParentFeedback() {
 
           return (
             <motion.div key={ticket.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm overflow-hidden hover:shadow-md transition-all">
+              className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm overflow-hidden hover:shadow-md transition-all">
 
               {/* Ticket Header */}
               <div
@@ -241,7 +241,7 @@ export default function ParentFeedback() {
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden">
                     <div className="px-6 pb-5 pt-0 ml-14">
-                      <div className="bg-slate-50 rounded-xl p-4 border border-[#e1e2ed]/40 mb-3">
+                      <div className="bg-slate-50 rounded-xl p-4 border border-brand-border-light/40 mb-3">
                         <p className="font-sans text-sm text-slate-700 leading-relaxed">{ticket.message}</p>
                       </div>
 

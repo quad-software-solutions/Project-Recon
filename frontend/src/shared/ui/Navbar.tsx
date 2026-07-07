@@ -155,7 +155,7 @@ export default function Navbar({
       <nav
         className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 ${
           scrolled
-            ? 'bg-white/95 backdrop-blur-xl border-b border-[#d9def4]/40 shadow-[0_4px_20px_-4px_rgba(16,20,38,0.08)]'
+            ? 'bg-white/95 backdrop-blur-xl border-b border-brand-border/40 shadow-[0_4px_20px_-4px_rgba(16,20,38,0.08)]'
             : 'bg-white/80 backdrop-blur-md border-b border-transparent'
         }`}
       >
@@ -208,7 +208,7 @@ export default function Navbar({
                     className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive
                         ? 'text-brand-blue'
-                        : 'text-[#5a5d6e] hover:text-brand-blue hover:bg-brand-blue/5'
+                        : 'text-brand-muted-darker hover:text-brand-blue hover:bg-brand-blue/5'
                     }`}
                   >
                     {isActive && (
@@ -245,7 +245,7 @@ export default function Navbar({
                       onMouseEnter={() => { if (megaTimeout.current) clearTimeout(megaTimeout.current); }}
                       onMouseLeave={() => setOpenMega(null)}
                     >
-                      <div className="bg-white/95 backdrop-blur-2xl rounded-2xl border border-[#d9def4]/50 shadow-[0_24px_70px_-12px_rgba(16,20,38,0.18)] overflow-hidden">
+                      <div className="bg-white/95 backdrop-blur-2xl rounded-2xl border border-brand-border/50 shadow-[0_24px_70px_-12px_rgba(16,20,38,0.18)] overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-blue via-brand-red to-brand-blue" />
                         <div className="p-4">
                           <div className="grid grid-cols-2 gap-1">
@@ -272,7 +272,7 @@ export default function Navbar({
                           </div>
 
                           {MEGA_MENUS[item.mega!].viewAllTab && (
-                            <div className="mt-1.5 pt-3 border-t border-[#d9def4]/30">
+                            <div className="mt-1.5 pt-3 border-t border-brand-border/30">
                               <a
                                 href={`#${MEGA_MENUS[item.mega!].viewAllTab}`}
                                 onClick={(e) => { e.preventDefault(); handleNavClick(MEGA_MENUS[item.mega!].viewAllTab!); }}
@@ -297,15 +297,15 @@ export default function Navbar({
             {/* Search trigger */}
             <button
               onClick={() => setSearchOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-[#5a5d6e] bg-brand-blue/5 hover:bg-brand-blue/10 border border-brand-blue/10 hover:border-brand-blue/25 rounded-lg transition-all duration-200 group"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-brand-muted-darker bg-brand-blue/5 hover:bg-brand-blue/10 border border-brand-blue/10 hover:border-brand-blue/25 rounded-lg transition-all duration-200 group"
             >
-              <Search className="w-3.5 h-3.5 text-[#737686] group-hover:text-brand-blue transition-colors" />
+              <Search className="w-3.5 h-3.5 text-brand-muted group-hover:text-brand-blue transition-colors" />
               <span>Search</span>
-              <kbd className="text-[9px] font-mono text-[#737686] bg-white/80 px-1 py-0.5 rounded border border-slate-200/60">⌘K</kbd>
+              <kbd className="text-[9px] font-mono text-brand-muted bg-white/80 px-1 py-0.5 rounded border border-slate-200/60">⌘K</kbd>
             </button>
             <button
               onClick={() => setSearchOpen(true)}
-              className="sm:hidden p-2 rounded-lg text-[#737686] hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
+              className="sm:hidden p-2 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -313,7 +313,7 @@ export default function Navbar({
             {/* Cart button */}
             <button
               onClick={onOpenCart}
-              className="relative p-2 rounded-lg text-[#737686] hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
+              className="relative p-2 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
               aria-label="Cart"
             >
               <ShoppingBag className="w-[18px] h-[18px]" />
@@ -338,7 +338,7 @@ export default function Navbar({
                   </button>
                   <button
                     onClick={onLogout}
-                    className="p-2 rounded-lg text-[#737686] hover:text-brand-red hover:bg-red-50/60 transition-all duration-200"
+                    className="p-2 rounded-lg text-brand-muted hover:text-brand-red hover:bg-red-50/60 transition-all duration-200"
                     title="Logout"
                     id="btn-logout"
                   >
@@ -349,7 +349,7 @@ export default function Navbar({
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => onOpenAuth('login')}
-                    className="flex items-center gap-1.5 text-sm font-medium text-[#434655] px-3.5 py-1.5 rounded-lg hover:text-brand-blue transition-all duration-200"
+                    className="flex items-center gap-1.5 text-sm font-medium text-brand-muted-dark px-3.5 py-1.5 rounded-lg hover:text-brand-blue transition-all duration-200"
                     id="btn-nav-login"
                   >
                     <LogIn className="w-3.5 h-3.5" />
@@ -369,7 +369,7 @@ export default function Navbar({
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-[#434655] hover:text-brand-red hover:bg-brand-red/5 transition-all duration-200"
+              className="lg:hidden p-2 rounded-lg text-brand-muted-dark hover:text-brand-red hover:bg-brand-red/5 transition-all duration-200"
               id="btn-mobile-menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -385,18 +385,18 @@ export default function Navbar({
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="lg:hidden border-t border-[#d9def4]/30 bg-white/95 backdrop-blur-xl overflow-hidden shadow-[0_12px_30px_-8px_rgba(16,20,38,0.1)]"
+              className="lg:hidden border-t border-brand-border/30 bg-white/95 backdrop-blur-xl overflow-hidden shadow-[0_12px_30px_-8px_rgba(16,20,38,0.1)]"
               id="mobile-drawer"
             >
               <div className="px-5 py-4 flex flex-col gap-0.5 max-h-[70vh] overflow-y-auto">
                 {/* Mobile search */}
                 <button
                   onClick={() => { setSearchOpen(true); setMobileMenuOpen(false); }}
-                  className="flex items-center gap-3 py-2.5 px-3 text-sm font-medium text-[#434655] hover:text-brand-blue hover:bg-brand-blue/5 rounded-lg transition-all mb-2 border border-brand-blue/10"
+                  className="flex items-center gap-3 py-2.5 px-3 text-sm font-medium text-brand-muted-dark hover:text-brand-blue hover:bg-brand-blue/5 rounded-lg transition-all mb-2 border border-brand-blue/10"
                 >
                   <Search className="w-4 h-4 text-slate-400" />
                   <span>Search anything...</span>
-                  <kbd className="ml-auto text-[9px] font-mono text-[#737686] bg-white px-1 py-0.5 rounded border border-slate-200">⌘K</kbd>
+                  <kbd className="ml-auto text-[9px] font-mono text-brand-muted bg-white px-1 py-0.5 rounded border border-slate-200">⌘K</kbd>
                 </button>
 
                 {visibleItems.map((item) => {
@@ -419,7 +419,7 @@ export default function Navbar({
                         className={`flex items-center justify-between py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                           isActive
                             ? 'text-brand-blue bg-brand-blue/8 border-l-[3px] border-brand-red'
-                            : 'text-[#434655] hover:text-brand-blue hover:bg-brand-blue/5 border-l-[3px] border-transparent'
+                            : 'text-brand-muted-dark hover:text-brand-blue hover:bg-brand-blue/5 border-l-[3px] border-transparent'
                         }`}
                       >
                         <span className="flex items-center gap-3">
@@ -473,7 +473,7 @@ export default function Navbar({
                   );
                 })}
 
-                <div className="mt-3 pt-3 border-t border-[#d9def4]/30 flex flex-col gap-1.5">
+                <div className="mt-3 pt-3 border-t border-brand-border/30 flex flex-col gap-1.5">
                   {currentUser ? (
                     <>
                       <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-brand-blue/5 border border-brand-blue/10">
@@ -482,7 +482,7 @@ export default function Navbar({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm text-slate-900 truncate leading-tight">{currentUser.name}</p>
-                          <p className="text-[10px] text-[#737686]">{currentUser.xpPoints} XP · {currentUser.role}</p>
+                          <p className="text-[10px] text-brand-muted">{currentUser.xpPoints} XP · {currentUser.role}</p>
                         </div>
                       </div>
                       <button onClick={() => handleNavClick('dashboard')} className="w-full text-center py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-brand-blue to-brand-blue-dark rounded-lg shadow-sm">

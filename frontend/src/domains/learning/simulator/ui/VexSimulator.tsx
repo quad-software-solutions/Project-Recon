@@ -359,9 +359,9 @@ export default function VexSimulator() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
           {/* Canvas Area */}
           <div className="flex flex-col gap-4">
-            <div className="bg-white rounded-2xl border border-[#e1e2ed] shadow-sm p-4 relative overflow-hidden">
+            <div className="bg-white rounded-2xl border border-brand-border-light shadow-sm p-4 relative overflow-hidden">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] text-[#737686] uppercase tracking-widest font-bold">FIELD VIEW (600×600mm)</span>
+                <span className="font-mono text-[10px] text-brand-muted uppercase tracking-widest font-bold">FIELD VIEW (600×600mm)</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { setExecutionIndex(0); setIsRunning(true); }}
@@ -394,8 +394,8 @@ export default function VexSimulator() {
             </div>
 
             {/* Manual Controls */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="bg-white rounded-2xl border border-[#e1e2ed] shadow-sm p-4">
-              <span className="font-mono text-[10px] text-[#737686] uppercase tracking-widest font-bold block mb-3">MANUAL CONTROLS</span>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }} className="bg-white rounded-2xl border border-brand-border-light shadow-sm p-4">
+              <span className="font-mono text-[10px] text-brand-muted uppercase tracking-widest font-bold block mb-3">MANUAL CONTROLS</span>
               <div className="flex items-center justify-center gap-2">
                 <button onClick={() => manualMove('turnLeft', 15)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2.5 rounded-lg active:scale-90 transition-all" title="Turn Left">
                   <ArrowLeft className="w-5 h-5" />
@@ -426,8 +426,8 @@ export default function VexSimulator() {
           {/* Right Panel: Presets + Code */}
           <div className="flex flex-col gap-4">
             {/* Presets */}
-            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl border border-[#e1e2ed] shadow-sm p-4">
-              <span className="font-mono text-[10px] text-[#737686] uppercase tracking-widest font-bold block mb-3 flex items-center gap-1.5">
+            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl border border-brand-border-light shadow-sm p-4">
+              <span className="font-mono text-[10px] text-brand-muted uppercase tracking-widest font-bold block mb-3 flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5 text-[#25338d]" /> PROGRAM PRESETS
               </span>
               <div className="flex flex-col gap-2">
@@ -462,8 +462,8 @@ export default function VexSimulator() {
             </motion.div>
 
             {/* Telemetry */}
-            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="bg-white rounded-2xl border border-[#e1e2ed] shadow-sm p-4">
-              <span className="font-mono text-[10px] text-[#737686] uppercase tracking-widest font-bold block mb-3 flex items-center gap-1.5">
+            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="bg-white rounded-2xl border border-brand-border-light shadow-sm p-4">
+              <span className="font-mono text-[10px] text-brand-muted uppercase tracking-widest font-bold block mb-3 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 text-amber-500" /> TELEMETRY
               </span>
               <div className="grid grid-cols-2 gap-3 text-xs">

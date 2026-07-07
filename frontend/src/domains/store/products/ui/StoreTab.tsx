@@ -43,7 +43,7 @@ export default function StoreTab({ cart, onAddToCart, onUpdateQuantity, onRemove
   };
 
   return (
-    <div className="flex flex-col xl:flex-row min-h-[calc(100vh-76px)] bg-[#f7f8ff] relative">
+    <div className="flex flex-col xl:flex-row min-h-[calc(100vh-76px)] bg-brand-paper relative">
       <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/5 via-transparent to-brand-red/5 pointer-events-none" />
       <div className="absolute top-[-5%] right-[-5%] w-[400px] h-[400px] bg-brand-red/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-5%] left-[-5%] w-[400px] h-[400px] bg-brand-blue/5 rounded-full blur-[100px] pointer-events-none" />

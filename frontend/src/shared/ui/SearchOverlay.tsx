@@ -90,7 +90,7 @@ export default function SearchOverlay({ isOpen, onClose, onNavigate }: SearchOve
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
             className="fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-xl z-50 px-4"
           >
-            <div className="bg-white rounded-2xl shadow-[0_30px_80px_-12px_rgba(0,0,0,0.3)] border border-[#d9def4]/50 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-[0_30px_80px_-12px_rgba(0,0,0,0.3)] border border-brand-border/50 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-blue via-brand-red to-brand-blue rounded-t-2xl" />
               <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100">
                 <Search className="w-5 h-5 text-slate-400 shrink-0" />

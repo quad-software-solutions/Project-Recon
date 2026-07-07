@@ -10,6 +10,19 @@
   --color-brand-blue-dark: #111a5f;
   --color-brand-blue-bright: #2563eb;
   --color-brand-cyan: #57dffe;
+  --color-brand-ink: #101426;
+  --color-brand-paper: #f7f8ff;
+  --color-brand-border: #d9def4;
+  --color-brand-border-light: #e1e2ed;
+  --color-brand-muted: #737686;
+  --color-brand-muted-dark: #434655;
+  --color-brand-muted-darker: #5a5d6e;
+  --color-brand-surface: #f6f7fb;
+  --color-sidebar-bg: #0e1638;
+  --color-sidebar-bg-darker: #0a1028;
+  --color-sidebar-accent: #1a2870;
+  --radius-card: 26px;
+  --radius-modal: 28px;
 }
 
 :root {
@@ -21,6 +34,14 @@
   --brand-ink: #101426;
   --brand-paper: #f7f8ff;
   --brand-border: #d9def4;
+  --brand-border-light: #e1e2ed;
+  --brand-muted: #737686;
+  --brand-muted-dark: #434655;
+  --brand-muted-darker: #5a5d6e;
+  --brand-surface: #f6f7fb;
+  --sidebar-bg: #0e1638;
+  --sidebar-bg-darker: #0a1028;
+  --sidebar-accent: #1a2870;
 }
 
 .glass-panel {
@@ -562,7 +583,7 @@
   left: 0;
   top: 0;
   height: 100vh;
-  background: linear-gradient(180deg, #0e1638 0%, #0a1028 100%);
+  background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-darker) 100%);
   display: flex;
   flex-direction: column;
   z-index: 50;
@@ -644,7 +665,7 @@
 /* ─── MAIN LAYOUT ─── */
 .app-layout {
   min-height: 100vh;
-  background: #f6f7fb;
+  background: var(--brand-surface);
 }
 
 .main-content {

@@ -12,7 +12,7 @@ export default function LearningResources() {
   ];
 
   return (
-    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-[#e1e2ed]/60">
+    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-border-light/60">
       <h3 className="font-display font-bold text-slate-900 text-xl mb-6">Learning Resources</h3>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

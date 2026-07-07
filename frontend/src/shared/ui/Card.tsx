@@ -15,7 +15,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ hover = false, padding = 'md', className = '', children, ...props }, ref) => (
     <div
       ref={ref}
-      className={`bg-white rounded-[26px] border border-[#e1e2ed]/45 shadow-premium-sm ${
+      className={`bg-white rounded-card border border-brand-border-light/45 shadow-premium-sm ${
         hover ? 'hover:shadow-premium-lg transition-all duration-500' : ''
       } ${paddings[padding]} ${className}`}
       {...props}

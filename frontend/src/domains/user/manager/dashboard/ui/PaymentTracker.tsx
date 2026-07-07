@@ -7,7 +7,7 @@ export default function PaymentTracker() {
   const COURSE_DATA = [80, 60, 90, 70, 100, 85];
 
   return (
-    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-[#e1e2ed]/60">
+    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-border-light/60">
       <h3 className="font-display font-bold text-slate-900 text-xl mb-6">Payment & Sales Tracker</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -33,7 +33,7 @@ export default function PaymentTracker() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div>
-          <span className="font-mono text-[10px] font-bold text-[#737686] uppercase mb-2 block">Online Course Payments</span>
+          <span className="font-mono text-[10px] font-bold text-brand-muted uppercase mb-2 block">Online Course Payments</span>
           <div className="h-24 flex items-end gap-1.5 mb-2">
             {COURSE_DATA.map((h, i) => (
               <div key={i} className="flex-1 bg-[#2563EB]/10 rounded-t relative">
@@ -42,12 +42,12 @@ export default function PaymentTracker() {
             ))}
           </div>
           <div className="flex gap-1.5">
-            {MONTHS.map(m => <span key={m} className="flex-1 text-center font-mono text-[8px] text-[#737686]">{m}</span>)}
+            {MONTHS.map(m => <span key={m} className="flex-1 text-center font-mono text-[8px] text-brand-muted">{m}</span>)}
           </div>
         </div>
         
         <div>
-          <span className="font-mono text-[10px] font-bold text-[#737686] uppercase mb-2 block">Hardware & Gear Sales</span>
+          <span className="font-mono text-[10px] font-bold text-brand-muted uppercase mb-2 block">Hardware & Gear Sales</span>
           <div className="h-24 flex items-end gap-1.5 mb-2">
             {SALES_DATA.map((h, i) => (
               <div key={i} className="flex-1 bg-emerald-500/10 rounded-t relative">
@@ -56,7 +56,7 @@ export default function PaymentTracker() {
             ))}
           </div>
           <div className="flex gap-1.5">
-            {MONTHS.map(m => <span key={m} className="flex-1 text-center font-mono text-[8px] text-[#737686]">{m}</span>)}
+            {MONTHS.map(m => <span key={m} className="flex-1 text-center font-mono text-[8px] text-brand-muted">{m}</span>)}
           </div>
         </div>
       </div>

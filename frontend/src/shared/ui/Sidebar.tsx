@@ -68,7 +68,7 @@ export function Sidebar({
         className="sidebar-toggle fixed top-3 left-3 z-40 p-2.5 rounded-lg bg-white/95 border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-center justify-center backdrop-blur-sm"
         aria-label="Open navigation menu"
       >
-        <Menu className="w-5 h-5 text-[#0e1638]" />
+        <Menu className="w-5 h-5 text-sidebar-bg" />
       </button>
 
       {drawerOpen && <div className="sidebar-backdrop" onClick={() => onDrawerToggle?.(false)} />}
@@ -77,7 +77,7 @@ export function Sidebar({
         className={`sidebar${collapsed ? ' collapsed' : ''}${drawerOpen ? ' open' : ''}`}
       >
         <div className="sidebar-header">
-          <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-[#1a2870] to-[#0e1638] border border-white/[0.06] pl-3 pr-2 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-sidebar-accent to-sidebar-bg border border-white/[0.06] pl-3 pr-2 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
             <button onClick={() => handleNav('dashboard')} className="hover:opacity-80 transition-opacity"><BrandLogo className="sidebar-logo h-7 w-[90px]" /></button>
             <div className="sidebar-header-actions flex items-center gap-1">
               <button
@@ -161,7 +161,7 @@ export function Sidebar({
         </div>
       </aside>
 
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-[#0e1638]/95 backdrop-blur-md border-t border-white/[0.06] safe-area-bottom md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-sidebar-bg/95 backdrop-blur-md border-t border-white/[0.06] safe-area-bottom md:hidden">
         <div className="flex items-center justify-around px-2 py-1 max-w-lg mx-auto">
           {mobilePrimary.map(item => {
             const isActive = activeSection === item.id;

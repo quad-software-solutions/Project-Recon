@@ -38,7 +38,7 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
   });
 
   return (
-    <section className="relative bg-[#f7f8ff] py-16 md:py-20 px-4 md:px-12 overflow-hidden" id="section-updates">
+    <section className="relative bg-brand-paper py-16 md:py-20 px-4 md:px-12 overflow-hidden" id="section-updates">
       
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/8 via-[#080808] to-brand-red/5 pointer-events-none" />

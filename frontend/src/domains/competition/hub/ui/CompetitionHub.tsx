@@ -72,7 +72,7 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
   };
 
   return (
-    <div className="min-h-[calc(100vh-76px)] bg-[#f7f8ff] py-10 px-4 md:px-8 relative overflow-hidden">
+    <div className="min-h-[calc(100vh-76px)] bg-brand-paper py-10 px-4 md:px-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/8 via-[#080808] to-brand-red/5 pointer-events-none" />
       <div className="absolute top-[-8%] right-[-5%] w-[500px] h-[500px] bg-brand-red/6 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-8%] left-[-5%] w-[400px] h-[400px] bg-brand-blue/6 rounded-full blur-[120px] pointer-events-none" />

@@ -59,18 +59,18 @@ export default function GradeBook() {
               ✓ Saved
             </motion.span>
           )}
-          <div className="bg-white rounded-xl border border-[#e1e2ed] px-4 py-2.5 flex items-center gap-2">
+          <div className="bg-white rounded-xl border border-brand-border-light px-4 py-2.5 flex items-center gap-2">
             <Star className="w-4 h-4 text-amber-500" />
             <span className="font-mono text-xs font-bold text-slate-700">Class Avg: {classAvg}%</span>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-[#e1e2ed]/40">
+              <tr className="bg-slate-50/80 border-b border-brand-border-light/40">
                 <th className="px-6 py-3 text-left font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Student</th>
                 <th className="px-4 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Practical<br/><span className="text-[8px] font-normal">30%</span></th>
                 <th className="px-4 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Theory<br/><span className="text-[8px] font-normal">25%</span></th>
@@ -81,7 +81,7 @@ export default function GradeBook() {
                 <th className="px-4 py-3 text-right font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e1e2ed]/30">
+            <tbody className="divide-y divide-brand-border-light/30">
               {grades.map((g, idx) => {
                 const avg = Math.round(g.practical * 0.3 + g.theory * 0.25 + g.project * 0.3 + g.participation * 0.15);
                 const { grade, color } = getLetterGrade(avg);

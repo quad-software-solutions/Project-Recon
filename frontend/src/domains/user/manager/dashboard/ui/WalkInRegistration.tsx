@@ -96,7 +96,7 @@ export default function WalkInRegistration() {
   if (isSuccess) {
     return (
       <div className="flex items-center justify-center py-12">
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md border border-[#e1e2ed]">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md border border-brand-border-light">
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
           </div>
@@ -133,7 +133,7 @@ export default function WalkInRegistration() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
-              className="bg-white rounded-3xl shadow-sm border border-[#e1e2ed] p-8 md:p-12"
+              className="bg-white rounded-3xl shadow-sm border border-brand-border-light p-8 md:p-12"
             >
               <div className="text-center mb-10">
                 <h2 className="font-display font-extrabold text-3xl text-slate-900 tracking-tight">Walk-In Entry</h2>
@@ -146,30 +146,30 @@ export default function WalkInRegistration() {
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Full Name</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="text" placeholder="Abebe Kebede" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                      <input type="text" placeholder="Abebe Kebede" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5 md:col-span-2">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Student Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="email" placeholder="student@email.com" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                      <input type="email" placeholder="student@email.com" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Age</label>
-                    <input type="text" placeholder="e.g. 15" required value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                    <input type="text" placeholder="e.g. 15" required value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Grade</label>
-                    <input type="text" placeholder="e.g. 10th Grade" required value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                    <input type="text" placeholder="e.g. 10th Grade" required value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                   </div>
 
                   <div className="flex flex-col gap-1.5 md:col-span-2">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Current School</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="text" placeholder="School Name" value={formData.school} onChange={e => setFormData({...formData, school: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                      <input type="text" placeholder="School Name" value={formData.school} onChange={e => setFormData({...formData, school: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                     </div>
                   </div>
 
@@ -179,7 +179,7 @@ export default function WalkInRegistration() {
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Parent / Guardian Name</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="text" placeholder="Guardian Name" required value={formData.parentName} onChange={e => setFormData({...formData, parentName: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                      <input type="text" placeholder="Guardian Name" required value={formData.parentName} onChange={e => setFormData({...formData, parentName: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                     </div>
                   </div>
 
@@ -187,7 +187,7 @@ export default function WalkInRegistration() {
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Phone Number</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="tel" placeholder="+251 911 00 00 00" required value={formData.parentPhone} onChange={e => setFormData({...formData, parentPhone: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                      <input type="tel" placeholder="+251 911 00 00 00" required value={formData.parentPhone} onChange={e => setFormData({...formData, parentPhone: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                     </div>
                   </div>
 
@@ -195,7 +195,7 @@ export default function WalkInRegistration() {
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Email Address</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="email" placeholder="parent@email.com" required value={formData.parentEmail} onChange={e => setFormData({...formData, parentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
+                      <input type="email" placeholder="parent@email.com" required value={formData.parentEmail} onChange={e => setFormData({...formData, parentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-brand-border-light rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#2563EB] transition-colors" />
                     </div>
                   </div>
                 </div>
@@ -230,8 +230,8 @@ export default function WalkInRegistration() {
 
                 <div className="flex flex-col gap-6">
                   {COURSE_CATEGORIES.map((category) => (
-                    <div key={category.id} className="bg-white rounded-3xl shadow-sm border border-[#e1e2ed] overflow-hidden">
-                      <div className="bg-slate-50 px-6 py-4 border-b border-[#e1e2ed] flex items-center gap-3">
+                    <div key={category.id} className="bg-white rounded-3xl shadow-sm border border-brand-border-light overflow-hidden">
+                      <div className="bg-slate-50 px-6 py-4 border-b border-brand-border-light flex items-center gap-3">
                         <category.icon className="w-5 h-5 text-[#2563EB]" />
                         <h3 className="font-display font-bold text-lg text-slate-900">{category.title}</h3>
                       </div>
@@ -242,7 +242,7 @@ export default function WalkInRegistration() {
                           const isSelected = isSelectedClass || isSelectedPrivate;
 
                           return (
-                            <div key={course.id} className={`rounded-2xl p-5 border transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50/30' : 'border-[#e1e2ed] hover:border-slate-300'}`}>
+                            <div key={course.id} className={`rounded-2xl p-5 border transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50/30' : 'border-brand-border-light hover:border-slate-300'}`}>
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="flex-1">
                                   <h4 className="font-bold text-slate-900 text-base">{course.name}</h4>
@@ -278,7 +278,7 @@ export default function WalkInRegistration() {
 
               {/* Right Side: Summary & Payment */}
               <div className="lg:col-span-5 xl:col-span-4">
-                <div className="bg-white rounded-3xl shadow-xl border border-[#e1e2ed] sticky top-24 overflow-hidden">
+                <div className="bg-white rounded-3xl shadow-xl border border-brand-border-light sticky top-24 overflow-hidden">
                   <div className="bg-slate-50 px-6 py-5">
                     <h3 className="font-display font-bold text-slate-900 text-lg">In-Person Verification</h3>
                     <p className="text-slate-400 text-sm mt-1">{formData.name || 'Student'}</p>

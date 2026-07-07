@@ -132,11 +132,11 @@ export default function StudentRegistration() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-[calc(100vh-76px)] bg-[#f7f8ff] flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-[calc(100vh-76px)] bg-brand-paper flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute inset-0">
           <img src={slide1} alt="" className="w-full h-full object-cover blur-[4px] scale-110" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/50 via-[#f7f8ff]/85 to-brand-red/35" />
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/50 via-brand-paper/85 to-brand-red/35" />
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         <div className="absolute top-[-10%] left-[-5%] w-[450px] h-[450px] bg-brand-blue/20 rounded-full blur-[130px] pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-brand-red/15 rounded-full blur-[110px] pointer-events-none" />
@@ -164,7 +164,7 @@ export default function StudentRegistration() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-76px)] bg-[#f7f8ff] py-12 px-6 relative overflow-hidden">
+    <div className="min-h-[calc(100vh-76px)] bg-brand-paper py-12 px-6 relative overflow-hidden">
 
       {/* Background slider */}
       <div className="absolute inset-0">
@@ -183,7 +183,7 @@ export default function StudentRegistration() {
       </div>
 
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/50 via-[#f7f8ff]/85 to-brand-red/35" />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/50 via-brand-paper/85 to-brand-red/35" />
 
       {/* Grid */}
       <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />

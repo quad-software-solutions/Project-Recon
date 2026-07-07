@@ -3,10 +3,10 @@ import { Check, Target } from 'lucide-react';
 
 export default function ProgressMilestones() {
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#e1e2ed]/60">
+    <div className="bg-white rounded-3xl p-6 shadow-sm border border-brand-border-light/60">
       <h3 className="font-display font-bold text-slate-900 text-lg mb-8">Progress & Milestones</h3>
       <div className="relative px-2">
-        <div className="absolute top-4 left-6 right-6 h-1 bg-[#e1e2ed] rounded-full" />
+        <div className="absolute top-4 left-6 right-6 h-1 bg-brand-border-light rounded-full" />
         <div className="absolute top-4 left-6 w-1/2 h-1 bg-[#2563EB] rounded-full" />
         
         <div className="relative flex justify-between">

@@ -135,7 +135,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         </div>
       </motion.section>
 
-      <section className="border-y border-[#d9def4]/70 bg-white/80 py-10 overflow-hidden relative shadow-premium-sm" id="sponsor-banner">
+      <section className="border-y border-brand-border/70 bg-white/80 py-10 overflow-hidden relative shadow-premium-sm" id="sponsor-banner">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#25338d]/5 to-transparent animate-glow-shift opacity-50" />
 
         <div className="max-w-7xl mx-auto px-6 md:px-12 relative">
@@ -143,7 +143,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
             initial={{ opacity: 0, y: -10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center font-mono text-[10px] text-[#737686] mb-6 uppercase tracking-widest font-bold"
+            className="text-center font-mono text-[10px] text-brand-muted mb-6 uppercase tracking-widest font-bold"
           >
             Trusted By Leaders in STEM
           </motion.p>
@@ -215,7 +215,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
           <h3 className="font-display font-medium text-slate-900 tracking-tight mt-1" style={{ fontSize: 'clamp(28px, 4vw, 36px)' }}>
             World-Class Robotics Tracks
           </h3>
-          <p className="font-sans text-sm text-[#434655] mt-2">
+          <p className="font-sans text-sm text-brand-muted-dark mt-2">
             Whether starting with snap-on blocks or compiling complex motor PID controllers in C++, choose a verified learning cohort to build physical automation.
           </p>
         </motion.div>
@@ -228,7 +228,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: idx * 0.15 }}
-              className="bg-white rounded-[26px] shadow-premium-sm hover:shadow-premium-lg border border-[#e1e2ed]/45 overflow-hidden flex flex-col group h-full transition-all duration-500 card-float hover:shadow-[0_20px_60px_-8px_rgba(37,51,141,0.15)] hover:border-[#25338d]/20"
+              className="bg-white rounded-card shadow-premium-sm hover:shadow-premium-lg border border-brand-border-light/45 overflow-hidden flex flex-col group h-full transition-all duration-500 card-float hover:shadow-[0_20px_60px_-8px_rgba(37,51,141,0.15)] hover:border-[#25338d]/20"
             >
               <div className="relative aspect-video w-full bg-slate-100 overflow-hidden cursor-pointer" onClick={() => onSetSelectedProgramSpec(prog)}>
                 <img src={prog.image} alt={prog.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" />
@@ -242,8 +242,8 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
 
               <div className="p-6 flex-1 flex flex-col gap-3">
                 <h4 onClick={() => onSetSelectedProgramSpec(prog)} className="font-display font-bold text-lg text-slate-900 hover:text-[#25338d] cursor-pointer transition-colors leading-snug line-clamp-1">{prog.title}</h4>
-                <p className="font-sans text-xs text-[#434655] leading-relaxed line-clamp-3">{prog.description}</p>
-                <div className="mt-4 pt-4 border-t border-[#e1e2ed]/40 flex items-center justify-between text-xs font-mono text-[#737686]">
+                <p className="font-sans text-xs text-brand-muted-dark leading-relaxed line-clamp-3">{prog.description}</p>
+                <div className="mt-4 pt-4 border-t border-brand-border-light/40 flex items-center justify-between text-xs font-mono text-brand-muted">
                   <span>{prog.ageGroup}</span>
                   <span className="font-bold text-[#25338d]">{prog.duration}</span>
                 </div>
@@ -259,7 +259,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
                 </button>
                 <button
                   onClick={() => onSetSelectedProgramSpec(prog)}
-                  className="p-3 text-[#737686] hover:bg-[#faf8ff] hover:text-slate-900 rounded-xl border border-[#e1e2ed] transition-colors"
+                  className="p-3 text-brand-muted hover:bg-[#faf8ff] hover:text-slate-900 rounded-xl border border-brand-border-light transition-colors"
                   title="Curriculum Details"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -348,7 +348,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
           <h3 className="font-display font-medium text-slate-900 tracking-tight mt-1" style={{ fontSize: 'clamp(28px, 4vw, 36px)' }}>
             Stories in Snapshots
           </h3>
-          <p className="font-sans text-sm text-[#434655] mt-2">
+          <p className="font-sans text-sm text-brand-muted-dark mt-2">
             Relive the best moments from our competitions, championships, and community events across Ethiopia and beyond.
           </p>
         </motion.div>
@@ -370,7 +370,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: idx * 0.08 }}
-              className="group relative rounded-xl overflow-hidden border border-[#e1e2ed]/60 shadow-premium-sm hover:shadow-premium-md transition-all aspect-[4/3]"
+              className="group relative rounded-xl overflow-hidden border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all aspect-[4/3]"
             >
               <img src={photo.src} alt={photo.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
@@ -434,7 +434,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="bg-slate-900/40 backdrop-blur-md p-6 md:p-8 rounded-[28px] border border-slate-800/80"
+            className="bg-slate-900/40 backdrop-blur-md p-6 md:p-8 rounded-modal border border-slate-800/80"
           >
             <h4 className="font-display font-bold text-lg text-white mb-2 flex items-center gap-2">
               <Globe2 className="w-5 h-5 text-[#ed1c24]" />

@@ -43,7 +43,7 @@ export default function PerformanceMetrics() {
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Performance Chart */}
-        <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="w-4 h-4 text-[#2563EB]" />
             <h4 className="font-display font-bold text-slate-900 text-base">Class Performance</h4>
@@ -68,7 +68,7 @@ export default function PerformanceMetrics() {
         </div>
 
         {/* Attendance Chart */}
-        <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-emerald-500" />
             <h4 className="font-display font-bold text-slate-900 text-base">Monthly Attendance</h4>

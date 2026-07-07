@@ -67,11 +67,11 @@ export default function LessonPlanner() {
       <AnimatePresence>
         {showAdd && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-5 flex flex-col sm:flex-row gap-3">
+            <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-5 flex flex-col sm:flex-row gap-3">
               <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Lesson title..."
-                className="flex-1 bg-slate-50 border border-[#e1e2ed] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB]" />
+                className="flex-1 bg-slate-50 border border-brand-border-light rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB]" />
               <select value={newTrack} onChange={e => setNewTrack(e.target.value)}
-                className="bg-slate-50 border border-[#e1e2ed] rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-[#2563EB]">
+                className="bg-slate-50 border border-brand-border-light rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-[#2563EB]">
                 <option>VEX V5</option><option>VEX IQ</option><option>Enjoy AI</option>
               </select>
               <button onClick={addLesson} className="bg-[#2563EB] text-white font-bold text-xs px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors">Save</button>
@@ -86,7 +86,7 @@ export default function LessonPlanner() {
           const s = statusStyles[lesson.status];
           return (
             <motion.div key={lesson.id} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm p-5 hover:shadow-md transition-all group">
+              className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-5 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">

@@ -108,7 +108,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f8ff] text-[#101426] flex flex-col font-sans animated-grid-bg relative overflow-x-hidden" id="applet-viewport">
+    <div className="min-h-screen bg-brand-paper text-brand-ink flex flex-col font-sans animated-grid-bg relative overflow-x-hidden" id="applet-viewport">
       <AnimatedParticles />
 
       <Navbar
@@ -125,7 +125,7 @@ export default function App() {
 
       <main className={`flex-grow ${activeTab !== 'dashboard' && activeTab !== 'command-center' ? 'pt-[64px]' : ''}`}>
         <AnimatePresence mode="wait">
-          {activeTab === 'home' && (
+          {activeTab === 'home' && !currentUser && (
             <HomePage
               currentUser={currentUser}
               onEnrollInProgram={handleEnrollInProgram}
@@ -218,7 +218,7 @@ export default function App() {
         onAuthSuccess={onAuthSuccess}
       />
 
-      <Footer onNavigate={handleTabChange} />
+      {!currentUser && <Footer onNavigate={handleTabChange} />}
 
       <AiTutor />
     </div>

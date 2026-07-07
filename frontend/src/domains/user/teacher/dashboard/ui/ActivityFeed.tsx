@@ -9,7 +9,7 @@ const FEED_ITEMS = [
 
 export default function ActivityFeed() {
   return (
-    <div className="bg-white rounded-[24px] border border-[#e1e2ed] p-6 shadow-sm" id="section-activity">
+    <div className="bg-white rounded-[24px] border border-brand-border-light p-6 shadow-sm" id="section-activity">
       <h3 className="font-display font-bold text-base text-slate-900 mb-4 flex items-center gap-2">
         <Activity className="w-5 h-5 text-[#2563EB]" /> Recent Activity
       </h3>
@@ -23,7 +23,7 @@ export default function ActivityFeed() {
               <p className="font-sans text-xs text-slate-800 leading-snug">
                 {item.bold && <span className="font-bold">{item.bold} </span>}{item.text}
               </p>
-              <span className="font-mono text-[9px] text-[#737686] mt-0.5 block">{item.time}</span>
+              <span className="font-mono text-[9px] text-brand-muted mt-0.5 block">{item.time}</span>
             </div>
           </div>
         ))}

@@ -31,8 +31,8 @@ export default function ProgressSubmissions({
   return (
     <div className="flex flex-col gap-6">
       {/* Student Progress Table */}
-      <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-[#e1e2ed]/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-brand-border-light/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="font-display font-bold text-lg text-slate-900">Student Progress Overview</h3>
             <p className="font-sans text-xs text-slate-500 mt-1">Track individual student performance and skill completion</p>
@@ -42,7 +42,7 @@ export default function ProgressSubmissions({
             <input
               type="text" placeholder="Search students..." value={progressSearch}
               onChange={e => onProgressSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-[#e1e2ed] rounded-xl text-sm focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-brand-border-light rounded-xl text-sm focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 transition-all"
             />
           </div>
         </div>
@@ -50,7 +50,7 @@ export default function ProgressSubmissions({
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-[#e1e2ed]/40">
+              <tr className="bg-slate-50/80 border-b border-brand-border-light/40">
                 <th className="px-6 py-3 text-left font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Student</th>
                 <th className="px-6 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Skills Completed</th>
                 <th className="px-6 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Projects</th>
@@ -59,7 +59,7 @@ export default function ProgressSubmissions({
                 <th className="px-6 py-3 text-right font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e1e2ed]/30">
+            <tbody className="divide-y divide-brand-border-light/30">
               {filteredForProgress.map((s, idx) => {
                 const prog = STUDENT_PROGRESS[s.id] || { skills: 50, projects: 5, grade: 'B', lastActive: 'Unknown' };
                 const isExpanded = expandedStudent === s.id;
@@ -171,22 +171,22 @@ export default function ProgressSubmissions({
       </div>
 
       {/* Assignment Submissions Card */}
-      <div className="bg-white rounded-2xl border border-[#e1e2ed]/60 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-[#e1e2ed]/40">
+      <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-brand-border-light/40">
           <h3 className="font-display font-bold text-lg text-slate-900">Assignment Submissions</h3>
           <p className="font-sans text-xs text-slate-500 mt-1">Review and approve student project submissions</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-[#e1e2ed]/40">
+              <tr className="bg-slate-50/80 border-b border-brand-border-light/40">
                 <th className="px-6 py-3 text-left font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Student</th>
                 <th className="px-6 py-3 text-left font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assignment</th>
                 <th className="px-6 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-right font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e1e2ed]/30">
+            <tbody className="divide-y divide-brand-border-light/30">
               {assignments.map((a, i) => (
                 <motion.tr
                   key={a.id}
