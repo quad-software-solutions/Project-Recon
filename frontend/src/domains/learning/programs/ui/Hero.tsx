@@ -14,6 +14,8 @@ import sliderImg6 from '@/assets/slider/photo_2026-06-15_18-52-11.jpg';
 import sliderImg7 from '@/assets/slider/photo_2026-06-15_18-52-21.jpg';
 import sliderImg8 from '@/assets/slider/photo_2026-06-15_18-52-25.jpg';
 
+import { cmsPublicApi, type HeroBannerResponse } from '../../../cms/public/api/cmsPublicApi';
+
 const SLIDER_IMAGES = [
   sliderImg1, sliderImg2, sliderImg3, sliderImg4,
   sliderImg5, sliderImg6, sliderImg7, sliderImg8,
@@ -36,15 +38,26 @@ interface HeroProps {
 export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore }: HeroProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [mounted, setMounted] = useState(false);
-
+  const [banners, setBanners] = useState<HeroBannerResponse[]>([]);
+  const [activeImages, setActiveImages] = useState<string[]>(SLIDER_IMAGES);
+  
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
+    cmsPublicApi.getHeroBanners().then((data) => {
+      if (data && data.length > 0) {
+        setBanners(data);
+        setActiveImages(data.map(b => b.image));
+      }
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % SLIDER_IMAGES.length);
+      setCurrentSlide((prev) => (prev + 1) % activeImages.length);
     }, SLIDE_DURATION);
     return () => clearInterval(timer);
-  }, []);
+  }, [activeImages.length]);
 
   return (
     <section
@@ -56,8 +69,8 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
         <AnimatePresence mode="popLayout">
           <motion.img
             key={currentSlide}
-            src={SLIDER_IMAGES[currentSlide]}
-            alt="Ethio Robotics community and competition moments"
+            src={activeImages[currentSlide]}
+            alt={banners[currentSlide]?.title || "Ethio Robotics community and competition moments"}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: 'center top' }}
             initial={{ opacity: 0, scale: 1.08 }}
@@ -113,7 +126,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
 
       {/* Slide indicator dots */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-        {SLIDER_IMAGES.map((_, idx) => (
+        {activeImages.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentSlide(idx)}

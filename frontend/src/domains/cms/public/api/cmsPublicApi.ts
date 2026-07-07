@@ -1,0 +1,52 @@
+import { http } from '../../../../shared/api/http';
+import type { CmsPartnerResponse, NewsArticleResponse } from '../../shared/api/cmsApi';
+
+export interface HeroBannerResponse {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  button_text: string | null;
+  button_url: string | null;
+  order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface FaqResponse {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  order: number;
+  is_active: boolean;
+}
+
+export interface AboutUsResponse {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  image: string | null;
+  order: number;
+  is_active: boolean;
+}
+
+export const cmsPublicApi = {
+  getHeroBanners: () => http.get<HeroBannerResponse[]>('/cms/hero-banners/'),
+  getNews: (params?: Record<string, string>) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params }),
+  getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),
+  getPartners: () => http.get<CmsPartnerResponse[]>('/cms/partners/'),
+  getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
+  getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
+  getFaqs: () => http.get<FaqResponse[]>('/cms/faqs/'),
+  submitContactRequest: (data: { name: string; email: string; subject?: string; description: string }) => 
+    http.post('/cms/contact-requests/', data),
+};
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}

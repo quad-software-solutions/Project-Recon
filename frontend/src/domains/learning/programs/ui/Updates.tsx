@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Tent, Shield, ArrowRight, X, Clock, MapPin, Sparkles, ChevronRight } from 'lucide-react';
 import { UPDATE_POSTS } from '@/src/shared/constants/mock-data';
 import { UpdatePost } from '@/src/shared/types';
+import { cmsPublicApi, type NewsArticleResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface UpdatesProps {
   onCampRegisterAction: () => void;
@@ -25,7 +26,16 @@ const cardUp = {
 };
 
 export default function Updates({ onCampRegisterAction }: UpdatesProps) {
-  const [selectedPost, setSelectedPost] = useState<UpdatePost | null>(null);
+  const [selectedPost, setSelectedPost] = useState<NewsArticleResponse | null>(null);
+  const [news, setNews] = useState<NewsArticleResponse[]>([]);
+
+  import('react').then(React => {
+    React.useEffect(() => {
+      cmsPublicApi.getNews()
+        .then(res => setNews(res.results.filter(n => n.is_active)))
+        .catch(console.error);
+    }, []);
+  });
 
   return (
     <section className="relative bg-[#f7f8ff] py-16 md:py-20 px-4 md:px-12 overflow-hidden" id="section-updates">
@@ -67,9 +77,11 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
           viewport={{ once: true, margin: '-40px' }}
           className="grid grid-cols-1 md:grid-cols-3 gap-5"
         >
-          {UPDATE_POSTS.map((post, idx) => {
-            const Icon = ICONS[post.iconType];
-            const c = COLORS[post.iconType];
+          {news.length > 0 ? news.map((post, idx) => {
+            const iconKey = post.type?.toLowerCase().includes('camp') ? 'camping' : 
+                            post.type?.toLowerCase().includes('security') ? 'security' : 'calendar';
+            const Icon = ICONS[iconKey as keyof typeof ICONS] || ICONS.calendar;
+            const c = COLORS[iconKey] || COLORS.calendar;
 
             return (
               <motion.div
@@ -88,12 +100,12 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
 
                 {/* Content */}
                 <div className="flex-1 flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{post.category}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{post.type || 'Update'}</span>
                   <h3 className="font-black text-lg text-slate-900 leading-snug group-hover:text-brand-red transition-colors">
                     {post.title}
                   </h3>
                   <p className="text-sm text-slate-500 font-medium leading-relaxed line-clamp-3">
-                    {post.excerpt}
+                    {post.summary}
                   </p>
                 </div>
 
@@ -104,7 +116,11 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
                 </div>
               </motion.div>
             );
-          })}
+          }) : (
+            <div className="col-span-1 md:col-span-3 text-center text-slate-400 py-8">
+              No news or updates available at the moment.
+            </div>
+          )}
         </motion.div>
 
         {/* Modal */}
@@ -136,8 +152,10 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
                 {/* Header */}
                 <div className="flex items-center gap-3.5 mb-6">
                   {(() => {
-                    const Icon = ICONS[selectedPost.iconType];
-                    const c = COLORS[selectedPost.iconType];
+                    const iconKey = selectedPost.type?.toLowerCase().includes('camp') ? 'camping' : 
+                                    selectedPost.type?.toLowerCase().includes('security') ? 'security' : 'calendar';
+                    const Icon = ICONS[iconKey as keyof typeof ICONS] || ICONS.calendar;
+                    const c = COLORS[iconKey] || COLORS.calendar;
                     return (
                       <div className={`w-11 h-11 rounded-xl ${c.bg} border ${c.border} flex items-center justify-center shrink-0`}>
                         <Icon className={`w-5 h-5 ${c.icon}`} />
@@ -145,20 +163,27 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
                     );
                   })()}
                   <div>
-                    <span className="text-[10px] font-black text-brand-red uppercase tracking-widest">{selectedPost.category}</span>
+                    <span className="text-[10px] font-black text-brand-red uppercase tracking-widest">{selectedPost.type || 'Update'}</span>
                     <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
                       <Clock className="w-3 h-3" />
-                      <span className="font-medium">{selectedPost.date}</span>
+                      <span className="font-medium">
+                        {selectedPost.published_at 
+                          ? new Date(selectedPost.published_at).toLocaleDateString() 
+                          : new Date(selectedPost.created_at).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <h3 className="font-black text-2xl text-white tracking-tight mb-6 pr-8">
+                <h3 className="font-black text-2xl text-slate-900 tracking-tight mb-6 pr-8">
                   {selectedPost.title}
                 </h3>
 
                 <div className="max-h-[300px] overflow-y-auto pr-2 text-slate-600 text-sm leading-relaxed whitespace-pre-line mb-8 border-t border-slate-100 pt-6 scrollbar-thin">
-                  {selectedPost.content}
+                  {selectedPost.image && (
+                    <img src={selectedPost.image} alt={selectedPost.title} className="w-full h-auto rounded-xl mb-4 object-cover max-h-64" />
+                  )}
+                  <div dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
                 </div>
 
                 {/* Footer */}
@@ -168,7 +193,14 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
                     Ethio Robotics News Hub
                   </span>
 
-                  {selectedPost.iconType === 'camping' ? (
+                  {selectedPost.button_url ? (
+                    <a
+                      href={selectedPost.button_url}
+                      className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 transition-all"
+                    >
+                      {selectedPost.button_text || 'Learn More'}
+                    </a>
+                  ) : selectedPost.type?.toLowerCase().includes('camp') ? (
                     <button
                       onClick={() => { setSelectedPost(null); onCampRegisterAction(); }}
                       className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 transition-all"

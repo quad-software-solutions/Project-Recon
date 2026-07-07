@@ -10,6 +10,8 @@ import DemoSlider from '../domains/learning/programs/ui/DemoSlider';
 import Updates from '../domains/learning/programs/ui/Updates';
 import { ROBOTICS_PROGRAMS } from '../shared/constants/mock-data';
 import { UserProfile, Program, ActiveTab } from '../shared/types';
+import { cmsPublicApi, type CmsPartnerResponse, type FaqResponse } from '../domains/cms/public/api/cmsPublicApi';
+import { ChevronDown } from 'lucide-react';
 
 import galleryImg1 from '../../assets/photo_2026-06-15_14-39-46.jpg';
 import galleryImg2 from '../../assets/photo_2026-06-15_14-39-52.jpg';
@@ -33,7 +35,20 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'submitting' | 'subscribed'>('idle');
   const [contactMessage, setContactMessage] = useState({ name: '', email: '', body: '' });
-  const [contactStatus, setContactStatus] = useState<'idle' | 'success'>('idle');
+  const [contactStatus, setContactStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [partners, setPartners] = useState<CmsPartnerResponse[]>([]);
+  const [faqs, setFaqs] = useState<FaqResponse[]>([]);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    cmsPublicApi.getPartners()
+      .then(data => setPartners(data.filter(p => p.is_active)))
+      .catch(console.error);
+    
+    cmsPublicApi.getFaqs()
+      .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => a.order - b.order)))
+      .catch(console.error);
+  }, []);
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +60,24 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
     }, 1200);
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setContactStatus('success');
-    setContactMessage({ name: '', email: '', body: '' });
-    setTimeout(() => setContactStatus('idle'), 5000);
+    setContactStatus('submitting');
+    try {
+      await cmsPublicApi.submitContactRequest({
+        name: contactMessage.name,
+        email: contactMessage.email,
+        description: contactMessage.body,
+        subject: 'General Inquiry',
+      });
+      setContactStatus('success');
+      setContactMessage({ name: '', email: '', body: '' });
+      setTimeout(() => setContactStatus('idle'), 5000);
+    } catch (error) {
+      console.error('Contact submission error:', error);
+      setContactStatus('error');
+      setTimeout(() => setContactStatus('idle'), 5000);
+    }
   };
 
   return (
@@ -124,54 +152,34 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
             <div className="flex gap-16 items-center animate-marquee" style={{ width: 'max-content' }}>
               {[...Array(2)].map((_, groupIdx) => (
                 <React.Fragment key={groupIdx}>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '0s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/minstry%20of%20inovation%20and%20technology.png" alt="Ministry of Innovation & Technology" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '0.4s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/vex.webp" alt="VEX Robotics" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '0.8s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/ethiopian_airlines.png" alt="Ethiopian Airlines" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '1.2s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/ethio-tele.png" alt="Ethio Telecom" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '0.2s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/aau.png" alt="Addis Ababa University" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '0.6s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/adama%20scienc%20and%20techology%20university.png" alt="Adama Science & Technology University" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
-                  <div className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: '1.0s' }}>
-                    <img src="https://ethiorobotics.org/images/partners/university%20of%20gonadar.png" alt="University of Gondar" className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
-                  </div>
+                  {partners.length > 0 ? partners.map((partner, idx) => (
+                    <div key={partner.id} className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: `${(idx % 4) * 0.4}s` }}>
+                      <img src={partner.image || ''} alt={partner.title} className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" />
+                    </div>
+                  )) : (
+                    <div className="flex items-center gap-16 animate-logo-float"><span className="text-sm font-semibold text-slate-400">Loading partners...</span></div>
+                  )}
                 </React.Fragment>
               ))}
             </div>
           </div>
 
           <div className="md:hidden grid grid-cols-2 sm:grid-cols-3 gap-6 items-center">
-            {[
-              { src: 'https://ethiorobotics.org/images/partners/minstry%20of%20inovation%20and%20technology.png', alt: 'Ministry of Innovation & Technology', delay: '0s' },
-              { src: 'https://ethiorobotics.org/images/partners/vex.webp', alt: 'VEX Robotics', delay: '0.3s' },
-              { src: 'https://ethiorobotics.org/images/partners/ethiopian_airlines.png', alt: 'Ethiopian Airlines', delay: '0.6s' },
-              { src: 'https://ethiorobotics.org/images/partners/ethio-tele.png', alt: 'Ethio Telecom', delay: '0.9s' },
-              { src: 'https://ethiorobotics.org/images/partners/aau.png', alt: 'Addis Ababa University', delay: '1.2s' },
-              { src: 'https://ethiorobotics.org/images/partners/adama%20scienc%20and%20techology%20university.png', alt: 'Adama Science & Technology University', delay: '1.5s' },
-              { src: 'https://ethiorobotics.org/images/partners/university%20of%20gonadar.png', alt: 'University of Gondar', delay: '1.8s', colSpan: true },
-            ].map((partner, idx) => (
+            {partners.length > 0 ? partners.slice(0, 7).map((partner, idx) => (
               <motion.div
-                key={idx}
+                key={partner.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className={`flex items-center justify-center animate-logo-float ${partner.colSpan ? 'col-span-2 sm:col-span-3' : ''}`}
-                style={{ animationDelay: partner.delay }}
+                className={`flex items-center justify-center animate-logo-float ${idx === 6 ? 'col-span-2 sm:col-span-3' : ''}`}
+                style={{ animationDelay: `${(idx % 4) * 0.3}s` }}
               >
-                <img src={partner.src} alt={partner.alt} className="h-8 md:h-10 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_12px_rgba(37,51,141,0.4)]" />
+                <img src={partner.image || ''} alt={partner.title} className="h-8 md:h-10 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_12px_rgba(37,51,141,0.4)]" />
               </motion.div>
-            ))}
+            )) : (
+              <span className="text-sm font-semibold text-slate-400 col-span-2 sm:col-span-3 text-center">Loading partners...</span>
+            )}
           </div>
 
           <motion.div
@@ -284,7 +292,49 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         })()}
       </section>
 
-      <Updates onCampRegisterAction={() => onEnrollInProgram('prog-enjoy-ai')} />
+      <Updates onCampRegisterAction={() => onEnrollInProgram('summer-camp-001')} />
+
+      {/* FAQ Section */}
+      {faqs.length > 0 && (
+        <section className="bg-white py-16 md:py-24 px-4 md:px-12 border-t border-slate-200">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">
+                Frequently Asked <span className="text-brand-blue">Questions</span>
+              </h2>
+              <p className="text-slate-500 mt-3 font-medium">Find answers to common questions about our programs and events.</p>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              {faqs.map((faq) => (
+                <div key={faq.id} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  <button 
+                    onClick={() => setOpenFaq(openFaq === faq.id ? null : faq.id)}
+                    className="w-full flex items-center justify-between p-4 text-left font-sans font-semibold text-slate-900 focus:outline-none"
+                  >
+                    <span>{faq.question}</span>
+                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${openFaq === faq.id ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {openFaq === faq.id && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }} 
+                        animate={{ height: 'auto', opacity: 1 }} 
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-4 pt-0 text-sm text-slate-600 leading-relaxed border-t border-slate-100">
+                          {faq.answer}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-20" id="photo-gallery">
         <motion.div
@@ -404,8 +454,8 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               <textarea required rows={3} placeholder="Tell us what you need help with..." value={contactMessage.body}
                 onChange={(e) => setContactMessage({ ...contactMessage, body: e.target.value })}
                 className="bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#ed1c24] resize-none" />
-              <button type="submit" className="bg-[#25338d] hover:bg-[#111a5f] text-white font-sans font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all self-end">
-                <Send className="w-3.5 h-3.5" />
+              <button type="submit" disabled={contactStatus === 'submitting'} className="bg-[#25338d] hover:bg-[#111a5f] text-white font-sans font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all self-end disabled:opacity-50">
+                {contactStatus === 'submitting' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 <span>Send Message</span>
               </button>
             </form>
@@ -416,6 +466,13 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
                   className="mt-3.5 bg-[#25338d]/20 border border-[#ed1c24]/30 p-3 rounded-xl text-xs text-white font-sans flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Message dispatched completely! Our helpdesk will email you at your earliest convenience.</span>
+                </motion.div>
+              )}
+              {contactStatus === 'error' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="mt-3.5 bg-red-900/30 border border-red-500/50 p-3 rounded-xl text-xs text-red-200 font-sans flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 opacity-0" />
+                  <span>Failed to send message. Please try again.</span>
                 </motion.div>
               )}
             </AnimatePresence>

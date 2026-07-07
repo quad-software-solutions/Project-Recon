@@ -7,11 +7,13 @@ import {
   Handshake, UserCog, Swords, Medal, Wrench, ClipboardList, Cpu, Star, Target,
   Edit3, Trash2, Eye, EyeOff, Search, Filter, Download, ChevronDown, Save, X,
   UserPlus, UserCheck, UserX, Lock, Globe, Zap, TrendingUp, TrendingDown,
-  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive,
+  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch
 } from 'lucide-react';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
+import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import { NavItem } from '@/src/shared/ui/Sidebar';
+import { BranchSectionShell } from '@/src/domains/branches/ui/BranchSectionShell';
 import { UserProfile } from '@/src/shared/types';
 import {
   fetchUsersApi,
@@ -35,7 +37,7 @@ import {
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'overview' | 'users' | 'roles' | 'settings' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'schools' | 'registrations';
+type SectionId = 'overview' | 'users' | 'roles' | 'settings' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'schools' | 'branches' | 'registrations' | 'cms';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
@@ -45,6 +47,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'partners', label: 'Strategic Partners', icon: Handshake, group: 'main' },
   { id: 'vex-roles', label: 'VEX Teams', icon: UserCog, group: 'vex' },
   { id: 'schools', label: 'Institutions', icon: Building, group: 'main' },
+  { id: 'branches', label: 'Branches', icon: GitBranch, group: 'main' },
+  { id: 'cms', label: 'Content Manager', icon: LayoutDashboard, group: 'main' },
   { id: 'moderation', label: 'Content Moderation', icon: MessageSquare, group: 'system' },
   { id: 'audit', label: 'System Logs', icon: FileText, group: 'system' },
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'system' },
@@ -55,9 +59,10 @@ const NAV_ITEMS: NavItem[] = [
 const pageTitle: Record<SectionId, string> = {
   overview: 'Overview', users: 'User Management', roles: 'Roles & Permissions',
   partners: 'Partners & Sponsors', 'vex-roles': 'VEX Role Management',
-  schools: 'School Management', registrations: 'Registration Management',
+  schools: 'School Management', branches: 'Branch Management', registrations: 'Registration Management',
   moderation: 'Content Moderation', audit: 'Audit Logs',
   notifications: 'Notifications', settings: 'System Settings', maintenance: 'Maintenance',
+  cms: 'Content Management',
 };
 
 /* ─── HELPERS ─── */
@@ -1884,12 +1889,14 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'partners': return <PartnerSponsorshipPanel />;
       case 'vex-roles': return <VexRolesAdmin />;
       case 'schools': return <SchoolManagementSection />;
+      case 'branches': return <BranchSectionShell />;
       case 'moderation': return <ContentModeration />;
       case 'audit': return <AuditLogs />;
       case 'notifications': return <NotificationsPanel />;
       case 'settings': return <SystemSettings />;
       case 'maintenance': return <MaintenancePanel />;
       case 'registrations': return <AdminRegistrations />;
+      case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;
       default: return <Overview />;
     }
   };
