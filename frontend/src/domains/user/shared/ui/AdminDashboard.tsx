@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   BarChart3, Users, Shield, Settings, FileText, Bell, Activity,
   Plus, RefreshCw, AlertTriangle, Clock, CheckCircle, XCircle,
@@ -188,12 +188,14 @@ function UserManagement({ userRole }: { userRole?: string }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<AdminUserResponse | null>(null);
+  const [viewingUser, setViewingUser] = useState<AdminUserResponse | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<string | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [formData, setFormData] = useState({
-    email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor'
+    email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor',
+    phone_number: '', gender: '', date_of_birth: '',
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -309,6 +311,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
       return;
     }
     try {
+      const extra = { phone_number: formData.phone_number || undefined, gender: formData.gender || undefined, date_of_birth: formData.date_of_birth || undefined };
       if (formData.role === 'branch_manager') {
         await createBranchManagerApi({
           email,
@@ -316,6 +319,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
           last_name: lastName,
           password: formData.password,
           branch_id: formData.branch_id,
+          ...extra,
         });
       } else {
         await createStaffApi({
@@ -325,10 +329,11 @@ function UserManagement({ userRole }: { userRole?: string }) {
           password: formData.password,
           branch_id: formData.branch_id,
           role: formData.role,
+          ...extra,
         });
       }
       setShowAddModal(false);
-      setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor' });
+      setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '' });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create user');
@@ -492,6 +497,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
                   <td className="px-4 py-3">
                     {userRole === 'Admin' || userRole === 'Manager' ? (
                       <div className="flex gap-1">
+                        <button onClick={() => setViewingUser(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/5" title="View Details"><Eye className="w-3.5 h-3.5" /></button>
                         <button onClick={() => setEditingUser(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50" title="Edit"><Edit3 className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleToggle(u)} disabled={toggling === u.id} className={`p-1.5 rounded-lg ${toggling === u.id ? 'text-slate-300' : u.status === 'Active' ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={u.status === 'Active' ? 'Deactivate' : 'Activate'}>
                           {toggling === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : u.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
@@ -540,6 +546,17 @@ function UserManagement({ userRole }: { userRole?: string }) {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Phone</label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. +251-911-000000" /></div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Gender</label>
+                <select value={formData.gender} onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30 bg-white">
+                  <option value="">Prefer not to say</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Date of Birth</label><input type="date" value={formData.date_of_birth} onChange={e => setFormData(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></div>
               <div><label className="text-xs font-medium text-slate-500 mb-1 block">Role</label>
                 <select value={formData.role} onChange={e => setFormData(p => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30 bg-white">
                   <option value="instructor">Instructor</option>
@@ -572,6 +589,54 @@ function UserManagement({ userRole }: { userRole?: string }) {
             <div className="flex gap-2 pt-2">
               <button onClick={() => setEditingUser(null)} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
               <button onClick={handleEdit} className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark">Save</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {viewingUser && (
+        <Modal title="User Details" onClose={() => setViewingUser(null)}>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+              <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center text-lg font-black text-slate-600 shrink-0">
+                {viewingUser.full_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-lg text-slate-900">{viewingUser.full_name}</h3>
+                <p className="text-sm text-slate-500">{viewingUser.email}</p>
+              </div>
+              <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-lg ${statusDisplay(viewingUser.status).color} ${statusDisplay(viewingUser.status).color.replace('text-', 'bg-').replace('600', '50')}`}>
+                {viewingUser.status}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">First Name</span><span className="text-slate-900 font-medium">{viewingUser.first_name || '—'}</span></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Last Name</span><span className="text-slate-900 font-medium">{viewingUser.last_name || '—'}</span></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Phone</span><span className="text-slate-900 font-medium">{viewingUser.phone_number || '—'}</span></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Gender</span><span className="text-slate-900 font-medium">{viewingUser.gender || '—'}</span></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Date of Birth</span><span className="text-slate-900 font-medium">{viewingUser.date_of_birth || '—'}</span></div>
+              <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Verified</span><span className={`font-medium ${viewingUser.is_email_verified ? 'text-emerald-600' : 'text-amber-600'}`}>{viewingUser.is_email_verified ? 'Yes' : 'No'}</span></div>
+              <div className="col-span-2"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Joined</span><span className="text-slate-900 font-medium">{formatJoinDate(viewingUser.created_at)}</span></div>
+            </div>
+            {viewingUser.assignments && viewingUser.assignments.length > 0 && (
+              <div className="pt-3 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Role Assignments</span>
+                <div className="flex flex-wrap gap-2">
+                  {viewingUser.assignments.map(a => {
+                    const badge = roleBadge(a.role === 'super_admin' ? 'Admin' : a.role === 'branch_manager' ? 'Manager' : a.role === 'instructor' ? 'Instructor' : 'Student');
+                    return (
+                      <span key={a.id} className={`text-xs font-semibold px-2 py-1 rounded-lg ${badge}`}>
+                        {a.role.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        {a.branch_name && ` @ ${a.branch_name}`}
+                        {a.is_primary && ' ⭐'}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end pt-2">
+              <button onClick={() => setViewingUser(null)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200">Close</button>
             </div>
           </div>
         </Modal>
@@ -1691,20 +1756,165 @@ function PartnerSponsorshipPanel() {
   );
 }
 
+/* ─── VEX ROLES ADMIN ─── */
+
+const ROLE_OPTIONS = [
+  { value: 'Driver', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { value: 'Programmer', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { value: 'Builder', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  { value: 'Captain', color: 'bg-brand-red/10 text-brand-red border-brand-red/20' },
+  { value: 'Notebook Lead', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { value: 'Scout', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  { value: 'Pit Manager', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+];
+
 function VexRolesAdmin() {
-  const roles = [
+  const [teams, setTeams] = useState([
     { team: 'VEX-001', members: [{ name: 'Abebe K.', role: 'Driver' }, { name: 'Selam B.', role: 'Programmer' }, { name: 'Kidus G.', role: 'Builder' }] },
     { team: 'VEX-002', members: [{ name: 'Hana M.', role: 'Driver' }, { name: 'Yonas D.', role: 'Programmer' }] },
-  ];
+  ]);
+  const [showAdd, setShowAdd] = useState<{ team: string } | null>(null);
+  const [newMember, setNewMember] = useState({ name: '', role: 'Driver' });
+  const [editingRole, setEditingRole] = useState<{ team: string; member: string } | null>(null);
+
+  const handleAdd = () => {
+    if (!showAdd || !newMember.name.trim()) return;
+    setTeams(prev => prev.map(t => t.team === showAdd.team ? { ...t, members: [...t.members, { name: newMember.name.trim(), role: newMember.role }] } : t));
+    setNewMember({ name: '', role: 'Driver' });
+    setShowAdd(null);
+  };
+
+  const handleRoleChange = (teamName: string, memberName: string, newRole: string) => {
+    setTeams(prev => prev.map(t => t.team === teamName ? { ...t, members: t.members.map(m => m.name === memberName ? { ...m, role: newRole } : m) } : t));
+    setEditingRole(null);
+  };
+
+  const handleDelete = (teamName: string, memberName: string) => {
+    setTeams(prev => prev.map(t => t.team === teamName ? { ...t, members: t.members.filter(m => m.name !== memberName) } : t));
+  };
+
+  const roleBadge = (role: string) => ROLE_OPTIONS.find(r => r.value === role)?.color || 'bg-slate-100 text-slate-600 border-slate-200';
+
   return (
     <div className="space-y-6">
-      {roles.map(r => (
-        <div key={r.team} className="bg-white border border-slate-200 rounded-xl p-5">
-          <h3 className="font-bold text-base text-slate-900 mb-4 flex items-center gap-2"><Cpu className="w-4 h-4 text-brand-red" /> {r.team}</h3>
-          <div className="space-y-3">{r.members.map(m => <div key={m.name} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600">{m.name.charAt(0)}</div><span className="text-sm font-medium text-slate-900">{m.name}</span></div><span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">{m.role}</span></div>)}</div>
-          <div className="flex gap-2 mt-4">{['Driver', 'Programmer', 'Builder'].map(rr => <button key={rr} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-slate-300 text-slate-500 hover:border-brand-blue hover:text-brand-blue"><Plus className="w-3 h-3 inline mr-1" />{rr}</button>)}</div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-black text-lg text-slate-900">VEX Team Roles</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Manage team members and their roles across all VEX teams.</p>
         </div>
-      ))}
+        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">Demo Mode</span>
+      </div>
+
+      <div className="grid gap-5">
+        {teams.map(t => (
+          <div key={t.team} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-brand-red/5 to-white px-5 py-3 flex items-center justify-between border-b border-slate-100">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-brand-red" /> {t.team}
+                <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{t.members.length} members</span>
+              </h3>
+              <button onClick={() => setShowAdd({ team: t.team })}
+                className="flex items-center gap-1 text-xs font-bold text-brand-red bg-brand-red/5 border border-brand-red/20 px-2.5 py-1.5 rounded-lg hover:bg-brand-red/10 transition-colors"
+              >
+                <Plus className="w-3 h-3" /> Add Member
+              </button>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {t.members.length === 0 ? (
+                <div className="px-5 py-6 text-center">
+                  <Users className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                  <p className="text-xs text-slate-400">No members in this team yet.</p>
+                </div>
+              ) : t.members.map(m => (
+                <div key={m.name} className="flex items-center justify-between px-5 py-2.5 hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center text-white font-black text-xs">
+                      {m.name.charAt(0)}
+                    </div>
+                    <span className="text-sm font-medium text-slate-900">{m.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {editingRole?.team === t.team && editingRole?.member === m.name ? (
+                      <select value={m.role} onChange={e => handleRoleChange(t.team, m.name, e.target.value)}
+                        className="text-[10px] font-bold px-1.5 py-1 rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-brand-red"
+                        autoFocus
+                        onBlur={() => setEditingRole(null)}
+                      >
+                        {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.value}</option>)}
+                      </select>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleBadge(m.role)}`}>{m.role}</span>
+                    )}
+                    <button onClick={() => setEditingRole({ team: t.team, member: m.name })} className="p-1 rounded text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors">
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => handleDelete(t.team, m.name)} className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-1.5">
+          <Shield className="w-3.5 h-3.5 text-brand-red" /> Available Roles
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          {ROLE_OPTIONS.map(r => (
+            <span key={r.value} className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${r.color}`}>{r.value}</span>
+          ))}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showAdd && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => { setShowAdd(null); setNewMember({ name: '', role: 'Driver' }); }}
+              className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm">
+                <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                  <h3 className="font-bold text-base text-slate-900">Add Team Member</h3>
+                  <button onClick={() => { setShowAdd(null); setNewMember({ name: '', role: 'Driver' }); }} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Member Name</label>
+                    <input value={newMember.name} onChange={e => setNewMember(p => ({ ...p, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-brand-red"
+                      placeholder="e.g. Kidus G."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Role</label>
+                    <select value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-brand-red"
+                    >
+                      {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.value}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
+                  <button onClick={() => { setShowAdd(null); setNewMember({ name: '', role: 'Driver' }); }} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                  <button onClick={handleAdd} disabled={!newMember.name.trim()}
+                    className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50">
+                    Add Member
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
