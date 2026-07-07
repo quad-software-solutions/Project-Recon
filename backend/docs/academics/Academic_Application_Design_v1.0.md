@@ -57,7 +57,8 @@ The Academic application owns:
 - Enrollments
 - Enrollment Periods
 - Enrollment Payments
-- Attendance
+- Attendance Sessions
+- Attendance Records
 - Learning Progress
 - Learning Materials
 - Certificates
@@ -101,7 +102,8 @@ Academic
 ├── Enrollment
 ├── Enrollment Period
 ├── Enrollment Payment
-├── Attendance
+├── Attendance Session
+├── Attendance Record
 ├── Learning Milestone
 ├── Student Progress
 ├── Learning Material
@@ -129,11 +131,15 @@ Class
 
 ↓
 
-Enrollment
+Attendance Session
 
 ↓
 
-Attendance
+Attendance Record
+
+↓
+
+Enrollment
 
 ↓
 
@@ -490,7 +496,8 @@ Can manage:
 - Students
 - Classes
 - Enrollments
-- Attendance
+- Attendance Sessions
+- Attendance Records
 - Learning Progress
 - Learning Materials
 - Certificates
@@ -529,7 +536,8 @@ Responsible for teaching.
 Can:
 
 - View assigned classes
-- Record attendance
+- Create attendance sessions
+- Record attendance for students
 - Update student progress
 - Upload learning materials
 - Update own learning materials
@@ -546,9 +554,17 @@ Cannot:
 
 # 22. Attendance
 
-Attendance is recorded for every enrolled student.
+Attendance is recorded per Class Session.
 
-Attendance belongs to an Enrollment.
+Teachers create an Attendance Session for each class meeting.
+
+Students are then marked within that session through Attendance Records.
+
+Attendance Records belong to an Attendance Session and reference the student's Enrollment.
+
+This supports both Group and Individual classes without requiring different models.
+
+For Individual classes, each Attendance Session simply contains one Attendance Record.
 
 Attendance forms part of the student's academic history.
 
@@ -685,7 +701,7 @@ Reports include:
 
 - Student Information
 - Current Enrollments
-- Attendance
+- Attendance Records
 - Learning Progress
 - Certificates
 
@@ -716,11 +732,11 @@ Active Enrollment
 
 ↓
 
-Class Participation
+Attendance Session
 
 ↓
 
-Attendance
+Attendance Record
 
 ↓
 

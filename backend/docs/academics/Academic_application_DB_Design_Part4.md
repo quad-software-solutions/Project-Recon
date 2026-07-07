@@ -38,20 +38,25 @@ This document finalizes the database design by defining:
                   │
                   │
                   ▼
-             Enrollment
-          ┌─────┴─────────────┐
-          │                   │
-          ▼                   ▼
- Attendance         Enrollment Payment
-          │
-          ▼
- Student Progress
-          ▲
-          │
- Learning Milestone
-          ▲
-          │
-      Sub Program
+              Enrollment
+           ┌─────┴──────────────────┐
+           │                        │
+           ▼                        ▼
+  Attendance Record        Enrollment Payment
+           ▲
+           │
+  Attendance Session
+           ▲
+           │
+           Class
+                                   
+           Student Progress
+           ▲
+           │
+  Learning Milestone
+           ▲
+           │
+       Sub Program
      ┌────┼───────────────┬───────────────┐
      │                    │               │
      ▼                    ▼               ▼
@@ -96,7 +101,9 @@ Sub Program
 | Student | Enrollment | One to Many |
 | Class | Enrollment | One to Many |
 | Enrollment | Enrollment Payment | One to One |
-| Enrollment | Attendance | One to Many |
+| Enrollment | Attendance Record | One to Many |
+| Class | Attendance Session | One to Many |
+| Attendance Session | Attendance Record | One to Many |
 | Enrollment | Student Progress | One to Many |
 | Sub Program | Learning Milestone | One to Many |
 | Learning Milestone | Student Progress | One to Many |
@@ -173,12 +180,21 @@ No parent relationships.
 
 ---
 
-## Attendance
+## Attendance Session
 
 | Parent | On Delete |
 |---------|-----------|
-| Enrollment | PROTECT |
+| Class | PROTECT |
 | Recorded By | PROTECT |
+
+---
+
+## Attendance Record
+
+| Parent | On Delete |
+|---------|-----------|
+| Attendance Session | PROTECT |
+| Enrollment | PROTECT |
 
 ---
 
@@ -237,7 +253,8 @@ The following records are **never physically deleted**:
 - Student
 - Enrollment
 - Enrollment Payment
-- Attendance
+- Attendance Session
+- Attendance Record
 - Student Progress
 - Student Certificate
 
@@ -335,14 +352,25 @@ One payment per enrollment.
 
 ---
 
-## Attendance
+## Attendance Session
 
 ```text
-(enrollment,
-attendance_date)
+(class,
+session_date)
 ```
 
-One attendance record per enrollment per session date.
+One session per class per day.
+
+---
+
+## Attendance Record
+
+```text
+(attendance_session,
+enrollment)
+```
+
+One record per enrollment per session.
 
 ---
 
@@ -450,10 +478,18 @@ sub_program)
 
 ---
 
-## Attendance
+## Attendance Session
 
+- class
+- session_date
+
+---
+
+## Attendance Record
+
+- attendance_session
 - enrollment
-- attendance_date
+- status
 
 ---
 
@@ -557,7 +593,7 @@ CANCELLED
 
 ---
 
-## Attendance Status
+## Attendance Record Status
 
 ```text
 PRESENT
@@ -650,11 +686,21 @@ Only Group classes require an active Enrollment Period.
 
 ---
 
-## Attendance
+## Attendance Session
 
-Attendance belongs to an Enrollment.
+Attendance Sessions represent one teaching session for a Class.
 
-Attendance records are permanent.
+Sessions are created once per class meeting.
+
+---
+
+## Attendance Record
+
+Attendance Records represent one student's attendance for a specific Attendance Session.
+
+Attendance Records belong to an Attendance Session and reference the student's Enrollment.
+
+Attendance Records are permanent.
 
 ---
 
@@ -704,7 +750,7 @@ The Academic database is optimized for:
 - Student lookup
 - Enrollment lookup
 - Class roster generation
-- Attendance recording
+- Attendance session creation and recording
 - Certificate generation
 - Academic report generation
 - Material retrieval

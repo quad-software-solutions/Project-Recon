@@ -25,7 +25,8 @@ Future parts will cover:
 - Enrollment
 - Enrollment Period
 - Enrollment Payment
-- Attendance
+- Attendance Session
+- Attendance Record
 - Learning Progress
 - Learning Materials
 - Certificates
@@ -598,7 +599,7 @@ The following decisions are finalized.
 - Classes support both Group and Individual learning.
 - Individual Classes always have capacity of one.
 - Programs, SubPrograms, Students, and Classes use soft deletion through deactivation.
-- Future academic modules (Attendance, Progress, Materials, Certificates) attach to existing models without redesign.
+- Future academic modules (Attendance Sessions, Attendance Records, Progress, Materials, Certificates) attach to existing models without redesign.
 
 ---
 

@@ -18,7 +18,8 @@ This document covers:
 - Enrollment
 - Enrollment Period
 - Enrollment Payment
-- Attendance
+- Attendance Session
+- Attendance Record
 
 ---
 
@@ -31,15 +32,16 @@ Student
     ▼
 Enrollment
     │
-    ├──────────────┐
-    │              │
-    ▼              ▼
-Attendance   EnrollmentPayment
-
-Class
+    ├──────────────────┐
+    │                  │
+    ▼                  ▼
+Attendance Record   EnrollmentPayment
+    ▲
     │
-    ▼
-Enrollment
+Attendance Session
+    ▲
+    │
+Class
 
 SubProgram
     │
@@ -112,7 +114,31 @@ Enrollment
 
 ∞
 
-Attendance
+Attendance Record
+```
+
+```text
+Attendance Session
+
+1
+
+↓
+
+∞
+
+Attendance Record
+```
+
+```text
+Class
+
+1
+
+↓
+
+∞
+
+Attendance Session
 ```
 
 ```text
@@ -461,17 +487,130 @@ Physical deletion is not allowed.
 
 ---
 
-# 6. Attendance
+# 6. Attendance Session
 
 ## Purpose
 
-Attendance records a student's participation in each teaching session.
+Represents one teaching session for a Class.
 
-Attendance belongs to an Enrollment.
+A session is created once per class meeting.
+
+---
+
+## Business Context
+
+Attendance is recorded per Class Session.
+
+Teachers create one Attendance Session for each class meeting.
+
+Students are then marked within that session.
+
+This supports both Group and Individual classes without requiring different models.
+
+For Individual classes, each Attendance Session simply contains one Attendance Record.
+
+---
+
+## Examples
+
+- Robotics Class A, July 7, 2026, Topic: Sensors
+- Python Evening Class, July 10, 2026, Topic: Functions
 
 ---
 
 ## Relationships
+
+```text
+Class
+
+1
+
+↓
+
+∞
+
+Attendance Session
+```
+
+```text
+Attendance Session
+
+1
+
+↓
+
+∞
+
+Attendance Record
+```
+
+---
+
+## Database Fields
+
+| Field | Type | Required | Notes |
+|---------|------|----------|------|
+| id | UUID | Yes | Primary Key |
+| class | ForeignKey | Yes | Teaching Class |
+| session_date | Date | Yes | Class meeting date |
+| topic | String | No | Optional session topic |
+| recorded_by | ForeignKey | Yes | Instructor who recorded |
+| created_at | DateTime | Yes | Audit |
+| updated_at | DateTime | Yes | Audit |
+
+---
+
+## Constraints
+
+- Every Attendance Session belongs to one Class.
+- Session Date is required.
+- Recorded By must be an Instructor.
+
+---
+
+## Indexes
+
+- class
+- session_date
+- recorded_by
+
+Composite:
+
+```text
+(class, session_date)
+```
+
+---
+
+## Delete Policy
+
+Attendance Sessions should never be physically deleted.
+
+Corrections should update or void the session.
+
+---
+
+# 7. Attendance Record
+
+## Purpose
+
+Represents one student's attendance for a specific Attendance Session.
+
+---
+
+## Relationships
+
+```text
+Attendance Session
+
+1
+
+↓
+
+∞
+
+Attendance Record
+```
 
 ```text
 Enrollment
@@ -482,7 +621,7 @@ Enrollment
 
 ∞
 
-Attendance
+Attendance Record
 ```
 
 ---
@@ -492,17 +631,16 @@ Attendance
 | Field | Type | Required | Notes |
 |---------|------|----------|------|
 | id | UUID | Yes | Primary Key |
+| attendance_session | ForeignKey | Yes | Parent Session |
 | enrollment | ForeignKey | Yes | Student Enrollment |
-| attendance_date | Date | Yes | Session date |
 | status | Choice | Yes | Attendance result |
-| remarks | Text | No | Optional |
-| recorded_by | ForeignKey | Yes | Instructor |
+| remarks | Text | No | Optional notes |
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
 ---
 
-## Attendance Status
+## Attendance Record Status
 
 ```text
 PRESENT
@@ -518,39 +656,37 @@ EXCUSED
 
 ## Constraints
 
-Attendance belongs to one Enrollment.
-
-Only one attendance record should exist for an Enrollment on the same date.
-
-Attendance cannot exist without an Enrollment.
-
-Recorded By must be an Instructor.
+- Every Attendance Record belongs to one Attendance Session.
+- Every Attendance Record belongs to one Enrollment.
+- Only one Attendance Record may exist for the same (Attendance Session, Enrollment) combination.
+- Attendance Record cannot exist without an Attendance Session.
+- Attendance Record cannot exist without an Enrollment.
 
 ---
 
 ## Indexes
 
+- attendance_session
 - enrollment
-- attendance_date
 - status
 
 Composite:
 
 ```text
-(enrollment, attendance_date)
+(attendance_session, enrollment)
 ```
 
 ---
 
 ## Delete Policy
 
-Attendance should never be physically deleted.
+Attendance Records should never be physically deleted.
 
 Corrections should update the existing record.
 
 ---
 
-# 7. Shared Enumerations
+# 8. Shared Enumerations
 
 ## Enrollment Status
 
@@ -602,7 +738,7 @@ CANCELLED
 
 ---
 
-## Attendance Status
+## Attendance Record Status
 
 ```text
 PRESENT
@@ -626,22 +762,23 @@ INDIVIDUAL
 
 ---
 
-# 8. Summary Relationships
+# 9. Summary Relationships
 
 ```text
 Student
     │
     ▼
 Enrollment
-    ├──────────────┐
-    │              │
-    ▼              ▼
-Attendance   EnrollmentPayment
-
-Class
+    ├──────────────────────┐
+    │                      │
+    ▼                      ▼
+Attendance Record   EnrollmentPayment
+    ▲
     │
-    ▼
-Enrollment
+Attendance Session
+    ▲
+    │
+Class
 
 Branch
     │
@@ -654,7 +791,7 @@ Program ─┼─ SubProgram
 
 ---
 
-# 9. Locked Decisions
+# 10. Locked Decisions
 
 The following decisions are finalized.
 
@@ -668,8 +805,10 @@ The following decisions are finalized.
 - Enrollment Periods are scoped by Branch, Program, Sub Program, and Class Type.
 - Group enrollments require an active Enrollment Period.
 - Individual enrollments are not restricted by Enrollment Periods.
-- Attendance belongs to an Enrollment and is recorded per teaching session.
-- Attendance, Payments, Enrollment Periods, and Enrollments are retained for historical purposes and are not physically deleted.
+- Attendance is recorded per Class Session through Attendance Sessions.
+- Attendance Sessions are created once per class meeting.
+- Attendance Records belong to an Attendance Session and reference the student's Enrollment.
+- Attendance Sessions, Attendance Records, Payments, Enrollment Periods, and Enrollments are retained for historical purposes and are not physically deleted.
 
 ---
 

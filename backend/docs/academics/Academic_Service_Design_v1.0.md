@@ -224,16 +224,24 @@ Academic never communicates directly with Chapa or Stripe.
 
 ## Purpose
 
-Owns attendance.
+Owns the attendance workflow.
+
+Manages two coordinated operations:
+
+1. Create Attendance Sessions
+2. Record Attendance for students within those sessions
 
 ---
 
 ## Responsibilities
 
-- Record attendance
-- Update attendance
-- Retrieve attendance
-- Generate attendance summary
+- Create Attendance Session
+- Update Attendance Session
+- Record Attendance
+- Update Attendance Record
+- Retrieve Session
+- Retrieve Student Attendance History
+- Generate Attendance Summary
 
 ---
 
