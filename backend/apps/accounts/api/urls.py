@@ -55,6 +55,8 @@ from apps.accounts.views import (
     ForgotPasswordView,
     LoginView,
     LogoutView,
+    PublicEmailVerificationRequestView,
+    PublicEmailVerificationVerifyView,
     ResetPasswordView,
     TokenRefreshView,
     UserActivateView,
@@ -92,6 +94,17 @@ urlpatterns = [
     path("password/forgot/", ForgotPasswordView.as_view(), name="accounts-password-forgot"),
     path("password/reset/", ResetPasswordView.as_view(), name="accounts-password-reset"),
     path("password/change/", ChangePasswordView.as_view(), name="accounts-password-change"),
+    # Public email verification (no auth required)
+    path(
+        "public/email-verification/request/",
+        PublicEmailVerificationRequestView.as_view(),
+        name="accounts-public-email-verification-request",
+    ),
+    path(
+        "public/email-verification/verify/",
+        PublicEmailVerificationVerifyView.as_view(),
+        name="accounts-public-email-verification-verify",
+    ),
     # Users
     path("users/", UserListView.as_view(), name="accounts-user-list"),
     path("users/staff/", CreateStaffUserView.as_view(), name="accounts-user-create-staff"),

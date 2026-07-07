@@ -9,6 +9,8 @@ from apps.accounts.views.auth import (
     ForgotPasswordView,
     LoginView,
     LogoutView,
+    PublicEmailVerificationRequestView,
+    PublicEmailVerificationVerifyView,
     ResetPasswordView,
     TokenRefreshView,
 )
@@ -45,6 +47,8 @@ __all__ = [
     "TokenRefreshView",
     "EmailVerificationRequestView",
     "EmailVerificationVerifyView",
+    "PublicEmailVerificationRequestView",
+    "PublicEmailVerificationVerifyView",
     "DeviceVerificationRequestView",
     "DeviceVerificationVerifyView",
     "ForgotPasswordView",

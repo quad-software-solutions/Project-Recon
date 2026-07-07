@@ -31,10 +31,11 @@ interface LoginViewProps {
 }
 
 export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateRegister, initialView = 'login' }: LoginViewProps) {
-  const [viewMode, setViewMode] = useState<'login' | 'register'>(initialView);
+  const [viewMode, setViewMode] = useState<'login' | 'register' | 'email-verify'>(initialView === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [emailOtp, setEmailOtp] = useState('');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetPhase, setResetPhase] = useState<1 | 2 | 3>(1);
@@ -80,16 +81,48 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
       return;
     }
 
-    import('../api/loginApi').then(({ loginApi }) => {
+    import('../api/loginApi').then(({ loginApi, EmailNotVerifiedError, requestEmailVerificationApi }) => {
       loginApi({ email, password })
         .then(({ user }) => {
           onAuthSuccess(user);
         })
         .catch((err) => {
+          if (err instanceof EmailNotVerifiedError) {
+            // Trigger OTP dispatch and switch to OTP view
+            requestEmailVerificationApi(err.email)
+              .then(() => {
+                setViewMode('email-verify');
+                setLoading(false);
+              })
+              .catch(() => {
+                setErrorMsg('Failed to send verification email. Please try again.');
+                setLoading(false);
+              });
+            return;
+          }
           setErrorMsg(err instanceof Error ? err.message : 'Login failed. Please try again.');
           setLoading(false);
         });
     });
+  };
+
+  const handleEmailVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    if (!emailOtp) {
+      setErrorMsg('Please enter the OTP sent to your email.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { verifyEmailOtpApi } = await import('../api/loginApi');
+      const { user } = await verifyEmailOtpApi(email, emailOtp);
+      onAuthSuccess(user);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'OTP verification failed.');
+      setLoading(false);
+    }
   };
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
@@ -266,7 +299,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   transition={{ duration: 0.4, delay: 0.15 }}
                   className="font-black text-slate-900 tracking-tight text-[28px] uppercase"
                 >
-                  {viewMode === 'login' ? 'Welcome Back' : 'Join the Lab'}
+                  {viewMode === 'login' ? 'Welcome Back' : viewMode === 'email-verify' ? 'Verify Email' : 'Join the Lab'}
                 </motion.h2>
                 <motion.p
                   initial={{ opacity: 0, y: 10 }}
@@ -276,6 +309,8 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                 >
                   {viewMode === 'login'
                     ? 'Access your engineering dashboard & simulation laboratories.'
+                    : viewMode === 'email-verify'
+                    ? 'Please enter the 6-digit verification code sent to your email.'
                     : 'Submit a student registration request for administrator review.'}
                 </motion.p>
               </div>
@@ -297,7 +332,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
               </AnimatePresence>
 
               {/* Form */}
-              <form onSubmit={handleFormSubmit} className="flex flex-col gap-5">
+              <form onSubmit={viewMode === 'email-verify' ? handleEmailVerifySubmit : handleFormSubmit} className="flex flex-col gap-5">
                 <motion.div
                   variants={{
                     hidden: {},
@@ -307,57 +342,75 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   animate="visible"
                   className="flex flex-col gap-5"
                 >
+                  {viewMode === 'email-verify' ? (
+                    <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
+                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Verification Code</label>
+                      <div className="relative group">
+                        <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-red transition-colors" />
+                        <input
+                          type="text"
+                          placeholder="6-Digit OTP"
+                          required
+                          value={emailOtp}
+                          onChange={(e) => setEmailOtp(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all tracking-[0.2em]"
+                        />
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <>
+                      {/* Email */}
+                      <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
+                        <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Username / ID</label>
+                        <div className="relative group">
+                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-red transition-colors" />
+                          <input
+                            type="email"
+                            placeholder="Enter your ID or Email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all"
+                          />
+                        </div>
+                      </motion.div>
 
-                  {/* Email */}
-                  <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Username / ID</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-red transition-colors" />
-                      <input
-                        type="email"
-                        placeholder="Enter your ID or Email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all"
-                      />
-                    </div>
-                  </motion.div>
-
-                  {/* Password */}
-                  <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Password</label>
-                      {viewMode === 'login' && (
-                        <button
-                          type="button"
-                          onClick={() => { setIsForgotPasswordOpen(true); setErrorMsg(''); }}
-                          className="text-[10px] font-bold text-brand-red hover:underline"
-                          id="btn-login-forgot"
-                        >
-                          Forgot Password?
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative group">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-red transition-colors" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-10 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </motion.div>
+                      {/* Password */}
+                      <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Password</label>
+                          {viewMode === 'login' && (
+                            <button
+                              type="button"
+                              onClick={() => { setIsForgotPasswordOpen(true); setErrorMsg(''); }}
+                              className="text-[10px] font-bold text-brand-red hover:underline"
+                              id="btn-login-forgot"
+                            >
+                              Forgot Password?
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative group">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-red transition-colors" />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="••••••••"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full pl-10 pr-10 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
 
                   {/* Role */}
                   {/* Submit */}
@@ -374,11 +427,11 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                           </svg>
-                          <span>Verifying Credentials...</span>
+                          <span>{viewMode === 'email-verify' ? 'Verifying...' : 'Verifying Credentials...'}</span>
                         </span>
                       ) : (
                         <>
-                          <span>{viewMode === 'login' ? 'Access Dashboard' : 'Open Registration'}</span>
+                          <span>{viewMode === 'email-verify' ? 'Verify Code' : viewMode === 'login' ? 'Access Dashboard' : 'Open Registration'}</span>
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </>
                       )}
@@ -396,10 +449,16 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                 className="mt-8 pt-6 border-t border-slate-100 text-center"
               >
                 <span className="text-xs text-slate-400 font-medium">
-                  {viewMode === 'login' ? "No account?" : "Already possess account?"}{' '}
+                  {viewMode === 'email-verify' ? 'Want to use a different account?' : viewMode === 'login' ? "No account?" : "Already possess account?"}{' '}
                 </span>
                 <button
                   onClick={() => {
+                    if (viewMode === 'email-verify') {
+                      setViewMode('login');
+                      setEmailOtp('');
+                      setErrorMsg('');
+                      return;
+                    }
                     if (viewMode === 'login' && onNavigateRegister) {
                       onNavigateRegister();
                     } else {
@@ -410,7 +469,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   className="text-xs font-bold text-brand-red hover:underline transition-all"
                   id="btn-login-bottom-toggle"
                 >
-                  {viewMode === 'login' ? 'Register Here' : 'Log In Here'}
+                  {viewMode === 'email-verify' ? 'Back to Login' : viewMode === 'login' ? 'Register Here' : 'Log In Here'}
                 </button>
               </motion.div>
 

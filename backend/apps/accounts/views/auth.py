@@ -34,9 +34,11 @@ from apps.accounts.services.authentication_service import (
     request_email_verification,
     reset_password,
     verify_email_otp,
-    request_device_verification,   
+    request_device_verification,
     verify_device_otp,
     change_password,
+    public_request_email_verification,
+    public_verify_email_otp,
 )
 
 
@@ -65,13 +67,21 @@ class LoginView(APIView):
             request,
         )
 
-        tokens = login(
+        result = login(
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
             device_info=device_info or None,
         )
 
-        return Response(TokenPairSerializer(tokens).data)
+        # If login returns a verification requirement instead of tokens
+        if result.get("requires_verification"):
+            return Response({
+                "code": "email_not_verified",
+                "detail": "Email verification required. An OTP has been sent to your email.",
+                "email": result["email"],
+            }, status=403)
+
+        return Response(TokenPairSerializer(result).data)
 
 
 class LogoutView(APIView):
@@ -151,6 +161,56 @@ class EmailVerificationVerifyView(APIView):
             device_info=device_info,
         )
         return Response(status=204)
+
+
+class PublicEmailVerificationRequestView(APIView):
+    """Send email verification OTP to a user identified by email (public)."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [OTPRequestUserThrottle]
+
+    @extend_schema(tags=["Auth"], responses={204: None})
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"email": ["This field is required."]}, status=400)
+        public_request_email_verification(email)
+        return Response(status=204)
+
+
+class PublicEmailVerificationVerifyView(APIView):
+    """
+    Verify email OTP for a user identified by email (public).
+
+    On success, returns JWT tokens so the user is logged in immediately.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [OTPVerifyUserThrottle]
+
+    @extend_schema(tags=["Auth"], responses={200: TokenPairSerializer})
+    def post(self, request):
+        email = request.data.get("email")
+        otp = request.data.get("otp")
+        if not email or not otp:
+            errors = {}
+            if not email:
+                errors["email"] = ["This field is required."]
+            if not otp:
+                errors["otp"] = ["This field is required."]
+            return Response(errors, status=400)
+
+        device_info = None
+        fingerprint = request.data.get("fingerprint")
+        if fingerprint:
+            device_info = build_device_info({
+                "device_id": request.data.get("device_id", ""),
+                "fingerprint": fingerprint,
+                "user_agent": request.data.get("user_agent", ""),
+            }, request)
+
+        tokens = public_verify_email_otp(email, otp, device_info=device_info)
+        return Response(TokenPairSerializer(tokens).data)
 
 
 class DeviceVerificationRequestView(APIView):
