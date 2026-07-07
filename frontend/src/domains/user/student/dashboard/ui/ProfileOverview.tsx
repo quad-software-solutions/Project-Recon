@@ -204,7 +204,7 @@ export default function ProfileOverview({ currentUser, onUserUpdate }: Props) {
           </div>
           <div>
             <p className="text-xs font-mono font-bold text-brand-muted uppercase">Active Tracks</p>
-            <p className="font-sans font-bold text-slate-900 text-lg leading-tight mt-0.5">{currentUser.enrolledPrograms.length || 0} Programs</p>
+            <p className="font-sans font-bold text-slate-900 text-lg leading-tight mt-0.5">{0} Programs</p>
           </div>
         </div>
 

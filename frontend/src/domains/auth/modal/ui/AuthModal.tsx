@@ -67,7 +67,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
         email,
         name: name || (email.split('@')[0].toUpperCase().replace('.', ' ')),
         role: role,
-        enrolledPrograms: [],
         xpPoints: 20,
         badges: ['Starter Badge']
       };

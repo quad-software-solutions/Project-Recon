@@ -130,7 +130,6 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
     email: credentials.email,
     name: credentials.email.split('@')[0],
     role: 'Student',
-    enrolledPrograms: [],
     xpPoints: 0,
     badges: [],
   };
@@ -172,7 +171,6 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
         date_of_birth: userData.date_of_birth || '',
         gender: userData.gender || '',
         role,
-        enrolledPrograms: [],
         xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
         badges: role === 'Admin' ? ['System Admin', 'Root Access'] : role === 'Manager' ? ['System Admin'] : role === 'Instructor' ? ['Master Instructor'] : ['Starter Badge'],
       };
@@ -266,7 +264,6 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
     email,
     name: email.split('@')[0],
     role: 'Student',
-    enrolledPrograms: [],
     xpPoints: 0,
     badges: [],
   };
@@ -298,7 +295,6 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
         email: userData.email,
         name: userData.full_name || `${userData.first_name} ${userData.last_name}`.trim() || userData.email.split('@')[0],
         role,
-        enrolledPrograms: [],
         xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
         badges: role === 'Admin' ? ['System Admin', 'Root Access'] : role === 'Manager' ? ['System Admin'] : role === 'Instructor' ? ['Master Instructor'] : ['Starter Badge'],
       };

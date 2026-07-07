@@ -9,7 +9,7 @@ import Hero from '../domains/learning/programs/ui/Hero';
 import DemoSlider from '../domains/learning/programs/ui/DemoSlider';
 import Updates from '../domains/learning/programs/ui/Updates';
 import { ROBOTICS_PROGRAMS } from '../shared/constants/mock-data';
-import { UserProfile, Program, ActiveTab } from '../shared/types';
+import { UserProfile, ActiveTab } from '../shared/types';
 import { cmsPublicApi, type CmsPartnerResponse, type FaqResponse } from '../domains/cms/public/api/cmsPublicApi';
 import { ChevronDown } from 'lucide-react';
 
@@ -28,7 +28,7 @@ interface HomePageProps {
   currentUser: UserProfile | null;
   onEnrollInProgram: (programId: string) => void;
   onNavigate: (tab: ActiveTab) => void;
-  onSetSelectedProgramSpec: (program: Program | null) => void;
+  onSetSelectedProgramSpec: (program: any) => void;
 }
 
 export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, onSetSelectedProgramSpec }: HomePageProps) {
