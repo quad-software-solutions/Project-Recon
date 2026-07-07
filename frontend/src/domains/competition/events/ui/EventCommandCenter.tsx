@@ -822,7 +822,7 @@ function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }
             <div className="text-6xl">{team.avatar}</div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="font-black text-2xl md:text-3xl text-white tracking-tight">{team.name}</h2>
+                <h2 className="font-black text-2xl md:text-3xl text-slate-900 tracking-tight">{team.name}</h2>
                 <span className="text-sm font-mono bg-brand-red/10 text-brand-red px-2.5 py-0.5 rounded-lg">#{team.number}</span>
               </div>
               <p className="text-slate-500 text-sm font-medium">{team.bio}</p>
@@ -858,7 +858,7 @@ function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }
               <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
                 <StatIcon className={`w-5 h-5 ${stat.color}`} />
               </div>
-              <p className="font-black text-2xl text-white tracking-tight">{stat.value}</p>
+              <p className="font-black text-2xl text-slate-900 tracking-tight">{stat.value}</p>
               <p className="text-xs text-slate-500 font-medium mt-0.5">{stat.label}</p>
             </motion.div>
           );

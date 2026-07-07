@@ -51,12 +51,17 @@ export default function DashboardCommandCenter({ title, subtitle, signals }: Das
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {signals.map((signal, index) => {
+        {signals.length === 0 ? (
+          <div className="col-span-full py-6 text-center text-xs text-slate-400">
+            <ShieldCheck className="w-5 h-5 text-slate-300 mx-auto mb-1" />
+            No signals to display.
+          </div>
+        ) : signals.map((signal, index) => {
           const Icon = signal.icon;
           const tone = signal.tone ?? 'slate';
           return (
             <motion.div
-              key={signal.label}
+              key={index}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.03 }}

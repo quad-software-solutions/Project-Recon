@@ -564,7 +564,7 @@ function VexOverviewSection({ onNavigate }: { onNavigate: (id: SectionId) => voi
             <div className="text-4xl">{team.avatar}</div>
             <div className="flex-1">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <h2 className="font-black text-2xl text-white tracking-tight">{team.name}</h2>
+                <h2 className="font-black text-2xl text-slate-900 tracking-tight">{team.name}</h2>
                 <span className="text-sm font-mono bg-brand-red/10 text-brand-red px-2 py-0.5 rounded-lg">#{team.number}</span>
               </div>
               <p className="text-sm text-slate-500 font-medium">{team.bio}</p>
@@ -600,7 +600,7 @@ function VexOverviewSection({ onNavigate }: { onNavigate: (id: SectionId) => voi
               <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-1.5">
                 <StatIcon className={`w-4 h-4 ${stat.color}`} />
               </div>
-              <p className="font-black text-xl text-white tracking-tight">{stat.value}</p>
+              <p className="font-black text-xl text-slate-900 tracking-tight">{stat.value}</p>
               <p className="text-[11px] text-slate-500 font-medium mt-0.5">{stat.label}</p>
             </motion.div>
           );
