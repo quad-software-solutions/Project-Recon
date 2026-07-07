@@ -126,6 +126,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
   const userId = payload?.user_id as string | undefined;
 
   let userProfile: UserProfile = {
+    id: userId || '',
     email: credentials.email,
     name: credentials.email.split('@')[0],
     role: 'Student',
@@ -154,13 +155,22 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
         }>;
         phone_number?: string;
         profile_picture?: string;
+        date_of_birth?: string;
+        gender?: string;
       }>(`/accounts/users/${userId}/`);
 
       const role = resolveRole(userData.assignments);
 
       userProfile = {
+        id: userData.id,
         email: userData.email,
         name: userData.full_name || `${userData.first_name} ${userData.last_name}`.trim() || userData.email.split('@')[0],
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        phone_number: userData.phone_number || '',
+        profile_picture: userData.profile_picture || '',
+        date_of_birth: userData.date_of_birth || '',
+        gender: userData.gender || '',
         role,
         enrolledPrograms: [],
         xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
@@ -252,6 +262,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
   const userId = payload?.user_id as string | undefined;
 
   let userProfile: UserProfile = {
+    id: userId || '',
     email,
     name: email.split('@')[0],
     role: 'Student',
@@ -283,6 +294,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
       const role = resolveRole(userData.assignments);
 
       userProfile = {
+        id: userData.id,
         email: userData.email,
         name: userData.full_name || `${userData.first_name} ${userData.last_name}`.trim() || userData.email.split('@')[0],
         role,

@@ -42,8 +42,15 @@ export interface UpdatePost {
 }
 
 export interface UserProfile {
+  id: string;
   email: string;
   name: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  profile_picture?: string;
+  date_of_birth?: string;
+  gender?: string;
   role: 'Student' | 'Instructor' | 'Admin' | 'Manager' | 'Parent' | 'EventManager';
   enrolledPrograms: string[];
   bio?: string;
@@ -55,7 +62,7 @@ export interface UserProfile {
   language?: 'en' | 'am';
 }
 
-export type ActiveTab = 'home' | 'about' | 'store' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center';
+export type ActiveTab = 'home' | 'about' | 'store' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center' | 'forgot-password' | 'reset-password';
 
 export interface SubscriptionTier {
   id: 'free' | 'explorer' | 'pro' | 'school';

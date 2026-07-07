@@ -27,10 +27,11 @@ interface LoginViewProps {
   onAuthSuccess: (user: UserProfile) => void;
   onNavigateHome: () => void;
   onNavigateRegister?: () => void;
+  onNavigateForgotPassword?: () => void;
   initialView?: 'login' | 'register';
 }
 
-export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateRegister, initialView = 'login' }: LoginViewProps) {
+export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateRegister, onNavigateForgotPassword, initialView = 'login' }: LoginViewProps) {
   const [viewMode, setViewMode] = useState<'login' | 'register' | 'email-verify'>(initialView === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -382,7 +383,14 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                           {viewMode === 'login' && (
                             <button
                               type="button"
-                              onClick={() => { setIsForgotPasswordOpen(true); setErrorMsg(''); }}
+                              onClick={() => {
+                                if (onNavigateForgotPassword) {
+                                  onNavigateForgotPassword();
+                                } else {
+                                  setIsForgotPasswordOpen(true);
+                                  setErrorMsg('');
+                                }
+                              }}
                               className="text-[10px] font-bold text-brand-red hover:underline"
                               id="btn-login-forgot"
                             >

@@ -18,6 +18,7 @@ import DashboardPage from '../pages/dashboard/DashboardPage';
 import StorePage from '../pages/store/StorePage';
 import CompetitionPage from '../pages/competition/CompetitionPage';
 import CommunityPage from '../pages/community/CommunityPage';
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 
 import { useAuth } from '../shared/hooks/useAuth';
 import { useCart } from '../shared/hooks/useCart';
@@ -101,9 +102,19 @@ export default function App() {
           onAuthSuccess={onAuthSuccess}
           onNavigateHome={() => handleTabChange('home')}
           onNavigateRegister={() => handleTabChange('registration')}
+          onNavigateForgotPassword={() => handleTabChange('forgot-password')}
           initialView={activeTab}
         />
       </React.Suspense>
+    );
+  }
+
+  if (activeTab === 'forgot-password') {
+    return (
+      <ForgotPasswordPage
+        onNavigateHome={() => handleTabChange('home')}
+        onNavigateLogin={() => handleTabChange('login')}
+      />
     );
   }
 

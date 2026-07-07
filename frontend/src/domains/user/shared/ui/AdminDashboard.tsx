@@ -7,14 +7,14 @@ import {
   Handshake, UserCog, Swords, Medal, Wrench, ClipboardList, Cpu, Star, Target,
   Edit3, Trash2, Eye, EyeOff, Search, Filter, Download, ChevronDown, Save, X,
   UserPlus, UserCheck, UserX, Lock, Globe, Zap, TrendingUp, TrendingDown,
-  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch
+  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch, BellOff
 } from 'lucide-react';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import { BranchSectionShell } from '@/src/domains/branches/ui/BranchSectionShell';
-import { UserProfile } from '@/src/shared/types';
+import type { UserProfile, AppNotification } from '@/src/shared/types';
 import {
   fetchUsersApi,
   toggleUserStatusApi,
@@ -34,6 +34,7 @@ import {
   type BranchResponse,
   type AssignmentResponse,
 } from '../api/adminApi';
+import { getNotifications } from '@/src/domains/notification/model/notificationApi';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
@@ -181,10 +182,15 @@ function UserManagement({ userRole }: { userRole?: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<AdminUserResponse | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [formData, setFormData] = useState({
     email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor'
@@ -226,11 +232,48 @@ function UserManagement({ userRole }: { userRole?: string }) {
     setArchiving(u.id);
     try {
       await archiveUserApi(u.id);
+      setConfirmArchive(null);
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(u.id); return next; });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to archive user');
     } finally {
       setArchiving(null);
+    }
+  };
+
+  const handleBulkToggle = async (activate: boolean) => {
+    setBulkProcessing(true);
+    setError(null);
+    let success = 0;
+    for (const id of selectedIds) {
+      const user = filtered.find(u => u.id === id);
+      if (!user) continue;
+      const shouldToggle = activate ? user.status !== 'Active' : user.status === 'Active';
+      if (!shouldToggle) { success++; continue; }
+      try {
+        await toggleUserStatusApi(id, user.status);
+        success++;
+      } catch { /* skip failed */ }
+    }
+    setSelectedIds(new Set());
+    setBulkProcessing(false);
+    await load();
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(u => u.id)));
     }
   };
 
@@ -312,12 +355,20 @@ function UserManagement({ userRole }: { userRole?: string }) {
     }
   };
 
-  const filtered = useMemo(() =>
-    data?.results?.filter(u =>
-      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-    ) ?? []
-  , [data, search]);
+  const filtered = useMemo(() => {
+    let list = data?.results ?? [];
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(u => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    }
+    if (roleFilter !== 'all') {
+      list = list.filter(u => resolveRole(u.assignments).toLowerCase() === roleFilter);
+    }
+    if (statusFilter !== 'all') {
+      list = list.filter(u => u.status.toLowerCase() === statusFilter);
+    }
+    return list;
+  }, [data, search, roleFilter, statusFilter]);
 
   const userStats = useMemo(() => {
     const users = data?.results ?? [];
@@ -352,32 +403,82 @@ function UserManagement({ userRole }: { userRole?: string }) {
           </div>
         ))}
       </div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" />
+
+      {/* Filters & Actions Bar */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 focus:outline-none focus:border-brand-blue/30">
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
+              <option value="instructor">Instructor</option>
+              <option value="student">Student</option>
+            </select>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 focus:outline-none focus:border-brand-blue/30">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="suspended">Suspended</option>
+              <option value="archived">Archived</option>
+            </select>
+            {data && <span className="text-xs text-slate-400">{data.count} total</span>}
+            <button onClick={load} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100" title="Refresh"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark"><UserPlus className="w-3.5 h-3.5" /> Add User</button>
+          </div>
         </div>
-        <div className="flex gap-2 items-center">
-          {data && <span className="text-xs text-slate-400">{data.count} total</span>}
-          <button onClick={load} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100" title="Refresh"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark"><UserPlus className="w-3.5 h-3.5" /> Add User</button>
-        </div>
+
+        {/* Bulk Actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-brand-blue/5 border border-brand-blue/20 rounded-lg">
+            <span className="text-xs font-semibold text-slate-600">{selectedIds.size} selected</span>
+            <div className="h-3 w-px bg-slate-200" />
+            <button onClick={() => handleBulkToggle(true)} disabled={bulkProcessing} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 px-2 py-1 rounded hover:bg-emerald-50">
+              {bulkProcessing ? 'Processing...' : 'Activate All'}
+            </button>
+            <button onClick={() => handleBulkToggle(false)} disabled={bulkProcessing} className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50">
+              {bulkProcessing ? 'Processing...' : 'Deactivate All'}
+            </button>
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs font-semibold text-slate-400 hover:text-slate-600 px-2 py-1 rounded hover:bg-slate-100 ml-auto">
+              Clear
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left">
-            <tr><th className="px-4 py-3 font-semibold text-slate-600">Name</th><th className="px-4 py-3 font-semibold text-slate-600">Role</th><th className="px-4 py-3 font-semibold text-slate-600 hidden md:table-cell">Status</th><th className="px-4 py-3 font-semibold text-slate-600 hidden lg:table-cell">Joined</th><th className="px-4 py-3 font-semibold text-slate-600 hidden xl:table-cell">Last Active</th><th className="px-4 py-3 font-semibold text-slate-600">Actions</th></tr>
+            <tr>
+              <th className="px-4 py-3 w-10">
+                <input type="checkbox" checked={filtered.length > 0 && selectedIds.size === filtered.length} onChange={toggleSelectAll} className="rounded border-slate-300" />
+              </th>
+              <th className="px-4 py-3 font-semibold text-slate-600">Name</th>
+              <th className="px-4 py-3 font-semibold text-slate-600">Role</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 hidden md:table-cell">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 hidden lg:table-cell">Joined</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 hidden xl:table-cell">Last Active</th>
+              <th className="px-4 py-3 font-semibold text-slate-600">Actions</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />Loading users...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />Loading users...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No users found</td></tr>
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">No users found</td></tr>
             ) : filtered.map(u => {
               const role = resolveRole(u.assignments);
               const sd = statusDisplay(u.status);
               return (
-                <tr key={u.id} className="hover:bg-slate-50/50">
+                <tr key={u.id} className={`hover:bg-slate-50/50 ${selectedIds.has(u.id) ? 'bg-brand-blue/[0.02]' : ''}`}>
+                  <td className="px-4 py-3">
+                    <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelect(u.id)} className="rounded border-slate-300" />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">{u.full_name.charAt(0).toUpperCase()}</div>
@@ -391,13 +492,13 @@ function UserManagement({ userRole }: { userRole?: string }) {
                   <td className="px-4 py-3">
                     {userRole === 'Admin' || userRole === 'Manager' ? (
                       <div className="flex gap-1">
-                        <button onClick={() => setEditingUser(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50"><Edit3 className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleToggle(u)} disabled={toggling === u.id} className={`p-1.5 rounded-lg ${toggling === u.id ? 'text-slate-300' : u.status === 'Active' ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'}`}>
+                        <button onClick={() => setEditingUser(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50" title="Edit"><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleToggle(u)} disabled={toggling === u.id} className={`p-1.5 rounded-lg ${toggling === u.id ? 'text-slate-300' : u.status === 'Active' ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={u.status === 'Active' ? 'Deactivate' : 'Activate'}>
                           {toggling === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : u.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                         </button>
                         {u.status !== 'Archived' && (
-                          <button onClick={() => handleArchive(u)} disabled={archiving === u.id} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50">
-                            {archiving === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                          <button onClick={() => setConfirmArchive(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50" title="Archive">
+                            <Archive className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -415,7 +516,6 @@ function UserManagement({ userRole }: { userRole?: string }) {
       {showAddModal && (
         <Modal title="Add Staff User" onClose={() => setShowAddModal(false)}>
           <div className="space-y-3">
-
             <div><label className="text-xs font-medium text-slate-500 mb-1 block">Email</label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. yonas.tadesse@email.com" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="text-xs font-medium text-slate-500 mb-1 block">First Name</label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Yonas" /></div>
@@ -472,6 +572,24 @@ function UserManagement({ userRole }: { userRole?: string }) {
             <div className="flex gap-2 pt-2">
               <button onClick={() => setEditingUser(null)} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
               <button onClick={handleEdit} className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark">Save</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirmArchive && (
+        <Modal title="Archive User" onClose={() => setConfirmArchive(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to archive <strong>{confirmArchive.full_name}</strong>?
+              This will suspend their account and remove access.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setConfirmArchive(null)} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={() => handleArchive(confirmArchive)} disabled={archiving === confirmArchive.id} className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {archiving === confirmArchive.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                {archiving === confirmArchive.id ? 'Archiving...' : 'Confirm Archive'}
+              </button>
             </div>
           </div>
         </Modal>
@@ -1159,23 +1277,69 @@ function AuditLogs() {
 
 function NotificationsPanel() {
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
-  const notifs = [
-    { id: 'n1', title: 'System Update', message: 'Platform v2.1.0 will be deployed tonight at 2 AM EST.', time: '1 hour ago', read: false },
-    { id: 'n2', title: 'New Registration', message: 'Kidus G. registered for Advanced Robotics Program', time: '3 hours ago', read: false },
-    { id: 'n3', title: 'Certificate Generated', message: 'Certificate #AWRD-00006 generated for Hana M.', time: '1 day ago', read: true },
-    { id: 'n4', title: 'Backup Complete', message: 'Weekly database backup completed successfully.', time: '2 days ago', read: true },
-  ];
-  const filtered = activeTab === 'unread' ? notifs.filter(n => !n.read) : notifs;
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getNotifications()
+      .then(setNotifications)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = activeTab === 'unread' ? notifications.filter(n => !n.read) : notifications;
+
+  const handleDismiss = async (id: string) => {
+    const { dismissNotification } = await import('@/src/domains/notification/model/notificationApi');
+    await dismissNotification(id);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const timeAgo = (ts: string) => {
+    if (!ts.startsWith('20')) return ts;
+    const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+    return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <button onClick={() => setActiveTab('all')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'all' ? 'bg-brand-red text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>All</button>
-        <button onClick={() => setActiveTab('unread')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'unread' ? 'bg-brand-red text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Unread</button>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <button onClick={() => setActiveTab('all')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'all' ? 'bg-brand-red text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>All</button>
+          <button onClick={() => setActiveTab('unread')} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'unread' ? 'bg-brand-red text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Unread</button>
+        </div>
+        <span className="text-xs text-slate-400">{notifications.length} total</span>
       </div>
-      {filtered.map(n => (
-        <div key={n.id} className={`bg-white border ${n.read ? 'border-slate-200' : 'border-brand-red/20 bg-brand-red/[0.02]'} rounded-xl p-4 sm:p-5`}>
+      {loading ? (
+        <div className="flex items-center justify-center py-10 text-slate-400">
+          <Loader2 className="w-5 h-5 animate-spin" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
+          <BellOff className="w-8 h-8 text-slate-300" />
+          <span className="text-xs font-semibold text-slate-500">All caught up!</span>
+        </div>
+      ) : filtered.map(n => (
+        <div key={n.id} className={`group bg-white border ${n.read ? 'border-slate-200' : 'border-brand-red/20 bg-brand-red/[0.02]'} rounded-xl p-4 sm:p-5`}>
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="font-semibold text-sm sm:text-base text-slate-900">{n.title}</h3>{!n.read && <span className="w-2 h-2 rounded-full bg-brand-red shrink-0" />}</div><p className="text-sm text-slate-500 mt-1">{n.message}</p><p className="text-xs text-slate-400 mt-1.5">{n.time}</p></div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm sm:text-base text-slate-900">{n.title}</h3>
+                {!n.read && <span className="w-2 h-2 rounded-full bg-brand-red shrink-0" />}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">{n.message}</p>
+              <p className="text-xs text-slate-400 mt-1.5">{n.timestamp.startsWith('20') ? timeAgo(n.timestamp) : n.timestamp}</p>
+            </div>
+            <button
+              onClick={() => handleDismiss(n.id)}
+              className="p-1 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100 transition-all shrink-0"
+              title="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       ))}

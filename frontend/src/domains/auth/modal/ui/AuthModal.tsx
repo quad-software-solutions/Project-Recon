@@ -63,6 +63,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
       });
     } else {
       const mockUser: UserProfile = {
+        id: '',
         email,
         name: name || (email.split('@')[0].toUpperCase().replace('.', ' ')),
         role: role,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Image, FileText, Handshake, ShoppingBag, MessageSquare, DollarSign, PanelLeftClose, PanelLeftOpen,
@@ -7,8 +7,8 @@ import {
   Cpu, Swords, Medal, BookOpen, Hash, Star, Target, Wrench, Camera, Search, RefreshCw, Monitor, Filter, Globe,
   UserCog, Eye, Shield, Edit3, Trash2, Plus, LogOut
 } from 'lucide-react';
-import { UserProfile, VexRobot } from '@/src/shared/types';
-import { MOCK_ANALYTICS, MOCK_NOTIFICATIONS, MOCK_TOURNAMENTS, MOCK_WORKSHOPS, MOCK_VEX_TEAM, MOCK_VEX_ROBOTS, MOCK_VEX_AWARDS, MOCK_VEX_NOTEBOOK, MOCK_VEX_MATCHES } from '@/src/shared/constants/mock-data';
+import { UserProfile, VexRobot, AppNotification } from '@/src/shared/types';
+import { MOCK_ANALYTICS, MOCK_TOURNAMENTS, MOCK_WORKSHOPS, MOCK_VEX_TEAM, MOCK_VEX_ROBOTS, MOCK_VEX_AWARDS, MOCK_VEX_NOTEBOOK, MOCK_VEX_MATCHES } from '@/src/shared/constants/mock-data';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
@@ -123,8 +123,14 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
 }
 
 function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; onNavigate: (id: SectionId) => void }) {
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  useEffect(() => {
+    import('@/src/domains/notification/model/notificationApi').then(m =>
+      m.getNotifications().then(setNotifications)
+    );
+  }, []);
   const d = MOCK_ANALYTICS;
-  const unreadNotifications = MOCK_NOTIFICATIONS.filter(n => !n.read);
+  const unreadNotifications = notifications.filter(n => !n.read);
   const upcomingCount = MOCK_TOURNAMENTS.filter(t => t.date > '2026-06-20').length + MOCK_WORKSHOPS.filter(w => w.date > '2026-06-20').length;
 
   const quickActions: { id: SectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
@@ -229,7 +235,7 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
               )}
             </div>
             <div className="flex flex-col gap-1.5">
-              {MOCK_NOTIFICATIONS.slice(0, 4).map((n, i) => (
+              {notifications.slice(0, 4).map((n, i) => (
                 <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                   className={`flex items-start gap-2 p-2 rounded-lg text-sm transition-all ${n.read ? 'text-slate-500' : 'bg-brand-red/5 border border-brand-red/10 text-slate-900'}`}
                 >

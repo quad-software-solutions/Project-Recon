@@ -13,6 +13,8 @@ export function useNavigation(currentUser: UserProfile | null) {
     if (path.startsWith('/dashboard') || path.startsWith('/manager')) return 'dashboard';
     if (path.startsWith('/login')) return 'login';
     if (path.startsWith('/register')) return 'register';
+    if (path.startsWith('/forgot-password')) return 'forgot-password';
+    if (path.startsWith('/reset-password')) return 'reset-password';
     if (path.startsWith('/command-center')) return 'command-center';
     if (path.startsWith('/registration')) return 'registration';
     return 'home';
@@ -33,6 +35,8 @@ export function useNavigation(currentUser: UserProfile | null) {
       else if (path.startsWith('/event')) setActiveTab('dashboard');
       else if (path.startsWith('/login')) setActiveTab('login');
       else if (path.startsWith('/register')) setActiveTab('register');
+      else if (path.startsWith('/forgot-password')) setActiveTab('forgot-password');
+      else if (path.startsWith('/reset-password')) setActiveTab('reset-password');
       else if (path.startsWith('/command-center')) setActiveTab('command-center');
       else if (path.startsWith('/registration')) setActiveTab('registration');
       else setActiveTab('home');

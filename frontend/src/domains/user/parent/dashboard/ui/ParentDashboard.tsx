@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User, BookOpen, Calendar, Clock, TrendingUp, Award, MessageCircle, Bell, ChevronRight,
@@ -6,7 +6,7 @@ import {
   MapPin, School, Users, Sparkles, ArrowUp, ArrowDown, MoreHorizontal, X, LogOut,
   PanelLeftClose, PanelLeftOpen, Briefcase, Eye
 } from 'lucide-react';
-import { UserProfile } from '@/src/shared/types';
+import { UserProfile, AppNotification } from '@/src/shared/types';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 
 const CHILD_DATA = {
@@ -30,12 +30,7 @@ const CHILD_DATA = {
     { id: 'p2', desc: 'Python Programming — Monthly', amount: 2500, date: 'Jun 01, 2026', status: 'paid' },
     { id: 'p3', desc: 'Competition Registration Fee', amount: 1500, date: 'Jul 01, 2026', status: 'upcoming' },
   ],
-  notifications: [
-    { msg: 'Abebe achieved "100 Hours of Robotics" milestone 🎉', time: '2 hours ago', type: 'achievement' },
-    { msg: 'Next safety seminar: Saturday, 9:00 AM (mandatory)', time: '1 day ago', type: 'event' },
-    { msg: 'New grade posted: Mechanical Design — 92/100', time: '2 days ago', type: 'grade' },
-    { msg: 'VEX V5 Lab Session rescheduled to Thursday', time: '3 days ago', type: 'schedule' },
-  ],
+  notifications: [], // populated via API below
   upcomingEvents: [
     { name: 'VEX IQ Nationals 2026', date: 'Jun 25', time: '8:00 AM', location: 'Addis Ababa Stadium' },
     { name: 'Safety Seminar', date: 'Jun 22', time: '9:00 AM', location: 'Main Auditorium' },
@@ -86,6 +81,14 @@ export default function ParentDashboard({ currentUser, onLogout }: ParentDashboa
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [overlaySidebar, setOverlaySidebar] = useState(false);
+  const [liveNotifications, setLiveNotifications] = useState<AppNotification[]>([]);
+
+  useEffect(() => {
+    import('@/src/domains/notification/model/notificationApi').then(m =>
+      m.getNotifications().then(setLiveNotifications)
+    );
+  }, []);
+
   const [msgText, setMsgText] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { id: 'm1', text: 'Hello! Abebe has been making excellent progress in the VEX V5 program. His PID implementation was one of the best in the class.', sender: 'instructor', time: 'Jun 16, 10:30 AM' },
@@ -336,19 +339,24 @@ export default function ParentDashboard({ currentUser, onLogout }: ParentDashboa
                       <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
                         <Bell className="w-3.5 h-3.5 text-brand-red" />Recent Updates
                       </h4>
-                      <span className="text-[9px] text-slate-400">{d.notifications.length} new</span>
+                      <span className="text-[9px] text-slate-400">{liveNotifications.filter(n => !n.read).length} new</span>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      {d.notifications.slice(0, 4).map((n, i) => (
-                        <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                          className={`flex items-start gap-2 p-2 rounded-lg text-xs transition-all ${n.type === 'achievement' ? 'bg-amber-50/50' : n.type === 'grade' ? 'bg-emerald-50/50' : n.type === 'event' ? 'bg-blue-50/50' : 'bg-slate-50'}`}
+                      {liveNotifications.length === 0 ? (
+                        <div className="py-4 text-center text-[10px] text-slate-400 font-medium">
+                          No recent notifications
+                        </div>
+                      ) : liveNotifications.slice(0, 4).map((n, i) => (
+                        <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                          className={`flex items-start gap-2 p-2 rounded-lg text-xs transition-all ${!n.read ? 'bg-brand-red/5 border border-brand-red/10' : 'bg-slate-50'}`}
                         >
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${n.type === 'achievement' ? 'bg-amber-100' : n.type === 'grade' ? 'bg-emerald-100' : n.type === 'event' ? 'bg-blue-100' : 'bg-slate-100'}`}>
-                            <span className="text-xs">{n.type === 'achievement' ? '🏆' : n.type === 'grade' ? '📝' : n.type === 'event' ? '📅' : '🔔'}</span>
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${!n.read ? 'bg-brand-red/10' : 'bg-slate-100'}`}>
+                            <span className="text-xs">{n.icon || '🔔'}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-slate-700">{n.msg}</p>
-                            <p className="text-[9px] text-slate-400 mt-0.5">{n.time}</p>
+                            <p className={`text-[10px] ${!n.read ? 'font-bold text-slate-900' : 'text-slate-700'}`}>{n.title}</p>
+                            <p className="text-[9px] text-slate-500 mt-0.5 line-clamp-1">{n.message}</p>
+                            <p className="text-[8px] text-slate-400 mt-0.5">{n.timestamp.startsWith('20') ? new Date(n.timestamp).toLocaleDateString() : n.timestamp}</p>
                           </div>
                         </motion.div>
                       ))}
