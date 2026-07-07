@@ -8,8 +8,8 @@ import {
 import Hero from '../domains/learning/programs/ui/Hero';
 import DemoSlider from '../domains/learning/programs/ui/DemoSlider';
 import Updates from '../domains/learning/programs/ui/Updates';
-import { ROBOTICS_PROGRAMS } from '../shared/constants/mock-data';
-import { UserProfile, ActiveTab } from '../shared/types';
+import { UserProfile, ActiveTab, type ProgramDisplay } from '../shared/types';
+import { getPrograms } from '../domains/learning/programs/api/programApi';
 import { cmsPublicApi, type CmsPartnerResponse, type FaqResponse } from '../domains/cms/public/api/cmsPublicApi';
 import { ChevronDown } from 'lucide-react';
 
@@ -39,6 +39,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   const [partners, setPartners] = useState<CmsPartnerResponse[]>([]);
   const [faqs, setFaqs] = useState<FaqResponse[]>([]);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
+  const [programs, setPrograms] = useState<ProgramDisplay[]>([]);
 
   React.useEffect(() => {
     cmsPublicApi.getPartners()
@@ -47,6 +48,10 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
     
     cmsPublicApi.getFaqs()
       .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => a.order - b.order)))
+      .catch(console.error);
+
+    getPrograms()
+      .then(data => setPrograms(data))
       .catch(console.error);
   }, []);
 
@@ -221,7 +226,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {ROBOTICS_PROGRAMS.map((prog, idx) => (
+          {programs.map((prog, idx) => (
             <motion.div
               key={prog.id}
               initial={{ opacity: 0, y: 35 }}

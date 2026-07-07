@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Building2, Mail, Phone, User, Send, CheckCircle2, Cpu, Laptop, Zap, Layers, FileText, DollarSign, Users } from 'lucide-react';
-import { MOCK_CONSULTANCY_REQUESTS } from '@/src/shared/constants/mock-data';
+import type { ConsultancyRequest } from '@/src/shared/types';
+import { getConsultancyRequests, submitConsultancyRequest } from '../../consultancy/api/consultancyApi';
 
 const LAB_TYPES = [
   { id: 'robotics', label: 'Robotics Lab', icon: Cpu, desc: 'VEX IQ/V5 with competition field', price: 'From 200K ETB' },
@@ -20,10 +21,16 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 export default function LabConsultancy() {
   const [selectedLab, setSelectedLab] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [requests, setRequests] = useState<ConsultancyRequest[]>([]);
   const [form, setForm] = useState({ schoolName: '', contactName: '', email: '', phone: '', budget: '', capacity: '', notes: '' });
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    getConsultancyRequests().then(setRequests).catch(console.error);
+  }, []);
+
+  const handleSubmit = async () => {
     if (!form.schoolName || !form.contactName || !selectedLab) return;
+    await submitConsultancyRequest(form as any);
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
   };
@@ -100,7 +107,7 @@ export default function LabConsultancy() {
               <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
                 <h3 className="font-display font-bold text-sm text-slate-900 flex items-center gap-2"><FileText className="w-4 h-4 text-[#25338d]" />Recent Requests</h3>
               </div>
-              {MOCK_CONSULTANCY_REQUESTS.map((req, i) => {
+              {requests.map((req, i) => {
                 const sc = STATUS_COLORS[req.status];
                 return (
                   <motion.div key={req.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.06 }}

@@ -1,13 +1,23 @@
-import { MOCK_FORUM_POSTS } from '../../../../shared/constants/mock-data';
-import type { ForumReply } from '../../../../shared/types';
+import { http } from '@/src/shared/api/http';
+import { MOCK_FORUM_POSTS } from '@/src/shared/constants/mock-data';
+import type { ForumReply } from '@/src/shared/types';
+
+const BASE = '/forum/comments';
 
 export async function getReplies(postId: string): Promise<ForumReply[]> {
-  await new Promise(r => setTimeout(r, 200));
-  const post = MOCK_FORUM_POSTS.find(p => p.id === postId);
-  return post?.replies || [];
+  try {
+    const res = await http.get<ForumReply[]>(`${BASE}/?post=${postId}`);
+    return res;
+  } catch {
+    const post = MOCK_FORUM_POSTS.find(p => p.id === postId);
+    return post?.replies || [];
+  }
 }
 
 export async function addReply(postId: string, reply: Omit<ForumReply, 'id'>): Promise<ForumReply> {
-  await new Promise(r => setTimeout(r, 300));
-  return { ...reply, id: Date.now().toString() };
+  try {
+    return await http.post<ForumReply>(`${BASE}/`, { ...reply, post_id: postId });
+  } catch {
+    return { ...reply, id: Date.now().toString() };
+  }
 }

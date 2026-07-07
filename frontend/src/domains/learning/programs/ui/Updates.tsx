@@ -1,8 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Tent, Shield, ArrowRight, X, Clock, MapPin, Sparkles, ChevronRight } from 'lucide-react';
-import { UPDATE_POSTS } from '@/src/shared/constants/mock-data';
-import { UpdatePost } from '@/src/shared/types';
 import { cmsPublicApi, type NewsArticleResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface UpdatesProps {
@@ -29,13 +27,11 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
   const [selectedPost, setSelectedPost] = useState<NewsArticleResponse | null>(null);
   const [news, setNews] = useState<NewsArticleResponse[]>([]);
 
-  import('react').then(React => {
-    React.useEffect(() => {
-      cmsPublicApi.getNews()
-        .then(res => setNews(res.results.filter(n => n.is_active)))
-        .catch(console.error);
-    }, []);
-  });
+  useEffect(() => {
+    cmsPublicApi.getNews()
+      .then(res => setNews(res.results.filter(n => n.is_active)))
+      .catch(console.error);
+  }, []);
 
   return (
     <section className="relative bg-brand-paper py-16 md:py-20 px-4 md:px-12 overflow-hidden" id="section-updates">

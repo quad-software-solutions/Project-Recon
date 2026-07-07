@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Award,
@@ -15,8 +15,8 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { MOCK_FORUM_POSTS } from '@/src/shared/constants/mock-data';
 import type { ForumPost } from '@/src/shared/types';
+import { getForumPosts } from '../model/postApi';
 
 type Category = 'All' | 'General' | 'Help' | 'Showcase' | 'Competition' | 'Tutorial';
 const CATEGORIES: Category[] = ['All', 'General', 'Help', 'Showcase', 'Competition', 'Tutorial'];
@@ -29,7 +29,11 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 export default function CommunityForum() {
-  const [posts, setPosts] = useState(MOCK_FORUM_POSTS);
+  const [posts, setPosts] = useState<ForumPost[]>([]);
+
+  useEffect(() => {
+    getForumPosts().then(setPosts).catch(console.error);
+  }, []);
   const [category, setCategory] = useState<Category>('All');
   const [search, setSearch] = useState('');
   const [expandedPost, setExpandedPost] = useState<string | null>(null);

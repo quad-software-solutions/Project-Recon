@@ -16,10 +16,7 @@ export const ROLES = {
   ADMIN: 'Admin',
   PARENT: 'Parent',
   EVENT_MANAGER: 'EventManager',
+  SECRETARY: 'Secretary',
 } as const;
 
-export const MOCK_CREDENTIALS = [
-  { email: 'student@gmail.com', password: 'student1234', role: 'Student' },
-  { email: 'teacher@gmail.com', password: 'teacher123', role: 'Instructor' },
-  { email: 'manager@gmail.com', password: 'manager123', role: 'Manager' },
-] as const;
+
