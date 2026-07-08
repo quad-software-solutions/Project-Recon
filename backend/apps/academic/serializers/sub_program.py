@@ -6,6 +6,11 @@ from apps.academic.models import SubProgram
 class SubProgramSerializer(serializers.ModelSerializer):
     program_name = serializers.CharField(source="program.name", read_only=True)
 
+    def validate_fee(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Fee cannot be negative.")
+        return value
+
     class Meta:
         model = SubProgram
         fields = [

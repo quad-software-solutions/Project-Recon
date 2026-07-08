@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 
-from apps.academic.constants import ClassType
+from apps.academic.constants import ClassPeriod, ClassType
 from apps.academic.models import Class
 
 
@@ -19,6 +19,7 @@ def create_class(
     instructor,
     name,
     class_type,
+    class_period=ClassPeriod.FULL_DAY,
     capacity=None,
     start_date=None,
     end_date=None,
@@ -32,6 +33,7 @@ def create_class(
         instructor=instructor,
         name=name,
         class_type=class_type,
+        class_period=class_period,
         capacity=capacity,
         start_date=start_date,
         end_date=end_date,

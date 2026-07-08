@@ -8,6 +8,7 @@ class Roles(models.TextChoices):
 
     SUPER_ADMIN = "super_admin", "Super Admin"
     BRANCH_MANAGER = "branch_manager", "Branch Manager"
+    SECRETARY = "secretary", "Secretary"
     INSTRUCTOR = "instructor", "Instructor"
     STUDENT = "student", "Student"
 

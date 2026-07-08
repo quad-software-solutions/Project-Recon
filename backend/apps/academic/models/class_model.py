@@ -2,7 +2,7 @@ import uuid
 
 from django.db import models
 
-from apps.academic.constants import ClassType
+from apps.academic.constants import ClassPeriod, ClassType
 
 
 class Class(models.Model):
@@ -17,11 +17,12 @@ class Class(models.Model):
         "accounts.User", on_delete=models.PROTECT, related_name="classes"
     )
     name = models.CharField(max_length=255)
-    class_type = models.CharField(max_length=10, choices=ClassType.choices)
+    class_type = models.CharField(max_length=10, choices=ClassType.choices, db_index=True)
+    class_period = models.CharField(max_length=10, choices=ClassPeriod.choices, null=True, blank=True)
     capacity = models.PositiveIntegerField(null=True, blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -66,20 +66,32 @@ def user_is_instructor(user) -> bool:
     return Roles.INSTRUCTOR in get_active_roles(user)
 
 
+def user_is_secretary(user) -> bool:
+    """Return True when the user has an active Secretary assignment."""
+    return Roles.SECRETARY in get_active_roles(user)
+
+
+def user_is_student(user) -> bool:
+    """Return True when the user has an active Student assignment."""
+    return Roles.STUDENT in get_active_roles(user)
+
+
 def user_manages_branch(user, branch_id) -> bool:
     """
     Return True when the user is Super Admin or manages the given branch.
 
     Args:
         user: Authenticated User instance.
-        branch_id: Branch UUID.
+        branch_id: Branch UUID (str or UUID).
 
     Returns:
         True if the user may administer the branch.
     """
     if user_is_super_admin(user):
         return True
-    return (
-        user_is_branch_manager(user)
-        and branch_id in get_active_branch_ids(user)
-    )
+    if not user_is_branch_manager(user):
+        return False
+    if isinstance(branch_id, str):
+        from uuid import UUID
+        branch_id = UUID(branch_id)
+    return branch_id in get_active_branch_ids(user)

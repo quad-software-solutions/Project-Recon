@@ -424,6 +424,14 @@ GROUP
 INDIVIDUAL
 ```
 
+## Supported Periods
+
+```text
+FULL DAY
+
+HALF DAY
+```
+
 ---
 
 ## Relationships
@@ -488,6 +496,7 @@ Enrollment
 | instructor | ForeignKey | Yes | Accounts.User |
 | name | String | Yes | Human-readable class name |
 | class_type | Choice | Yes | Group / Individual |
+| class_period | Choice | no | Half Day / Full Day |
 | capacity | PositiveInteger | No | Required for Group |
 | start_date | Date | No | Optional |
 | end_date | Date | No | Optional |
@@ -540,6 +549,13 @@ GROUP
 INDIVIDUAL
 ```
 
+## Class Periods
+
+```text
+FULL DAY
+
+HALF DAY
+```
 ---
 
 ## Duration Unit

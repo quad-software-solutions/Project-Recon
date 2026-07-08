@@ -1,18 +1,19 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.academic.permissions import IsAcademicAdmin
 from apps.academic.serializers import SubProgramListSerializer, SubProgramSerializer
 from apps.academic.services.program_service import (
-    list_sub_programs,
-    create_sub_program,
-    get_sub_program_or_404,
-    update_sub_program,
     activate_sub_program,
+    create_sub_program,
     deactivate_sub_program,
+    get_sub_program_or_404,
+    list_sub_programs,
+    update_sub_program,
 )
+from apps.shared.audit.services import log_action
 
 
 @extend_schema_view(
@@ -30,11 +31,22 @@ class SubProgramListCreateView(generics.ListCreateAPIView):
             return [AllowAny()]
         return [IsAcademicAdmin()]
 
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "slug"]
+    ordering_fields = ["name", "fee"]
+    ordering = ["name"]
+
     def get_queryset(self):
         return list_sub_programs()
 
     def perform_create(self, serializer):
         instance = create_sub_program(**serializer.validated_data)
+        log_action(
+            actor=self.request.user,
+            action="SUB_PROGRAM_CREATED",
+            resource_type="SubProgram",
+            resource_id=str(instance.id),
+        )
         serializer.instance = instance
 
 
@@ -58,6 +70,12 @@ class SubProgramRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         sub_program = self.get_object()
         updated = update_sub_program(sub_program, **serializer.validated_data)
+        log_action(
+            actor=self.request.user,
+            action="SUB_PROGRAM_UPDATED",
+            resource_type="SubProgram",
+            resource_id=str(updated.id),
+        )
         serializer.instance = updated
 
 
@@ -71,6 +89,12 @@ class SubProgramActivateView(generics.GenericAPIView):
     def post(self, request, pk):
         sub_program = get_sub_program_or_404(pk)
         activate_sub_program(sub_program)
+        log_action(
+            actor=request.user,
+            action="SUB_PROGRAM_ACTIVATED",
+            resource_type="SubProgram",
+            resource_id=str(sub_program.id),
+        )
         return Response(SubProgramSerializer(sub_program).data, status=status.HTTP_200_OK)
 
 
@@ -84,4 +108,10 @@ class SubProgramDeactivateView(generics.GenericAPIView):
     def post(self, request, pk):
         sub_program = get_sub_program_or_404(pk)
         deactivate_sub_program(sub_program)
+        log_action(
+            actor=request.user,
+            action="SUB_PROGRAM_DEACTIVATED",
+            resource_type="SubProgram",
+            resource_id=str(sub_program.id),
+        )
         return Response(SubProgramSerializer(sub_program).data, status=status.HTTP_200_OK)

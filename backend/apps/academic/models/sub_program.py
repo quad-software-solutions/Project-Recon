@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.academic.constants import DurationUnit
@@ -11,14 +12,14 @@ class SubProgram(models.Model):
         "academic.Program", on_delete=models.PROTECT, related_name="sub_programs"
     )
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255)
+    slug = models.SlugField(max_length=255, db_index=True)
     description = models.TextField(blank=True, default="")
     duration = models.PositiveIntegerField(null=True, blank=True)
     duration_unit = models.CharField(
         max_length=10, choices=DurationUnit.choices, null=True, blank=True
     )
     fee = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,6 +31,10 @@ class SubProgram(models.Model):
             models.UniqueConstraint(fields=["program", "name"], name="unique_sub_program_per_program"),
             models.UniqueConstraint(fields=["program", "slug"], name="unique_sub_program_slug_per_program"),
         ]
+
+    def clean(self):
+        if self.fee is not None and self.fee < 0:
+            raise ValidationError({"fee": "Fee cannot be negative."})
 
     def __str__(self):
         return f"{self.program.name} - {self.name}"

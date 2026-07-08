@@ -1,18 +1,19 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.academic.permissions import IsAcademicAdmin
 from apps.academic.serializers import ProgramListSerializer, ProgramSerializer
 from apps.academic.services.program_service import (
-    list_programs,
-    create_program,
-    get_program_or_404,
-    update_program,
     activate_program,
+    create_program,
     deactivate_program,
+    get_program_or_404,
+    list_programs,
+    update_program,
 )
+from apps.shared.audit.services import log_action
 
 
 @extend_schema_view(
@@ -30,11 +31,22 @@ class ProgramListCreateView(generics.ListCreateAPIView):
             return [AllowAny()]
         return [IsAcademicAdmin()]
 
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "slug"]
+    ordering_fields = ["name"]
+    ordering = ["name"]
+
     def get_queryset(self):
         return list_programs()
 
     def perform_create(self, serializer):
         instance = create_program(**serializer.validated_data)
+        log_action(
+            actor=self.request.user,
+            action="PROGRAM_CREATED",
+            resource_type="Program",
+            resource_id=str(instance.id),
+        )
         serializer.instance = instance
 
 
@@ -58,6 +70,12 @@ class ProgramRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         program = self.get_object()
         updated = update_program(program, **serializer.validated_data)
+        log_action(
+            actor=self.request.user,
+            action="PROGRAM_UPDATED",
+            resource_type="Program",
+            resource_id=str(updated.id),
+        )
         serializer.instance = updated
 
 
@@ -71,6 +89,12 @@ class ProgramActivateView(generics.GenericAPIView):
     def post(self, request, pk):
         program = get_program_or_404(pk)
         activate_program(program)
+        log_action(
+            actor=request.user,
+            action="PROGRAM_ACTIVATED",
+            resource_type="Program",
+            resource_id=str(program.id),
+        )
         return Response(ProgramSerializer(program).data, status=status.HTTP_200_OK)
 
 
@@ -84,4 +108,10 @@ class ProgramDeactivateView(generics.GenericAPIView):
     def post(self, request, pk):
         program = get_program_or_404(pk)
         deactivate_program(program)
+        log_action(
+            actor=request.user,
+            action="PROGRAM_DEACTIVATED",
+            resource_type="Program",
+            resource_id=str(program.id),
+        )
         return Response(ProgramSerializer(program).data, status=status.HTTP_200_OK)

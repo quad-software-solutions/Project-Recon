@@ -8,6 +8,7 @@ from apps.accounts.permissions.roles import (
     get_active_roles,
     user_is_branch_manager,
     user_is_instructor,
+    user_is_secretary,
     user_is_super_admin,
     user_manages_branch,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "get_active_roles",
     "user_is_super_admin",
     "user_is_branch_manager",
+    "user_is_secretary",
     "user_manages_branch",
     "Roles",
 ]

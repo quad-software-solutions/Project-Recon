@@ -1,6 +1,9 @@
 from django.contrib import admin
 
-from apps.academic.models import Program, SubProgram, Class
+from apps.academic.models import (
+    Program, SubProgram, Class, Student, EnrollmentPeriod,
+    StaffAttendanceSession, StaffAttendanceRecord,
+)
 
 
 @admin.register(Program)
@@ -24,3 +27,31 @@ class ClassAdmin(admin.ModelAdmin):
     list_display = ["name", "sub_program", "branch", "instructor", "class_type", "is_active"]
     search_fields = ["name"]
     list_filter = ["is_active", "class_type", "branch"]
+
+
+@admin.register(Student)
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ["user", "branch", "date_joined", "is_active", "created_at"]
+    search_fields = ["user__email", "user__first_name", "user__last_name"]
+    list_filter = ["is_active", "branch"]
+
+
+@admin.register(EnrollmentPeriod)
+class EnrollmentPeriodAdmin(admin.ModelAdmin):
+    list_display = ["title", "branch", "program", "sub_program", "class_type", "class_period", "start_date", "end_date", "is_active"]
+    search_fields = ["title"]
+    list_filter = ["is_active", "class_type", "branch"]
+
+
+@admin.register(StaffAttendanceSession)
+class StaffAttendanceSessionAdmin(admin.ModelAdmin):
+    list_display = ["branch", "date", "status", "created_by", "is_active", "created_at"]
+    search_fields = ["branch__name", "notes"]
+    list_filter = ["status", "is_active", "branch"]
+
+
+@admin.register(StaffAttendanceRecord)
+class StaffAttendanceRecordAdmin(admin.ModelAdmin):
+    list_display = ["staff_member", "session", "status", "created_at"]
+    search_fields = ["staff_member__email", "staff_member__first_name"]
+    list_filter = ["status"]

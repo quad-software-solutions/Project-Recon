@@ -454,11 +454,19 @@ class ContactRequestFileUploadTest(CMSApiTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_accept_jpg_file(self):
-        response = self._post_with_attachment("photo.jpg", b"fake jpeg content")
+        from io import BytesIO
+        from PIL import Image
+        buf = BytesIO()
+        Image.new("RGB", (1, 1), color="red").save(buf, format="JPEG")
+        response = self._post_with_attachment("photo.jpg", buf.getvalue())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_accept_png_file(self):
-        response = self._post_with_attachment("image.png", b"fake png content")
+        from io import BytesIO
+        from PIL import Image
+        buf = BytesIO()
+        Image.new("RGB", (1, 1), color="red").save(buf, format="PNG")
+        response = self._post_with_attachment("image.png", buf.getvalue())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_reject_file_too_large(self):
