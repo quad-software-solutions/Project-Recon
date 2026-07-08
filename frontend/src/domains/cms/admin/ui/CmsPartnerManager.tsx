@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Handshake, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical, Search, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Handshake, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical, Search, ExternalLink, Upload } from 'lucide-react';
 import { api, Partner } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
@@ -16,6 +16,15 @@ export default function CmsPartnerManager({ addToast }: Props) {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditing(prev => prev ? { ...prev, logoUrl: reader.result as string } : prev);
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -153,7 +162,16 @@ export default function CmsPartnerManager({ addToast }: Props) {
             </div>
             <div className="p-4 flex flex-col gap-3">
               <Field label="Partner Name" value={editing.name ?? ''} onChange={v => { setEditing({ ...editing, name: v }); clearError('name'); }} error={formErrors.name} required placeholder="e.g. Ethio Robotics" />
-              <Field label="Logo URL" value={editing.logoUrl ?? ''} onChange={v => { setEditing({ ...editing, logoUrl: v }); clearError('logoUrl'); }} error={formErrors.logoUrl} required placeholder="e.g. https://example.com/logo.png" />
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Field label="Logo URL" value={editing.logoUrl ?? ''} onChange={v => { setEditing({ ...editing, logoUrl: v }); clearError('logoUrl'); }} error={formErrors.logoUrl} required placeholder="e.g. https://example.com/logo.png" />
+                </div>
+                <input type="file" accept="image/*" ref={logoInputRef} onChange={handleLogoUpload} className="hidden" />
+                <button type="button" onClick={() => logoInputRef.current?.click()}
+                  className="mt-5 p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-red transition-colors" title="Upload image">
+                  <Upload className="w-4 h-4" />
+                </button>
+              </div>
               {editing.logoUrl && (
                 <div className="rounded-xl overflow-hidden border border-slate-200 p-4 flex items-center justify-center bg-white">
                   <img src={editing.logoUrl} alt="" className="max-h-20 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />

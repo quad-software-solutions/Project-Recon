@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor, Image, Globe } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor, Image, Globe, Upload } from 'lucide-react';
 
 const STORAGE_KEY = 'ethio-cms-branding';
 
@@ -36,6 +36,15 @@ export default function CMSBranding() {
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState(false);
   const [activeTab, setActiveTab] = useState<'content' | 'style' | 'hero'>('content');
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setData(prev => ({ ...prev, logoUrl: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (saved) {
@@ -172,9 +181,16 @@ export default function CMSBranding() {
               {preview ? (
                 data.logoUrl ? <img src={data.logoUrl} alt="Logo" className="h-10 object-contain" /> : <p className="text-xs text-slate-400 italic">No logo set</p>
               ) : (
-                <input type="text" value={data.logoUrl} onChange={e => update('logoUrl', e.target.value)} placeholder="https://example.com/logo.png"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
-                />
+                <div className="flex items-center gap-2">
+                  <input type="text" value={data.logoUrl} onChange={e => update('logoUrl', e.target.value)} placeholder="https://example.com/logo.png"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                  />
+                  <input type="file" accept="image/*" ref={logoInputRef} onChange={handleLogoUpload} className="hidden" />
+                  <button type="button" onClick={() => logoInputRef.current?.click()}
+                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-red transition-colors shrink-0" title="Upload image">
+                    <Upload className="w-4 h-4" />
+                  </button>
+                </div>
               )}
               {data.logoUrl && !preview && (
                 <div className="mt-2 rounded-lg border border-slate-200 p-3 flex items-center justify-center bg-white">

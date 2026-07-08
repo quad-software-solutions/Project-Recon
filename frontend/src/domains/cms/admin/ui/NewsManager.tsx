@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, Plus, Edit2, Trash2, X, Globe, Lock, Search, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { FileText, Plus, Edit2, Trash2, X, Globe, Lock, Search, Calendar, Upload } from 'lucide-react';
 import { api, News } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
@@ -18,6 +18,15 @@ export default function NewsManager({ addToast }: Props) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditing(prev => prev ? { ...prev, imageUrl: reader.result as string } : prev);
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -177,7 +186,16 @@ export default function NewsManager({ addToast }: Props) {
               <Field label="Title" value={editing.title ?? ''} onChange={v => { setEditing({ ...editing, title: v }); clearError('title'); }} error={formErrors.title} required placeholder="e.g. New VEX Robotics Competition Announced" />
               <Field label="Subtitle" value={editing.subtitle ?? ''} onChange={v => { setEditing({ ...editing, subtitle: v }); clearError('subtitle'); }} error={formErrors.subtitle} required placeholder="e.g. Teams from across the country will compete" />
               <Field label="Author" value={editing.author ?? ''} onChange={v => { setEditing({ ...editing, author: v }); clearError('author'); }} error={formErrors.author} required placeholder="e.g. Abebe Kebede" />
-              <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/image.jpg" />
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/image.jpg" />
+                </div>
+                <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
+                <button type="button" onClick={() => imageInputRef.current?.click()}
+                  className="mt-5 p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-red transition-colors" title="Upload image">
+                  <Upload className="w-4 h-4" />
+                </button>
+              </div>
               {editing.imageUrl && (
                 <div className="rounded-xl overflow-hidden border border-slate-200">
                   <img src={editing.imageUrl} alt="" className="w-full h-32 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />

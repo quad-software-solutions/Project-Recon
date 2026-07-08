@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Image, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical, Search, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Image, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical, Search, ExternalLink, Upload } from 'lucide-react';
 import { api, HeroBanner } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
@@ -17,6 +17,15 @@ export default function HeroBannerManager({ addToast }: Props) {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditing(prev => prev ? { ...prev, imageUrl: reader.result as string } : prev);
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -106,7 +115,16 @@ export default function HeroBannerManager({ addToast }: Props) {
             <Field label="Title" value={editing.title ?? ''} onChange={v => { setEditing({ ...editing, title: v }); clearError('title'); }} error={formErrors.title} required placeholder="e.g. Welcome to STEM Center" />
             <Field label="Subtitle" value={editing.subtitle ?? ''} onChange={v => { setEditing({ ...editing, subtitle: v }); clearError('subtitle'); }} error={formErrors.subtitle} required placeholder="e.g. Building the Future, One Robot at a Time" />
             <Textarea label="Description" value={editing.description ?? ''} onChange={v => { setEditing({ ...editing, description: v }); clearError('description'); }} error={formErrors.description} required placeholder="e.g. A brief overview of what makes our program unique..." />
-            <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/banner.jpg" />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/banner.jpg" />
+              </div>
+              <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
+              <button type="button" onClick={() => imageInputRef.current?.click()}
+                className="mt-5 p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-red transition-colors" title="Upload image">
+                <Upload className="w-4 h-4" />
+              </button>
+            </div>
             {editing.imageUrl && (
               <div className="rounded-xl overflow-hidden border border-slate-200">
                 <img src={editing.imageUrl} alt="" className="w-full h-36 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
