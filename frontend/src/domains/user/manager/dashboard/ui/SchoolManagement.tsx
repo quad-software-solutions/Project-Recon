@@ -32,7 +32,7 @@ export default function SchoolManagement() {
       const data = await branchesApi.list();
       setSchools(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load schools');
+      setError('Branches are restricted to super admin.');
     }
     setLoading(false);
   };

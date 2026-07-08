@@ -24,7 +24,7 @@ import {
   downloadCertificateReportPdf, downloadClassReportPdf,
   downloadSubProgramReportPdf, downloadProgramReportPdf
 } from '@/src/domains/learning/academics/api/academicApi';
-import { branchesApi, type BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
@@ -273,7 +273,7 @@ function AdmissionsPanel() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [branches, setBranches] = useState<BranchResponse[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [form, setForm] = useState({
@@ -282,8 +282,10 @@ function AdmissionsPanel() {
   });
 
   useEffect(() => {
-    branchesApi.list().then((res: any) => {
-      const list = res?.results || (Array.isArray(res) ? res : []);
+    fetchClassesApi().then(classes => {
+      const map = new Map<string, string>();
+      classes.forEach(c => { if (c.branch && c.branch_name) map.set(c.branch, c.branch_name); });
+      const list = Array.from(map, ([id, name]) => ({ id, name }));
       setBranches(list);
       if (list.length > 0 && !form.branch) setForm(p => ({ ...p, branch: list[0].id }));
     }).catch(() => {});
