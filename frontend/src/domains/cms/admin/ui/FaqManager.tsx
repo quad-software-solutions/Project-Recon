@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { HelpCircle, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { HelpCircle, Plus, Edit2, Trash2, X, Globe, Lock, GripVertical, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { api, Faq } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
@@ -14,6 +14,9 @@ export default function FaqManager({ addToast }: Props) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<Faq> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   useEffect(() => { load(); }, []);
 
@@ -22,6 +25,28 @@ export default function FaqManager({ addToast }: Props) {
     try { setItems(await api.getAll<Faq>('faqs')); }
     catch { setItems([]); }
     setLoading(false);
+  };
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach(i => { if (i.category) set.add(i.category); });
+    return Array.from(set).sort();
+  }, [items]);
+
+  const filtered = useMemo(() => {
+    return items.filter(item => {
+      if (search && !item.question.toLowerCase().includes(search.toLowerCase()) && !item.answer.toLowerCase().includes(search.toLowerCase())) return false;
+      if (categoryFilter && item.category !== categoryFilter) return false;
+      return true;
+    });
+  }, [items, search, categoryFilter]);
+
+  const toggleExpand = (id: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
   const openCreate = () => setEditing({ ...emptyForm() });
@@ -58,7 +83,7 @@ export default function FaqManager({ addToast }: Props) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-wrap gap-2">
         <div>
           <h2 className="font-bold text-slate-800">FAQs</h2>
           <p className="text-xs text-slate-400 mt-0.5">Manage frequently asked questions</p>
@@ -68,32 +93,66 @@ export default function FaqManager({ addToast }: Props) {
         </button>
       </div>
 
+      <div className="flex items-center gap-2 p-3 border-b border-slate-100 flex-wrap">
+        <div className="relative flex-1 min-w-[160px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search FAQs..."
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30" />
+        </div>
+        {categories.length > 0 && (
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30 bg-white"
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+        <span className="text-xs text-slate-400">{filtered.length} FAQ{filtered.length !== 1 ? 's' : ''}</span>
+      </div>
+
       {loading ? (
         <div className="p-8 text-center text-sm text-slate-400">Loading...</div>
-      ) : items.length === 0 ? (
-        <div className="p-8 text-center text-sm text-slate-400">No FAQs yet</div>
+      ) : filtered.length === 0 ? (
+        <div className="p-8 text-center text-sm text-slate-400">
+          {items.length === 0 ? 'No FAQs yet' : 'No FAQs match your search'}
+        </div>
       ) : (
         <div className="divide-y divide-slate-100">
-          {items.map(item => (
-            <div key={item.id} className="flex items-start gap-3 p-3 hover:bg-slate-50 transition-colors">
-              <GripVertical className="w-4 h-4 text-slate-300 shrink-0 mt-1" />
-              <HelpCircle className="w-4 h-4 text-brand-red shrink-0 mt-1" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-800">{item.question}</p>
-                <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{item.answer}</p>
-                {item.category && (
-                  <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md mt-1 inline-block">{item.category}</span>
+          {filtered.map(item => {
+            const isExpanded = expanded.has(item.id);
+            return (
+              <div key={item.id} className="transition-colors">
+                <div className="flex items-start gap-3 p-3 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => toggleExpand(item.id)}>
+                  <GripVertical className="w-4 h-4 text-slate-300 shrink-0 mt-1" />
+                  <HelpCircle className="w-4 h-4 text-brand-red shrink-0 mt-1" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-slate-800">{item.question}</p>
+                      {item.category && (
+                        <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">{item.category}</span>
+                      )}
+                    </div>
+                    <p className={`text-xs text-slate-400 mt-0.5 ${isExpanded ? '' : 'line-clamp-1'}`}>{item.answer}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 mt-1" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => toggleExpand(item.id)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+                      {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    </button>
+                    <button onClick={() => toggleActive(item)} className={`p-1.5 rounded-lg transition-colors ${item.isActive ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-100'}`}>
+                      {item.isActive ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    </button>
+                    <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50"><Edit2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => remove(item.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="px-3 pb-3 ml-10 border-l-2 border-brand-red/20 pl-4">
+                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{item.answer}</p>
+                  </div>
                 )}
               </div>
-              <div className="flex items-center gap-1 shrink-0 mt-1">
-                <button onClick={() => toggleActive(item)} className={`p-1.5 rounded-lg transition-colors ${item.isActive ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-100'}`}>
-                  {item.isActive ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                </button>
-                <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50"><Edit2 className="w-3.5 h-3.5" /></button>
-                <button onClick={() => remove(item.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -129,9 +129,7 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
       m.getNotifications().then(setNotifications)
     );
   }, []);
-  const d = MOCK_ANALYTICS;
   const unreadNotifications = notifications.filter(n => !n.read);
-  const upcomingCount = MOCK_TOURNAMENTS.filter(t => t.date > '2026-06-20').length + MOCK_WORKSHOPS.filter(w => w.date > '2026-06-20').length;
 
   const quickActions: { id: SectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
     { id: 'analytics', label: 'View Analytics', desc: 'Business performance metrics', icon: BarChart3, color: 'from-blue-500 to-blue-600' },
@@ -140,6 +138,11 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
     { id: 'workshops', label: 'Workshops', desc: 'Schedule workshops', icon: Building, color: 'from-emerald-500 to-emerald-600' },
     { id: 'store', label: 'Store Inventory', desc: 'Manage products & stock', icon: ShoppingBag, color: 'from-amber-500 to-amber-600' },
     { id: 'payments', label: 'Payment Reports', desc: 'Track transactions', icon: DollarSign, color: 'from-cyan-500 to-cyan-600' },
+    { id: 'cms', label: 'CMS & Branding', desc: 'Manage content & branding', icon: FileText, color: 'from-rose-500 to-rose-600' },
+    { id: 'sponsors', label: 'Sponsors', desc: 'Manage partners', icon: Handshake, color: 'from-indigo-500 to-purple-600' },
+    { id: 'schools', label: 'Schools', desc: 'Manage branches', icon: Building, color: 'from-sky-500 to-blue-600' },
+    { id: 'announcements', label: 'Announcements', desc: 'Create & publish', icon: Bell, color: 'from-rose-500 to-pink-600' },
+    { id: 'communications', label: 'Communications', desc: 'View messages', icon: MessageSquare, color: 'from-cyan-500 to-teal-600' },
   ];
 
   return (
@@ -157,17 +160,25 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        {d.topMetrics.map((m, i) => (
-          <motion.div key={m.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-            className="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-sm transition-all"
-          >
-            <p className="font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{m.label}</p>
-            <p className="font-display font-extrabold text-2xl text-slate-900 mb-0.5">{m.value}</p>
-            <div className={`flex items-center gap-1 text-sm font-semibold ${m.trend === 'up' ? 'text-emerald-500' : 'text-red-400'}`}>
-              {m.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{m.change}
-            </div>
-          </motion.div>
-        ))}
+        {[
+          { label: 'Students', value: '—', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+          { label: 'Programs', value: '—', icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
+          { label: 'Revenue', value: '—', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+          { label: 'Events', value: '—', icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-50' },
+        ].map((m, i) => {
+          const MIcon = m.icon;
+          return (
+            <motion.div key={m.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+              className="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-sm transition-all"
+            >
+              <div className={`w-8 h-8 rounded-lg ${m.bg} flex items-center justify-center mb-1.5`}>
+                <MIcon className={`w-4 h-4 ${m.color}`} />
+              </div>
+              <p className="font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{m.label}</p>
+              <p className="font-display font-extrabold text-2xl text-slate-900">{m.value}</p>
+            </motion.div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -257,14 +268,14 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
           <div className="bg-white border border-slate-200 rounded-2xl p-3">
             <h4 className="font-black text-sm text-slate-900 mb-2 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              Events Summary
+              Quick Stats
             </h4>
             <div className="grid grid-cols-4 gap-1.5">
               {[
-                { label: 'Tnmnts', value: MOCK_TOURNAMENTS.length, color: 'text-purple-700', bg: 'bg-purple-50' },
-                { label: 'Wkshps', value: MOCK_WORKSHOPS.length, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                { label: 'Upcoming', value: upcomingCount, color: 'text-amber-700', bg: 'bg-amber-50' },
-                { label: 'Parts', value: MOCK_TOURNAMENTS.reduce((s, t) => s + t.maxTeams * 3, 0) + MOCK_WORKSHOPS.reduce((s, w) => s + w.capacity, 0), color: 'text-blue-700', bg: 'bg-blue-50' },
+                { label: 'Active', value: '—', color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                { label: 'Pending', value: '—', color: 'text-amber-700', bg: 'bg-amber-50' },
+                { label: 'Total', value: '—', color: 'text-blue-700', bg: 'bg-blue-50' },
+                { label: 'New', value: '—', color: 'text-purple-700', bg: 'bg-purple-50' },
               ].map((s, i) => (
                 <div key={i} className={`${s.bg} rounded-lg p-2 text-center`}>
                   <p className={`font-black text-xl ${s.color}`}>{s.value}</p>
@@ -277,55 +288,50 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-slate-100">
-            <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-amber-500" />
-              Recent Transactions
-            </h4>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-50">
-                  {['Student', 'Type', 'Amount', 'Date', 'Status'].map(h => (
-                    <th key={h} className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 px-2 py-1.5 text-left">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {d.recentTransactions.slice(0, 4).map((tx, i) => (
-                  <motion.tr key={tx.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
-                    className="border-b border-slate-50 hover:bg-slate-50/50"
-                  >
-                    <td className="px-2 py-2 text-sm font-medium text-slate-800">{tx.student}</td>
-                    <td className="px-2 py-2 text-[11px] text-slate-500">{tx.type}</td>
-                    <td className="px-2 py-2 font-mono font-bold text-sm text-slate-900">{tx.amount.toLocaleString()} ETB</td>
-                    <td className="px-2 py-2 text-[11px] text-slate-400">{tx.date}</td>
-                    <td className="px-2 py-2">
-                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${tx.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4">
+          <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5 mb-3">
+            <Activity className="w-3.5 h-3.5 text-brand-red" />
+            Management Tools
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Academic Catalog', desc: 'Programs & classes', id: 'academics' as SectionId, icon: BookOpen, color: 'from-blue-500 to-blue-600' },
+              { label: 'Schools', desc: 'Branch management', id: 'schools' as SectionId, icon: Building, color: 'from-sky-500 to-cyan-600' },
+              { label: 'Sponsors', desc: 'Partner management', id: 'sponsors' as SectionId, icon: Handshake, color: 'from-indigo-500 to-purple-600' },
+              { label: 'Announcements', desc: 'Create & publish', id: 'announcements' as SectionId, icon: Bell, color: 'from-rose-500 to-pink-600' },
+              { label: 'Communications', desc: 'Message center', id: 'communications' as SectionId, icon: MessageSquare, color: 'from-cyan-500 to-teal-600' },
+              { label: 'CMS & Branding', desc: 'Content management', id: 'cms' as SectionId, icon: FileText, color: 'from-orange-500 to-red-600' },
+            ].map((tool, i) => {
+              const TIcon = tool.icon;
+              return (
+                <button key={tool.id} onClick={() => onNavigate(tool.id)}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all text-left"
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center shrink-0`}>
+                    <TIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-slate-900">{tool.label}</p>
+                    <p className="text-[10px] text-slate-500">{tool.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="lg:col-span-5 flex flex-col gap-2">
           <div className="bg-white border border-slate-200 rounded-2xl p-3">
-            <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5 mb-2">
-              <Activity className="w-3.5 h-3.5 text-brand-red" />
+            <h4 className="font-black text-sm text-slate-900 mb-2 flex items-center gap-1.5">
+              <BarChart3 className="w-3.5 h-3.5 text-brand-red" />
               Platform Summary
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Total Students', value: '460', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
-                { label: 'Programs', value: '24', icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
-                { label: 'Monthly Revenue', value: '890K ETB', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                { label: 'Pending Tasks', value: '12', icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-50' },
+                { label: 'Students', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+                { label: 'Programs', icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
+                { label: 'Schools', icon: Building, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                { label: 'Sponsors', icon: Handshake, color: 'text-amber-500', bg: 'bg-amber-50' },
               ].map((stat, i) => {
                 const StatIcon = stat.icon;
                 return (
@@ -333,7 +339,6 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
                     <div className={`w-6 h-6 rounded-lg ${stat.bg} flex items-center justify-center mb-1`}>
                       <StatIcon className={`w-3.5 h-3.5 ${stat.color}`} />
                     </div>
-                    <p className="font-black text-xl text-slate-900">{stat.value}</p>
                     <p className="text-[10px] text-slate-500 font-medium">{stat.label}</p>
                   </div>
                 );
@@ -341,20 +346,11 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
             </div>
           </div>
 
-          <button onClick={() => onNavigate('analytics')}
-            className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between hover:shadow-sm transition-all group"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-brand-red/10 flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 text-brand-red" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-sm text-slate-900">Full Analytics Dashboard</p>
-                <p className="text-[10px] text-slate-500">View detailed charts and reports</p>
-              </div>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-red transition-colors" />
-          </button>
+          <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-2xl p-3 text-white">
+            <p className="text-[10px] font-medium text-white/70 mb-0.5">All tools are connected</p>
+            <p className="text-sm font-bold">Backend-ready sections are live</p>
+            <p className="text-[11px] text-white/70 mt-1">Other sections will be enabled when APIs are ready.</p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Edit2, Trash2, X, Globe, Lock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Plus, Edit2, Trash2, X, Globe, Lock, Search, Calendar } from 'lucide-react';
 import { api, News } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
@@ -15,6 +15,8 @@ export default function NewsManager({ addToast }: Props) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<News> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -24,6 +26,20 @@ export default function NewsManager({ addToast }: Props) {
     catch { setItems([]); }
     setLoading(false);
   };
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach(i => { if (i.category) set.add(i.category); });
+    return Array.from(set).sort();
+  }, [items]);
+
+  const filtered = useMemo(() => {
+    return items.filter(item => {
+      if (search && !item.title.toLowerCase().includes(search.toLowerCase()) && !item.subtitle?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (categoryFilter && item.category !== categoryFilter) return false;
+      return true;
+    });
+  }, [items, search, categoryFilter]);
 
   const openCreate = () => setEditing({ ...emptyForm() });
   const openEdit = (item: News) => setEditing({ ...item });
@@ -59,29 +75,70 @@ export default function NewsManager({ addToast }: Props) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex items-center justify-between p-4 border-b border-slate-200">
-        <h2 className="font-bold text-slate-800">News & Announcements</h2>
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="font-bold text-slate-800">News & Announcements</h2>
+          {!loading && <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{filtered.length} / {items.length}</span>}
+        </div>
         <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-brand-red hover:bg-red-700">
           <Plus className="w-3.5 h-3.5" /> Add Article
         </button>
       </div>
 
+      <div className="flex items-center gap-2 p-3 border-b border-slate-100 flex-wrap">
+        <div className="relative flex-1 min-w-[160px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..."
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30" />
+        </div>
+        {categories.length > 0 && (
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30 bg-white"
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+      </div>
+
       {loading ? (
         <div className="p-8 text-center text-sm text-slate-400">Loading...</div>
-      ) : items.length === 0 ? (
-        <div className="p-8 text-center text-sm text-slate-400">No articles yet</div>
+      ) : filtered.length === 0 ? (
+        <div className="p-8 text-center text-sm text-slate-400">
+          {items.length === 0 ? 'No articles yet' : 'No articles match your search'}
+        </div>
       ) : (
         <div className="divide-y divide-slate-100">
-          {items.map(item => (
-            <div key={item.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 shrink-0 flex items-center justify-center overflow-hidden">
+          {filtered.map(item => (
+            <div key={item.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 transition-colors group relative">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 shrink-0 flex items-center justify-center overflow-hidden cursor-pointer"
+                onMouseEnter={e => { const t = e.currentTarget.querySelector('.preview-popup') as HTMLElement; if (t) t.style.display = 'block'; }}
+                onMouseLeave={e => { const t = e.currentTarget.querySelector('.preview-popup') as HTMLElement; if (t) t.style.display = 'none'; }}
+              >
                 {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <FileText className="w-5 h-5 text-slate-400" />}
+                {item.imageUrl && (
+                  <div className="preview-popup hidden fixed z-50 w-72 rounded-xl shadow-2xl border border-slate-200 overflow-hidden bg-white"
+                    style={{ transform: 'translate(calc(-100% + 40px), calc(-100% - 8px))' }}>
+                    <img src={item.imageUrl} alt="" className="w-full h-40 object-cover" />
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">{item.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-800 truncate">{item.title}</p>
+                  {item.author && <span className="text-xs text-slate-400 shrink-0">by {item.author}</span>}
+                </div>
                 <p className="text-xs text-slate-400 truncate">{item.subtitle}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {item.category && <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">{item.category}</span>}
+                  {item.publishedAt && (
+                    <span className="text-xs text-slate-400 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(item.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
               </div>
-              {item.category && <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md shrink-0">{item.category}</span>}
               <button onClick={() => toggleActive(item)} className={`p-1.5 rounded-lg transition-colors ${item.isActive ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-300 hover:bg-slate-100'}`}>
                 {item.isActive ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
               </button>
@@ -104,6 +161,11 @@ export default function NewsManager({ addToast }: Props) {
               <Field label="Subtitle" value={editing.subtitle ?? ''} onChange={v => setEditing({ ...editing, subtitle: v })} />
               <Field label="Author" value={editing.author ?? ''} onChange={v => setEditing({ ...editing, author: v })} />
               <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => setEditing({ ...editing, imageUrl: v })} />
+              {editing.imageUrl && (
+                <div className="rounded-xl overflow-hidden border border-slate-200">
+                  <img src={editing.imageUrl} alt="" className="w-full h-32 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                </div>
+              )}
               <Field label="Category" value={editing.category ?? ''} onChange={v => setEditing({ ...editing, category: v })} />
               <Field label="Tags (comma-separated)" value={editing.tags ?? ''} onChange={v => setEditing({ ...editing, tags: v })} />
               <Field label="Published Date" type="date" value={editing.publishedAt?.slice(0, 10) ?? ''} onChange={v => setEditing({ ...editing, publishedAt: v })} />

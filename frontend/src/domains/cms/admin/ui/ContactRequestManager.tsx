@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MessageSquare, Mail, Phone, Trash2, Check, Clock, X, Eye, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MessageSquare, Mail, Phone, Trash2, Check, Clock, X, Search } from 'lucide-react';
 import { api, ContactRequest } from '../api/cmsApi';
 import type { Toast } from './CmsDashboard';
 
@@ -12,6 +12,7 @@ export default function ContactRequestManager({ addToast }: Props) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ContactRequest | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved' | 'archived'>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -37,30 +38,50 @@ export default function ContactRequestManager({ addToast }: Props) {
     catch { addToast('Delete failed', 'error'); }
   };
 
-  const filtered = filter === 'all' ? items : items.filter(i => i.status === filter);
+  const filtered = useMemo(() => {
+    let result = filter === 'all' ? items : items.filter(i => i.status === filter);
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.email.toLowerCase().includes(q) ||
+        i.subject?.toLowerCase().includes(q) ||
+        i.message?.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [items, filter, search]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-wrap gap-2">
           <h2 className="font-bold text-slate-800">Contact Requests</h2>
-          <div className="flex gap-1">
-            {(['all', 'pending', 'resolved', 'archived'] as const).map(s => (
-              <button key={s} onClick={() => setFilter(s)}
-                className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-colors ${
-                  filter === s ? 'bg-brand-red text-white' : 'text-slate-500 hover:bg-slate-100'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="pl-7 pr-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30 w-32" />
+            </div>
+            <div className="flex gap-1">
+              {(['all', 'pending', 'resolved', 'archived'] as const).map(s => (
+                <button key={s} onClick={() => setFilter(s)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-colors ${
+                    filter === s ? 'bg-brand-red text-white' : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {loading ? (
           <div className="p-8 text-center text-sm text-slate-400">Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-400">No requests found</div>
+          <div className="p-8 text-center text-sm text-slate-400">
+            {items.length === 0 ? 'No requests found' : 'No requests match your search'}
+          </div>
         ) : (
           <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
             {filtered.map(item => {

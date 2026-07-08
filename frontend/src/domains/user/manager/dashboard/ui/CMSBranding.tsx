@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor } from 'lucide-react';
+import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor, Image, Globe } from 'lucide-react';
 
 const STORAGE_KEY = 'ethio-cms-branding';
 
@@ -8,7 +8,11 @@ interface BrandingData {
   vision: string;
   programDesc: string;
   primaryColor: string;
+  secondaryColor: string;
   fontFamily: string;
+  logoUrl: string;
+  heroTitle: string;
+  heroSubtitle: string;
 }
 
 const defaults: BrandingData = {
@@ -16,7 +20,11 @@ const defaults: BrandingData = {
   vision: 'We believe that every student has the potential to shape the future of technology in Ethiopia and beyond.',
   programDesc: 'An introductory robotics course designed for young learners to build foundational STEM skills through hands-on VEX IQ kits.',
   primaryColor: '#ed1c24',
+  secondaryColor: '#1e293b',
   fontFamily: 'Inter',
+  logoUrl: '',
+  heroTitle: 'Welcome to STEM Center',
+  heroSubtitle: 'Building the Future, One Robot at a Time',
 };
 
 export default function CMSBranding() {
@@ -27,7 +35,7 @@ export default function CMSBranding() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [activeTab, setActiveTab] = useState<'content' | 'style'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'style' | 'hero'>('content');
 
   useEffect(() => {
     if (saved) {
@@ -78,11 +86,11 @@ export default function CMSBranding() {
       </div>
 
       <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-        {(['content', 'style'] as const).map(tab => (
+        {(['content', 'style', 'hero'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 py-1.5 text-[11px] font-bold rounded-md uppercase tracking-wider transition-all ${activeTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            {tab === 'content' ? 'Content' : 'Style'}
+            {tab === 'content' ? 'Content' : tab === 'style' ? 'Style' : 'Hero'}
           </button>
         ))}
       </div>
@@ -116,7 +124,7 @@ export default function CMSBranding() {
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                <FileText className="w-3 h-3" />Program Description (VEX IQ)
+                <FileText className="w-3 h-3" />Program Description
               </label>
               {preview ? (
                 <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">{data.programDesc}</p>
@@ -147,15 +155,75 @@ export default function CMSBranding() {
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <Palette className="w-3 h-3" />Secondary Brand Color
+              </label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={data.secondaryColor} onChange={e => update('secondaryColor', e.target.value)}
+                  className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                />
+                <span className="text-xs font-mono text-slate-500">{data.secondaryColor}</span>
+                <div className="w-6 h-6 rounded-full border border-slate-200" style={{ backgroundColor: data.secondaryColor }} />
+              </div>
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <Image className="w-3 h-3" />Logo URL
+              </label>
+              {preview ? (
+                data.logoUrl ? <img src={data.logoUrl} alt="Logo" className="h-10 object-contain" /> : <p className="text-xs text-slate-400 italic">No logo set</p>
+              ) : (
+                <input type="text" value={data.logoUrl} onChange={e => update('logoUrl', e.target.value)} placeholder="https://example.com/logo.png"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                />
+              )}
+              {data.logoUrl && !preview && (
+                <div className="mt-2 rounded-lg border border-slate-200 p-3 flex items-center justify-center bg-white">
+                  <img src={data.logoUrl} alt="" className="max-h-12 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                 <Monitor className="w-3 h-3" />Font Family
               </label>
               <select value={data.fontFamily} onChange={e => update('fontFamily', e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
               >
-                {['Inter', 'Hanken Grotesk', 'system-ui', 'Georgia', 'Arial'].map(f => (
+                {['Inter', 'Hanken Grotesk', 'system-ui', 'Georgia', 'Arial', 'Poppins', 'Roboto', 'Montserrat'].map(f => (
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'hero' && (
+        <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <Globe className="w-3 h-3" />Hero Section Title
+              </label>
+              {preview ? (
+                <p className="text-lg font-bold text-slate-800 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200" style={{ borderColor: data.primaryColor + '20', color: data.primaryColor }}>{data.heroTitle}</p>
+              ) : (
+                <input type="text" value={data.heroTitle} onChange={e => update('heroTitle', e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                />
+              )}
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <Type className="w-3 h-3" />Hero Section Subtitle
+              </label>
+              {preview ? (
+                <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">{data.heroSubtitle}</p>
+              ) : (
+                <textarea rows={2} value={data.heroSubtitle} onChange={e => update('heroSubtitle', e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all resize-none"
+                />
+              )}
             </div>
           </div>
         </div>

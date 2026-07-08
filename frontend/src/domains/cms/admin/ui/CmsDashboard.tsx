@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, Image, FileText, Handshake, Building,
-  MessageSquare, HelpCircle, X, CheckCircle, AlertCircle, ChevronRight,
+  MessageSquare, HelpCircle, X, CheckCircle, AlertCircle,
 } from 'lucide-react';
 import CMSBranding from '@/src/domains/user/manager/dashboard/ui/CMSBranding';
 import HeroBannerManager from './HeroBannerManager';
@@ -11,6 +11,7 @@ import CmsPartnerManager from './CmsPartnerManager';
 import AboutUsManager from './AboutUsManager';
 import ContactRequestManager from './ContactRequestManager';
 import FaqManager from './FaqManager';
+import { api } from '../api/cmsApi';
 
 type CmsSection = 'branding' | 'hero-banners' | 'news' | 'partners' | 'about' | 'contact-requests' | 'faqs';
 
@@ -26,6 +27,14 @@ interface CmsSubNavItem {
   icon: React.ElementType;
 }
 
+interface SectionCounts {
+  'hero-banners': number;
+  news: number;
+  partners: number;
+  faqs: number;
+  'contact-requests': number;
+}
+
 const SUB_NAV: CmsSubNavItem[] = [
   { id: 'branding', label: 'Branding', icon: LayoutDashboard },
   { id: 'hero-banners', label: 'Hero Banners', icon: Image },
@@ -36,11 +45,40 @@ const SUB_NAV: CmsSubNavItem[] = [
   { id: 'contact-requests', label: 'Contact Requests', icon: MessageSquare },
 ];
 
+const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.ElementType; color: string }[] = [
+  { key: 'hero-banners', label: 'Hero Banners', icon: Image, color: 'text-violet-500 bg-violet-50' },
+  { key: 'news', label: 'Articles', icon: FileText, color: 'text-blue-500 bg-blue-50' },
+  { key: 'partners', label: 'Partners', icon: Handshake, color: 'text-amber-500 bg-amber-50' },
+  { key: 'faqs', label: 'FAQs', icon: HelpCircle, color: 'text-cyan-500 bg-cyan-50' },
+  { key: 'contact-requests', label: 'Contacts', icon: MessageSquare, color: 'text-rose-500 bg-rose-50' },
+];
+
 let toastCounter = 0;
 
 export default function CmsDashboard() {
   const [section, setSection] = useState<CmsSection>('branding');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [counts, setCounts] = useState<SectionCounts>({
+    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1,
+  });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [heroBanners, news, partners, faqs, contactRequests] = await Promise.all([
+          api.getAll('hero-banners'), api.getAll('news'), api.getAll('partners'),
+          api.getAll('faqs'), api.getAll('contact-requests'),
+        ]);
+        setCounts({
+          'hero-banners': heroBanners.length,
+          news: news.length,
+          partners: partners.length,
+          faqs: faqs.length,
+          'contact-requests': contactRequests.length,
+        });
+      } catch {}
+    })();
+  }, []);
 
   const addToast = useCallback((message: string, type: 'success' | 'error') => {
     const id = `toast-${++toastCounter}`;
@@ -54,10 +92,33 @@ export default function CmsDashboard() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  const activeLabel = SUB_NAV.find(n => n.id === section)?.label ?? '';
-
   return (
     <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {STAT_SECTIONS.map(({ key, label, icon: Icon, color }) => {
+          const c = counts[key];
+          return (
+            <button key={key} onClick={() => setSection(key)}
+              className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
+                section === key
+                  ? 'border-brand-red/30 bg-brand-red/5 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+              }`}
+            >
+              <div className={`p-1.5 rounded-lg ${color}`}>
+                <Icon className="w-3.5 h-3.5" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs text-slate-500 leading-tight">{label}</p>
+                <p className="text-sm font-bold text-slate-800">
+                  {c < 0 ? <span className="text-slate-300">...</span> : c}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {SUB_NAV.map(item => {
           const Icon = item.icon;

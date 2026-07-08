@@ -40,6 +40,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   const [faqs, setFaqs] = useState<FaqResponse[]>([]);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [programs, setPrograms] = useState<ProgramDisplay[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(true);
 
   React.useEffect(() => {
     cmsPublicApi.getPartners()
@@ -50,9 +51,11 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
       .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => a.order - b.order)))
       .catch(console.error);
 
+    setProgramsLoading(true);
     getPrograms()
       .then(data => setPrograms(data))
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setProgramsLoading(false));
   }, []);
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
@@ -225,8 +228,37 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {programs.map((prog, idx) => (
+        {programsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="bg-white rounded-card shadow-premium-sm border border-brand-border-light/45 overflow-hidden">
+                <div className="aspect-video w-full bg-slate-100 animate-pulse" />
+                <div className="p-6 space-y-4">
+                  <div className="h-4 w-28 rounded-full bg-slate-100 animate-pulse" />
+                  <div className="h-6 w-4/5 rounded bg-slate-100 animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-full rounded bg-slate-100 animate-pulse" />
+                    <div className="h-3 w-5/6 rounded bg-slate-100 animate-pulse" />
+                    <div className="h-3 w-2/3 rounded bg-slate-100 animate-pulse" />
+                  </div>
+                  <div className="h-10 w-full rounded-xl bg-slate-100 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : programs.length === 0 ? (
+          <div className="border border-dashed border-brand-border bg-white/80 px-6 py-12 text-center shadow-premium-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#25338d]/10">
+              <BookOpen className="h-5 w-5 text-[#25338d]" />
+            </div>
+            <h4 className="font-display text-xl font-bold text-slate-900">Programs are being prepared</h4>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-brand-muted-dark">
+              The academic catalog is connected, but no active programs are available to display yet.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {programs.map((prog, idx) => (
             <motion.div
               key={prog.id}
               initial={{ opacity: 0, y: 35 }}
@@ -248,6 +280,20 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               <div className="p-6 flex-1 flex flex-col gap-3">
                 <h4 onClick={() => onSetSelectedProgramSpec(prog)} className="font-display font-bold text-lg text-slate-900 hover:text-[#25338d] cursor-pointer transition-colors leading-snug line-clamp-1">{prog.title}</h4>
                 <p className="font-sans text-xs text-brand-muted-dark leading-relaxed line-clamp-3">{prog.description}</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {prog.supports_group && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Group
+                    </span>
+                  )}
+                  {prog.supports_individual && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                      <Users className="h-3 w-3" />
+                      Private
+                    </span>
+                  )}
+                </div>
                 <div className="mt-4 pt-4 border-t border-brand-border-light/40 flex items-center justify-between text-xs font-mono text-brand-muted">
                   <span>{prog.ageGroup}</span>
                   <span className="font-bold text-[#25338d]">{prog.duration}</span>
@@ -271,8 +317,9 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
                 </button>
               </div>
             </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-10" id="video-demo">

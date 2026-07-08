@@ -14,6 +14,7 @@ import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import { BranchSectionShell } from '@/src/domains/branches/ui/BranchSectionShell';
+import AcademicCatalogManager from '@/src/domains/learning/academics/ui/AcademicCatalogManager';
 import type { UserProfile, AppNotification } from '@/src/shared/types';
 import {
   fetchUsersApi,
@@ -38,12 +39,13 @@ import { getNotifications } from '@/src/domains/notification/model/notificationA
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'overview' | 'users' | 'roles' | 'settings' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms';
+type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'settings' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
   { id: 'users', label: 'Accounts & Users', icon: Users, group: 'main' },
   { id: 'roles', label: 'Roles & Permissions', icon: Shield, group: 'main' },
+  { id: 'academics', label: 'Academic Catalog', icon: GraduationCap, group: 'main' },
   { id: 'registrations', label: 'Enrollments', icon: ClipboardList, group: 'main' },
   { id: 'partners', label: 'Strategic Partners', icon: Handshake, group: 'main' },
   { id: 'vex-roles', label: 'VEX Teams', icon: UserCog, group: 'vex' },
@@ -58,6 +60,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const pageTitle: Record<SectionId, string> = {
   overview: 'Overview', users: 'User Management', roles: 'Roles & Permissions',
+  academics: 'Academic Catalog',
   partners: 'Partners & Sponsors', 'vex-roles': 'VEX Role Management',
   branches: 'Branch Management', registrations: 'Registration Management',
   moderation: 'Content Moderation', audit: 'Audit Logs',
@@ -1981,6 +1984,7 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'overview': return <Overview />;
       case 'users': return <UserManagement userRole={currentUser.role} />;
       case 'roles': return <RolesPermissions />;
+      case 'academics': return <AcademicCatalogManager role="Admin" />;
       case 'partners': return <PartnerSponsorshipPanel />;
       case 'vex-roles': return <VexRolesAdmin />;
       case 'branches': return <BranchSectionShell />;
