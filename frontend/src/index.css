@@ -644,7 +644,6 @@
   }
   .sidebar.collapsed .sidebar-scroll { padding: 0 6px 8px; }
   .sidebar.collapsed .sidebar-footer { padding: 8px 0 16px; }
-
   .main-content { margin-left: 260px; }
   .main-content.collapsed { margin-left: 80px; }
 }

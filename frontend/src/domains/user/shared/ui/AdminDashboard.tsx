@@ -19,6 +19,7 @@ import {
   fetchUsersApi,
   toggleUserStatusApi,
   archiveUserApi,
+  deleteUserApi,
   createStaffApi,
   createBranchManagerApi,
   updateUserApi,
@@ -71,7 +72,6 @@ const roleBadge = (role: string) => {
     Admin: 'bg-purple-50 text-purple-600',
     Manager: 'bg-amber-50 text-amber-600',
     Instructor: 'bg-blue-50 text-blue-600',
-    Parent: 'bg-emerald-50 text-emerald-600',
   };
   return colors[role] || 'bg-slate-50 text-slate-600';
 };
@@ -156,7 +156,7 @@ function Overview() {
         <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5">
           <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-4">User Distribution</h3>
           <div className="space-y-3">
-            {[{ role: 'Students', count: 342, pct: 70 }, { role: 'Instructors', count: 24, pct: 5 }, { role: 'Managers', count: 6, pct: 1.2 }, { role: 'Parents', count: 114, pct: 23.5 }].map(r => (
+            {[{ role: 'Students', count: 342, pct: 70 }, { role: 'Instructors', count: 24, pct: 5 }, { role: 'Managers', count: 6, pct: 1.2 }, { role: 'Secretaries', count: 4, pct: 0.8 }].map(r => (
               <div key={r.role} className="flex items-center gap-3">
                 <span className="text-sm text-slate-600 w-20 shrink-0">{r.role}</span>
                 <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -188,14 +188,16 @@ function UserManagement({ userRole }: { userRole?: string }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserResponse | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<AdminUserResponse | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AdminUserResponse | null>(null);
   const [viewingUser, setViewingUser] = useState<AdminUserResponse | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [formData, setFormData] = useState({
     email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor',
-    phone_number: '', gender: '', date_of_birth: '',
+    phone_number: '', gender: '', date_of_birth: '', country: 'Ethiopia',
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -244,6 +246,20 @@ function UserManagement({ userRole }: { userRole?: string }) {
     }
   };
 
+  const handleDelete = async (u: AdminUserResponse) => {
+    setDeleting(u.id);
+    try {
+      await deleteUserApi(u.id);
+      setConfirmDelete(null);
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(u.id); return next; });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete user');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const handleBulkToggle = async (activate: boolean) => {
     setBulkProcessing(true);
     setError(null);
@@ -279,10 +295,14 @@ function UserManagement({ userRole }: { userRole?: string }) {
     }
   };
 
-  const minPwLength = formData.role === 'super_admin' ? 6 : 8;
+  const minPwLength = 8;
+
+  const COMMON_PASSWORDS = new Set(['password', 'password123', '12345678', 'qwerty123', 'admin123', 'letmein', 'welcome', 'monkey', 'dragon', 'master', 'abc123', '123456789', 'passw0rd', 'iloveyou', 'sunshine', 'princess', 'football', 'shadow']);
 
   const validatePassword = (pw: string): string | null => {
     if (pw.length < minPwLength) return `Password must be at least ${minPwLength} characters`;
+    if (/^\d+$/.test(pw)) return 'Password cannot be entirely numeric';
+    if (COMMON_PASSWORDS.has(pw.toLowerCase())) return 'This password is too common';
     return null;
   };
 
@@ -311,7 +331,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
       return;
     }
     try {
-      const extra = { phone_number: formData.phone_number || undefined, gender: formData.gender || undefined, date_of_birth: formData.date_of_birth || undefined };
+      const extra = { phone_number: formData.phone_number || undefined, gender: formData.gender || undefined, date_of_birth: formData.date_of_birth || undefined, country: formData.country || 'Ethiopia' };
       if (formData.role === 'branch_manager') {
         await createBranchManagerApi({
           email,
@@ -333,7 +353,7 @@ function UserManagement({ userRole }: { userRole?: string }) {
         });
       }
       setShowAddModal(false);
-      setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '' });
+      setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '', country: 'Ethiopia' });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create user');
@@ -502,9 +522,13 @@ function UserManagement({ userRole }: { userRole?: string }) {
                         <button onClick={() => handleToggle(u)} disabled={toggling === u.id} className={`p-1.5 rounded-lg ${toggling === u.id ? 'text-slate-300' : u.status === 'Active' ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={u.status === 'Active' ? 'Deactivate' : 'Activate'}>
                           {toggling === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : u.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                         </button>
-                        {u.status !== 'Archived' && (
+                        {u.status !== 'Archived' ? (
                           <button onClick={() => setConfirmArchive(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50" title="Archive">
                             <Archive className="w-3.5 h-3.5" />
+                          </button>
+                        ) : userRole === 'Admin' && (
+                          <button onClick={() => setConfirmDelete(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-700 hover:bg-red-100" title="Delete permanently">
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -535,11 +559,15 @@ function UserManagement({ userRole }: { userRole?: string }) {
                 </button>
               </div>
               <div className="mt-1.5 space-y-1">
-                {[`At least ${minPwLength} characters`].map((req) => {
-                  const met = formData.password.length >= minPwLength;
+                {[
+                  { label: `At least ${minPwLength} characters`, test: (pw: string) => pw.length >= minPwLength },
+                  { label: `Not entirely numeric`, test: (pw: string) => pw.length === 0 || !/^\d+$/.test(pw) },
+                  { label: `Not a common password`, test: (pw: string) => pw.length === 0 || !COMMON_PASSWORDS.has(pw.toLowerCase()) },
+                ].map((req) => {
+                  const met = req.test(formData.password);
                   return (
-                    <div key={req} className={`flex items-center gap-1.5 text-xs ${formData.password ? (met ? 'text-green-600' : 'text-red-500') : 'text-slate-400'}`}>
-                      <span>{met ? '✓' : '○'}</span> {req}
+                    <div key={req.label} className={`flex items-center gap-1.5 text-xs ${formData.password ? (met ? 'text-green-600' : 'text-red-500') : 'text-slate-400'}`}>
+                      <span>{met ? '✓' : '○'}</span> {req.label}
                     </div>
                   );
                 })}
@@ -562,6 +590,9 @@ function UserManagement({ userRole }: { userRole?: string }) {
                   <option value="instructor">Instructor</option>
                   {userRole === 'Admin' && <option value="branch_manager">Branch Manager</option>}
                 </select>
+              </div>
+              <div><label className="text-xs font-medium text-slate-500 mb-1 block">Country</label>
+                <input value={formData.country} onChange={e => setFormData(p => ({ ...p, country: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="e.g. Ethiopia" />
               </div>
               <div><label className="text-xs font-medium text-slate-500 mb-1 block">Branch</label>
                 <select value={formData.branch_id} onChange={e => setFormData(p => ({ ...p, branch_id: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30 bg-white">
@@ -654,6 +685,30 @@ function UserManagement({ userRole }: { userRole?: string }) {
               <button onClick={() => handleArchive(confirmArchive)} disabled={archiving === confirmArchive.id} className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
                 {archiving === confirmArchive.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
                 {archiving === confirmArchive.id ? 'Archiving...' : 'Confirm Archive'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirmDelete && (
+        <Modal title="Delete User" onClose={() => setConfirmDelete(null)}>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              <p className="text-sm text-red-700">
+                This action <strong>cannot</strong> be undone.
+              </p>
+            </div>
+            <p className="text-sm text-slate-600">
+              Are you sure you want to permanently delete <strong>{confirmDelete.full_name}</strong>?
+              All associated data will be removed from the system.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={() => handleDelete(confirmDelete)} disabled={deleting === confirmDelete.id} className="flex-1 px-3 py-2 bg-red-700 text-white rounded-lg text-sm font-semibold hover:bg-red-800 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {deleting === confirmDelete.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deleting === confirmDelete.id ? 'Deleting...' : 'Permanently Delete'}
               </button>
             </div>
           </div>

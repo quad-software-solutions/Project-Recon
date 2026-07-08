@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Users, Edit3, BarChart3, Activity, PanelLeftClose, PanelLeftOpen, ClipboardList, BookOpen, StickyNote, X, LogOut, ChevronRight, Briefcase, TrendingUp } from 'lucide-react';
+import { Users, Edit3, BarChart3, Activity, ClipboardList, BookOpen, StickyNote } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
@@ -25,9 +24,9 @@ const INITIAL_STUDENTS = [
 ];
 
 const INITIAL_ASSIGNMENTS = [
-  { id: 1, student: 'Student 1', assign: 'A11', confirmed: false },
-  { id: 2, student: 'Student 2', assign: 'A12', confirmed: false },
-  { id: 3, student: 'Student 3', assign: 'A13', confirmed: false },
+  { id: 1, student: 'Abebe B.', assign: 'PID Controller Demo', confirmed: false },
+  { id: 2, student: 'Radiom J.', assign: 'Line Follower v2', confirmed: false },
+  { id: 3, student: 'Dr. Elias T.', assign: 'Obstacle Course', confirmed: false },
 ];
 
 type SectionId = 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity';

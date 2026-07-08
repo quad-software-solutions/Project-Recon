@@ -14,9 +14,6 @@ export const ROLES = {
   INSTRUCTOR: 'Instructor',
   MANAGER: 'Manager',
   ADMIN: 'Admin',
-  PARENT: 'Parent',
-  EVENT_MANAGER: 'EventManager',
   SECRETARY: 'Secretary',
 } as const;
-
 

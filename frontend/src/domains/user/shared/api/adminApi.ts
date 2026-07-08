@@ -152,6 +152,10 @@ export async function archiveUserApi(userId: string): Promise<void> {
   await http.post(`/accounts/users/${userId}/archive/`, {});
 }
 
+export async function deleteUserApi(userId: string): Promise<void> {
+  await http.post(`/accounts/users/${userId}/delete/`, {});
+}
+
 export async function createStaffApi(data: {
   email: string;
   first_name: string;

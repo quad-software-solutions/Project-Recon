@@ -1,7 +1,12 @@
 import { motion } from 'motion/react';
 import CommunityForum from '../../domains/forum/posts/ui/CommunityForum';
+import type { UserProfile } from '../../shared/types';
 
-export default function CommunityPage() {
+interface CommunityPageProps {
+  currentUser: UserProfile;
+}
+
+export default function CommunityPage({ currentUser }: CommunityPageProps) {
   return (
     <motion.div
       key="community-screen"
@@ -11,7 +16,7 @@ export default function CommunityPage() {
       transition={{ duration: 0.3 }}
       className="w-full"
     >
-      <CommunityForum />
+      <CommunityForum currentUser={currentUser} />
     </motion.div>
   );
 }

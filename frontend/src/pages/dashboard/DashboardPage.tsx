@@ -14,7 +14,7 @@ export default function DashboardPage({ currentUser, onLogout }: DashboardPagePr
   if (currentUser.role === 'Admin') {
     return <AdminDashboard currentUser={currentUser} onLogout={onLogout} />;
   }
-  if (currentUser.role === 'Manager' || currentUser.role === 'EventManager') {
+  if (currentUser.role === 'Manager') {
     return <ManagerDashboard currentUser={currentUser} onLogout={onLogout} />;
   }
   if (currentUser.role === 'Instructor') {

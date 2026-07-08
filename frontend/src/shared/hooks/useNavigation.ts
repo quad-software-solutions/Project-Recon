@@ -51,7 +51,7 @@ export function useNavigation(currentUser: UserProfile | null) {
     }
     setActiveTab(tab);
     let path = '/';
-    if (tab === 'dashboard' && (currentUser?.role === 'Manager' || currentUser?.role === 'EventManager')) path = '/manager';
+    if (tab === 'dashboard' && currentUser?.role === 'Manager') path = '/manager';
     else if (tab !== 'home') path = `/${tab}`;
     window.history.pushState(null, '', path);
   }, [currentUser]);

@@ -3,23 +3,28 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Award,
   ChevronDown,
+  CheckCircle2,
   Filter,
+  GraduationCap,
+  LayoutDashboard,
   MessageSquare,
   Pin,
   Plus,
   Search,
   Send,
+  ShieldCheck,
   Sparkles,
   Tag,
   ThumbsUp,
   Users,
   X,
 } from 'lucide-react';
-import type { ForumPost } from '@/src/shared/types';
+import type { ForumPost, UserProfile } from '@/src/shared/types';
 import { getForumPosts } from '../model/postApi';
 
 type Category = 'All' | 'General' | 'Help' | 'Showcase' | 'Competition' | 'Tutorial';
 const CATEGORIES: Category[] = ['All', 'General', 'Help', 'Showcase', 'Competition', 'Tutorial'];
+const COMMUNITY_VISIBLE_ROLES: UserProfile['role'][] = ['Admin', 'Manager', 'Instructor', 'Secretary', 'Student'];
 const CAT_COLORS: Record<string, string> = {
   General: 'bg-slate-100 text-slate-700 ring-slate-200',
   Help: 'bg-red-50 text-red-700 ring-red-100',
@@ -28,7 +33,38 @@ const CAT_COLORS: Record<string, string> = {
   Tutorial: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
 };
 
-export default function CommunityForum() {
+interface CommunityForumProps {
+  currentUser: UserProfile;
+}
+
+const getInitials = (name: string) => {
+  const initials = name
+    .split(' ')
+    .map(part => part.trim()[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return initials || 'LI';
+};
+
+const getRoleTone = (role: UserProfile['role']) => {
+  switch (role) {
+    case 'Admin':
+      return 'bg-red-50 text-brand-red ring-red-100';
+    case 'Manager':
+      return 'bg-indigo-50 text-brand-blue ring-indigo-100';
+    case 'Instructor':
+      return 'bg-emerald-50 text-emerald-700 ring-emerald-100';
+    case 'Secretary':
+      return 'bg-cyan-50 text-cyan-700 ring-cyan-100';
+    default:
+      return 'bg-slate-100 text-slate-700 ring-slate-200';
+  }
+};
+
+export default function CommunityForum({ currentUser }: CommunityForumProps) {
   const [posts, setPosts] = useState<ForumPost[]>([]);
 
   useEffect(() => {
@@ -42,6 +78,9 @@ export default function CommunityForum() {
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<string>('General');
   const [replyText, setReplyText] = useState('');
+  const displayName = currentUser.name || [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ') || currentUser.email;
+  const userInitials = getInitials(displayName);
+  const roleTone = getRoleTone(currentUser.role);
 
   const filtered = posts
     .filter(p => category === 'All' || p.category === category)
@@ -50,13 +89,38 @@ export default function CommunityForum() {
 
   const submitPost = () => {
     if (!newTitle.trim() || !newContent.trim()) return;
-    const post: ForumPost = { id: Date.now().toString(), author: 'You', authorRole: 'Student', avatar: '🙋', title: newTitle, content: newContent, category: newCategory as any, timestamp: 'Just now', likes: 0, replies: [], tags: [] };
+    const post: ForumPost = {
+      id: Date.now().toString(),
+      author: displayName,
+      authorRole: currentUser.role,
+      avatar: userInitials,
+      title: newTitle,
+      content: newContent,
+      category: newCategory as ForumPost['category'],
+      timestamp: 'Just now',
+      likes: 0,
+      replies: [],
+      tags: [],
+    };
     setPosts(prev => [post, ...prev]); setShowNew(false); setNewTitle(''); setNewContent('');
   };
 
   const addReply = (postId: string) => {
     if (!replyText.trim()) return;
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, replies: [...p.replies, { id: Date.now().toString(), author: 'You', authorRole: 'Student', content: replyText, timestamp: 'Just now', likes: 0 }] } : p));
+    setPosts(prev => prev.map(p => p.id === postId ? {
+      ...p,
+      replies: [
+        ...p.replies,
+        {
+          id: Date.now().toString(),
+          author: displayName,
+          authorRole: currentUser.role,
+          content: replyText,
+          timestamp: 'Just now',
+          likes: 0,
+        },
+      ],
+    } : p));
     setReplyText('');
   };
 
@@ -79,7 +143,7 @@ export default function CommunityForum() {
               <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-widest text-brand-blue">Community</p>
               <h1 className="font-display text-3xl font-extrabold tracking-tight text-brand-ink sm:text-4xl">Discussion Forum</h1>
               <p className="mt-2 max-w-xl text-sm leading-6 text-brand-muted-dark">
-                Ask for help, share robot builds, follow competition updates, and learn from the Light Institute community.
+                Ask for help, share robot builds, follow competition updates, and learn from the Light Institute community across every active role.
               </p>
             </div>
 
@@ -97,6 +161,62 @@ export default function CommunityForum() {
             </div>
           </div>
         </motion.div>
+
+        <section className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-3xl border border-brand-border-light/70 bg-white p-5 shadow-premium-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-blue text-sm font-extrabold text-white shadow-premium-blue">
+                  {userInitials}
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Signed in as</p>
+                  <h2 className="font-display text-lg font-extrabold text-brand-ink">{displayName}</h2>
+                </div>
+              </div>
+              <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold ring-1 ${roleTone}`}>
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {currentUser.role} access
+              </span>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {[
+                { icon: Users, label: 'Shared space', value: 'All signed-in roles' },
+                { icon: MessageSquare, label: 'Posting', value: 'Role-aware identity' },
+                { icon: GraduationCap, label: 'Learning loop', value: 'Students and staff' },
+              ].map(item => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-2xl bg-brand-paper px-4 py-3">
+                    <Icon className="mb-2 h-4 w-4 text-brand-blue" />
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">{item.label}</p>
+                    <p className="mt-1 text-sm font-extrabold text-brand-ink">{item.value}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-brand-border-light/70 bg-white p-5 shadow-premium-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
+                <LayoutDashboard className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-extrabold text-brand-ink">Role Visibility</h2>
+                <p className="text-xs text-brand-muted">Community appears for every authenticated role.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {COMMUNITY_VISIBLE_ROLES.map(role => (
+                <span key={role} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold ring-1 ${getRoleTone(role)}`}>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {role}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-12">
           <section className="space-y-5 lg:col-span-8">

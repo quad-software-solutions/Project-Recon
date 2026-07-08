@@ -169,8 +169,8 @@ export default function App() {
             <CompetitionPage currentUser={currentUser} />
           )}
 
-          {activeTab === 'community' && (
-            <CommunityPage />
+          {activeTab === 'community' && currentUser && (
+            <CommunityPage currentUser={currentUser} />
           )}
 
           {activeTab === 'consultancy' && (

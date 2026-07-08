@@ -9,7 +9,7 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
-  role: 'Student' | 'Instructor' | 'Parent';
+  role: 'Student' | 'Instructor';
 }
 
 export interface AuthResponse {

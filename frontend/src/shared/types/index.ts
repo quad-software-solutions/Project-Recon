@@ -61,7 +61,7 @@ export interface UserProfile {
   profile_picture?: string;
   date_of_birth?: string;
   gender?: string;
-  role: 'Student' | 'Instructor' | 'Admin' | 'Manager' | 'Parent' | 'EventManager' | 'Secretary';
+  role: 'Student' | 'Instructor' | 'Admin' | 'Manager' | 'Secretary';
   bio?: string;
   xpPoints: number;
   badges: string[];

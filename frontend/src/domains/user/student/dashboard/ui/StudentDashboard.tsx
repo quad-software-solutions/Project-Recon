@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   User, CalendarDays, Target, Calendar, BookOpen, Medal,
-  PanelLeftClose, PanelLeftOpen, Zap, TrendingUp, Clock,
-  Award, Flame, BarChart3, ChevronRight, MessageCircle,
-  X, Trophy, Video, Gift, FileText, LogOut,
-  Cpu, Swords, ClipboardList, Users, Sparkles, GraduationCap,
-  Activity, Star, Search
+  Zap, TrendingUp, Clock, Award, Flame, BarChart3,
+  ChevronRight, MessageCircle, Trophy, Video, Gift, FileText,
+  Cpu, Swords, ClipboardList, Users, GraduationCap, Activity
 } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
 import { ROBOTICS_PROGRAMS, MOCK_VEX_TEAM, MOCK_VEX_MATCHES, MOCK_VEX_AWARDS, MOCK_VEX_ROBOTS } from '@/src/shared/constants/mock-data';
