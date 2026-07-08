@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor, Image, Globe, Upload } from 'lucide-react';
+import { saveBranding, resetBranding } from '@/src/shared/hooks/useBranding';
 
 const STORAGE_KEY = 'ethio-cms-branding';
 
@@ -62,6 +63,7 @@ export default function CMSBranding() {
     setSaved(false);
     setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      saveBranding(data);
       setSaving(false);
       setSaved(true);
     }, 600);
@@ -69,7 +71,7 @@ export default function CMSBranding() {
 
   const handleReset = () => {
     setData(defaults);
-    localStorage.removeItem(STORAGE_KEY);
+    resetBranding();
   };
 
   return (

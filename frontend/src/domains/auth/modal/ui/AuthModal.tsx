@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, User, ShieldCheck, Info, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import BrandLogo from '@/src/shared/ui/BrandLogo';
+import { useBranding } from '@/src/shared/hooks/useBranding';
 import { UserProfile } from '@/src/shared/types';
 import { http } from '@/src/shared/api/http';
 
@@ -12,6 +14,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode }: AuthModalProps) {
+  const branding = useBranding();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   
   const [email, setEmail] = useState('');
@@ -149,11 +152,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
 
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 bg-brand-red/10 rounded-xl flex items-center justify-center mx-auto mb-3 text-brand-red">
-            <ShieldCheck className="w-6 h-6" />
+          <div className="mx-auto mb-3 flex justify-center">
+            <BrandLogo className="h-10 w-[130px]" logoUrl={branding.logoUrl || undefined} />
           </div>
-          <h3 className="font-black text-xl md:text-2xl text-white uppercase tracking-tight">
-            {mode === 'login' ? 'Welcome Back Fellow' : 'Create Student Account'}
+          <h3 className="font-black text-xl md:text-2xl text-slate-900 uppercase tracking-tight">
+            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
           </h3>
           <p className="text-xs text-slate-500 mt-1.5 font-medium">
             {mode === 'login' 

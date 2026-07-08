@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BarChart3, Users, Shield, Settings, FileText, Bell, Activity,
-  Plus, RefreshCw, AlertTriangle, Clock, CheckCircle, XCircle,
+  Plus, RefreshCw, AlertTriangle, Clock, CheckCircle, XCircle, AlertCircle,
   BookOpen, MessageSquare, GraduationCap, Award, DollarSign, Building,
   Handshake, UserCog, Swords, Medal, Wrench, ClipboardList, Cpu, Star, Target,
   Edit3, Trash2, Eye, EyeOff, Search, Filter, Download, ChevronDown, Save, X,
@@ -36,10 +36,12 @@ import {
   type AssignmentResponse,
 } from '../api/adminApi';
 import { getNotifications } from '@/src/domains/notification/model/notificationApi';
+import AccountSettings from '@/src/shared/ui/AccountSettings';
+import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'settings' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms';
+type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'settings' | 'account' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms' | 'profile';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
@@ -54,7 +56,9 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'moderation', label: 'Content Moderation', icon: MessageSquare, group: 'system' },
   { id: 'audit', label: 'System Logs', icon: FileText, group: 'system' },
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'system' },
-  { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
+  { id: 'settings', label: 'System Settings', icon: Settings, group: 'system' },
+  { id: 'profile', label: 'My Profile', icon: Shield, group: 'system' },
+  { id: 'account', label: 'Account', icon: Settings, group: 'system' },
   { id: 'maintenance', label: 'System Health', icon: Activity, group: 'system' },
 ];
 
@@ -65,7 +69,7 @@ const pageTitle: Record<SectionId, string> = {
   branches: 'Branch Management', registrations: 'Registration Management',
   moderation: 'Content Moderation', audit: 'Audit Logs',
   notifications: 'Notifications', settings: 'System Settings', maintenance: 'Maintenance',
-  cms: 'Content Management',
+  cms: 'Content Management', profile: 'My Profile', account: 'Account Settings',
 };
 
 /* ─── HELPERS ─── */
@@ -1187,53 +1191,155 @@ function RolesPermissions() {
 
 function ContentModeration() {
   const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [queueFilter, setQueueFilter] = useState<'all' | 'Forum' | 'Community' | 'Media'>('all');
   const [resolved, setResolved] = useState<string[]>([]);
-  const flags = [
-    { id: 'f1', title: 'Inappropriate language in thread', author: 'FlagBot', post: 'Re: How to tune PID', date: '2 hours ago', severity: 'medium', queue: 'Forum', excerpt: 'This comment used language that may violate student safety rules.' },
-    { id: 'f2', title: 'Spam promotional content', author: 'FlagBot', post: 'Cheap robots for sale!', date: '5 hours ago', severity: 'high', queue: 'Community', excerpt: 'External sales link detected in a student discussion thread.' },
-    { id: 'f3', title: 'Off-topic discussion', author: 'Coach Nebil', post: 'General chat thread', date: '1 day ago', severity: 'low', queue: 'Forum', excerpt: 'Thread drifted away from the assigned robotics challenge.' },
-    { id: 'f4', title: 'Unverified event photo', author: 'Media Review', post: 'Workshop gallery upload', date: '2 days ago', severity: 'medium', queue: 'Media', excerpt: 'Photo includes students and needs publishing confirmation.' },
+  const [selectedFlag, setSelectedFlag] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const initialFlags = [
+    { id: 'f1', title: 'Inappropriate language in thread', author: 'FlagBot', post: 'Re: How to tune PID', date: '2 hours ago', severity: 'high' as const, queue: 'Forum' as const, excerpt: 'This comment used language that may violate student safety rules.', reporter: 'Auto-flag', action: 'Pending' as const },
+    { id: 'f2', title: 'Spam promotional content', author: 'Coach Nebil', post: 'Cheap robots for sale!', date: '5 hours ago', severity: 'high' as const, queue: 'Community' as const, excerpt: 'External sales link detected in a student discussion thread.', reporter: 'Coach Nebil', action: 'Pending' as const },
+    { id: 'f3', title: 'Off-topic discussion', author: 'Student Kelby', post: 'General chat thread', date: '1 day ago', severity: 'low' as const, queue: 'Forum' as const, excerpt: 'Thread drifted away from the assigned robotics challenge.', reporter: 'Student Kelby', action: 'Pending' as const },
+    { id: 'f4', title: 'Unverified event photo', author: 'Media Review', post: 'Workshop gallery upload', date: '2 days ago', severity: 'medium' as const, queue: 'Media' as const, excerpt: 'Photo includes students and needs publishing confirmation.', reporter: 'Auto-flag', action: 'Pending' as const },
+    { id: 'f5', title: 'Duplicate user account', author: 'Admin System', post: 'Registration #9821', date: '3 days ago', severity: 'medium' as const, queue: 'Community' as const, excerpt: 'Multiple accounts detected from same IP address with different names.', reporter: 'Admin System', action: 'Pending' as const },
+    { id: 'f6', title: 'Copyrighted material', author: 'Coach Hanna', post: 'VEX CAD files', date: '4 days ago', severity: 'high' as const, queue: 'Media' as const, excerpt: 'Uploaded CAD files appear to be from a restricted source.', reporter: 'Coach Hanna', action: 'Pending' as const },
   ];
-  const severityColor: Record<string, string> = { high: 'text-red-600 bg-red-50', medium: 'text-amber-600 bg-amber-50', low: 'text-slate-600 bg-slate-100' };
-  const visible = flags.filter(f => !resolved.includes(f.id) && (filter === 'all' || f.severity === filter));
+
+  const [flags, setFlags] = useState(initialFlags);
+
+  const severityColor: Record<string, string> = {
+    high: 'text-red-600 bg-red-50 border-red-100',
+    medium: 'text-amber-600 bg-amber-50 border-amber-100',
+    low: 'text-slate-600 bg-slate-100 border-slate-200'
+  };
+  const queueColor: Record<string, string> = {
+    Forum: 'bg-blue-50 text-blue-600',
+    Community: 'bg-purple-50 text-purple-600',
+    Media: 'bg-emerald-50 text-emerald-600',
+  };
+
+  const visible = flags.filter(f =>
+    !resolved.includes(f.id) &&
+    (filter === 'all' || f.severity === filter) &&
+    (queueFilter === 'all' || f.queue === queueFilter) &&
+    (!searchQuery || f.title.toLowerCase().includes(searchQuery.toLowerCase()) || f.post.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   const stats = [
     { label: 'Open Flags', value: String(flags.length - resolved.length), detail: 'pending review', icon: AlertTriangle, tone: 'amber' as const },
-    { label: 'High Risk', value: String(flags.filter(f => f.severity === 'high' && !resolved.includes(f.id)).length), detail: 'needs first pass', icon: XCircle, tone: 'red' as const },
+    { label: 'High Risk', value: String(flags.filter(f => f.severity === 'high' && !resolved.includes(f.id)).length), detail: 'needs immediate attention', icon: XCircle, tone: 'red' as const },
     { label: 'Media Queue', value: String(flags.filter(f => f.queue === 'Media' && !resolved.includes(f.id)).length), detail: 'publish review', icon: Camera, tone: 'blue' as const },
-    { label: 'Resolved', value: String(resolved.length), detail: 'this session', icon: CheckCircle, tone: 'emerald' as const },
+    { label: 'Resolved', value: String(resolved.length), detail: 'actions taken this session', icon: CheckCircle, tone: 'emerald' as const },
   ];
+
+  const handleAction = (id: string, action: 'approve' | 'remove' | 'warn') => {
+    setFlags(prev => prev.map(f => f.id === id ? { ...f, action: action === 'approve' ? 'Approved' as const : action === 'remove' ? 'Removed' as const : 'Warned' as const } : f));
+    setResolved(prev => [...prev, id]);
+  };
+
   return (
     <div className="space-y-4">
-      <DashboardCommandCenter title="Moderation Queue" subtitle="Review student-facing content before it becomes visible." signals={stats} />
-      <div className="flex flex-wrap gap-2">
-        {(['all', 'high', 'medium', 'low'] as const).map(level => (
-          <button key={level} onClick={() => setFilter(level)}
-            className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wide transition-all ${filter === level ? 'bg-brand-red text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}>
-            {level}
-          </button>
-        ))}
-      </div>
-      {visible.map(f => (
-        <div key={f.id} className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-semibold text-base text-slate-900">{f.title}</h3>
-                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-600">{f.queue}</span>
-              </div>
-              <p className="text-sm text-slate-500 mt-1">in <span className="font-medium text-slate-700">{f.post}</span></p>
-              <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{f.excerpt}</p>
-              <div className="flex items-center gap-3 mt-2 text-xs text-slate-400"><span>Flagged by {f.author}</span><span>{f.date}</span><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${severityColor[f.severity] || ''}`}>{f.severity}</span></div>
-            </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-              <button onClick={() => setResolved(prev => [...prev, f.id])} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-semibold hover:bg-emerald-100"><CheckCircle className="w-3.5 h-3.5" /> Approve</button>
-              <button onClick={() => setResolved(prev => [...prev, f.id])} className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100"><XCircle className="w-3.5 h-3.5" /> Remove</button>
-            </div>
-          </div>
+      <DashboardCommandCenter title="Moderation Queue" subtitle="Review flagged content, user reports, and media before publishing." signals={stats} />
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search flags..."
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-red/40 transition-all" />
         </div>
-      ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {(['all', 'high', 'medium', 'low'] as const).map(level => (
+            <button key={level} onClick={() => setFilter(level)}
+              className={`rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${filter === level ? 'bg-slate-900 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}>
+              {level}
+            </button>
+          ))}
+          <div className="w-px h-5 bg-slate-200 mx-1" />
+          {(['all', 'Forum', 'Community', 'Media'] as const).map(q => (
+            <button key={q} onClick={() => setQueueFilter(q)}
+              className={`rounded-xl px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === q ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}>
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {visible.map(f => {
+        const isSelected = selectedFlag === f.id;
+        return (
+          <motion.div key={f.id} layout className={`bg-white border rounded-xl overflow-hidden transition-all ${isSelected ? 'border-brand-red/40 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
+            <div className="p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setSelectedFlag(isSelected ? null : f.id)}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">{f.title}</h3>
+                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${queueColor[f.queue]}`}>{f.queue}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${severityColor[f.severity]}`}>{f.severity}</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">in <span className="font-medium text-slate-700">{f.post}</span></p>
+
+                  <AnimatePresence>
+                    {isSelected && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                        <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 p-3">
+                          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{f.excerpt}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-slate-400">
+                          <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Flagged by <strong className="text-slate-600">{f.reporter}</strong></span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {f.date}</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <div className="flex shrink-0 flex-col gap-1.5">
+                  <button onClick={() => handleAction(f.id, 'approve')}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[11px] font-bold hover:bg-emerald-100 transition-all whitespace-nowrap">
+                    <CheckCircle className="w-3.5 h-3.5" /> Approve
+                  </button>
+                  <button onClick={() => handleAction(f.id, 'remove')}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-[11px] font-bold hover:bg-red-100 transition-all whitespace-nowrap">
+                    <XCircle className="w-3.5 h-3.5" /> Remove
+                  </button>
+                  <button onClick={() => handleAction(f.id, 'warn')}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-600 rounded-lg text-[11px] font-bold hover:bg-amber-100 transition-all whitespace-nowrap">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Warn
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })}
+
       {visible.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-400">No moderation items match this view.</div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+          <CheckCircle className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
+          <p className="text-sm font-semibold text-slate-700">All clear!</p>
+          <p className="text-xs text-slate-400 mt-1">No pending moderation items match your filters.</p>
+        </motion.div>
+      )}
+
+      {resolved.length > 0 && (
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="px-4 py-3 text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-700 transition-colors select-none">
+            Resolved ({resolved.length}) — click to expand
+          </summary>
+          <div className="px-4 pb-3 space-y-1">
+            {flags.filter(f => resolved.includes(f.id)).map(f => (
+              <div key={f.id} className="flex items-center justify-between py-1.5 border-t border-slate-100 first:border-0">
+                <span className="text-xs text-slate-600">{f.title}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  f.action === 'Approved' ? 'bg-emerald-50 text-emerald-600' :
+                  f.action === 'Warned' ? 'bg-amber-50 text-amber-600' :
+                  'bg-red-50 text-red-600'
+                }`}>{f.action}</span>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );
@@ -1992,6 +2098,8 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'audit': return <AuditLogs />;
       case 'notifications': return <NotificationsPanel />;
       case 'settings': return <SystemSettings />;
+      case 'profile': return <ProfileOverview currentUser={currentUser} />;
+      case 'account': return <AccountSettings />;
       case 'maintenance': return <MaintenancePanel />;
       case 'registrations': return <AdminRegistrations />;
       case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;

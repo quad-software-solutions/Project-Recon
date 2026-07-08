@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Edit3, BarChart3, Activity, PanelLeftClose, PanelLeftOpen, ClipboardList, BookOpen, StickyNote, X, LogOut, ChevronRight, Briefcase, TrendingUp } from 'lucide-react';
+import { Users, Edit3, BarChart3, Activity, ClipboardList, BookOpen, StickyNote, LogOut, Settings, User } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
+import AccountSettings from '@/src/shared/ui/AccountSettings';
+import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
 
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';
@@ -30,7 +32,7 @@ const INITIAL_ASSIGNMENTS = [
   { id: 3, student: 'Student 3', assign: 'A13', confirmed: false },
 ];
 
-type SectionId = 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity';
+type SectionId = 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity' | 'profile' | 'settings';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'class', label: 'Class Management', icon: Users, group: 'main' },
@@ -40,6 +42,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'gradebook', label: 'Grade Book', icon: BookOpen, group: 'main' },
   { id: 'metrics', label: 'Performance', icon: BarChart3, group: 'main' },
   { id: 'activity', label: 'Activity', icon: Activity, group: 'main' },
+  { id: 'profile', label: 'My Profile', icon: User, group: 'system' },
+  { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
 ];
 
 export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashboardProps) {
@@ -69,6 +73,8 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
       case 'metrics':   return <PerformanceMetrics />;
       case 'notes':     return <StudentNotes />;
       case 'activity':  return <ActivityFeed />;
+      case 'profile':   return <ProfileOverview currentUser={currentUser} />;
+      case 'settings':  return <AccountSettings />;
     }
   };
 

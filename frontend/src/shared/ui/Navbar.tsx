@@ -10,6 +10,7 @@ import {
 import NotificationCenter from '@/src/domains/notification/ui/NotificationCenter';
 import SearchOverlay from './SearchOverlay';
 import BrandLogo from './BrandLogo';
+import { useBranding } from '@/src/shared/hooks/useBranding';
 import { ActiveTab, UserProfile } from '../types';
 
 interface NavbarProps {
@@ -101,6 +102,7 @@ export default function Navbar({
   const [mobileMegaOpen, setMobileMegaOpen] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const megaTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const branding = useBranding();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -170,7 +172,7 @@ export default function Navbar({
             className="transition-all duration-300 hover:opacity-85 flex items-center shrink-0"
             id="nav-logo"
           >
-            <BrandLogo className="h-9 w-[115px] md:h-[42px] md:w-[140px]" />
+            <BrandLogo className="h-9 w-[115px] md:h-[42px] md:w-[140px]" logoUrl={branding.logoUrl || undefined} />
           </a>
 
           {/* Desktop nav */}

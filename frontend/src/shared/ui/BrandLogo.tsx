@@ -3,10 +3,23 @@ import React, { useId } from 'react';
 interface BrandLogoProps {
   className?: string;
   compact?: boolean;
+  /** If provided, renders an <img> instead of the inline SVG */
+  logoUrl?: string;
 }
 
-export default function BrandLogo({ className = '', compact = false }: BrandLogoProps) {
+export default function BrandLogo({ className = '', compact = false, logoUrl }: BrandLogoProps) {
   const shadowId = `brand-logo-shadow-${useId().replace(/:/g, '')}`;
+
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt="Brand logo"
+        className={className}
+        style={{ objectFit: 'contain' }}
+      />
+    );
+  }
 
   return (
     <svg

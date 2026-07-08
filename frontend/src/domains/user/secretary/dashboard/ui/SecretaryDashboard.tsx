@@ -3,17 +3,19 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, LogOut,
   Plus, Search, X, CheckCircle2, Loader2, Calendar, Mail, Phone, MapPin,
-  CreditCard, Printer, Download, Eye, User, BookOpen, Shield, AlertCircle, Check
+  CreditCard, Printer, Download, Eye, User, BookOpen, Shield, AlertCircle, Check, Settings
 } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
+import AccountSettings from '@/src/shared/ui/AccountSettings';
+import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
 
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'overview' | 'admissions' | 'enrollments' | 'payments' | 'certificates' | 'reports';
+type SectionId = 'overview' | 'admissions' | 'enrollments' | 'payments' | 'certificates' | 'reports' | 'profile' | 'settings';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, group: 'main' },
@@ -22,6 +24,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'payments', label: 'Payments', icon: DollarSign, group: 'main' },
   { id: 'certificates', label: 'Certificates', icon: Award, group: 'main' },
   { id: 'reports', label: 'Reports', icon: FileText, group: 'main' },
+  { id: 'profile', label: 'My Profile', icon: User, group: 'system' },
+  { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
 ];
 
 export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
@@ -35,6 +39,8 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
       case 'payments': return <PaymentsPanel />;
       case 'certificates': return <CertificatesPanel />;
       case 'reports': return <ReportsPanel />;
+      case 'profile': return <ProfileOverview currentUser={currentUser} />;
+      case 'settings': return <AccountSettings />;
     }
   };
 

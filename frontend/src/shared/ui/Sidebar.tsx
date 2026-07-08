@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { LogOut, MoreHorizontal, X, Menu, Settings, ChevronLeft } from 'lucide-react';
 import BrandLogo from './BrandLogo';
+import { useBranding } from '@/src/shared/hooks/useBranding';
 
 export interface NavItem {
   id: string;
@@ -45,6 +46,8 @@ export function Sidebar({
   onCollapseToggle,
   onDrawerToggle,
 }: SidebarProps) {
+  const branding = useBranding();
+
   const grouped = items.reduce<Record<string, NavItem[]>>((acc, item) => {
     const g = item.group || 'main';
     if (!acc[g]) acc[g] = [];
@@ -78,7 +81,7 @@ export function Sidebar({
       >
         <div className="sidebar-header">
           <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-sidebar-accent to-sidebar-bg border border-white/[0.06] pl-3 pr-2 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-            <button onClick={() => handleNav('dashboard')} className="hover:opacity-80 transition-opacity"><BrandLogo className="sidebar-logo h-7 w-[90px]" /></button>
+            <button onClick={() => handleNav('dashboard')} className="hover:opacity-80 transition-opacity"><BrandLogo className="sidebar-logo h-7 w-[90px]" logoUrl={branding.logoUrl || undefined} /></button>
             <div className="sidebar-header-actions flex items-center gap-1">
               <button
                 onClick={() => onCollapseToggle?.()}

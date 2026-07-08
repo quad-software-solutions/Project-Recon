@@ -5,7 +5,7 @@ import {
   Calendar, Bell, X, UserPlus, BarChart3, TrendingUp, TrendingDown, Users, Zap, Award,
   Clock, CheckCircle, CheckCircle2, AlertCircle, ChevronRight, Activity, MapPin, Trophy, Building, Sparkles, Download,
   Cpu, Swords, Medal, BookOpen, Hash, Star, Target, Wrench, Camera, Search, RefreshCw, Monitor, Filter, Globe,
-  UserCog, Eye, Shield, Edit3, Trash2, Plus, LogOut
+  UserCog, Eye, Shield, Edit3, Trash2, Plus, LogOut, User, Settings
 } from 'lucide-react';
 import { UserProfile, VexRobot, AppNotification } from '@/src/shared/types';
 import { MOCK_ANALYTICS, MOCK_TOURNAMENTS, MOCK_WORKSHOPS, MOCK_VEX_TEAM, MOCK_VEX_ROBOTS, MOCK_VEX_AWARDS, MOCK_VEX_NOTEBOOK, MOCK_VEX_MATCHES } from '@/src/shared/constants/mock-data';
@@ -23,13 +23,15 @@ import AnnouncementsManager from './AnnouncementsManager';
 import WalkInRegistration from './WalkInRegistration';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import SchoolManagement from './SchoolManagement';
+import AccountSettings from '@/src/shared/ui/AccountSettings';
+import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
 
 interface Props {
   currentUser: UserProfile;
   onLogout: () => void;
 }
 
-type SectionId = 'overview' | 'analytics' | 'media' | 'cms' | 'sponsors' | 'store' | 'events' | 'tournaments' | 'workshops' | 'participants' | 'announcements' | 'communications' | 'payments' | 'walkin' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook' | 'vex-roles' | 'schools' | 'registrations';
+type SectionId = 'overview' | 'analytics' | 'media' | 'cms' | 'sponsors' | 'store' | 'events' | 'tournaments' | 'workshops' | 'participants' | 'announcements' | 'communications' | 'payments' | 'walkin' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook' | 'vex-roles' | 'schools' | 'registrations' | 'profile' | 'settings';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: Activity, group: 'main' },
@@ -55,6 +57,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'vex-matches', label: 'Matches', icon: Swords, group: 'vex' },
   { id: 'vex-notebook', label: 'Notebook', icon: BookOpen, group: 'vex' },
   { id: 'vex-roles', label: 'VEX Roles', icon: UserCog, group: 'vex' },
+  { id: 'profile', label: 'My Profile', icon: User, group: 'system' },
+  { id: 'settings', label: 'Account Settings', icon: Settings, group: 'system' },
 ];
 
 export default function ManagerDashboard({ currentUser, onLogout }: Props) {
@@ -85,6 +89,8 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       case 'vex-matches': return <VexMatchesSection />;
       case 'vex-notebook': return <VexNotebookSection />;
       case 'vex-roles': return <VexRolesSection />;
+      case 'profile': return <ProfileOverview currentUser={currentUser} />;
+      case 'settings': return <AccountSettings />;
     }
   };
 

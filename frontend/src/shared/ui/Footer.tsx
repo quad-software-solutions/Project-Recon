@@ -1,5 +1,6 @@
 import { ActiveTab } from '../../shared/types';
 import BrandLogo from './BrandLogo';
+import { useBranding } from '@/src/shared/hooks/useBranding';
 
 interface FooterProps { onNavigate: (tab: ActiveTab) => void; }
 
@@ -15,11 +16,13 @@ const FOOTER_LINKS: { label: string; tab: ActiveTab }[] = [
 ];
 
 export default function Footer({ onNavigate }: FooterProps) {
+  const branding = useBranding();
+
   return (
     <footer className="bg-brand-blue text-white/70 py-12 px-6 mt-auto">
       <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
         <div className="col-span-2 md:col-span-1">
-          <BrandLogo className="h-8 w-[100px]" compact />
+          <BrandLogo className="h-8 w-[100px]" compact logoUrl={branding.logoUrl || undefined} />
           <p className="text-sm mt-3 leading-relaxed max-w-xs">Empowering the next generation of Ethiopian engineers through hands-on robotics education.</p>
         </div>
         <div>
