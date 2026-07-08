@@ -26,7 +26,7 @@ import SchoolManagement from './SchoolManagement';
 import UserManagementPanel from '@/src/domains/user/shared/ui/UserManagementPanel';
 import AccountSettings from '@/src/shared/ui/AccountSettings';
 import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
-import { fetchEnrollmentsApi, fetchPaymentsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
 
 interface Props {
   currentUser: UserProfile;
@@ -66,10 +66,36 @@ const NAV_ITEMS: NavItem[] = [
 
 export default function ManagerDashboard({ currentUser, onLogout }: Props) {
   const [activeSection, setActiveSection] = useState<SectionId>('overview');
+  const [students, setStudents] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshData = () => {
+    setLoading(true);
+    Promise.all([
+      fetchStudentsApi(),
+      fetchEnrollmentsApi(),
+      fetchPaymentsApi(),
+      fetchProgramsApi(),
+    ]).then(([stu, enr, pay, pro]) => {
+      setStudents(Array.isArray(stu) ? stu : []);
+      setEnrollments(Array.isArray(enr) ? enr : []);
+      setPayments(Array.isArray(pay) ? pay : []);
+      setPrograms(Array.isArray(pro) ? pro : []);
+    }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { refreshData(); }, []);
+
+  const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
+  const pendingPayments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const paidPayments = payments.filter(p => p.status === 'PAID');
 
   const renderPage = () => {
     switch (activeSection) {
-      case 'overview': return <OverviewPage currentUser={currentUser} onNavigate={setActiveSection} />;
+      case 'overview': return <OverviewPage currentUser={currentUser} onNavigate={setActiveSection} students={students} enrollments={enrollments} payments={payments} programs={programs} />;
       case 'analytics': return <AnalyticsDashboard />;
       case 'media': return <MediaContent />;
       case 'cms': return <CmsDashboard />;
@@ -121,10 +147,10 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
         title="Operations Command Center"
         subtitle="Branch activity, CMS work, payments, events, and registration queues."
         signals={[
-          { label: 'Registrations', value: '18', detail: 'new this week', icon: UserPlus, tone: 'blue' },
-          { label: 'Payments', value: '6', detail: 'need reconciliation', icon: DollarSign, tone: 'amber' },
-          { label: 'Events', value: String(MOCK_TOURNAMENTS.length + MOCK_WORKSHOPS.length), detail: 'active schedules', icon: Calendar, tone: 'emerald' },
-          { label: 'CMS', value: 'Ready', detail: 'content tools online', icon: FileText, tone: 'emerald' },
+          { label: 'Students', value: String(students.length), detail: 'registered', icon: Users, tone: 'blue' },
+          { label: 'Active Enrollments', value: String(activeEnrollments.length), detail: 'in progress', icon: UserPlus, tone: 'emerald' },
+          { label: 'Payments', value: String(paidPayments.length), detail: 'completed', icon: DollarSign, tone: 'emerald' },
+          { label: 'Programs', value: String(programs.length), detail: 'active offers', icon: BookOpen, tone: 'amber' },
         ]}
       />
       {renderPage()}
@@ -132,7 +158,14 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
   );
 }
 
-function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; onNavigate: (id: SectionId) => void }) {
+function OverviewPage({ currentUser, onNavigate, students, enrollments, payments, programs }: {
+  currentUser: UserProfile;
+  onNavigate: (id: SectionId) => void;
+  students: any[];
+  enrollments: any[];
+  payments: any[];
+  programs: any[];
+}) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   useEffect(() => {
     import('@/src/domains/notification/model/notificationApi').then(m =>
@@ -171,10 +204,10 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {[
-          { label: 'Students', value: '—', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'Programs', value: '—', icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
-          { label: 'Revenue', value: '—', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-          { label: 'Events', value: '—', icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: 'Students', value: String(students.length), icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+          { label: 'Programs', value: String(programs.length), icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
+          { label: 'Revenue', value: payments.reduce((s, p) => s + (p.status === 'PAID' ? Number(p.amount) : 0), 0).toLocaleString() + ' ETB', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+          { label: 'Active Enrollments', value: String(enrollments.filter(e => e.status === 'ACTIVE').length), icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-50' },
         ].map((m, i) => {
           const MIcon = m.icon;
           return (
@@ -282,10 +315,10 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
             </h4>
             <div className="grid grid-cols-4 gap-1.5">
               {[
-                { label: 'Active', value: '—', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                { label: 'Pending', value: '—', color: 'text-amber-700', bg: 'bg-amber-50' },
-                { label: 'Total', value: '—', color: 'text-blue-700', bg: 'bg-blue-50' },
-                { label: 'New', value: '—', color: 'text-purple-700', bg: 'bg-purple-50' },
+                { label: 'Active', value: String(enrollments.filter(e => e.status === 'ACTIVE').length), color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                { label: 'Pending', value: String(enrollments.filter(e => e.status === 'PENDING_PAYMENT').length), color: 'text-amber-700', bg: 'bg-amber-50' },
+                { label: 'Total', value: String(enrollments.length), color: 'text-blue-700', bg: 'bg-blue-50' },
+                { label: 'Students', value: String(students.length), color: 'text-purple-700', bg: 'bg-purple-50' },
               ].map((s, i) => (
                 <div key={i} className={`${s.bg} rounded-lg p-2 text-center`}>
                   <p className={`font-black text-xl ${s.color}`}>{s.value}</p>
@@ -338,10 +371,10 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Students', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
-                { label: 'Programs', icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
-                { label: 'Schools', icon: Building, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                { label: 'Sponsors', icon: Handshake, color: 'text-amber-500', bg: 'bg-amber-50' },
+                { label: 'Students', value: students.length, icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+                { label: 'Programs', value: programs.length, icon: Award, color: 'text-purple-500', bg: 'bg-purple-50' },
+                { label: 'Enrollments', value: enrollments.length, icon: Building, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                { label: 'Payments', value: payments.length, icon: Handshake, color: 'text-amber-500', bg: 'bg-amber-50' },
               ].map((stat, i) => {
                 const StatIcon = stat.icon;
                 return (
@@ -349,6 +382,7 @@ function OverviewPage({ currentUser, onNavigate }: { currentUser: UserProfile; o
                     <div className={`w-6 h-6 rounded-lg ${stat.bg} flex items-center justify-center mb-1`}>
                       <StatIcon className={`w-3.5 h-3.5 ${stat.color}`} />
                     </div>
+                    <p className="text-lg font-bold text-slate-900">{stat.value}</p>
                     <p className="text-[10px] text-slate-500 font-medium">{stat.label}</p>
                   </div>
                 );

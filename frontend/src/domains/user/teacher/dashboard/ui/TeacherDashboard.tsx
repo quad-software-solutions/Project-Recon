@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Edit3, BarChart3, Activity, ClipboardList, BookOpen, StickyNote, LogOut, Settings, User } from 'lucide-react';
+import { Users, Edit3, BarChart3, Activity, ClipboardList, BookOpen, StickyNote, LogOut, Settings, User, CheckCircle2, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 import AccountSettings from '@/src/shared/ui/AccountSettings';
 import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
+import { fetchEnrollmentsApi, fetchStudentsApi, fetchAttendanceSessionsApi, fetchStudentProgressApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
 
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';
@@ -17,20 +18,6 @@ import GradeBook from './GradeBook';
 import StudentNotes from './StudentNotes';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
-
-const INITIAL_STUDENTS = [
-  { id: 1, name: 'Abebe B.', course: 'VEX', status: 'Good', attended: false },
-  { id: 2, name: 'Abebe L.', course: 'VEX', status: 'New',  attended: false },
-  { id: 3, name: 'Radiom J.', course: 'VEX', status: 'Good', attended: false },
-  { id: 4, name: 'Skelos K.', course: 'VEX', status: 'New',  attended: false },
-  { id: 5, name: 'Dr. Elias T.', course: 'STEM', status: 'Good', attended: false },
-];
-
-const INITIAL_ASSIGNMENTS = [
-  { id: 1, student: 'Student 1', assign: 'A11', confirmed: false },
-  { id: 2, student: 'Student 2', assign: 'A12', confirmed: false },
-  { id: 3, student: 'Student 3', assign: 'A13', confirmed: false },
-];
 
 type SectionId = 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity' | 'profile' | 'settings';
 
@@ -47,30 +34,38 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashboardProps) {
-  const [students, setStudents] = useState(INITIAL_STUDENTS);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [progressSearch, setProgressSearch] = useState('');
-  const [assignments, setAssignments] = useState(INITIAL_ASSIGNMENTS);
-
   const [activeSection, setActiveSection] = useState<SectionId>('class');
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [attendances, setAttendances] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggleAttendance = (id: number) =>
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, attended: !s.attended } : s));
-  const confirmAssignment = (id: number) =>
-    setAssignments(prev => prev.map(a => a.id === id ? { ...a, confirmed: true } : a));
+  const refreshData = () => {
+    setLoading(true);
+    Promise.all([
+      fetchEnrollmentsApi(),
+      fetchStudentsApi(),
+      fetchClassesApi(),
+    ]).then(([enr, stu]) => {
+      setEnrollments(Array.isArray(enr) ? enr : []);
+      setStudents(Array.isArray(stu) ? stu : []);
+    }).finally(() => setLoading(false));
+  };
 
-  const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredForProgress = students.filter(s => s.name.toLowerCase().includes(progressSearch.toLowerCase()));
+  useEffect(() => { refreshData(); }, []);
+
+  const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
 
   const renderPage = () => {
     switch (activeSection) {
       case 'class':
-        return (<ClassManagement students={students} searchQuery={searchQuery} onSearchChange={setSearchQuery} filteredStudents={filteredStudents} onToggleAttendance={toggleAttendance} totalCount={students.length} attendedCount={students.filter(s => s.attended).length} />);
+        return <ClassManagement students={students} enrollments={activeEnrollments} />;
       case 'progress':
-        return (<ProgressSubmissions progressSearch={progressSearch} onProgressSearchChange={setProgressSearch} filteredForProgress={filteredForProgress} assignments={assignments} onConfirmAssignment={confirmAssignment} />);
+        return <ProgressSubmissions students={students} enrollments={activeEnrollments} />;
       case 'lessons':   return <LessonPlanner />;
-      case 'gradebook': return <GradeBook />;
-      case 'metrics':   return <PerformanceMetrics />;
+      case 'gradebook': return <GradeBook students={students} />;
+      case 'metrics':   return <PerformanceMetrics students={students} enrollments={enrollments} />;
       case 'notes':     return <StudentNotes />;
       case 'activity':  return <ActivityFeed />;
       case 'profile':   return <ProfileOverview currentUser={currentUser} />;
@@ -94,6 +89,11 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
       topNavbar={{
         title: activeLabel,
         subtitle: 'Teacher Dashboard',
+        actions: (
+          <button onClick={refreshData} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" title="Refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        ),
       }}
       onLogout={onLogout}
     >
@@ -101,10 +101,10 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
         title="Instructor Command Center"
         subtitle="Class attendance, grading, lesson planning, and student follow-up."
         signals={[
-          { label: 'Attendance', value: `${students.filter(s => s.attended).length}/${students.length}`, detail: 'checked in today', icon: Users, tone: students.some(s => s.attended) ? 'emerald' : 'amber' },
-          { label: 'Assignments', value: String(assignments.filter(a => !a.confirmed).length), detail: 'awaiting confirmation', icon: ClipboardList, tone: 'amber' },
-          { label: 'Gradebook', value: 'Open', detail: 'assessment tools ready', icon: BookOpen, tone: 'blue' },
-          { label: 'Activity', value: 'Live', detail: 'student feed available', icon: Activity, tone: 'emerald' },
+          { label: 'Total Students', value: String(students.length), detail: 'enrolled', icon: Users, tone: 'blue' },
+          { label: 'Active Enrollments', value: String(activeEnrollments.length), detail: 'current classes', icon: CheckCircle2, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingEnrollments.length), detail: 'awaiting payment', icon: DollarSign, tone: 'amber' },
+          { label: 'Lessons', value: String(activeEnrollments.length), detail: 'active tracks', icon: BookOpen, tone: 'emerald' },
         ]}
       />
       {renderPage()}
