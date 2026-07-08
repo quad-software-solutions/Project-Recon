@@ -27,11 +27,27 @@ export type AcademicSubProgramPayload = {
   fee: string;
 };
 
-export async function fetchStudentsApi(): Promise<StudentProfile[]> {
-  try { return await http.get<StudentProfile[]>(`${BASE}/students/`); }
-  catch { return []; }
-}
+export type OnlineEnrollmentPayload = {
+  enrolled_class: string;
+  callback_url?: string;
+  return_url?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  password?: string;
+  phone_number?: string;
+  guardian_name?: string;
+  guardian_phone?: string;
+  guardian_email?: string;
+};
 
+export type CashPaymentPayload = {
+  enrollment: string;
+  amount: string;
+  payment_date?: string;
+};
+
+// ─── Programs ───
 export async function fetchProgramsApi(): Promise<Program[]> {
   try { return unwrapList(await http.get<ListResponse<Program>>(`${BASE}/programs/`)); }
   catch { return []; }
@@ -39,61 +55,6 @@ export async function fetchProgramsApi(): Promise<Program[]> {
 
 export async function fetchSubProgramsApi(programId?: string): Promise<SubProgram[]> {
   try { return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/` + (programId ? `?program=${programId}` : ''))); }
-  catch { return []; }
-}
-
-export async function fetchClassesApi(subProgramId?: string): Promise<AcademicClass[]> {
-  try { return await http.get<AcademicClass[]>(`${BASE}/classes/` + (subProgramId ? `?sub_program=${subProgramId}` : '')); }
-  catch { return []; }
-}
-
-export async function fetchEnrollmentsApi(studentId?: string): Promise<Enrollment[]> {
-  try { return await http.get<Enrollment[]>(`${BASE}/enrollments/` + (studentId ? `?student=${studentId}` : '')); }
-  catch { return []; }
-}
-
-export async function fetchEnrollmentPeriodsApi(): Promise<EnrollmentPeriod[]> {
-  try { return await http.get<EnrollmentPeriod[]>(`${BASE}/enrollment-periods/`); }
-  catch { return []; }
-}
-
-export async function fetchEnrollmentPaymentsApi(enrollmentId: string): Promise<EnrollmentPayment | null> {
-  try { return await http.get<EnrollmentPayment>(`${BASE}/enrollment-payments/${enrollmentId}/`); }
-  catch { return null; }
-}
-
-export async function fetchAttendanceSessionsApi(classId: string): Promise<AttendanceSession[]> {
-  try { return await http.get<AttendanceSession[]>(`${BASE}/attendance-sessions/?class=${classId}`); }
-  catch { return []; }
-}
-
-export async function fetchAttendanceRecordsApi(sessionId: string): Promise<AttendanceRecord[]> {
-  try { return await http.get<AttendanceRecord[]>(`${BASE}/attendance-records/?session=${sessionId}`); }
-  catch { return []; }
-}
-
-export async function fetchMilestonesApi(subProgramId: string): Promise<LearningMilestone[]> {
-  try { return await http.get<LearningMilestone[]>(`${BASE}/milestones/?sub_program=${subProgramId}`); }
-  catch { return []; }
-}
-
-export async function fetchStudentProgressApi(enrollmentId: string): Promise<StudentProgress[]> {
-  try { return await http.get<StudentProgress[]>(`${BASE}/student-progress/?enrollment=${enrollmentId}`); }
-  catch { return []; }
-}
-
-export async function fetchLearningMaterialsApi(subProgramId: string): Promise<LearningMaterial[]> {
-  try { return await http.get<LearningMaterial[]>(`${BASE}/learning-materials/?sub_program=${subProgramId}`); }
-  catch { return []; }
-}
-
-export async function fetchCertificateTemplatesApi(): Promise<Certificate[]> {
-  try { return await http.get<Certificate[]>(`${BASE}/certificates/`); }
-  catch { return []; }
-}
-
-export async function fetchStudentCertificatesApi(studentId: string): Promise<StudentCertificate[]> {
-  try { return await http.get<StudentCertificate[]>(`${BASE}/student-certificates/?student=${studentId}`); }
   catch { return []; }
 }
 
@@ -119,4 +80,89 @@ export async function updateSubProgramApi(id: string, payload: Partial<AcademicS
 
 export async function setSubProgramActiveApi(id: string, active: boolean): Promise<SubProgram> {
   return http.post<SubProgram>(`${BASE}/sub-programs/${id}/${active ? 'activate' : 'deactivate'}/`, {});
+}
+
+// ─── Classes ───
+export async function fetchClassesApi(subProgramId?: string): Promise<AcademicClass[]> {
+  try { return unwrapList(await http.get<ListResponse<AcademicClass>>(`${BASE}/classes/` + (subProgramId ? `?sub_program=${subProgramId}` : ''))); }
+  catch { return []; }
+}
+
+// ─── Enrollment Periods ───
+export async function fetchEnrollmentPeriodsApi(): Promise<EnrollmentPeriod[]> {
+  try { return unwrapList(await http.get<ListResponse<EnrollmentPeriod>>(`${BASE}/enrollment-periods/`)); }
+  catch { return []; }
+}
+
+// ─── Enrollments ───
+export async function fetchEnrollmentsApi(studentId?: string): Promise<Enrollment[]> {
+  try { return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/` + (studentId ? `?student=${studentId}` : ''))); }
+  catch { return []; }
+}
+
+export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<Enrollment> {
+  return http.post<Enrollment>(`${BASE}/enrollments/online/`, payload);
+}
+
+export async function cancelEnrollmentApi(id: string): Promise<Enrollment> {
+  return http.post<Enrollment>(`${BASE}/enrollments/${id}/cancel/`, {});
+}
+
+export async function completeEnrollmentApi(id: string): Promise<Enrollment> {
+  return http.post<Enrollment>(`${BASE}/enrollments/${id}/complete/`, {});
+}
+
+// ─── Students ───
+export async function fetchStudentsApi(): Promise<StudentProfile[]> {
+  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/?q=`)); }
+  catch { return []; }
+}
+
+// ─── Payments ───
+export async function createCashPaymentApi(payload: CashPaymentPayload): Promise<EnrollmentPayment> {
+  return http.post<EnrollmentPayment>(`${BASE}/payments/cash/`, payload);
+}
+
+export async function fetchPaymentsApi(): Promise<EnrollmentPayment[]> {
+  try { return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/`)); }
+  catch { return []; }
+}
+
+// ─── Attendance ───
+export async function fetchAttendanceSessionsApi(classId: string): Promise<AttendanceSession[]> {
+  try { return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/?enrolled_class=${classId}`)); }
+  catch { return []; }
+}
+
+export async function fetchAttendanceRecordsApi(sessionId: string): Promise<AttendanceRecord[]> {
+  try { return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/sessions/${sessionId}/`)); }
+  catch { return []; }
+}
+
+// ─── Milestones & Progress ───
+export async function fetchMilestonesApi(subProgramId: string): Promise<LearningMilestone[]> {
+  try { return unwrapList(await http.get<ListResponse<LearningMilestone>>(`${BASE}/learning-milestones/?sub_program=${subProgramId}`)); }
+  catch { return []; }
+}
+
+export async function fetchStudentProgressApi(enrollmentId: string): Promise<StudentProgress[]> {
+  try { return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/enrollments/${enrollmentId}/history/`)); }
+  catch { return []; }
+}
+
+// ─── Learning Materials ───
+export async function fetchLearningMaterialsApi(subProgramId: string): Promise<LearningMaterial[]> {
+  try { return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/?sub_program=${subProgramId}`)); }
+  catch { return []; }
+}
+
+// ─── Certificates ───
+export async function fetchCertificateTemplatesApi(): Promise<Certificate[]> {
+  try { return unwrapList(await http.get<ListResponse<Certificate>>(`${BASE}/certificate-templates/`)); }
+  catch { return []; }
+}
+
+export async function fetchStudentCertificatesApi(studentId: string): Promise<StudentCertificate[]> {
+  try { return unwrapList(await http.get<ListResponse<StudentCertificate>>(`${BASE}/student-certificates/?student=${studentId}`)); }
+  catch { return []; }
 }

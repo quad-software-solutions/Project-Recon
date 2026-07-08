@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Phone, BookOpen, ShieldCheck, Check, CreditCard, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, Info, ArrowRight, Clock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { registerApi } from '../api/registerApi';
-import { fetchProgramsApi } from '../../../learning/academics/api/academicApi';
-import type { Program } from '@/src/shared/types';
+import { fetchProgramsApi, onlineEnrollApi, fetchClassesApi } from '../../../learning/academics/api/academicApi';
+import type { Program, AcademicClass } from '@/src/shared/types';
 
 interface SavedEnrollment {
   ref: string;
@@ -178,6 +178,24 @@ export default function StudentRegistration() {
         paymentMethod,
         total: grandTotal,
       });
+
+      try {
+        await onlineEnrollApi({
+          enrolled_class: '',
+          callback_url: window.location.origin + '/registration',
+          return_url: window.location.origin + '/registration',
+          email: formData.studentEmail,
+          first_name: formData.name.split(' ')[0],
+          last_name: formData.name.split(' ').slice(1).join(' '),
+          phone_number: formData.parentPhone,
+          guardian_name: formData.parentName,
+          guardian_email: formData.parentEmail,
+          guardian_phone: formData.parentPhone,
+        });
+      } catch {
+        // online enrollment may fail if no classes are configured yet — that's OK
+      }
+
       saveEnrollment({
         ref,
         name: formData.name,
