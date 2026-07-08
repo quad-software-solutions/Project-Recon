@@ -1,10 +1,18 @@
 from datetime import date, timedelta
+from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
-from apps.academic.constants import ClassType, ClassPeriod, AttendanceStatus, SessionStatus
-from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod, StaffAttendanceSession, StaffAttendanceRecord
+from apps.academic.constants import (
+    ClassType, ClassPeriod, AttendanceStatus, SessionStatus,
+    EnrollmentStatus, PaymentMethod, PaymentProvider, PaymentStatus,
+)
+from apps.academic.models import (
+    Program, SubProgram, Class, Student, EnrollmentPeriod,
+    StaffAttendanceSession, StaffAttendanceRecord, Enrollment, EnrollmentPayment,
+)
 from apps.academic.services import program_service, class_service, admission_service, student_service
 from apps.academic.services.enrollment_period_service import (
     create_enrollment_period,
@@ -25,6 +33,21 @@ from apps.academic.services.staff_attendance_service import (
     update_record,
     delete_record,
     list_available_staff,
+)
+from apps.academic.services.enrollment_service import (
+    enroll_student,
+    cancel_enrollment,
+    complete_enrollment,
+    get_enrollment_or_404,
+    list_enrollments,
+)
+from apps.academic.services.payment_service import (
+    create_cash_payment,
+    initialize_online_payment,
+    verify_online_payment,
+    list_payments,
+    get_payment_or_404,
+    get_payment_by_reference,
 )
 from apps.accounts.models import Branch, User, UserAssignment
 from apps.accounts.constants import Roles
@@ -571,3 +594,298 @@ class StaffAttendanceServiceTest(TestCase):
         soft_delete_session(self.manager, self.session)
         with self.assertRaises(Exception):
             get_session_or_404(self.session.pk)
+
+
+class EnrollmentServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.program = program_service.create_program(
+            name="Programming", slug="programming", supports_group=True, supports_individual=True,
+        )
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+        )
+        self.student_user = user_service.create_student_user(
+            "student@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_user.is_email_verified = True
+        self.student_user.save()
+        self.student = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+
+        self.instructor = user_service.create_staff_user(
+            "instructor@test.com", "John", "Doe", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(self.instructor)
+        self.instructor.is_email_verified = True
+        self.instructor.save()
+
+        self.group_class = class_service.create_class(
+            sub_program=self.sub_program,
+            branch=self.branch,
+            instructor=self.instructor,
+            name="Python Group A",
+            class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY,
+            capacity=20,
+        )
+        self.individual_class = class_service.create_class(
+            sub_program=self.sub_program,
+            branch=self.branch,
+            instructor=self.instructor,
+            name="Python Individual",
+            class_type=ClassType.INDIVIDUAL,
+        )
+
+        self.enrollment_period = create_enrollment_period(
+            actor=None,
+            branch=self.branch,
+            program=self.program,
+            sub_program=self.sub_program,
+            class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY,
+            title="Fall 2026",
+            start_date=date.today() - timedelta(days=10),
+            end_date=date.today() + timedelta(days=30),
+        )
+
+    def test_enroll_student_individual(self):
+        enrollment = enroll_student(
+            actor=self.instructor,
+            student=self.student,
+            enrolled_class=self.individual_class,
+        )
+        self.assertEqual(enrollment.student, self.student)
+        self.assertEqual(enrollment.enrolled_class, self.individual_class)
+        self.assertEqual(enrollment.status, EnrollmentStatus.PENDING_PAYMENT)
+
+    def test_enroll_student_group_with_active_period(self):
+        enrollment = enroll_student(
+            actor=self.instructor,
+            student=self.student,
+            enrolled_class=self.group_class,
+        )
+        self.assertEqual(enrollment.status, EnrollmentStatus.PENDING_PAYMENT)
+
+    def test_enroll_student_group_without_period_raises(self):
+        deactivate_enrollment_period(None, self.enrollment_period)
+        with self.assertRaises(DjangoValidationError) as ctx:
+            enroll_student(
+                actor=self.instructor,
+                student=self.student,
+                enrolled_class=self.group_class,
+            )
+        self.assertIn("active enrollment period", str(ctx.exception).lower())
+
+    def test_enroll_duplicate_raises(self):
+        enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        with self.assertRaises(DjangoValidationError) as ctx:
+            enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        self.assertIn("already enrolled", str(ctx.exception).lower())
+
+    def test_enroll_class_at_capacity_raises(self):
+        other_student_user = user_service.create_student_user(
+            "other@test.com", "Other", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(other_student_user)
+        other_student, _ = Student.objects.get_or_create(
+            user=other_student_user, defaults={"branch": self.branch, "date_joined": date.today()},
+        )
+
+        capacity_class = class_service.create_class(
+            sub_program=self.sub_program,
+            branch=self.branch,
+            instructor=self.instructor,
+            name="Limited Class",
+            class_type=ClassType.GROUP,
+            capacity=1,
+        )
+        ep = create_enrollment_period(
+            actor=None, branch=self.branch, program=self.program,
+            sub_program=self.sub_program, class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY, title="Period",
+            start_date=date.today() - timedelta(days=1),
+            end_date=date.today() + timedelta(days=1),
+        )
+        enroll_student(actor=self.instructor, student=self.student, enrolled_class=capacity_class)
+        with self.assertRaises(DjangoValidationError) as ctx:
+            enroll_student(actor=self.instructor, student=other_student, enrolled_class=capacity_class)
+        self.assertIn("capacity", str(ctx.exception).lower())
+
+    def test_cancel_pending_enrollment(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        cancel_enrollment(self.instructor, enrollment)
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.status, EnrollmentStatus.CANCELLED)
+
+    def test_cancel_completed_enrollment_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.COMPLETED
+        enrollment.save()
+        with self.assertRaises(DjangoValidationError):
+            cancel_enrollment(self.instructor, enrollment)
+
+    def test_complete_active_enrollment(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+        complete_enrollment(self.instructor, enrollment)
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.status, EnrollmentStatus.COMPLETED)
+
+    def test_complete_pending_enrollment_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        with self.assertRaises(DjangoValidationError):
+            complete_enrollment(self.instructor, enrollment)
+
+    def test_get_enrollment_or_404(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        result = get_enrollment_or_404(enrollment.pk)
+        self.assertEqual(result.pk, enrollment.pk)
+
+    def test_list_enrollments(self):
+        enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        self.assertEqual(list_enrollments().count(), 1)
+
+
+@override_settings(PAYMENT_PROVIDER="chapa")
+class PaymentServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.program = program_service.create_program(name="Programming", slug="programming")
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+        )
+        self.student_user = user_service.create_student_user(
+            "student@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        Student.objects.create(user=self.student_user, branch=self.branch, date_joined=date.today())
+        self.student = Student.objects.get(user=self.student_user)
+
+        self.instructor = user_service.create_staff_user(
+            "instructor@test.com", "John", "Doe", "StrongP@ssw0rd!2026", self.branch,
+        )
+        self.klass = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Python Test", class_type=ClassType.INDIVIDUAL,
+        )
+        self.enrollment = enroll_student(
+            actor=self.instructor, student=self.student, enrolled_class=self.klass,
+        )
+
+    def test_create_cash_payment(self):
+        payment = create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
+        self.assertEqual(payment.payment_method, PaymentMethod.CASH)
+        self.assertEqual(payment.status, PaymentStatus.PAID)
+        self.assertIsNotNone(payment.payment_date)
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, EnrollmentStatus.ACTIVE)
+
+    def test_create_cash_payment_wrong_amount_raises(self):
+        with self.assertRaises(Exception):
+            self.enrollment.status = EnrollmentStatus.ACTIVE
+            self.enrollment.save()
+            create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
+
+    def test_create_cash_payment_twice_raises(self):
+        create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
+        with self.assertRaises(Exception):
+            create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
+
+    @patch("apps.academic.services.payment_service.shared_initialize_payment")
+    def test_initialize_online_payment(self, mock_init):
+        mock_init.return_value = {
+            "provider": "chapa", "status": "success", "provider_status": "success",
+            "reference": "ENROLL-abcd1234-abcdef123456", "provider_transaction_id": "tx_123",
+            "amount": Decimal("500.00"), "currency": "ETB",
+            "checkout_url": "https://checkout.chapa.co/pay/test", "raw": {},
+        }
+        payment, checkout_url = initialize_online_payment(
+            actor=self.instructor,
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            reference="ENROLL-abcd1234-abcdef123456",
+            callback_url="https://example.com/webhook",
+            customer={"email": "student@test.com", "first_name": "Test", "last_name": "Student"},
+        )
+        self.assertEqual(payment.payment_method, PaymentMethod.ONLINE)
+        self.assertEqual(payment.status, PaymentStatus.PENDING)
+        self.assertEqual(payment.payment_provider, "chapa")
+        self.assertIn("checkout.chapa.co", checkout_url)
+
+    @patch("apps.academic.services.payment_service.shared_verify_payment")
+    def test_verify_online_payment_success(self, mock_verify):
+        payment = EnrollmentPayment.objects.create(
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            payment_method=PaymentMethod.ONLINE,
+            payment_provider=PaymentProvider.CHAPA,
+            transaction_reference="ENROLL-abcd1234-abcdef123456",
+            status=PaymentStatus.PENDING,
+        )
+        mock_verify.return_value = {
+            "provider": "chapa", "status": "success", "provider_status": "success",
+            "reference": "ENROLL-abcd1234-abcdef123456", "provider_transaction_id": "tx_123",
+            "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
+        }
+        result = verify_online_payment(reference="ENROLL-abcd1234-abcdef123456")
+        self.assertEqual(result.status, PaymentStatus.PAID)
+        result.enrollment.refresh_from_db()
+        self.assertEqual(result.enrollment.status, EnrollmentStatus.ACTIVE)
+
+    @patch("apps.academic.services.payment_service.shared_verify_payment")
+    def test_verify_online_payment_amount_mismatch_fails(self, mock_verify):
+        payment = EnrollmentPayment.objects.create(
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            payment_method=PaymentMethod.ONLINE,
+            payment_provider=PaymentProvider.CHAPA,
+            transaction_reference="ENROLL-a9999999-abcdef123456",
+            status=PaymentStatus.PENDING,
+        )
+        mock_verify.return_value = {
+            "provider": "chapa", "status": "success", "provider_status": "success",
+            "reference": "ENROLL-a9999999-abcdef123456", "provider_transaction_id": "tx_999",
+            "amount": Decimal("100.00"), "currency": "ETB", "raw": {},
+        }
+        with self.assertRaises(DjangoValidationError) as ctx:
+            verify_online_payment(reference="ENROLL-a9999999-abcdef123456")
+        self.assertIn("amount mismatch", str(ctx.exception).lower())
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, PaymentStatus.FAILED)
+        payment.enrollment.refresh_from_db()
+        self.assertEqual(payment.enrollment.status, EnrollmentStatus.CANCELLED)
+
+    @patch("apps.academic.services.payment_service.shared_verify_payment")
+    def test_verify_online_payment_failed_status(self, mock_verify):
+        payment = EnrollmentPayment.objects.create(
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            payment_method=PaymentMethod.ONLINE,
+            payment_provider=PaymentProvider.CHAPA,
+            transaction_reference="ENROLL-a7777777-abcdef123456",
+            status=PaymentStatus.PENDING,
+        )
+        mock_verify.return_value = {
+            "provider": "chapa", "status": "failed", "provider_status": "failed",
+            "reference": "ENROLL-a7777777-abcdef123456", "provider_transaction_id": "tx_777",
+            "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
+        }
+        result = verify_online_payment(reference="ENROLL-a7777777-abcdef123456")
+        self.assertEqual(result.status, PaymentStatus.FAILED)
+
+    def test_verify_invalid_reference_format_raises(self):
+        with self.assertRaises(DjangoValidationError):
+            verify_online_payment(reference="invalid-ref")
+
+    def test_list_payments(self):
+        EnrollmentPayment.objects.create(
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            payment_method=PaymentMethod.CASH,
+            status=PaymentStatus.PAID,
+        )
+        self.assertEqual(list_payments().count(), 1)

@@ -1,11 +1,17 @@
 from datetime import date, timedelta
+from decimal import Decimal
+from unittest.mock import patch
 
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
-from apps.academic.constants import ClassPeriod, ClassType, AttendanceStatus, SessionStatus
+from apps.academic.constants import (
+    ClassPeriod, ClassType, AttendanceStatus, SessionStatus,
+    EnrollmentStatus, PaymentMethod, PaymentStatus,
+)
 from apps.academic.models import (
-    Program, SubProgram, Class, Student, EnrollmentPeriod, StaffAttendanceSession,
+    Program, SubProgram, Class, Student, EnrollmentPeriod,
+    StaffAttendanceSession, Enrollment, EnrollmentPayment,
 )
 from apps.academic.services import program_service, class_service, admission_service
 from apps.academic.services.enrollment_period_service import (
@@ -17,6 +23,12 @@ from apps.academic.services.staff_attendance_service import (
     publish_session,
     soft_delete_session,
     upsert_records,
+)
+from apps.academic.services.enrollment_service import (
+    enroll_student,
+)
+from apps.academic.services.payment_service import (
+    create_cash_payment,
 )
 from apps.accounts.models import Branch, UserAssignment
 from apps.accounts.constants import Roles
@@ -763,4 +775,239 @@ class StaffAttendanceAPITest(AcademicAPITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 401)
+
+
+class EnrollmentAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.program = program_service.create_program(
+            name="Programming", slug="programming",
+            supports_group=True, supports_individual=True,
+        )
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+        )
+        self.student_user = user_service.create_student_user(
+            "testenroll@test.com", "Test", "Student", self.password, self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_user.is_email_verified = True
+        self.student_user.save()
+        self.student_model = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+
+        self.group_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Python Group A", class_type=ClassType.GROUP, class_period=ClassPeriod.FULL_DAY,
+            capacity=20,
+        )
+        self.individual_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Python Individual", class_type=ClassType.INDIVIDUAL,
+        )
+        create_enrollment_period(
+            actor=None, branch=self.branch, program=self.program,
+            sub_program=self.sub_program, class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY, title="Fall 2026",
+            start_date=date.today() - timedelta(days=10),
+            end_date=date.today() + timedelta(days=30),
+        )
+
+    def test_list_enrollments_unauthenticated_returns_401(self):
+        response = self.client.get(f"{self.base_url}/enrollments/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_list_enrollments_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(f"{self.base_url}/enrollments/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_enroll_student_as_secretary(self):
+        self.authenticate_as_secretary()
+        data = {
+            "student": str(self.student_model.pk),
+            "enrolled_class": str(self.individual_class.pk),
+        }
+        response = self.client.post(f"{self.base_url}/enrollments/", data, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], EnrollmentStatus.PENDING_PAYMENT)
+
+    def test_enroll_student_as_student_returns_403(self):
+        self.authenticate_as_student()
+        data = {
+            "student": str(self.student_model.pk),
+            "enrolled_class": str(self.individual_class.pk),
+        }
+        response = self.client.post(f"{self.base_url}/enrollments/", data, format="json")
+        self.assertEqual(response.status_code, 403)
+
+    def test_cancel_enrollment(self):
+        self.authenticate_as_super_admin()
+        enrollment = enroll_student(None, student=self.student_model, enrolled_class=self.individual_class)
+        response = self.client.post(f"{self.base_url}/enrollments/{enrollment.pk}/cancel/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], EnrollmentStatus.CANCELLED)
+
+    def test_complete_enrollment(self):
+        self.authenticate_as_super_admin()
+        enrollment = enroll_student(None, student=self.student_model, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+        response = self.client.post(f"{self.base_url}/enrollments/{enrollment.pk}/complete/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], EnrollmentStatus.COMPLETED)
+
+    @patch("apps.academic.services.payment_service.shared_initialize_payment")
+    def test_online_enrollment_new_student(self, mock_init):
+        mock_init.return_value = {
+            "provider": "chapa", "reference": "ENROLL-aaaaaaaa-aaaaaaaaaaaa",
+            "checkout_url": "https://checkout.chapa.co/abc",
+        }
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/",
+            {
+                "enrolled_class": str(self.individual_class.pk),
+                "callback_url": "https://example.com/webhook",
+                "return_url": "https://example.com/redirect",
+                "email": "newstudent@test.com",
+                "first_name": "New",
+                "last_name": "Student",
+                "password": "TestPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("checkout_url", response.json())
+        self.assertEqual(response.json()["enrollment"]["status"], EnrollmentStatus.PENDING_PAYMENT)
+
+    def test_online_enrollment_unauthenticated_missing_fields_raises(self):
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/",
+            {
+                "enrolled_class": str(self.individual_class.pk),
+                "callback_url": "https://example.com/webhook",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_online_enrollment_group_without_period_raises(self):
+        deactivate_enrollment_period(None, EnrollmentPeriod.objects.first())
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/",
+            {
+                "enrolled_class": str(self.group_class.pk),
+                "callback_url": "https://example.com/webhook",
+                "email": "new@test.com",
+                "first_name": "New",
+                "last_name": "Student",
+                "password": "TestPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+
+class PaymentAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.program = program_service.create_program(name="Programming", slug="programming")
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+        )
+        self.student_user = user_service.create_student_user(
+            "testpayment@test.com", "Test", "Student", self.password, self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_model = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+        self.klass = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Python Test", class_type=ClassType.INDIVIDUAL,
+        )
+        self.enrollment = enroll_student(None, student=self.student_model, enrolled_class=self.klass)
+
+    def test_list_payments_unauthenticated_returns_401(self):
+        response = self.client.get(f"{self.base_url}/payments/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_list_payments_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(f"{self.base_url}/payments/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_create_cash_payment_as_secretary(self):
+        self.authenticate_as_secretary()
+        response = self.client.post(
+            f"{self.base_url}/payments/cash/",
+            {"enrollment": str(self.enrollment.pk), "amount": "500.00"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], PaymentStatus.PAID)
+
+    def test_create_cash_payment_as_student_returns_403(self):
+        self.authenticate_as_student()
+        response = self.client.post(
+            f"{self.base_url}/payments/cash/",
+            {"enrollment": str(self.enrollment.pk), "amount": "500.00"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_online_verify_public(self):
+        EnrollmentPayment.objects.create(
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            payment_method=PaymentMethod.ONLINE,
+            payment_provider="CHAPA",
+            transaction_reference="ENROLL-abcd1234-abcdef123456",
+            status=PaymentStatus.PENDING,
+        )
+        with patch("apps.academic.services.payment_service.shared_verify_payment") as mock_v:
+            mock_v.return_value = {
+                "provider": "chapa", "status": "success", "provider_status": "success",
+                "reference": "ENROLL-abcd1234-abcdef123456", "provider_transaction_id": "tx_123",
+                "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
+            }
+            response = self.client.post(
+                f"{self.base_url}/enrollments/online/verify/",
+                {"reference": "ENROLL-abcd1234-abcdef123456"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], PaymentStatus.PAID)
+
+    def test_online_verify_bad_reference_returns_400(self):
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/verify/",
+            {"reference": "bad-ref"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_online_webhook(self):
+        EnrollmentPayment.objects.create(
+            enrollment=self.enrollment,
+            amount=Decimal("500.00"),
+            payment_method=PaymentMethod.ONLINE,
+            payment_provider="CHAPA",
+            transaction_reference="ENROLL-abcf0000-abcdef123456",
+            status=PaymentStatus.PENDING,
+        )
+        with patch("apps.academic.services.payment_service.shared_verify_payment") as mock_v:
+            mock_v.return_value = {
+                "provider": "chapa", "status": "success", "provider_status": "success",
+                "reference": "ENROLL-abcf0000-abcdef123456", "provider_transaction_id": "tx_wh",
+                "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
+            }
+            response = self.client.post(
+                f"{self.base_url}/enrollments/online/webhook/",
+                {"tx_ref": "ENROLL-abcf0000-abcdef123456"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
 

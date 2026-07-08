@@ -25,7 +25,7 @@ class Student(models.Model):
         verbose_name_plural = "Students"
 
     def __str__(self):
-        return f"{self.user.get_full_name()} ({self.user.email})"
+        return f"{self.user.full_name} ({self.user.email})"
 
     def clean(self):
         from django.core.exceptions import ValidationError

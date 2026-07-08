@@ -23,6 +23,18 @@ from apps.academic.serializers.staff_attendance import (
     AvailableStaffSerializer,
     PublishSessionSerializer,
 )
+from apps.academic.serializers.enrollment import (
+    EnrollmentSerializer,
+    EnrollmentListSerializer,
+    EnrollStudentSerializer,
+    OnlineEnrollmentSerializer,
+)
+from apps.academic.serializers.payment import (
+    EnrollmentPaymentSerializer,
+    EnrollmentPaymentListSerializer,
+    CashPaymentSerializer,
+    OnlinePaymentVerifySerializer,
+)
 
 __all__ = [
     "ProgramSerializer",
@@ -44,4 +56,12 @@ __all__ = [
     "StaffAttendanceRecordUpsertSerializer",
     "AvailableStaffSerializer",
     "PublishSessionSerializer",
+    "EnrollmentSerializer",
+    "EnrollmentListSerializer",
+    "EnrollStudentSerializer",
+    "OnlineEnrollmentSerializer",
+    "EnrollmentPaymentSerializer",
+    "EnrollmentPaymentListSerializer",
+    "CashPaymentSerializer",
+    "OnlinePaymentVerifySerializer",
 ]

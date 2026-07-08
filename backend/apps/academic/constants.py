@@ -26,3 +26,28 @@ class AttendanceStatus(models.TextChoices):
 class SessionStatus(models.TextChoices):
     DRAFT = "DRAFT", "Draft"
     PUBLISHED = "PUBLISHED", "Published"
+
+
+class EnrollmentStatus(models.TextChoices):
+    PENDING_PAYMENT = "PENDING_PAYMENT", "Pending Payment"
+    ACTIVE = "ACTIVE", "Active"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+class PaymentMethod(models.TextChoices):
+    CASH = "CASH", "Cash"
+    ONLINE = "ONLINE", "Online"
+
+
+class PaymentProvider(models.TextChoices):
+    CHAPA = "CHAPA", "Chapa"
+    STRIPE = "STRIPE", "Stripe"
+
+
+class PaymentStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    PAID = "PAID", "Paid"
+    FAILED = "FAILED", "Failed"
+    REFUNDED = "REFUNDED", "Refunded"
+    CANCELLED = "CANCELLED", "Cancelled"

@@ -38,6 +38,18 @@ from apps.academic.views.staff_attendance import (
     RecordUpsertView,
     RecordDetailView,
 )
+from apps.academic.views.enrollment import (
+    EnrollmentListCreateView,
+    EnrollmentCancelView,
+    EnrollmentCompleteView,
+    OnlineEnrollmentView,
+)
+from apps.academic.views.payment import (
+    PaymentListView,
+    CashPaymentCreateView,
+    OnlinePaymentVerifyView,
+    OnlinePaymentWebhookView,
+)
 
 __all__ = [
     "ProgramListCreateView",
@@ -68,4 +80,12 @@ __all__ = [
     "SessionPublishView",
     "RecordUpsertView",
     "RecordDetailView",
+    "EnrollmentListCreateView",
+    "EnrollmentCancelView",
+    "EnrollmentCompleteView",
+    "OnlineEnrollmentView",
+    "PaymentListView",
+    "CashPaymentCreateView",
+    "OnlinePaymentVerifyView",
+    "OnlinePaymentWebhookView",
 ]

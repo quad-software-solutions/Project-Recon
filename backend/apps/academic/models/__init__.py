@@ -4,6 +4,8 @@ from apps.academic.models.class_model import Class
 from apps.academic.models.student import Student
 from apps.academic.models.enrollment_period import EnrollmentPeriod
 from apps.academic.models.staff_attendance import StaffAttendanceSession, StaffAttendanceRecord
+from apps.academic.models.enrollment import Enrollment
+from apps.academic.models.enrollment_payment import EnrollmentPayment
 
 __all__ = [
     "Program",
@@ -13,4 +15,6 @@ __all__ = [
     "EnrollmentPeriod",
     "StaffAttendanceSession",
     "StaffAttendanceRecord",
+    "Enrollment",
+    "EnrollmentPayment",
 ]
