@@ -12,8 +12,6 @@ import { MOCK_ANALYTICS, MOCK_TOURNAMENTS, MOCK_WORKSHOPS, MOCK_VEX_TEAM, MOCK_V
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
-import MediaContent from './MediaContent';
-import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import SponsorManagement from './SponsorManagement';
 import OnlineStoreHub from './OnlineStoreHub';
 import CommunicationsCenter from './CommunicationsCenter';
@@ -23,7 +21,7 @@ import AnnouncementsManager from './AnnouncementsManager';
 import WalkInRegistration from './WalkInRegistration';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import SchoolManagement from './SchoolManagement';
-import UserManagementPanel from '@/src/domains/user/shared/ui/UserManagementPanel';
+import AcademicCatalogManager from '@/src/domains/learning/academics/ui/AcademicCatalogManager';
 import AccountSettings from '@/src/shared/ui/AccountSettings';
 import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
 import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchClassesApi, downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf, downloadProgressReportPdf, downloadCertificateReportPdf, downloadClassReportPdf, downloadSubProgramReportPdf, downloadProgramReportPdf } from '@/src/domains/learning/academics/api/academicApi';
@@ -33,27 +31,25 @@ interface Props {
   onLogout: () => void;
 }
 
-type SectionId = 'overview' | 'analytics' | 'media' | 'cms' | 'sponsors' | 'store' | 'events' | 'tournaments' | 'workshops' | 'participants' | 'announcements' | 'communications' | 'payments' | 'walkin' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook' | 'vex-roles' | 'schools' | 'registrations' | 'users' | 'profile' | 'settings';
+type SectionId = 'overview' | 'analytics' | 'academic-catalog' | 'sponsors' | 'store' | 'events' | 'tournaments' | 'workshops' | 'participants' | 'announcements' | 'communications' | 'payments' | 'walkin' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook' | 'vex-roles' | 'schools' | 'registrations' | 'profile' | 'settings';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: Activity, group: 'main' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'main' },
-  { id: 'store', label: 'Store & Inventory', icon: ShoppingBag, group: 'main' },
+  { id: 'registrations', label: 'Registrations', icon: UserPlus, group: 'main' },
+  { id: 'academic-catalog', label: 'Academic Catalog', icon: BookOpen, group: 'main' },
+  { id: 'schools', label: 'Branches', icon: Building, group: 'main' },
   { id: 'payments', label: 'Payments & Sales', icon: DollarSign, group: 'main' },
   { id: 'reports', label: 'Reports & Data', icon: BarChart3, group: 'main' },
-  { id: 'media', label: 'Media & Content', icon: Image, group: 'main' },
-  { id: 'cms', label: 'CMS & Branding', icon: FileText, group: 'main' },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'main' },
+  { id: 'store', label: 'Store & Inventory', icon: ShoppingBag, group: 'main' },
   { id: 'sponsors', label: 'Sponsors & Partners', icon: Handshake, group: 'main' },
-  { id: 'schools', label: 'Schools', icon: Building, group: 'main' },
-  { id: 'users', label: 'User Management', icon: Users, group: 'main' },
-  { id: 'registrations', label: 'Registrations', icon: UserPlus, group: 'main' },
-  { id: 'walkin', label: 'Walk-In Registration', icon: Edit3, group: 'main' },
-  { id: 'announcements', label: 'Announcements', icon: Bell, group: 'main' },
-  { id: 'communications', label: 'Communications', icon: MessageSquare, group: 'main' },
   { id: 'events', label: 'Events Calendar', icon: Calendar, group: 'main' },
   { id: 'tournaments', label: 'Tournaments', icon: Trophy, group: 'main' },
   { id: 'workshops', label: 'Workshops', icon: Building, group: 'main' },
   { id: 'participants', label: 'Participants', icon: Users, group: 'main' },
+  { id: 'announcements', label: 'Announcements', icon: Bell, group: 'main' },
+  { id: 'communications', label: 'Communications', icon: MessageSquare, group: 'main' },
+  { id: 'walkin', label: 'Walk-In Registration', icon: Edit3, group: 'main' },
   { id: 'vex-overview', label: 'Team Overview', icon: Cpu, group: 'vex' },
   { id: 'vex-robots', label: 'Robots', icon: Wrench, group: 'vex' },
   { id: 'vex-awards', label: 'Awards', icon: Medal, group: 'vex' },
@@ -97,10 +93,8 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
     switch (activeSection) {
       case 'overview': return <OverviewPage currentUser={currentUser} onNavigate={setActiveSection} students={students} enrollments={enrollments} payments={payments} programs={programs} />;
       case 'analytics': return <AnalyticsDashboard />;
-      case 'media': return <MediaContent />;
-      case 'cms': return <CmsDashboard />;
+      case 'academic-catalog': return <AcademicCatalogManager />;
       case 'sponsors': return <SponsorManagement />;
-      case 'users': return <UserManagementPanel title="Staff Management" />;
       case 'schools': return <SchoolManagement />;
       case 'registrations': return <RegistrationSection />;
       case 'store': return <OnlineStoreHub />;
@@ -175,15 +169,17 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
   const unreadNotifications = notifications.filter(n => !n.read);
 
   const quickActions: { id: SectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
-    { id: 'analytics', label: 'View Analytics', desc: 'Business performance metrics', icon: BarChart3, color: 'from-blue-500 to-blue-600' },
+    { id: 'academic-catalog', label: 'Academic Catalog', desc: 'Programs & classes', icon: BookOpen, color: 'from-blue-500 to-blue-600' },
+    { id: 'registrations', label: 'Registrations', desc: 'View all registrations', icon: UserPlus, color: 'from-emerald-500 to-emerald-600' },
+    { id: 'payments', label: 'Payment Reports', desc: 'Track transactions', icon: DollarSign, color: 'from-cyan-500 to-cyan-600' },
+    { id: 'reports', label: 'Download Reports', desc: 'PDF reports & data', icon: FileText, color: 'from-rose-500 to-rose-600' },
     { id: 'events', label: 'Events Calendar', desc: 'Manage all events', icon: Calendar, color: 'from-purple-500 to-purple-600' },
     { id: 'tournaments', label: 'Tournaments', desc: 'Manage competitions', icon: Trophy, color: 'from-rose-500 to-rose-600' },
     { id: 'workshops', label: 'Workshops', desc: 'Schedule workshops', icon: Building, color: 'from-emerald-500 to-emerald-600' },
     { id: 'store', label: 'Store Inventory', desc: 'Manage products & stock', icon: ShoppingBag, color: 'from-amber-500 to-amber-600' },
-    { id: 'payments', label: 'Payment Reports', desc: 'Track transactions', icon: DollarSign, color: 'from-cyan-500 to-cyan-600' },
-    { id: 'cms', label: 'CMS & Branding', desc: 'Manage content & branding', icon: FileText, color: 'from-rose-500 to-rose-600' },
+    { id: 'analytics', label: 'View Analytics', desc: 'Business performance metrics', icon: BarChart3, color: 'from-blue-500 to-blue-600' },
+    { id: 'schools', label: 'Branches', desc: 'Manage branches', icon: Building, color: 'from-sky-500 to-blue-600' },
     { id: 'sponsors', label: 'Sponsors', desc: 'Manage partners', icon: Handshake, color: 'from-indigo-500 to-purple-600' },
-    { id: 'schools', label: 'Schools', desc: 'Manage branches', icon: Building, color: 'from-sky-500 to-blue-600' },
     { id: 'announcements', label: 'Announcements', desc: 'Create & publish', icon: Bell, color: 'from-rose-500 to-pink-600' },
     { id: 'communications', label: 'Communications', desc: 'View messages', icon: MessageSquare, color: 'from-cyan-500 to-teal-600' },
   ];
@@ -338,12 +334,12 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
           </h4>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: 'Academic Catalog', desc: 'Programs & classes', id: 'academics' as SectionId, icon: BookOpen, color: 'from-blue-500 to-blue-600' },
-              { label: 'Schools', desc: 'Branch management', id: 'schools' as SectionId, icon: Building, color: 'from-sky-500 to-cyan-600' },
+              { label: 'Academic Catalog', desc: 'Programs & classes', id: 'academic-catalog' as SectionId, icon: BookOpen, color: 'from-blue-500 to-blue-600' },
+              { label: 'Registrations', desc: 'Student enrollments', id: 'registrations' as SectionId, icon: UserPlus, color: 'from-emerald-500 to-emerald-600' },
+              { label: 'Branches', desc: 'Branch management', id: 'schools' as SectionId, icon: Building, color: 'from-sky-500 to-cyan-600' },
               { label: 'Sponsors', desc: 'Partner management', id: 'sponsors' as SectionId, icon: Handshake, color: 'from-indigo-500 to-purple-600' },
               { label: 'Announcements', desc: 'Create & publish', id: 'announcements' as SectionId, icon: Bell, color: 'from-rose-500 to-pink-600' },
               { label: 'Communications', desc: 'Message center', id: 'communications' as SectionId, icon: MessageSquare, color: 'from-cyan-500 to-teal-600' },
-              { label: 'CMS & Branding', desc: 'Content management', id: 'cms' as SectionId, icon: FileText, color: 'from-orange-500 to-red-600' },
             ].map((tool, i) => {
               const TIcon = tool.icon;
               return (
