@@ -7,6 +7,10 @@ from apps.academic.views import (
     ClassDeactivateView,
     ClassListCreateView,
     ClassRetrieveUpdateView,
+    EnrollmentPeriodActivateView,
+    EnrollmentPeriodDeactivateView,
+    EnrollmentPeriodListCreateView,
+    EnrollmentPeriodRetrieveUpdateView,
     ProgramActivateView,
     ProgramDeactivateView,
     ProgramListCreateView,
@@ -45,4 +49,9 @@ urlpatterns = [
     path("students/<uuid:pk>/", StudentRetrieveUpdateView.as_view(), name="student-retrieve-update"),
     path("students/<uuid:pk>/activate/", StudentActivateView.as_view(), name="student-activate"),
     path("students/<uuid:pk>/deactivate/", StudentDeactivateView.as_view(), name="student-deactivate"),
+    # Enrollment Period
+    path("enrollment-periods/", EnrollmentPeriodListCreateView.as_view(), name="enrollment-period-list-create"),
+    path("enrollment-periods/<uuid:pk>/", EnrollmentPeriodRetrieveUpdateView.as_view(), name="enrollment-period-retrieve-update"),
+    path("enrollment-periods/<uuid:pk>/activate/", EnrollmentPeriodActivateView.as_view(), name="enrollment-period-activate"),
+    path("enrollment-periods/<uuid:pk>/deactivate/", EnrollmentPeriodDeactivateView.as_view(), name="enrollment-period-deactivate"),
 ]

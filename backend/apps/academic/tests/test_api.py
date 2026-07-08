@@ -1,9 +1,15 @@
+from datetime import date, timedelta
+
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.academic.constants import ClassPeriod, ClassType
-from apps.academic.models import Program, SubProgram, Class, Student
+from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod
 from apps.academic.services import program_service, class_service, admission_service
+from apps.academic.services.enrollment_period_service import (
+    create_enrollment_period,
+    deactivate_enrollment_period,
+)
 from apps.accounts.models import Branch, UserAssignment
 from apps.accounts.constants import Roles
 from apps.accounts.services import user_service
@@ -475,6 +481,111 @@ class StudentAPITest(AcademicAPITestCase):
         self.assertEqual(response.status_code, 200)
         student = Student.objects.get(pk=self.student_pk)
         self.assertTrue(student.is_active)
+
+
+class EnrollmentPeriodAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.program = program_service.create_program(
+            name="Programming", slug="programming"
+        )
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", fee=500.00
+        )
+        self.period = create_enrollment_period(
+            actor=None,
+            branch=self.branch,
+            program=self.program,
+            sub_program=self.sub_program,
+            class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY,
+            title="Fall 2026",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=30),
+        )
+        self.period_pk = str(self.period.pk)
+
+    def test_list_enrollment_periods(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(f"{self.base_url}/enrollment-periods/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_create_enrollment_period(self):
+        self.authenticate_as_super_admin()
+        data = {
+            "branch": str(self.branch.pk),
+            "program": str(self.program.pk),
+            "sub_program": str(self.sub_program.pk),
+            "class_type": ClassType.GROUP,
+            "class_period": ClassPeriod.FULL_DAY,
+            "title": "Spring 2026",
+            "start_date": "2026-03-01",
+            "end_date": "2026-03-31",
+        }
+        response = self.client.post(f"{self.base_url}/enrollment-periods/", data, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["title"], "Spring 2026")
+
+    def test_create_enrollment_period_as_secretary(self):
+        self.authenticate_as_secretary()
+        data = {
+            "branch": str(self.branch.pk),
+            "program": str(self.program.pk),
+            "sub_program": str(self.sub_program.pk),
+            "class_type": ClassType.GROUP,
+            "class_period": ClassPeriod.FULL_DAY,
+            "title": "Summer 2026",
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-30",
+        }
+        response = self.client.post(f"{self.base_url}/enrollment-periods/", data, format="json")
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_enrollment_period_as_student_returns_403(self):
+        self.authenticate_as_student()
+        data = {
+            "branch": str(self.branch.pk),
+            "program": str(self.program.pk),
+            "sub_program": str(self.sub_program.pk),
+            "class_type": ClassType.GROUP,
+            "title": "Unauthorized",
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-31",
+        }
+        response = self.client.post(f"{self.base_url}/enrollment-periods/", data, format="json")
+        self.assertEqual(response.status_code, 403)
+
+    def test_retrieve_enrollment_period(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(f"{self.base_url}/enrollment-periods/{self.period_pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["title"], "Fall 2026")
+
+    def test_update_enrollment_period(self):
+        self.authenticate_as_super_admin()
+        response = self.client.patch(
+            f"{self.base_url}/enrollment-periods/{self.period_pk}/",
+            {"title": "Fall 2026 Extended"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["title"], "Fall 2026 Extended")
+
+    def test_activate_enrollment_period(self):
+        self.authenticate_as_super_admin()
+        deactivate_enrollment_period(actor=None, period=self.period)
+        response = self.client.post(f"{self.base_url}/enrollment-periods/{self.period_pk}/activate/")
+        self.assertEqual(response.status_code, 200)
+        self.period.refresh_from_db()
+        self.assertTrue(self.period.is_active)
+
+    def test_deactivate_enrollment_period(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(f"{self.base_url}/enrollment-periods/{self.period_pk}/deactivate/")
+        self.assertEqual(response.status_code, 200)
+        self.period.refresh_from_db()
+        self.assertFalse(self.period.is_active)
 
 
 

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.academic.models import Program, SubProgram, Class, Student
+from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod
 
 
 @admin.register(Program)
@@ -31,3 +31,10 @@ class StudentAdmin(admin.ModelAdmin):
     list_display = ["user", "branch", "date_joined", "is_active", "created_at"]
     search_fields = ["user__email", "user__first_name", "user__last_name"]
     list_filter = ["is_active", "branch"]
+
+
+@admin.register(EnrollmentPeriod)
+class EnrollmentPeriodAdmin(admin.ModelAdmin):
+    list_display = ["title", "branch", "program", "sub_program", "class_type", "class_period", "start_date", "end_date", "is_active"]
+    search_fields = ["title"]
+    list_filter = ["is_active", "class_type", "branch"]

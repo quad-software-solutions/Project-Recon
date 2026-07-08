@@ -11,6 +11,10 @@ from apps.academic.serializers.student import (
     StudentUpdateSerializer,
 )
 from apps.academic.serializers.admission import AdmitStudentSerializer
+from apps.academic.serializers.enrollment_period import (
+    EnrollmentPeriodSerializer,
+    EnrollmentPeriodListSerializer,
+)
 
 __all__ = [
     "ProgramSerializer",
@@ -24,4 +28,6 @@ __all__ = [
     "StudentListSerializer",
     "StudentUpdateSerializer",
     "AdmitStudentSerializer",
+    "EnrollmentPeriodSerializer",
+    "EnrollmentPeriodListSerializer",
 ]

@@ -24,6 +24,13 @@ from apps.academic.views.student import (
     StudentActivateView,
     StudentDeactivateView,
 )
+from apps.academic.views.enrollment_period import (
+    EnrollmentPeriodListCreateView,
+    EnrollmentPeriodRetrieveUpdateView,
+    EnrollmentPeriodActivateView,
+    EnrollmentPeriodDeactivateView,
+)
+
 __all__ = [
     "ProgramListCreateView",
     "ProgramRetrieveUpdateView",
@@ -43,4 +50,8 @@ __all__ = [
     "StudentSearchView",
     "StudentActivateView",
     "StudentDeactivateView",
+    "EnrollmentPeriodListCreateView",
+    "EnrollmentPeriodRetrieveUpdateView",
+    "EnrollmentPeriodActivateView",
+    "EnrollmentPeriodDeactivateView",
 ]

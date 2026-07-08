@@ -1,11 +1,19 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.test import TestCase
 
-from apps.academic.constants import ClassType
-from apps.academic.models import Program, SubProgram, Class, Student
+from apps.academic.constants import ClassType, ClassPeriod
+from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod
 from apps.academic.services import program_service, class_service, admission_service, student_service
+from apps.academic.services.enrollment_period_service import (
+    create_enrollment_period,
+    get_enrollment_period_or_404,
+    list_enrollment_periods,
+    update_enrollment_period,
+    activate_enrollment_period,
+    deactivate_enrollment_period,
+)
 from apps.accounts.models import Branch, User, UserAssignment
 from apps.accounts.constants import Roles
 from apps.accounts.services import user_service
@@ -356,3 +364,79 @@ class StudentServiceTest(TestCase):
         student_service.activate_student(self.student)
         self.student.refresh_from_db()
         self.assertTrue(self.student.is_active)
+
+
+class EnrollmentPeriodServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.program = program_service.create_program(
+            name="Programming", slug="programming"
+        )
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", fee=500.00
+        )
+        self.period = create_enrollment_period(
+            actor=None,
+            branch=self.branch,
+            program=self.program,
+            sub_program=self.sub_program,
+            class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY,
+            title="Fall 2026 Registration",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=30),
+        )
+
+    def test_create_enrollment_period(self):
+        self.assertEqual(self.period.title, "Fall 2026 Registration")
+        self.assertEqual(self.period.class_type, ClassType.GROUP)
+        self.assertEqual(self.period.branch, self.branch)
+        self.assertEqual(self.period.program, self.program)
+        self.assertEqual(self.period.sub_program, self.sub_program)
+        self.assertTrue(self.period.is_active)
+
+    def test_list_enrollment_periods(self):
+        create_enrollment_period(
+            actor=None,
+            branch=self.branch,
+            program=self.program,
+            sub_program=self.sub_program,
+            class_type=ClassType.INDIVIDUAL,
+            class_period=ClassPeriod.FULL_DAY,
+            title="Spring 2026",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=15),
+        )
+        periods = list_enrollment_periods()
+        self.assertEqual(periods.count(), 2)
+
+    def test_get_enrollment_period_or_404(self):
+        result = get_enrollment_period_or_404(self.period.pk)
+        self.assertEqual(result.pk, self.period.pk)
+
+    def test_update_enrollment_period(self):
+        updated = update_enrollment_period(None, self.period, title="Winter 2026")
+        self.assertEqual(updated.title, "Winter 2026")
+
+    def test_activate_deactivate_enrollment_period(self):
+        deactivate_enrollment_period(None, self.period)
+        self.period.refresh_from_db()
+        self.assertFalse(self.period.is_active)
+
+        activate_enrollment_period(None, self.period)
+        self.period.refresh_from_db()
+        self.assertTrue(self.period.is_active)
+
+    def test_start_date_before_end_date_validation(self):
+        with self.assertRaises(DjangoValidationError):
+            create_enrollment_period(
+                actor=None,
+                branch=self.branch,
+                program=self.program,
+                sub_program=self.sub_program,
+                class_type=ClassType.GROUP,
+                class_period=ClassPeriod.FULL_DAY,
+                title="Invalid Period",
+                start_date=date.today() + timedelta(days=10),
+                end_date=date.today(),
+            )
