@@ -1,11 +1,11 @@
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.permissions.roles import (
+    get_active_branch_ids,
     user_is_branch_manager,
     user_is_instructor,
     user_is_student,
     user_is_super_admin,
-    user_manages_branch,
 )
 
 
@@ -35,9 +35,12 @@ class CanManageMaterial(BasePermission):
             return True
 
         if user_is_branch_manager(user):
-            branch = obj.sub_program.program_id
-            if user_manages_branch(user, branch):
-                return True
+            from apps.academic.models import Class
+            branch_ids = get_active_branch_ids(user)
+            return Class.objects.filter(
+                sub_program=obj.sub_program,
+                branch_id__in=branch_ids,
+            ).exists()
 
         if user_is_instructor(user) and obj.uploaded_by == user:
             return True

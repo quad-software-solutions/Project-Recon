@@ -12,8 +12,9 @@ from apps.academic.constants import (
 )
 from apps.academic.models import (
     Program, SubProgram, Class, Student, EnrollmentPeriod,
-    StaffAttendanceSession, Enrollment, EnrollmentPayment,
+    StaffAttendanceSession, StaffAttendanceRecord, Enrollment, EnrollmentPayment,
     AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress,
+    Certificate,
 )
 from apps.academic.services import program_service, class_service, admission_service, attendance_service
 from apps.academic.services import progress_service
@@ -1681,3 +1682,206 @@ class LearningMaterialAPITest(AcademicAPITestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()), 0)
+
+
+class CertificateAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.program = Program.objects.create(
+            name="Cert API Program", slug="cert-api-program",
+            supports_group=True, supports_individual=True,
+        )
+        self.sub_program = SubProgram.objects.create(
+            program=self.program, name="Cert API Sub", slug="cert-api-sub",
+            fee=Decimal("500.00"),
+        )
+        self.klass = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch,
+            instructor=self.instructor, name="API Cert Class",
+            class_type=ClassType.INDIVIDUAL,
+        )
+        self.student_user = user_service.create_student_user(
+            "api-cert-student@test.com", "API", "CertStudent",
+            self.password, self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_model = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+        self.enrollment = Enrollment.objects.create(
+            student=self.student_model, enrolled_class=self.klass,
+            status=EnrollmentStatus.ACTIVE,
+        )
+        from django.core.files.base import ContentFile
+        from io import BytesIO
+        from PIL import Image
+        buf = BytesIO()
+        Image.new("RGB", (100, 50), color="blue").save(buf, format="PNG")
+        self.bg_file = ContentFile(buf.getvalue(), name="bg.png")
+
+    def _create_template_payload(self, **overrides):
+        data = {
+            "sub_program": str(self.sub_program.pk),
+            "title": "API Certificate",
+            "background": self.bg_file,
+            "body_text": "Body text here",
+        }
+        data.update(overrides)
+        return data
+
+    def _issue_payload(self, certificate):
+        return {
+            "student": str(self.student_model.pk),
+            "certificate": str(certificate.pk),
+        }
+
+    def test_create_template_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_template_as_secretary(self):
+        secretary = self.authenticate_as_secretary()
+        response = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_template_as_instructor_returns_403(self):
+        self._authenticate(self.instructor)
+        response = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_list_templates(self):
+        self.authenticate_as_super_admin()
+        self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        response = self.client.get(f"{self.base_url}/certificate-templates/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_activate_deactivate_template(self):
+        self.authenticate_as_super_admin()
+        create_resp = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        pk = create_resp.json()["id"]
+
+        deact = self.client.post(
+            f"{self.base_url}/certificate-templates/{pk}/deactivate/"
+        )
+        self.assertEqual(deact.status_code, 200)
+        self.assertFalse(deact.json()["is_active"])
+
+        act = self.client.post(
+            f"{self.base_url}/certificate-templates/{pk}/activate/"
+        )
+        self.assertEqual(act.status_code, 200)
+        self.assertTrue(act.json()["is_active"])
+
+    def test_issue_certificate_as_manager(self):
+        self.authenticate_as_super_admin()
+        cert_resp = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        cert_pk = cert_resp.json()["id"]
+        certificate = Certificate.objects.get(pk=cert_pk)
+
+        mgr = self.authenticate_as_branch_manager()
+        response = self.client.post(
+            f"{self.base_url}/student-certificates/issue/",
+            self._issue_payload(certificate=certificate),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("certificate_number", response.json())
+
+    def test_issue_certificate_as_student_returns_403(self):
+        self.authenticate_as_super_admin()
+        cert_resp = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        cert_pk = cert_resp.json()["id"]
+        certificate = Certificate.objects.get(pk=cert_pk)
+        self.authenticate_as_student()
+        response = self.client.post(
+            f"{self.base_url}/student-certificates/issue/",
+            self._issue_payload(certificate=certificate),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_verify_certificate_public(self):
+        self.authenticate_as_super_admin()
+        cert_resp = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        cert_pk = cert_resp.json()["id"]
+        certificate = Certificate.objects.get(pk=cert_pk)
+        issue_resp = self.client.post(
+            f"{self.base_url}/student-certificates/issue/",
+            self._issue_payload(certificate=certificate),
+            format="json",
+        )
+        number = issue_resp.json()["certificate_number"]
+
+        self.client.credentials()
+        response = self.client.get(
+            f"{self.base_url}/certificates/verify/{number}/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["valid"])
+
+    def test_verify_certificate_not_found(self):
+        response = self.client.get(
+            f"{self.base_url}/certificates/verify/NONEXISTENT/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_student_certificates(self):
+        self.authenticate_as_super_admin()
+        cert_resp = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        cert_pk = cert_resp.json()["id"]
+        certificate = Certificate.objects.get(pk=cert_pk)
+        self.client.post(
+            f"{self.base_url}/student-certificates/issue/",
+            self._issue_payload(certificate=certificate),
+            format="json",
+        )
+        self._authenticate(self.student_user)
+        response = self.client.get(f"{self.base_url}/student-certificates/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_unauthenticated_returns_401_for_protected(self):
+        response = self.client.post(
+            f"{self.base_url}/certificate-templates/",
+            self._create_template_payload(),
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 401)

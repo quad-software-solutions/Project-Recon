@@ -55,6 +55,14 @@ from apps.academic.serializers.learning_material import (
     LearningMaterialSerializer,
     LearningMaterialListSerializer,
 )
+from apps.academic.serializers.certificate import (
+    CertificateSerializer,
+    CertificateListSerializer,
+    IssueCertificateSerializer,
+    StudentCertificateSerializer,
+    StudentCertificateListSerializer,
+    PublicCertificateVerifySerializer,
+)
 
 __all__ = [
     "ProgramSerializer",
@@ -98,4 +106,10 @@ __all__ = [
     "ProgressSummarySerializer",
     "LearningMaterialSerializer",
     "LearningMaterialListSerializer",
+    "CertificateSerializer",
+    "CertificateListSerializer",
+    "IssueCertificateSerializer",
+    "StudentCertificateSerializer",
+    "StudentCertificateListSerializer",
+    "PublicCertificateVerifySerializer",
 ]

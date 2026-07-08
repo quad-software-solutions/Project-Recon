@@ -1583,3 +1583,182 @@ class LearningMaterialServiceTest(TestCase):
         from django.core.exceptions import ValidationError as DjangoValidationError
         with self.assertRaises(DjangoValidationError):
             _detect_material_type("unknown.xyz")
+
+
+class CertificateServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.program = Program.objects.create(
+            name="Cert Program", slug="cert-program",
+            supports_group=True, supports_individual=True,
+        )
+        self.sub_program = SubProgram.objects.create(
+            program=self.program, name="Cert Sub", slug="cert-sub",
+            fee=Decimal("500.00"),
+        )
+        self.manager = user_service.create_staff_user(
+            "mgr-cert@test.com", "Branch", "Manager", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.BRANCH_MANAGER,
+        )
+        user_service.activate_user(self.manager)
+        self.manager.is_email_verified = True
+        self.manager.save()
+
+        self.secretary = user_service.create_staff_user(
+            "sec-cert@test.com", "Branch", "Secretary", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.SECRETARY,
+        )
+        user_service.activate_user(self.secretary)
+        self.secretary.is_email_verified = True
+        self.secretary.save()
+
+        self.instructor = user_service.create_staff_user(
+            "instr-cert@test.com", "John", "Doe", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.INSTRUCTOR,
+        )
+        user_service.activate_user(self.instructor)
+        self.instructor.is_email_verified = True
+        self.instructor.save()
+
+        self.klass = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch,
+            instructor=self.instructor, name="Cert Class",
+            class_type=ClassType.INDIVIDUAL,
+        )
+
+        self.student_user = user_service.create_student_user(
+            "stud-cert@test.com", "Test", "Student", "StrongP@ssw0rd!2026",
+            self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_model = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+        self.enrollment = Enrollment.objects.create(
+            student=self.student_model, enrolled_class=self.klass,
+            status=EnrollmentStatus.ACTIVE,
+        )
+
+        from django.core.files.base import ContentFile
+        from io import BytesIO
+        from PIL import Image
+        buf = BytesIO()
+        Image.new("RGB", (100, 50), color="blue").save(buf, format="PNG")
+        self.bg_file = ContentFile(buf.getvalue(), name="bg.png")
+
+        logo_buf = BytesIO()
+        Image.new("RGB", (50, 50), color="red").save(logo_buf, format="PNG")
+        self.logo_file = ContentFile(logo_buf.getvalue(), name="logo.png")
+
+        sig_buf = BytesIO()
+        Image.new("RGB", (80, 30), color="black").save(sig_buf, format="PNG")
+        self.sig_file = ContentFile(sig_buf.getvalue(), name="sig.png")
+
+    def _create_certificate(self, **overrides):
+        from apps.academic.services.certificate_service import create_certificate
+        kwargs = dict(
+            actor=self.manager,
+            sub_program=self.sub_program,
+            title="Test Certificate",
+            background=self.bg_file,
+            body_text="This certifies that {{student_name}} has completed {{sub_program_name}}.",
+        )
+        kwargs.update(overrides)
+        if "background" not in overrides:
+            kwargs["background"] = self.bg_file
+        return create_certificate(**kwargs)
+
+    def test_create_certificate_template(self):
+        cert = self._create_certificate()
+        self.assertEqual(cert.title, "Test Certificate")
+        self.assertEqual(cert.sub_program, self.sub_program)
+        self.assertTrue(cert.is_active)
+
+    def test_update_certificate_template(self):
+        from apps.academic.services.certificate_service import update_certificate
+        cert = self._create_certificate()
+        updated = update_certificate(self.manager, cert, title="Updated Cert")
+        self.assertEqual(updated.title, "Updated Cert")
+
+    def test_activate_deactivate_template(self):
+        from apps.academic.services.certificate_service import (
+            activate_certificate,
+            deactivate_certificate,
+        )
+        cert = self._create_certificate()
+        deactivated = deactivate_certificate(self.manager, cert)
+        self.assertFalse(deactivated.is_active)
+        activated = activate_certificate(self.manager, cert)
+        self.assertTrue(activated.is_active)
+
+    def test_generate_certificate_number(self):
+        from apps.academic.services.certificate_service import (
+            generate_certificate_number,
+            issue_certificate,
+        )
+        cert = self._create_certificate()
+        sc = issue_certificate(
+            actor=self.manager, student=self.student_model,
+            certificate=cert,
+        )
+        self.assertTrue(sc.certificate_number.startswith("CERT-cert-sub-"))
+
+    def test_issue_certificate(self):
+        from apps.academic.services.certificate_service import issue_certificate
+        cert = self._create_certificate()
+        sc = issue_certificate(
+            actor=self.manager, student=self.student_model,
+            certificate=cert,
+        )
+        self.assertEqual(sc.student, self.student_model)
+        self.assertEqual(sc.certificate, cert)
+        self.assertEqual(sc.sub_program, self.sub_program)
+        self.assertEqual(sc.issued_by, self.manager)
+
+    def test_issue_certificate_duplicate_student_sub_program_raises(self):
+        from apps.academic.services.certificate_service import issue_certificate
+        cert = self._create_certificate()
+        issue_certificate(
+            actor=self.manager, student=self.student_model,
+            certificate=cert,
+        )
+        with self.assertRaises(DjangoValidationError):
+            issue_certificate(
+                actor=self.manager, student=self.student_model,
+                certificate=cert,
+            )
+
+    def test_issue_certificate_unauthorized_role_raises(self):
+        from apps.academic.services.certificate_service import issue_certificate
+        cert = self._create_certificate()
+        with self.assertRaises(DjangoValidationError):
+            issue_certificate(
+                actor=self.instructor, student=self.student_model,
+                certificate=cert,
+            )
+
+    def test_get_student_certificate_by_number(self):
+        from apps.academic.services.certificate_service import (
+            get_student_certificate_by_number,
+            issue_certificate,
+        )
+        cert = self._create_certificate()
+        sc = issue_certificate(
+            actor=self.secretary, student=self.student_model,
+            certificate=cert,
+        )
+        found = get_student_certificate_by_number(sc.certificate_number)
+        self.assertEqual(found.id, sc.id)
+
+    def test_list_student_certificates(self):
+        from apps.academic.services.certificate_service import (
+            get_student_certificates,
+            issue_certificate,
+        )
+        cert = self._create_certificate()
+        issue_certificate(
+            actor=self.manager, student=self.student_model,
+            certificate=cert,
+        )
+        certs = get_student_certificates(student=self.student_model)
+        self.assertEqual(certs.count(), 1)

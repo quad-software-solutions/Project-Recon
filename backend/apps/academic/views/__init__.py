@@ -74,6 +74,16 @@ from apps.academic.views.learning_material import (
     MaterialDeleteView,
     MaterialDownloadView,
 )
+from apps.academic.views.certificate import (
+    CertificatePublicVerifyView,
+    CertificateTemplateActivateView,
+    CertificateTemplateDeactivateView,
+    CertificateTemplateListCreateView,
+    CertificateTemplateRetrieveUpdateView,
+    StudentCertificateIssueView,
+    StudentCertificateListView,
+    StudentCertificateRetrieveView,
+)
 
 __all__ = [
     "ProgramListCreateView",
@@ -130,4 +140,12 @@ __all__ = [
     "MaterialRetrieveUpdateView",
     "MaterialDeleteView",
     "MaterialDownloadView",
+    "CertificateTemplateListCreateView",
+    "CertificateTemplateRetrieveUpdateView",
+    "CertificateTemplateActivateView",
+    "CertificateTemplateDeactivateView",
+    "StudentCertificateIssueView",
+    "StudentCertificateListView",
+    "StudentCertificateRetrieveView",
+    "CertificatePublicVerifyView",
 ]

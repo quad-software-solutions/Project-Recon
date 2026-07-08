@@ -10,6 +10,7 @@ from apps.academic.models.attendance import AttendanceSession, AttendanceRecord
 from apps.academic.models.learning_milestone import LearningMilestone
 from apps.academic.models.learning_material import LearningMaterial
 from apps.academic.models.student_progress import StudentProgress
+from apps.academic.models.certificate import Certificate, StudentCertificate
 
 __all__ = [
     "Program",
@@ -26,4 +27,6 @@ __all__ = [
     "LearningMilestone",
     "LearningMaterial",
     "StudentProgress",
+    "Certificate",
+    "StudentCertificate",
 ]
