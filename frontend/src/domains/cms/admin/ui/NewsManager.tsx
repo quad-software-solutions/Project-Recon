@@ -176,7 +176,7 @@ export default function NewsManager({ addToast }: Props) {
             <div className="p-4 flex flex-col gap-3">
               <Field label="Title" value={editing.title ?? ''} onChange={v => { setEditing({ ...editing, title: v }); clearError('title'); }} error={formErrors.title} required placeholder="e.g. New VEX Robotics Competition Announced" />
               <Field label="Subtitle" value={editing.subtitle ?? ''} onChange={v => { setEditing({ ...editing, subtitle: v }); clearError('subtitle'); }} error={formErrors.subtitle} required placeholder="e.g. Teams from across the country will compete" />
-              <Field label="Author" value={editing.author ?? ''} onChange={v => { setEditing({ ...editing, author: v }); clearError('author'); }} error={formErrors.author} required placeholder="e.g. John Doe" />
+              <Field label="Author" value={editing.author ?? ''} onChange={v => { setEditing({ ...editing, author: v }); clearError('author'); }} error={formErrors.author} required placeholder="e.g. Abebe Kebede" />
               <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/image.jpg" />
               {editing.imageUrl && (
                 <div className="rounded-xl overflow-hidden border border-slate-200">

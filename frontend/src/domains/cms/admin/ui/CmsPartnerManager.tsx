@@ -152,7 +152,7 @@ export default function CmsPartnerManager({ addToast }: Props) {
               <button onClick={closeForm} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 flex flex-col gap-3">
-              <Field label="Partner Name" value={editing.name ?? ''} onChange={v => { setEditing({ ...editing, name: v }); clearError('name'); }} error={formErrors.name} required placeholder="e.g. Acme Robotics" />
+              <Field label="Partner Name" value={editing.name ?? ''} onChange={v => { setEditing({ ...editing, name: v }); clearError('name'); }} error={formErrors.name} required placeholder="e.g. Ethio Robotics" />
               <Field label="Logo URL" value={editing.logoUrl ?? ''} onChange={v => { setEditing({ ...editing, logoUrl: v }); clearError('logoUrl'); }} error={formErrors.logoUrl} required placeholder="e.g. https://example.com/logo.png" />
               {editing.logoUrl && (
                 <div className="rounded-xl overflow-hidden border border-slate-200 p-4 flex items-center justify-center bg-white">
