@@ -12,8 +12,9 @@ from apps.academic.constants import (
 from apps.academic.models import (
     Program, SubProgram, Class, Student, EnrollmentPeriod,
     StaffAttendanceSession, Enrollment, EnrollmentPayment,
+    AttendanceSession, AttendanceRecord,
 )
-from apps.academic.services import program_service, class_service, admission_service
+from apps.academic.services import program_service, class_service, admission_service, attendance_service
 from apps.academic.services.enrollment_period_service import (
     create_enrollment_period,
     deactivate_enrollment_period,
@@ -1010,4 +1011,174 @@ class PaymentAPITest(AcademicAPITestCase):
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "success")
+
+
+class AttendanceAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+
+        self.program = Program.objects.create(name="Att Program", slug="att-program")
+        self.sub_program = SubProgram.objects.create(
+            program=self.program, name="Att Sub", slug="att-sub", fee=Decimal("500.00"),
+        )
+        self.klass = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch,
+            instructor=self.instructor, name="API Att Class",
+            class_type=ClassType.INDIVIDUAL,
+        )
+        self.student_user = user_service.create_student_user(
+            "api-att-student@test.com", "API", "Student", self.password, self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_model = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+        self.enrollment = Enrollment.objects.create(
+            student=self.student_model, enrolled_class=self.klass,
+            status=EnrollmentStatus.ACTIVE,
+        )
+
+    def test_create_session_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/attendance/sessions/",
+            {"enrolled_class": str(self.klass.pk), "session_date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("id", response.json())
+
+    def test_create_session_as_instructor(self):
+        self._authenticate(self.instructor)
+        response = self.client.post(
+            f"{self.base_url}/attendance/sessions/",
+            {"enrolled_class": str(self.klass.pk), "session_date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_session_as_student_returns_403(self):
+        self.authenticate_as_student()
+        response = self.client.post(
+            f"{self.base_url}/attendance/sessions/",
+            {"enrolled_class": str(self.klass.pk), "session_date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_create_session_unauthenticated_returns_401(self):
+        self.client.credentials()
+        response = self.client.post(
+            f"{self.base_url}/attendance/sessions/",
+            {"enrolled_class": str(self.klass.pk), "session_date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_list_sessions(self):
+        self.authenticate_as_super_admin()
+        attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        response = self.client.get(f"{self.base_url}/attendance/sessions/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_retrieve_session(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        response = self.client.get(f"{self.base_url}/attendance/sessions/{session.pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["topic"], "")
+
+    def test_update_session(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        response = self.client.patch(
+            f"{self.base_url}/attendance/sessions/{session.pk}/",
+            {"topic": "Updated"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["topic"], "Updated")
+
+    def test_bulk_record_attendance(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        response = self.client.post(
+            f"{self.base_url}/attendance/sessions/{session.pk}/records/",
+            [{"enrollment": str(self.enrollment.pk), "status": AttendanceStatus.PRESENT}],
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["status"], AttendanceStatus.PRESENT)
+
+    def test_bulk_record_attendance_single(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        response = self.client.post(
+            f"{self.base_url}/attendance/sessions/{session.pk}/records/",
+            {"enrollment": str(self.enrollment.pk), "status": AttendanceStatus.LATE},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_update_record(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        create = self.client.post(
+            f"{self.base_url}/attendance/sessions/{session.pk}/records/",
+            {"enrollment": str(self.enrollment.pk), "status": AttendanceStatus.PRESENT},
+            format="json",
+        )
+        record_pk = create.json()[0]["id"]
+        response = self.client.patch(
+            f"{self.base_url}/attendance/sessions/{session.pk}/records/{record_pk}/",
+            {"status": AttendanceStatus.ABSENT},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], AttendanceStatus.ABSENT)
+
+    def test_enrollment_attendance_history(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        attendance_service.record_attendance(
+            actor=self.instructor, session=session,
+            enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+        )
+        response = self.client.get(
+            f"{self.base_url}/attendance/enrollments/{self.enrollment.pk}/history/",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_enrollment_attendance_summary(self):
+        self.authenticate_as_super_admin()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass, session_date=date.today(),
+        )
+        attendance_service.record_attendance(
+            actor=self.instructor, session=session,
+            enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+        )
+        response = self.client.get(
+            f"{self.base_url}/attendance/enrollments/{self.enrollment.pk}/summary/",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["present"], 1)
 

@@ -2,6 +2,9 @@ from django.urls import path
 
 from apps.academic.views import (
     AdmitStudentView,
+    AttendanceSessionDetailView,
+    AttendanceSessionListCreateView,
+    AttendanceRecordDetailView,
     AvailableStaffView,
     CashPaymentCreateView,
     ClassActivateView,
@@ -9,6 +12,8 @@ from apps.academic.views import (
     ClassDeactivateView,
     ClassListCreateView,
     ClassRetrieveUpdateView,
+    EnrollmentAttendanceHistoryView,
+    EnrollmentAttendanceSummaryView,
     EnrollmentCancelView,
     EnrollmentCompleteView,
     EnrollmentListCreateView,
@@ -29,6 +34,7 @@ from apps.academic.views import (
     SessionDetailView,
     SessionListCreateView,
     SessionPublishView,
+    SessionRecordBulkView,
     StudentActivateView,
     StudentDeactivateView,
     StudentRetrieveUpdateView,
@@ -85,4 +91,11 @@ urlpatterns = [
     # Payments
     path("payments/cash/", CashPaymentCreateView.as_view(), name="payment-cash-create"),
     path("payments/", PaymentListView.as_view(), name="payment-list"),
+    # Attendance
+    path("attendance/sessions/", AttendanceSessionListCreateView.as_view(), name="attendance-session-list-create"),
+    path("attendance/sessions/<uuid:pk>/", AttendanceSessionDetailView.as_view(), name="attendance-session-detail"),
+    path("attendance/sessions/<uuid:pk>/records/", SessionRecordBulkView.as_view(), name="attendance-session-record-bulk"),
+    path("attendance/sessions/<uuid:pk>/records/<uuid:record_pk>/", AttendanceRecordDetailView.as_view(), name="attendance-record-detail"),
+    path("attendance/enrollments/<uuid:enrollment_pk>/history/", EnrollmentAttendanceHistoryView.as_view(), name="attendance-enrollment-history"),
+    path("attendance/enrollments/<uuid:enrollment_pk>/summary/", EnrollmentAttendanceSummaryView.as_view(), name="attendance-enrollment-summary"),
 ]

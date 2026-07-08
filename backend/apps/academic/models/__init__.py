@@ -6,6 +6,7 @@ from apps.academic.models.enrollment_period import EnrollmentPeriod
 from apps.academic.models.staff_attendance import StaffAttendanceSession, StaffAttendanceRecord
 from apps.academic.models.enrollment import Enrollment
 from apps.academic.models.enrollment_payment import EnrollmentPayment
+from apps.academic.models.attendance import AttendanceSession, AttendanceRecord
 
 __all__ = [
     "Program",
@@ -17,4 +18,6 @@ __all__ = [
     "StaffAttendanceRecord",
     "Enrollment",
     "EnrollmentPayment",
+    "AttendanceSession",
+    "AttendanceRecord",
 ]

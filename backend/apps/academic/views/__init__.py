@@ -50,6 +50,14 @@ from apps.academic.views.payment import (
     OnlinePaymentVerifyView,
     OnlinePaymentWebhookView,
 )
+from apps.academic.views.attendance import (
+    SessionListCreateView as AttendanceSessionListCreateView,
+    SessionDetailView as AttendanceSessionDetailView,
+    SessionRecordBulkView,
+    RecordDetailView as AttendanceRecordDetailView,
+    EnrollmentAttendanceHistoryView,
+    EnrollmentAttendanceSummaryView,
+)
 
 __all__ = [
     "ProgramListCreateView",
@@ -88,4 +96,10 @@ __all__ = [
     "CashPaymentCreateView",
     "OnlinePaymentVerifyView",
     "OnlinePaymentWebhookView",
+    "AttendanceSessionListCreateView",
+    "AttendanceSessionDetailView",
+    "SessionRecordBulkView",
+    "AttendanceRecordDetailView",
+    "EnrollmentAttendanceHistoryView",
+    "EnrollmentAttendanceSummaryView",
 ]

@@ -12,8 +12,9 @@ from apps.academic.constants import (
 from apps.academic.models import (
     Program, SubProgram, Class, Student, EnrollmentPeriod,
     StaffAttendanceSession, StaffAttendanceRecord, Enrollment, EnrollmentPayment,
+    AttendanceSession, AttendanceRecord,
 )
-from apps.academic.services import program_service, class_service, admission_service, student_service
+from apps.academic.services import program_service, class_service, admission_service, student_service, attendance_service
 from apps.academic.services.enrollment_period_service import (
     create_enrollment_period,
     get_enrollment_period_or_404,
@@ -889,3 +890,182 @@ class PaymentServiceTest(TestCase):
             status=PaymentStatus.PAID,
         )
         self.assertEqual(list_payments().count(), 1)
+
+
+class AttendanceServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.program = Program.objects.create(name="Test Program", slug="test-program")
+        self.sub_program = SubProgram.objects.create(
+            program=self.program, name="Test Sub", slug="test-sub", fee=Decimal("500.00"),
+        )
+        self.manager = user_service.create_staff_user(
+            "manager@test.com", "Branch", "Manager", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.BRANCH_MANAGER,
+        )
+        user_service.activate_user(self.manager)
+        self.manager.is_email_verified = True
+        self.manager.save()
+
+        self.instructor = user_service.create_staff_user(
+            "instructor-att@test.com", "John", "Doe", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.INSTRUCTOR,
+        )
+        user_service.activate_user(self.instructor)
+        self.instructor.is_email_verified = True
+        self.instructor.save()
+
+        self.klass = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch,
+            instructor=self.instructor, name="Att Class",
+            class_type=ClassType.INDIVIDUAL,
+        )
+
+        self.student_user = user_service.create_student_user(
+            "student-att@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_model = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+        self.enrollment = Enrollment.objects.create(
+            student=self.student_model, enrolled_class=self.klass,
+            status=EnrollmentStatus.ACTIVE,
+        )
+
+    def test_create_session(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(), topic="Intro",
+        )
+        self.assertEqual(session.enrolled_class, self.klass)
+        self.assertEqual(session.topic, "Intro")
+        self.assertEqual(session.recorded_by, self.instructor)
+
+    def test_create_session_requires_instructor_access(self):
+        other_instructor = user_service.create_staff_user(
+            "other-att@test.com", "Other", "Inst", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.INSTRUCTOR,
+        )
+        user_service.activate_user(other_instructor)
+        with self.assertRaises(DjangoValidationError):
+            attendance_service.create_session(
+                actor=other_instructor, enrolled_class=self.klass,
+                session_date=date.today(),
+            )
+
+    def test_create_session_allows_manager(self):
+        session = attendance_service.create_session(
+            actor=self.manager, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        self.assertIsNotNone(session)
+
+    def test_duplicate_session_date_raises(self):
+        attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        with self.assertRaises(Exception):
+            attendance_service.create_session(
+                actor=self.instructor, enrolled_class=self.klass,
+                session_date=date.today(),
+            )
+
+    def test_record_attendance(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        record = attendance_service.record_attendance(
+            actor=self.instructor, session=session,
+            enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+        )
+        self.assertEqual(record.status, AttendanceStatus.PRESENT)
+        self.assertEqual(record.enrollment, self.enrollment)
+
+    def test_record_attendance_inactive_enrollment_raises(self):
+        self.enrollment.status = EnrollmentStatus.PENDING_PAYMENT
+        self.enrollment.save()
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        with self.assertRaises(DjangoValidationError):
+            attendance_service.record_attendance(
+                actor=self.instructor, session=session,
+                enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+            )
+
+    def test_bulk_record_attendance(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        records = attendance_service.bulk_record_attendance(
+            actor=self.instructor, session=session,
+            records=[{"enrollment": self.enrollment, "status": AttendanceStatus.PRESENT}],
+        )
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].status, AttendanceStatus.PRESENT)
+
+    def test_update_attendance_record(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        record = attendance_service.record_attendance(
+            actor=self.instructor, session=session,
+            enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+        )
+        updated = attendance_service.update_attendance_record(
+            actor=self.instructor, record=record, status=AttendanceStatus.ABSENT,
+        )
+        self.assertEqual(updated.status, AttendanceStatus.ABSENT)
+
+    def test_get_enrollment_attendance_history(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        attendance_service.record_attendance(
+            actor=self.instructor, session=session,
+            enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+        )
+        history = attendance_service.get_enrollment_attendance_history(self.enrollment)
+        self.assertEqual(history.count(), 1)
+
+    def test_get_attendance_summary(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        attendance_service.record_attendance(
+            actor=self.instructor, session=session,
+            enrollment=self.enrollment, status=AttendanceStatus.PRESENT,
+        )
+        summary = attendance_service.get_attendance_summary(self.enrollment)
+        self.assertEqual(summary["present"], 1)
+        self.assertEqual(summary["total"], 1)
+
+    def test_list_sessions(self):
+        attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(),
+        )
+        attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today() + timedelta(days=1),
+        )
+        sessions = attendance_service.list_sessions()
+        self.assertEqual(sessions.count(), 2)
+
+    def test_update_session(self):
+        session = attendance_service.create_session(
+            actor=self.instructor, enrolled_class=self.klass,
+            session_date=date.today(), topic="Original",
+        )
+        updated = attendance_service.update_session(
+            self.instructor, session, topic="Updated Topic",
+        )
+        self.assertEqual(updated.topic, "Updated Topic")
