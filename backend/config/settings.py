@@ -121,9 +121,6 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
-# ─── Integration configs (provider selection + credentials) ───
-from config.integrations.email import *  # noqa: F401,F403
-from config.integrations.payment import *  # noqa: F401,F403
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -148,3 +145,8 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+
+# ─── Integration configs (provider selection + credentials) ───
+from config.integrations.email import *  # noqa: F401,F403
+from config.integrations.payment import *  # noqa: F401,F403
