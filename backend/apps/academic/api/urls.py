@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.academic.views import (
     AdmitStudentView,
+    AvailableStaffView,
     ClassActivateView,
     ClassAssignInstructorView,
     ClassDeactivateView,
@@ -15,6 +16,11 @@ from apps.academic.views import (
     ProgramDeactivateView,
     ProgramListCreateView,
     ProgramRetrieveUpdateView,
+    RecordDetailView,
+    RecordUpsertView,
+    SessionDetailView,
+    SessionListCreateView,
+    SessionPublishView,
     StudentActivateView,
     StudentDeactivateView,
     StudentRetrieveUpdateView,
@@ -54,4 +60,11 @@ urlpatterns = [
     path("enrollment-periods/<uuid:pk>/", EnrollmentPeriodRetrieveUpdateView.as_view(), name="enrollment-period-retrieve-update"),
     path("enrollment-periods/<uuid:pk>/activate/", EnrollmentPeriodActivateView.as_view(), name="enrollment-period-activate"),
     path("enrollment-periods/<uuid:pk>/deactivate/", EnrollmentPeriodDeactivateView.as_view(), name="enrollment-period-deactivate"),
+    # Staff Attendance
+    path("staff-attendance/sessions/available-staff/", AvailableStaffView.as_view(), name="staff-attendance-available-staff"),
+    path("staff-attendance/sessions/", SessionListCreateView.as_view(), name="staff-attendance-session-list-create"),
+    path("staff-attendance/sessions/<uuid:pk>/", SessionDetailView.as_view(), name="staff-attendance-session-detail"),
+    path("staff-attendance/sessions/<uuid:pk>/publish/", SessionPublishView.as_view(), name="staff-attendance-session-publish"),
+    path("staff-attendance/sessions/<uuid:pk>/records/", RecordUpsertView.as_view(), name="staff-attendance-record-upsert"),
+    path("staff-attendance/sessions/<uuid:pk>/records/<uuid:record_pk>/", RecordDetailView.as_view(), name="staff-attendance-record-detail"),
 ]

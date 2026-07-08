@@ -77,14 +77,16 @@ def user_manages_branch(user, branch_id) -> bool:
 
     Args:
         user: Authenticated User instance.
-        branch_id: Branch UUID.
+        branch_id: Branch UUID (str or UUID).
 
     Returns:
         True if the user may administer the branch.
     """
     if user_is_super_admin(user):
         return True
-    return (
-        user_is_branch_manager(user)
-        and branch_id in get_active_branch_ids(user)
-    )
+    if not user_is_branch_manager(user):
+        return False
+    if isinstance(branch_id, str):
+        from uuid import UUID
+        branch_id = UUID(branch_id)
+    return branch_id in get_active_branch_ids(user)

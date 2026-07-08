@@ -15,6 +15,14 @@ from apps.academic.serializers.enrollment_period import (
     EnrollmentPeriodSerializer,
     EnrollmentPeriodListSerializer,
 )
+from apps.academic.serializers.staff_attendance import (
+    StaffAttendanceSessionSerializer,
+    StaffAttendanceSessionListSerializer,
+    StaffAttendanceRecordSerializer,
+    StaffAttendanceRecordUpsertSerializer,
+    AvailableStaffSerializer,
+    PublishSessionSerializer,
+)
 
 __all__ = [
     "ProgramSerializer",
@@ -30,4 +38,10 @@ __all__ = [
     "AdmitStudentSerializer",
     "EnrollmentPeriodSerializer",
     "EnrollmentPeriodListSerializer",
+    "StaffAttendanceSessionSerializer",
+    "StaffAttendanceSessionListSerializer",
+    "StaffAttendanceRecordSerializer",
+    "StaffAttendanceRecordUpsertSerializer",
+    "AvailableStaffSerializer",
+    "PublishSessionSerializer",
 ]

@@ -30,6 +30,14 @@ from apps.academic.views.enrollment_period import (
     EnrollmentPeriodActivateView,
     EnrollmentPeriodDeactivateView,
 )
+from apps.academic.views.staff_attendance import (
+    SessionListCreateView,
+    SessionDetailView,
+    AvailableStaffView,
+    SessionPublishView,
+    RecordUpsertView,
+    RecordDetailView,
+)
 
 __all__ = [
     "ProgramListCreateView",
@@ -54,4 +62,10 @@ __all__ = [
     "EnrollmentPeriodRetrieveUpdateView",
     "EnrollmentPeriodActivateView",
     "EnrollmentPeriodDeactivateView",
+    "SessionListCreateView",
+    "SessionDetailView",
+    "AvailableStaffView",
+    "SessionPublishView",
+    "RecordUpsertView",
+    "RecordDetailView",
 ]

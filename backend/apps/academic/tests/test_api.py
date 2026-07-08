@@ -3,12 +3,20 @@ from datetime import date, timedelta
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
-from apps.academic.constants import ClassPeriod, ClassType
-from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod
+from apps.academic.constants import ClassPeriod, ClassType, AttendanceStatus, SessionStatus
+from apps.academic.models import (
+    Program, SubProgram, Class, Student, EnrollmentPeriod, StaffAttendanceSession,
+)
 from apps.academic.services import program_service, class_service, admission_service
 from apps.academic.services.enrollment_period_service import (
     create_enrollment_period,
     deactivate_enrollment_period,
+)
+from apps.academic.services.staff_attendance_service import (
+    create_session,
+    publish_session,
+    soft_delete_session,
+    upsert_records,
 )
 from apps.accounts.models import Branch, UserAssignment
 from apps.accounts.constants import Roles
@@ -588,4 +596,171 @@ class EnrollmentPeriodAPITest(AcademicAPITestCase):
         self.assertFalse(self.period.is_active)
 
 
+class StaffAttendanceAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.instructor = user_service.create_staff_user(
+            "staff-attendance-instructor@test.com", "Jane", "Staff", self.password,
+            branch=self.branch, role=Roles.INSTRUCTOR,
+        )
+        user_service.activate_user(self.instructor)
+        self.instructor.is_email_verified = True
+        self.instructor.save()
+
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/",
+            {"branch": str(self.branch.pk), "date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.session_pk = response.json()["id"]
+        self.session = StaffAttendanceSession.objects.get(pk=self.session_pk)
+
+    def test_list_sessions(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(f"{self.base_url}/staff-attendance/sessions/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_list_sessions_filters_by_branch(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(
+            f"{self.base_url}/staff-attendance/sessions/?branch={self.branch.pk}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_retrieve_session(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], SessionStatus.DRAFT)
+
+    def test_update_session_notes(self):
+        self.authenticate_as_super_admin()
+        response = self.client.patch(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/",
+            {"notes": "All staff present"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["notes"], "All staff present")
+
+    def test_soft_delete_session(self):
+        self.authenticate_as_super_admin()
+        response = self.client.delete(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/",
+        )
+        self.assertEqual(response.status_code, 204)
+        self.session.refresh_from_db()
+        self.assertFalse(self.session.is_active)
+
+    def test_publish_session(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/publish/",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatus.PUBLISHED)
+
+    def test_upsert_records(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/",
+            [{"staff_member": str(self.instructor.pk), "status": AttendanceStatus.PRESENT}],
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["status"], AttendanceStatus.PRESENT)
+
+    def test_upsert_records_single(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/",
+            {"staff_member": str(self.instructor.pk), "status": AttendanceStatus.LATE},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["status"], AttendanceStatus.LATE)
+
+    def test_upsert_records_after_publish_returns_400(self):
+        self.authenticate_as_super_admin()
+        publish_session(None, self.session)
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/",
+            [{"staff_member": str(self.instructor.pk), "status": AttendanceStatus.PRESENT}],
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_update_record(self):
+        self.authenticate_as_super_admin()
+        create = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/",
+            {"staff_member": str(self.instructor.pk), "status": AttendanceStatus.PRESENT},
+            format="json",
+        )
+        record_pk = create.json()[0]["id"]
+        response = self.client.patch(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/{record_pk}/",
+            {"status": AttendanceStatus.ABSENT},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], AttendanceStatus.ABSENT)
+
+    def test_delete_record(self):
+        self.authenticate_as_super_admin()
+        create = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/",
+            {"staff_member": str(self.instructor.pk), "status": AttendanceStatus.PRESENT},
+            format="json",
+        )
+        record_pk = create.json()[0]["id"]
+        response = self.client.delete(
+            f"{self.base_url}/staff-attendance/sessions/{self.session_pk}/records/{record_pk}/",
+        )
+        self.assertEqual(response.status_code, 204)
+
+    def test_available_staff(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(
+            f"{self.base_url}/staff-attendance/sessions/available-staff/?branch={self.branch.pk}",
+        )
+        self.assertEqual(response.status_code, 200)
+        staff_ids = [s["id"] for s in response.json()]
+        self.assertIn(str(self.instructor.pk), staff_ids)
+
+    def test_create_session_as_branch_manager(self):
+        self.authenticate_as_branch_manager()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/",
+            {"branch": str(self.branch.pk), "date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_session_as_student_returns_403(self):
+        self.authenticate_as_student()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/",
+            {"branch": str(self.branch.pk), "date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_create_session_unauthenticated_returns_401(self):
+        self.client.credentials()
+        response = self.client.post(
+            f"{self.base_url}/staff-attendance/sessions/",
+            {"branch": str(self.branch.pk), "date": str(date.today())},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
 

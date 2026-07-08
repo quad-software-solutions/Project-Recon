@@ -3,8 +3,8 @@ from datetime import date, timedelta
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.test import TestCase
 
-from apps.academic.constants import ClassType, ClassPeriod
-from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod
+from apps.academic.constants import ClassType, ClassPeriod, AttendanceStatus, SessionStatus
+from apps.academic.models import Program, SubProgram, Class, Student, EnrollmentPeriod, StaffAttendanceSession, StaffAttendanceRecord
 from apps.academic.services import program_service, class_service, admission_service, student_service
 from apps.academic.services.enrollment_period_service import (
     create_enrollment_period,
@@ -13,6 +13,18 @@ from apps.academic.services.enrollment_period_service import (
     update_enrollment_period,
     activate_enrollment_period,
     deactivate_enrollment_period,
+)
+from apps.academic.services.staff_attendance_service import (
+    create_session,
+    get_session_or_404,
+    list_sessions,
+    update_session,
+    publish_session,
+    soft_delete_session,
+    upsert_records,
+    update_record,
+    delete_record,
+    list_available_staff,
 )
 from apps.accounts.models import Branch, User, UserAssignment
 from apps.accounts.constants import Roles
@@ -440,3 +452,122 @@ class EnrollmentPeriodServiceTest(TestCase):
                 start_date=date.today() + timedelta(days=10),
                 end_date=date.today(),
             )
+
+
+class StaffAttendanceServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.manager = user_service.create_staff_user(
+            "manager@test.com", "Branch", "Manager", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.BRANCH_MANAGER,
+        )
+        self.instructor = user_service.create_staff_user(
+            "instructor@test.com", "John", "Doe", "StrongP@ssw0rd!2026",
+            branch=self.branch, role=Roles.INSTRUCTOR,
+        )
+        user_service.activate_user(self.instructor)
+        self.session = create_session(
+            branch=self.branch,
+            date=date.today(),
+            created_by=self.manager,
+        )
+
+    def test_create_session_defaults_to_draft(self):
+        self.assertEqual(self.session.status, SessionStatus.DRAFT)
+        self.assertTrue(self.session.is_active)
+
+    def test_upsert_records_creates_and_updates(self):
+        records = upsert_records(self.manager, self.session, [
+            {"staff_member": self.instructor, "status": AttendanceStatus.PRESENT},
+        ])
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].status, AttendanceStatus.PRESENT)
+
+        records = upsert_records(self.manager, self.session, [
+            {"staff_member": self.instructor, "status": AttendanceStatus.LATE},
+        ])
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].status, AttendanceStatus.LATE)
+
+    def test_upsert_records_raises_after_publish(self):
+        publish_session(self.manager, self.session)
+        with self.assertRaises(DjangoValidationError):
+            upsert_records(self.manager, self.session, [
+                {"staff_member": self.instructor, "status": AttendanceStatus.PRESENT},
+            ])
+
+    def test_publish_session_flips_status(self):
+        publish_session(self.manager, self.session)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatus.PUBLISHED)
+
+    def test_publish_already_published_raises(self):
+        publish_session(self.manager, self.session)
+        with self.assertRaises(DjangoValidationError):
+            publish_session(self.manager, self.session)
+
+    def test_update_session_draft_only(self):
+        updated = update_session(self.manager, self.session, notes="Updated notes")
+        self.assertEqual(updated.notes, "Updated notes")
+
+    def test_update_session_raises_after_publish(self):
+        publish_session(self.manager, self.session)
+        with self.assertRaises(DjangoValidationError):
+            update_session(self.manager, self.session, notes="Trying to update")
+
+    def test_update_record_draft_only(self):
+        records = upsert_records(self.manager, self.session, [
+            {"staff_member": self.instructor, "status": AttendanceStatus.PRESENT},
+        ])
+        updated = update_record(self.manager, records[0], status=AttendanceStatus.ABSENT)
+        self.assertEqual(updated.status, AttendanceStatus.ABSENT)
+
+    def test_delete_record_draft_only(self):
+        records = upsert_records(self.manager, self.session, [
+            {"staff_member": self.instructor, "status": AttendanceStatus.PRESENT},
+        ])
+        record = records[0]
+        record_id = record.pk
+        delete_record(self.manager, record)
+        self.assertFalse(StaffAttendanceRecord.objects.filter(pk=record_id).exists())
+
+    def test_soft_delete_session(self):
+        soft_delete_session(self.manager, self.session)
+        self.session.refresh_from_db()
+        self.assertFalse(self.session.is_active)
+
+    def test_list_sessions(self):
+        create_session(branch=self.branch, date=date.today() + timedelta(days=1), created_by=self.manager)
+        sessions = list_sessions()
+        self.assertEqual(sessions.count(), 2)
+
+    def test_list_sessions_filters_by_branch(self):
+        other_branch = Branch.objects.create(name="Other", code="OB01")
+        create_session(branch=other_branch, date=date.today(), created_by=self.manager)
+        sessions = list_sessions(branch=self.branch)
+        self.assertEqual(sessions.count(), 1)
+
+    def test_list_available_staff_excludes_students(self):
+        user_service.create_student_user(
+            "student@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        staff = list_available_staff(self.branch)
+        self.assertIn(self.instructor, staff)
+        for s in staff:
+            self.assertNotEqual(
+                UserAssignment.objects.filter(user=s, role=Roles.STUDENT).first() is not None,
+                True,
+            )
+
+    def test_list_sessions_excludes_soft_deleted(self):
+        session2 = create_session(
+            branch=self.branch, date=date.today(), created_by=self.manager,
+        )
+        soft_delete_session(self.manager, session2)
+        sessions = list_sessions()
+        self.assertEqual(sessions.count(), 1)
+
+    def test_get_session_or_404_raises_for_soft_deleted(self):
+        soft_delete_session(self.manager, self.session)
+        with self.assertRaises(Exception):
+            get_session_or_404(self.session.pk)
