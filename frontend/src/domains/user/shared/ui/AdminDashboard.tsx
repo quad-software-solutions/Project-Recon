@@ -15,6 +15,7 @@ import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import { BranchSectionShell } from '@/src/domains/branches/ui/BranchSectionShell';
 import AcademicCatalogManager from '@/src/domains/learning/academics/ui/AcademicCatalogManager';
+import { ErrorModal } from '@/src/shared/ui/ErrorModal';
 import type { UserProfile, AppNotification, Enrollment, EnrollmentPayment } from '@/src/shared/types';
 import { fetchEnrollmentsApi, fetchPaymentsApi } from '@/src/domains/learning/academics/api/academicApi';
 import {
@@ -345,7 +346,11 @@ function UserManagement({ userRole }: { userRole?: string }) {
       setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '' });
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create user');
+      let msg = e instanceof Error ? e.message : 'Failed to create user';
+      if (msg.includes('Branch manager already exists')) {
+        msg = 'This branch already has an active manager. Please choose a different branch or re-assign the manager.';
+      }
+      setError(msg);
     }
   };
 
@@ -399,13 +404,11 @@ function UserManagement({ userRole }: { userRole?: string }) {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4" /></button>
-        </div>
-      )}
+      <ErrorModal
+        isOpen={!!error}
+        message={error || ''}
+        onClose={() => setError(null)}
+      />
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {[
           { label: 'Active', value: userStats.active, color: 'text-emerald-600 bg-emerald-50' },
@@ -685,6 +688,12 @@ function UserManagement({ userRole }: { userRole?: string }) {
           </div>
         </Modal>
       )}
+
+      <ErrorModal
+        isOpen={!!error}
+        message={error || ''}
+        onClose={() => setError(null)}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   createStaffApi, createBranchManagerApi, updateUserApi, branchesApi,
   type AdminUserResponse, type BranchResponse, type PaginatedResponse,
 } from '../api/adminApi';
+import { ErrorModal } from '@/src/shared/ui/ErrorModal';
 
 const ROLE_BADGE: Record<string, string> = {
   Admin: 'bg-purple-50 text-purple-600',
@@ -102,7 +103,13 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
       setFormData({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '' });
       setAddUserRole('staff');
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create user'); }
+    } catch (e) {
+      let msg = e instanceof Error ? e.message : 'Failed to create user';
+      if (msg.includes('Branch manager already exists')) {
+        msg = 'This branch already has an active manager. Please choose a different branch or re-assign the manager.';
+      }
+      setError(msg);
+    }
   };
 
   const handleUpdate = async () => {
@@ -155,12 +162,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
         ))}
       </div>
 
-      {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
-          <button onClick={() => setError(null)} className="ml-auto p-0.5"><X className="w-3 h-3" /></button>
-        </div>
-      )}
+
 
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
@@ -401,6 +403,12 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
           </div>
         )}
       </AnimatePresence>
+
+      <ErrorModal
+        isOpen={!!error}
+        message={error || ''}
+        onClose={() => setError(null)}
+      />
     </div>
   );
 }
