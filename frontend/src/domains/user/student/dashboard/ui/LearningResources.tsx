@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Video, FileText, Code, Download, ExternalLink, Loader2 } from 'lucide-react';
+import { Book, Video, FileText, Code, Download, ExternalLink, Loader2, ShieldOff } from 'lucide-react';
 import { fetchEnrollmentsApi, fetchLearningMaterialsApi } from '@/src/domains/learning/academics/api/academicApi';
 import type { LearningMaterial } from '@/src/shared/types';
 
@@ -23,16 +23,29 @@ export default function LearningResources({ studentId }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(async enr => {
-      const all: LearningMaterial[] = [];
-      for (const e of enr) {
+    let cancelled = false;
+    async function load() {
+      try {
+        const enr = await fetchEnrollmentsApi(studentId);
+        const all: LearningMaterial[] = [];
+        for (const e of enr) {
+          try {
+            const m = await fetchLearningMaterialsApi(e.enrolled_class);
+            all.push(...m);
+          } catch {}
+        }
+        if (!cancelled) setMaterials(all);
+      } catch {
+        // Permission denied — try direct materials fetch (student-scoped)
         try {
-          const m = await fetchLearningMaterialsApi(e.enrolled_class);
-          all.push(...m);
+          const mats = await fetchLearningMaterialsApi();
+          if (!cancelled) setMaterials(mats);
         } catch {}
       }
-      setMaterials(all);
-    }).catch(() => {}).finally(() => setLoading(false));
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
   }, [studentId]);
 
   return (

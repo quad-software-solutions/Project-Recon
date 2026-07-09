@@ -181,6 +181,26 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
     }
   }
 
+  // Step 4: For students, try to discover student ID from localStorage or certificates
+  if (userProfile.role === 'Student') {
+    const storedKey = `studentId_${userProfile.email}`;
+    const storedId = localStorage.getItem(storedKey);
+    if (storedId) {
+      userProfile.studentId = storedId;
+    } else {
+      try {
+        const certBody = await http.get<{ student: string }[] | { results: { student: string }[] }>('/academic/student-certificates/');
+        const certList = Array.isArray(certBody) ? certBody : certBody.results;
+        if (certList.length > 0 && certList[0].student) {
+          userProfile.studentId = certList[0].student;
+          localStorage.setItem(storedKey, certList[0].student);
+        }
+      } catch {
+        // Student has no certificates yet — no fallback available
+      }
+    }
+  }
+
   return { user: userProfile, token: tokenData.access };
 }
 
@@ -301,6 +321,26 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
       };
     } catch (err) {
       console.warn('Could not fetch user profile after verification:', err);
+    }
+  }
+
+  // Step 4: For students, try to discover student ID from localStorage or certificates
+  if (userProfile.role === 'Student') {
+    const storedKey = `studentId_${userProfile.email}`;
+    const storedId = localStorage.getItem(storedKey);
+    if (storedId) {
+      userProfile.studentId = storedId;
+    } else {
+      try {
+        const certBody = await http.get<{ student: string }[] | { results: { student: string }[] }>('/academic/student-certificates/');
+        const certList = Array.isArray(certBody) ? certBody : certBody.results;
+        if (certList.length > 0 && certList[0].student) {
+          userProfile.studentId = certList[0].student;
+          localStorage.setItem(storedKey, certList[0].student);
+        }
+      } catch {
+        // Student has no certificates yet — no fallback available
+      }
     }
   }
 

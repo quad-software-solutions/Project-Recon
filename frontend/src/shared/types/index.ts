@@ -69,6 +69,7 @@ export interface UserProfile {
   subscriptionTier?: 'free' | 'explorer' | 'pro' | 'school';
   childName?: string;
   language?: 'en' | 'am';
+  studentId?: string;
 }
 
 export type ActiveTab = 'home' | 'about' | 'store' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center' | 'forgot-password' | 'reset-password';

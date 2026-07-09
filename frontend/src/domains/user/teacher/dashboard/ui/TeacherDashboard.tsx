@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Edit3, BarChart3, Activity, ClipboardList, BookOpen, StickyNote, LogOut, Settings, User, CheckCircle2, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
+import { Users, Edit3, BarChart3, Activity, ClipboardList, BookOpen, StickyNote, LogOut, User, CheckCircle2, DollarSign, RefreshCw, Loader2, Calendar, FileText } from 'lucide-react';
 import { UserProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
-import AccountSettings from '@/src/shared/ui/AccountSettings';
-import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
+import AdminAccount from '@/src/domains/user/shared/ui/AdminAccount';
 import { fetchEnrollmentsApi, fetchStudentsApi, fetchAttendanceSessionsApi, fetchStudentProgressApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
 
 import ClassManagement from './ClassManagement';
@@ -16,21 +15,24 @@ import ActivityFeed from './ActivityFeed';
 import LessonPlanner from './LessonPlanner';
 import GradeBook from './GradeBook';
 import StudentNotes from './StudentNotes';
+import AttendanceHistory from './AttendanceHistory';
+import Reports from './Reports';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity' | 'profile' | 'settings';
+type SectionId = 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'attendance' | 'activity' | 'reports' | 'account';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'class', label: 'Class Management', icon: Users, group: 'main' },
   { id: 'lessons', label: 'Lesson Planner', icon: ClipboardList, group: 'main' },
-  { id: 'notes', label: 'Student Notes', icon: StickyNote, group: 'main' },
-  { id: 'progress', label: 'Progress', icon: Edit3, group: 'main' },
   { id: 'gradebook', label: 'Grade Book', icon: BookOpen, group: 'main' },
+  { id: 'attendance', label: 'Attendance', icon: Calendar, group: 'main' },
+  { id: 'progress', label: 'Progress', icon: Edit3, group: 'main' },
+  { id: 'notes', label: 'Student Notes', icon: StickyNote, group: 'main' },
   { id: 'metrics', label: 'Performance', icon: BarChart3, group: 'main' },
   { id: 'activity', label: 'Activity', icon: Activity, group: 'main' },
-  { id: 'profile', label: 'My Profile', icon: User, group: 'system' },
-  { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
+  { id: 'reports', label: 'Reports', icon: FileText, group: 'main' },
+  { id: 'account', label: 'Account', icon: User, group: 'system' },
 ];
 
 export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashboardProps) {
@@ -59,17 +61,16 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
 
   const renderPage = () => {
     switch (activeSection) {
-      case 'class':
-        return <ClassManagement students={students} enrollments={activeEnrollments} />;
-      case 'progress':
-        return <ProgressSubmissions students={students} enrollments={activeEnrollments} />;
-      case 'lessons':   return <LessonPlanner />;
-      case 'gradebook': return <GradeBook students={students} />;
-      case 'metrics':   return <PerformanceMetrics students={students} enrollments={enrollments} />;
-      case 'notes':     return <StudentNotes />;
-      case 'activity':  return <ActivityFeed />;
-      case 'profile':   return <ProfileOverview currentUser={currentUser} />;
-      case 'settings':  return <AccountSettings />;
+      case 'class':       return <ClassManagement students={students} enrollments={activeEnrollments} />;
+      case 'progress':    return <ProgressSubmissions students={students} enrollments={activeEnrollments} />;
+      case 'lessons':     return <LessonPlanner />;
+      case 'gradebook':   return <GradeBook students={students} />;
+      case 'metrics':     return <PerformanceMetrics students={students} enrollments={enrollments} />;
+      case 'notes':       return <StudentNotes />;
+      case 'attendance':  return <AttendanceHistory classId={enrollments[0]?.enrolled_class || ''} />;
+      case 'activity':    return <ActivityFeed />;
+      case 'reports':     return <Reports classId={enrollments[0]?.enrolled_class || ''} />;
+      case 'account':     return <AdminAccount currentUser={currentUser} />;
     }
   };
 

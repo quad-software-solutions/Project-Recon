@@ -22,8 +22,7 @@ import WalkInRegistration from './WalkInRegistration';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import SchoolManagement from './SchoolManagement';
 import AcademicCatalogManager from '@/src/domains/learning/academics/ui/AcademicCatalogManager';
-import AccountSettings from '@/src/shared/ui/AccountSettings';
-import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
+import AdminAccount from '@/src/domains/user/shared/ui/AdminAccount';
 import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchClassesApi, downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf, downloadProgressReportPdf, downloadCertificateReportPdf, downloadClassReportPdf, downloadSubProgramReportPdf, downloadProgramReportPdf } from '@/src/domains/learning/academics/api/academicApi';
 
 interface Props {
@@ -31,7 +30,7 @@ interface Props {
   onLogout: () => void;
 }
 
-type SectionId = 'overview' | 'analytics' | 'academic-catalog' | 'sponsors' | 'store' | 'events' | 'tournaments' | 'workshops' | 'participants' | 'announcements' | 'communications' | 'payments' | 'walkin' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook' | 'vex-roles' | 'schools' | 'registrations' | 'profile' | 'settings';
+type SectionId = 'overview' | 'analytics' | 'academic-catalog' | 'sponsors' | 'store' | 'events' | 'tournaments' | 'workshops' | 'participants' | 'announcements' | 'communications' | 'payments' | 'walkin' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook' | 'vex-roles' | 'schools' | 'registrations' | 'account';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: Activity, group: 'main' },
@@ -56,8 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'vex-matches', label: 'Matches', icon: Swords, group: 'vex' },
   { id: 'vex-notebook', label: 'Notebook', icon: BookOpen, group: 'vex' },
   { id: 'vex-roles', label: 'VEX Roles', icon: UserCog, group: 'vex' },
-  { id: 'profile', label: 'My Profile', icon: User, group: 'system' },
-  { id: 'settings', label: 'Account Settings', icon: Settings, group: 'system' },
+  { id: 'account', label: 'My Account', icon: User, group: 'system' },
 ];
 
 export default function ManagerDashboard({ currentUser, onLogout }: Props) {
@@ -113,8 +111,7 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       case 'vex-matches': return <VexMatchesSection />;
       case 'vex-notebook': return <VexNotebookSection />;
       case 'vex-roles': return <VexRolesSection />;
-      case 'profile': return <ProfileOverview currentUser={currentUser} />;
-      case 'settings': return <AccountSettings />;
+      case 'account': return <AdminAccount currentUser={currentUser} />;
     }
   };
 

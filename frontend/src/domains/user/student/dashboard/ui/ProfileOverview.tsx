@@ -7,10 +7,11 @@ import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
 interface Props {
   currentUser: UserProfile;
+  enrollmentCount?: number;
   onUserUpdate?: (user: UserProfile) => void;
 }
 
-export default function ProfileOverview({ currentUser, onUserUpdate }: Props) {
+export default function ProfileOverview({ currentUser, enrollmentCount = 0, onUserUpdate }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -199,12 +200,12 @@ export default function ProfileOverview({ currentUser, onUserUpdate }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-            <BookOpen className="w-6 h-6 text-[#2563EB]" />
+          <div className="w-12 h-12 rounded-full bg-brand-blue/10 flex items-center justify-center shrink-0">
+            <BookOpen className="w-6 h-6 text-brand-blue" />
           </div>
           <div>
             <p className="text-xs font-mono font-bold text-brand-muted uppercase">Active Tracks</p>
-            <p className="font-sans font-bold text-slate-900 text-lg leading-tight mt-0.5">{0} Programs</p>
+            <p className="font-sans font-bold text-slate-900 text-lg leading-tight mt-0.5">{enrollmentCount} Program{enrollmentCount !== 1 ? 's' : ''}</p>
           </div>
         </div>
 

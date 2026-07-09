@@ -141,7 +141,7 @@ export async function completeEnrollmentApi(id: string): Promise<Enrollment> {
 
 // ─── Students ───
 export async function fetchStudentsApi(): Promise<StudentProfile[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/?q=`)); }
+  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/`)); }
   catch { return []; }
 }
 
@@ -203,8 +203,9 @@ export async function updateStudentProgressApi(id: string, payload: { status: st
 }
 
 // ─── Learning Materials ───
-export async function fetchLearningMaterialsApi(subProgramId: string): Promise<LearningMaterial[]> {
-  try { return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/?sub_program=${subProgramId}`)); }
+export async function fetchLearningMaterialsApi(subProgramId?: string): Promise<LearningMaterial[]> {
+  const params = subProgramId ? `?sub_program=${subProgramId}` : '';
+  try { return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/${params}`)); }
   catch { return []; }
 }
 

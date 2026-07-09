@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2 } from 'lucide-react';
-import { fetchEnrollmentsApi, cancelEnrollmentApi } from '@/src/domains/learning/academics/api/academicApi';
-import type { Enrollment } from '@/src/shared/types';
+import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff } from 'lucide-react';
+import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf } from '@/src/domains/learning/academics/api/academicApi';
+import type { Enrollment, StudentCertificate } from '@/src/shared/types';
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
@@ -23,10 +23,15 @@ export default function MyRegistrations({ studentId }: Props) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [registrations, setRegistrations] = useState<Enrollment[]>([]);
+  const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(setRegistrations).catch(() => {}).finally(() => setLoading(false));
+    fetchEnrollmentsApi(studentId).then(setRegistrations).catch(() => {
+      setPermissionDenied(true);
+      fetchStudentCertificatesApi(studentId).then(setCertificates).catch(() => {});
+    }).finally(() => setLoading(false));
   }, [studentId]);
 
   const cancelRegistration = async (id: string) => {
@@ -43,6 +48,45 @@ export default function MyRegistrations({ studentId }: Props) {
   });
 
   const totalFee = 0;
+
+  if (loading) {
+    return (
+      <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" /></div>
+    );
+  }
+
+  if (permissionDenied && registrations.length === 0) {
+    return (
+      <div>
+        <div className="bg-white border border-brand-border rounded-2xl p-8 text-center">
+          <ShieldOff className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+          <h3 className="font-bold text-lg text-slate-900 mb-2">Enrollments Unavailable</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
+            Student enrollment data requires staff-level access. If you recently enrolled, please contact the administration.
+          </p>
+          {certificates.length > 0 && (
+            <div className="mt-4 pt-6 border-t border-brand-border">
+              <p className="text-sm font-medium text-slate-700 mb-3">Your Certificates ({certificates.length})</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {certificates.map(c => (
+                  <span key={c.id} className="inline-flex items-center gap-1.5 text-xs font-medium bg-brand-red/5 text-brand-red px-3 py-1.5 rounded-full border border-brand-red/10">
+                    <Shield className="w-3.5 h-3.5" />
+                    {c.certificate_title || c.sub_program_name || 'Certificate'}
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => downloadEnrollmentReportPdf(studentId)}
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red px-4 py-2 rounded-lg hover:bg-brand-red-dark transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" /> Download PDF Report
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -79,55 +123,51 @@ export default function MyRegistrations({ studentId }: Props) {
           </select>
         </div>
 
-        {loading ? (
-          <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-brand-border">
-                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Program</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Class</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Branch</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Date</th>
-                  <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((reg) => {
-                  const StatusIcon = STATUS_ICONS[reg.status] || Clock;
-                  return (
-                    <tr key={reg.id} className="border-b border-brand-border last:border-0 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-xs font-medium text-slate-900">{reg.program_name || reg.sub_program_name || '—'}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{reg.class_name || '—'}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{reg.branch_name || '—'}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {reg.enrolled_at?.slice(0, 10)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[reg.status] || 'bg-slate-100 text-slate-600'}`}>
-                          <StatusIcon className="w-3 h-3" />
-                          {reg.status === 'PENDING_PAYMENT' ? 'Pending' : reg.status.charAt(0) + reg.status.slice(1).toLowerCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {reg.status === 'ACTIVE' || reg.status === 'PENDING_PAYMENT' ? (
-                          <button onClick={() => cancelRegistration(reg.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" title="Cancel">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-8 text-xs text-slate-400">No registrations found</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-brand-border">
+                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Program</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Class</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Branch</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Date</th>
+                <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((reg) => {
+                const StatusIcon = STATUS_ICONS[reg.status] || Clock;
+                return (
+                  <tr key={reg.id} className="border-b border-brand-border last:border-0 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 text-xs font-medium text-slate-900">{reg.program_name || reg.sub_program_name || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{reg.class_name || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{reg.branch_name || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> {reg.enrolled_at?.slice(0, 10)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[reg.status] || 'bg-slate-100 text-slate-600'}`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {reg.status === 'PENDING_PAYMENT' ? 'Pending' : reg.status.charAt(0) + reg.status.slice(1).toLowerCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {reg.status === 'ACTIVE' || reg.status === 'PENDING_PAYMENT' ? (
+                        <button onClick={() => cancelRegistration(reg.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" title="Cancel">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={6} className="text-center py-8 text-xs text-slate-400">No registrations found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

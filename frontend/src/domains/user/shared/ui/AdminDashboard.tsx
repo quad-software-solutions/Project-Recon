@@ -24,26 +24,25 @@ import {
   createStaffApi,
   createBranchManagerApi,
   updateUserApi,
-  fetchAuditLogsApi,
   resolveRole,
   formatRelativeTime,
   formatJoinDate,
   branchesApi,
   assignmentsApi,
   type AdminUserResponse,
-  type AuditLogEntry,
   type PaginatedResponse,
   type BranchResponse,
   type AssignmentResponse,
 } from '../api/adminApi';
 import { getNotifications } from '@/src/domains/notification/model/notificationApi';
 import UserManagementPanel from './UserManagementPanel';
-import AccountSettings from '@/src/shared/ui/AccountSettings';
-import ProfileOverview from '@/src/domains/user/student/dashboard/ui/ProfileOverview';
+import AdminAccount from './AdminAccount';
+import SystemHealth from './SystemHealth';
+import SystemLogs from './SystemLogs';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'settings' | 'account' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms' | 'profile';
+type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'settings' | 'account' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
@@ -59,8 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'audit', label: 'System Logs', icon: FileText, group: 'system' },
   { id: 'notifications', label: 'Notifications', icon: Bell, group: 'system' },
   { id: 'settings', label: 'System Settings', icon: Settings, group: 'system' },
-  { id: 'profile', label: 'My Profile', icon: Shield, group: 'system' },
-  { id: 'account', label: 'Account', icon: Settings, group: 'system' },
+  { id: 'account', label: 'My Account', icon: Shield, group: 'system' },
   { id: 'maintenance', label: 'System Health', icon: Activity, group: 'system' },
 ];
 
@@ -71,7 +69,7 @@ const pageTitle: Record<SectionId, string> = {
   branches: 'Branch Management', registrations: 'Registration Management',
   moderation: 'Content Moderation', audit: 'Audit Logs',
   notifications: 'Notifications', settings: 'System Settings', maintenance: 'Maintenance',
-  cms: 'Content Management', profile: 'My Profile', account: 'Account Settings',
+  cms: 'Content Management', account: 'My Account',
 };
 
 /* ─── HELPERS ─── */
@@ -1381,110 +1379,6 @@ function ContentModeration() {
   );
 }
 
-function AuditLogs() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [actionFilter, setActionFilter] = useState<'all' | 'write' | 'auth' | 'danger'>('all');
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetchAuditLogsApi();
-      setLogs(res);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load audit logs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const typeBadge = (action: string) => {
-    const actionLower = action.toLowerCase();
-    if (actionLower.includes('create') || actionLower.includes('generat')) return 'bg-emerald-50 text-emerald-600';
-    if (actionLower.includes('update') || actionLower.includes('change') || actionLower.includes('edit')) return 'bg-amber-50 text-amber-600';
-    if (actionLower.includes('delet') || actionLower.includes('remov') || actionLower.includes('suspend')) return 'bg-red-50 text-red-600';
-    if (actionLower.includes('login') || actionLower.includes('logout')) return 'bg-blue-50 text-blue-600';
-    return 'bg-slate-100 text-slate-600';
-  };
-
-  const formatAuditDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-
-  const visibleLogs = logs.filter(log => {
-    const action = log.action.toLowerCase();
-    const matchesQuery = [log.action, log.actor?.full_name, log.resource_type, log.ip_address].filter(Boolean).some(value => String(value).toLowerCase().includes(query.toLowerCase()));
-    const matchesFilter =
-      actionFilter === 'all' ||
-      (actionFilter === 'auth' && (action.includes('login') || action.includes('logout'))) ||
-      (actionFilter === 'danger' && (action.includes('delete') || action.includes('remove') || action.includes('suspend') || action.includes('archive'))) ||
-      (actionFilter === 'write' && (action.includes('create') || action.includes('update') || action.includes('change') || action.includes('edit')));
-    return matchesQuery && matchesFilter;
-  });
-
-  const signals = [
-    { label: 'Entries', value: String(logs.length), detail: 'loaded from API', icon: FileText, tone: 'slate' as const },
-    { label: 'Writes', value: String(logs.filter(l => /create|update|change|edit/i.test(l.action)).length), detail: 'configuration changes', icon: Edit3, tone: 'amber' as const },
-    { label: 'Auth Events', value: String(logs.filter(l => /login|logout/i.test(l.action)).length), detail: 'access activity', icon: Lock, tone: 'blue' as const },
-    { label: 'Danger Ops', value: String(logs.filter(l => /delete|remove|suspend|archive/i.test(l.action)).length), detail: 'needs review', icon: AlertTriangle, tone: 'red' as const },
-  ];
-
-  return (
-    <div className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4" /></button>
-        </div>
-      )}
-      <DashboardCommandCenter title="System Logs" subtitle="Trace account, branch, CMS, and security activity." signals={signals} />
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search action, actor, IP..." className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-blue/40" />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {(['all', 'write', 'auth', 'danger'] as const).map(item => (
-            <button key={item} onClick={() => setActionFilter(item)} className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wide ${actionFilter === item ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-500 hover:text-slate-900'}`}>{item}</button>
-          ))}
-        <span className="text-xs text-slate-400">{visibleLogs.length} shown</span>
-        <button onClick={load} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100" title="Refresh"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
-        </div>
-      </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left"><tr><th className="px-4 py-3 font-semibold text-slate-600">Action</th><th className="px-4 py-3 font-semibold text-slate-600">Actor</th><th className="px-4 py-3 font-semibold text-slate-600 hidden md:table-cell">Resource</th><th className="px-4 py-3 font-semibold text-slate-600 hidden lg:table-cell">Date</th><th className="px-4 py-3 font-semibold text-slate-600">IP</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />Loading audit logs...</td></tr>
-            ) : visibleLogs.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400">No audit log entries found</td></tr>
-            ) : visibleLogs.map(l => (
-              <tr key={l.id} className="hover:bg-slate-50/50">
-                <td className="px-4 py-3 font-medium text-slate-900">{l.action}</td>
-                <td className="px-4 py-3 text-slate-600">{l.actor?.full_name || 'System'}</td>
-                <td className="px-4 py-3 text-slate-500 hidden md:table-cell">
-                  <span className="text-xs">{l.resource_type}</span>
-                  {l.resource_id && <span className="text-[10px] text-slate-400 ml-1">#{l.resource_id.slice(0, 8)}</span>}
-                </td>
-                <td className="px-4 py-3 text-slate-500 hidden lg:table-cell text-xs">{formatAuditDate(l.created_at)}</td>
-                <td className="px-4 py-3"><span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${typeBadge(l.action)}`}>{l.ip_address || '—'}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function NotificationsPanel() {
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -2064,29 +1958,6 @@ function VexRolesAdmin() {
   );
 }
 
-function MaintenancePanel() {
-  const metrics = [
-    { label: 'Server Uptime', value: '99.97%', status: 'healthy' },
-    { label: 'Database Size', value: '2.4 GB', status: 'healthy' },
-    { label: 'API Response', value: '124ms avg', status: 'healthy' },
-    { label: 'Error Rate', value: '0.02%', status: 'healthy' },
-    { label: 'Queue Depth', value: '14 tasks', status: 'warning' },
-    { label: 'Cache Hit Rate', value: '87%', status: 'healthy' },
-  ];
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {metrics.map(m => <div key={m.label} className={`bg-white border rounded-xl p-4 ${m.status === 'warning' ? 'border-amber-200' : 'border-slate-200'}`}><p className="text-xs text-slate-500">{m.label}</p><p className="text-lg font-bold text-slate-900 mt-1">{m.value}</p><span className={`inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.status === 'healthy' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{m.status}</span></div>)}
-      </div>
-      <div className="flex gap-3">
-        <button className="flex items-center gap-1.5 px-4 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark"><RefreshCw className="w-4 h-4" /> Run Backup</button>
-        <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"><Download className="w-4 h-4" /> Export Logs</button>
-        <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" /> Clear Cache</button>
-      </div>
-    </div>
-  );
-}
-
 function AdminRegistrations() {
   const [registrations, setRegistrations] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
@@ -2164,12 +2035,11 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'vex-roles': return <VexRolesAdmin />;
       case 'branches': return <BranchSectionShell />;
       case 'moderation': return <ContentModeration />;
-      case 'audit': return <AuditLogs />;
+      case 'audit': return <SystemLogs />;
       case 'notifications': return <NotificationsPanel />;
       case 'settings': return <SystemSettings />;
-      case 'profile': return <ProfileOverview currentUser={currentUser} />;
-      case 'account': return <AccountSettings />;
-      case 'maintenance': return <MaintenancePanel />;
+      case 'account': return <AdminAccount currentUser={currentUser} />;
+      case 'maintenance': return <SystemHealth />;
       case 'registrations': return <AdminRegistrations />;
       case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;
       default: return <Overview />;

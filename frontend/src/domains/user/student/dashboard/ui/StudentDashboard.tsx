@@ -2,20 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   User, CalendarDays, Target, Calendar, BookOpen, Medal,
-  Zap, TrendingUp, Clock, Award, Flame, BarChart3,
+  Zap, TrendingUp, Clock, Award, BarChart3,
   ChevronRight, MessageCircle, Trophy, Video, Gift, FileText,
-  Cpu, Swords, ClipboardList, Users, Star, Search, Loader2
+  Cpu, Swords, ClipboardList, Users, Loader2, CheckCircle2
 } from 'lucide-react';
 import { UserProfile, Enrollment } from '@/src/shared/types';
-import { MOCK_VEX_TEAM, MOCK_VEX_MATCHES, MOCK_VEX_AWARDS, MOCK_VEX_ROBOTS } from '@/src/shared/constants/mock-data';
-import { fetchStudentsApi, fetchEnrollmentsApi, fetchProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { fetchStudentsApi, fetchEnrollmentsApi, fetchStudentCertificatesApi, fetchProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
+import { getTournaments, getMatches, getWorkshops } from '@/src/domains/competition/api/competitionApi';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
-import ProfileOverview from './ProfileOverview';
+import Account from './Account';
 import AttendanceTracker from './AttendanceTracker';
 import ProgressMilestones from './ProgressMilestones';
 import UpcomingEvents from './UpcomingEvents';
@@ -34,11 +35,11 @@ interface StudentDashboardProps {
   onLogout: () => void;
 }
 
-type SectionId = 'overview' | 'profile' | 'attendance' | 'progress' | 'events' | 'resources' | 'achievements' | 'feedback' | 'certificates' | 'leaderboard' | 'videos' | 'referrals' | 'vex-team' | 'registrations';
+type SectionId = 'overview' | 'account' | 'attendance' | 'progress' | 'events' | 'resources' | 'achievements' | 'feedback' | 'certificates' | 'leaderboard' | 'videos' | 'referrals' | 'vex-team' | 'registrations';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3, group: 'main' },
-  { id: 'profile', label: 'My Profile', icon: User, group: 'main' },
+  { id: 'account', label: 'Account', icon: User, group: 'main' },
   { id: 'progress', label: 'Milestones', icon: Target, group: 'main' },
   { id: 'achievements', label: 'Achievements', icon: Medal, group: 'main' },
   { id: 'certificates', label: 'Certificates', icon: FileText, group: 'main' },
@@ -66,18 +67,73 @@ export default function StudentDashboard({ currentUser, onLogout }: StudentDashb
   const [studentLoading, setStudentLoading] = useState(true);
   const [enrolledCount, setEnrolledCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
 
   useEffect(() => {
-    fetchStudentsApi().then(students => {
+    let cancelled = false;
+    async function resolveStudent() {
+      // Strategy 1: Use studentId already discovered during login
+      if (currentUser.studentId) {
+        if (!cancelled) setStudentId(currentUser.studentId!);
+        try {
+          const e = await fetchEnrollmentsApi(currentUser.studentId!);
+          if (!cancelled) {
+            setEnrollments(e);
+            setEnrolledCount(e.length);
+            setActiveCount(e.filter(en => en.status === 'ACTIVE').length);
+          }
+        } catch { /* permission denied — expected for students */ }
+        if (!cancelled) setStudentLoading(false);
+        return;
+      }
+      // Strategy 2: Fetch from students list (staff users)
+      const students = await fetchStudentsApi().catch(() => [] as import('@/src/shared/types').StudentProfile[]);
       const s = students.find(st => st.user === currentUser.id || st.email === currentUser.email);
       if (s) {
-        setStudentId(s.id);
-        fetchEnrollmentsApi(s.id).then(e => {
-          setEnrolledCount(e.length);
-          setActiveCount(e.filter(en => en.status === 'ACTIVE').length);
-        }).catch(() => {});
+        if (!cancelled) setStudentId(s.id);
+        try {
+          const e = await fetchEnrollmentsApi(s.id);
+          if (!cancelled) {
+            setEnrollments(e);
+            setEnrolledCount(e.length);
+            setActiveCount(e.filter(en => en.status === 'ACTIVE').length);
+          }
+        } catch { /* permission denied */ }
+        if (!cancelled) setStudentLoading(false);
+        return;
       }
-    }).catch(() => {}).finally(() => setStudentLoading(false));
+      // Strategy 3: Try certificates endpoint (works for students without IsAcademicStaff)
+      try {
+        const certs = await fetchStudentCertificatesApi();
+        if (certs.length > 0 && certs[0].student) {
+          const sid = certs[0].student;
+          if (!cancelled) setStudentId(sid);
+          // Cache for next login
+          localStorage.setItem(`studentId_${currentUser.email}`, sid);
+          try {
+            const e = await fetchEnrollmentsApi(sid);
+            if (!cancelled) {
+              setEnrollments(e);
+              setEnrolledCount(e.length);
+              setActiveCount(e.filter(en => en.status === 'ACTIVE').length);
+            }
+          } catch { /* permission denied */ }
+          if (!cancelled) setStudentLoading(false);
+          return;
+        }
+      } catch { /* no certificates or no student profile */ }
+      // Strategy 4: Check localStorage fallback
+      const storedKey = `studentId_${currentUser.email}`;
+      const storedId = localStorage.getItem(storedKey);
+      if (storedId) {
+        if (!cancelled) setStudentId(storedId);
+        if (!cancelled) setStudentLoading(false);
+        return;
+      }
+      if (!cancelled) setStudentLoading(false);
+    }
+    resolveStudent();
+    return () => { cancelled = true; };
   }, [currentUser.id, currentUser.email]);
 
   const renderPage = () => {
@@ -97,18 +153,18 @@ export default function StudentDashboard({ currentUser, onLogout }: StudentDashb
     }
     switch (activeSection) {
       case 'overview':
-        return <OverviewPage currentUser={currentUser} studentId={studentId} onNavigate={setActiveSection} />;
-      case 'profile':    return <ProfileOverview currentUser={currentUser} />;
+        return <OverviewPage currentUser={currentUser} studentId={studentId} onNavigate={setActiveSection} enrollments={enrollments} />;
+      case 'account':    return <Account currentUser={currentUser} studentId={studentId} />;
       case 'attendance': return <AttendanceTracker studentId={studentId} />;
       case 'progress':   return <ProgressMilestones studentId={studentId} />;
       case 'events':     return <UpcomingEvents />;
       case 'resources':  return <LearningResources studentId={studentId} />;
-      case 'achievements': return <Achievements />;
+      case 'achievements': return <Achievements currentUser={currentUser} />;
       case 'feedback':   return <ParentFeedback />;
       case 'certificates': return <CertificateGenerator studentId={studentId} />;
       case 'leaderboard': return <Leaderboard />;
       case 'videos':     return <VideoLibrary />;
-      case 'referrals':  return <ReferralProgram />;
+      case 'referrals':  return <ReferralProgram currentUser={currentUser} />;
       case 'vex-team':   return <VexTeamHub />;
       case 'registrations': return <MyRegistrations studentId={studentId} />;
     }
@@ -140,7 +196,7 @@ export default function StudentDashboard({ currentUser, onLogout }: StudentDashb
           { label: 'XP', value: currentUser.xpPoints.toLocaleString(), detail: 'current points', icon: Zap, tone: 'amber' },
           { label: 'Active', value: String(activeCount), detail: 'active enrollments', icon: TrendingUp, tone: 'emerald' },
           { label: 'Programs', value: String(enrolledCount), detail: 'currently enrolled', icon: BookOpen, tone: enrolledCount ? 'blue' : 'amber' },
-          { label: 'VEX Team', value: MOCK_VEX_TEAM.name ? 'Ready' : 'Open', detail: 'team hub status', icon: Users, tone: 'emerald' },
+          { label: 'Badges', value: String(currentUser.badges.length), detail: 'earned', icon: Award, tone: 'emerald' },
         ]}
       />
       {renderPage()}
@@ -154,59 +210,47 @@ interface OverviewProps {
   currentUser: UserProfile;
   studentId: string;
   onNavigate: (s: SectionId) => void;
+  enrollments: Enrollment[];
 }
 
-function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+function OverviewPage({ currentUser, studentId, onNavigate, enrollments }: OverviewProps) {
   const [loading, setLoading] = useState(true);
-  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [newsEvents, setNewsEvents] = useState<{ title: string; date: string }[]>([]);
+  const [vexStats, setVexStats] = useState({ tournaments: 0, matches: 0, wins: 0 });
 
   useEffect(() => {
     Promise.all([
-      fetchEnrollmentsApi(studentId),
-      fetchProgramsApi(),
-    ]).then(([enr, progs]) => {
-      setEnrollments(enr);
-      setPrograms(progs.map(p => ({ id: p.id, name: p.name })));
+      cmsPublicApi.getNews({ limit: '3' }),
+      getTournaments(),
+      getMatches(),
+    ]).then(([news, tor, mat]) => {
+      const items = news?.results || [];
+      setNewsEvents(items.map(n => ({
+        title: n.title,
+        date: new Date(n.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      })));
+      const torList = tor || [];
+      const matList = mat || [];
+      setVexStats({
+        tournaments: torList.length,
+        matches: matList.length,
+        wins: matList.filter(m => m.status === 'completed' && m.score1 > m.score2).length,
+      });
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [studentId]);
+  }, []);
 
   const firstName = currentUser.name.split(' ')[0];
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
   const completedEnrollments = enrollments.filter(e => e.status === 'COMPLETED');
-  const streakDays = 12;
+
   const completedProjects = completedEnrollments.length;
-  const progressPct = activeEnrollments.length > 0 ? 65 : 0;
 
   const quickStats = [
     { label: 'XP Points', value: currentUser.xpPoints.toLocaleString(), icon: Zap, color: 'text-amber-400' },
-    { label: 'Day Streak', value: `${streakDays} days`, icon: Flame, color: 'text-orange-400' },
-    { label: 'Progress', value: `${progressPct}%`, icon: TrendingUp, color: 'text-emerald-400' },
-    { label: 'Enrollments', value: `${enrollments.length}`, icon: BookOpen, color: 'text-purple-400' },
+    { label: 'Badges', value: `${currentUser.badges.length}`, icon: Award, color: 'text-purple-400' },
+    { label: 'Completed', value: `${completedProjects}`, icon: CheckCircle2, color: 'text-emerald-400' },
+    { label: 'Enrollments', value: `${enrollments.length}`, icon: BookOpen, color: 'text-brand-blue' },
   ];
-
-  const upcomingItems = [
-    { title: 'VEX Regional Finals Prep', date: 'Sat 15th', dotColor: 'bg-brand-blue' },
-    { title: 'Enjoy AI Webinar', date: 'Wed 19th', dotColor: 'bg-brand-red' },
-    { title: 'Global STEM Tour Orientation', date: 'Fri 21st', dotColor: 'bg-gray-500' },
-  ];
-
-  const recentBadges = [
-    { title: 'Robotics Master', icon: '🏆' },
-    { title: 'Code Guardian', icon: '🛡️' },
-    { title: 'AI Innovator', icon: '⭐' },
-  ];
-
-  const weekActivity = [
-    { day: 'Mon', hours: 3.5 },
-    { day: 'Tue', hours: 4.5 },
-    { day: 'Wed', hours: 2 },
-    { day: 'Thu', hours: 5 },
-    { day: 'Fri', hours: 3.5 },
-    { day: 'Sat', hours: 6 },
-    { day: 'Sun', hours: 1 },
-  ];
-  const maxHours = Math.max(...weekActivity.map(w => w.hours));
 
   return (
     <div className="pb-8">
@@ -219,12 +263,12 @@ function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-black text-brand-red uppercase tracking-widest mb-0.5">{getGreeting()}</p>
             <h2 className="font-black text-2xl md:text-3xl text-slate-900 tracking-tight">Welcome back, {firstName}!</h2>
-            <p className="text-sm text-slate-500 mt-0.5">You're on a <strong className="text-brand-red">{streakDays}-day streak</strong>. Keep building!</p>
+            <p className="text-sm text-slate-500 mt-0.5">{activeEnrollments.length} active enrollment{activeEnrollments.length !== 1 ? 's' : ''} · {currentUser.badges.length} badge{currentUser.badges.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="hidden sm:flex gap-2 shrink-0">
             {currentUser.badges.slice(0, 3).map((badge, i) => (
               <div key={i} className="w-10 h-10 rounded-xl bg-slate-100 border border-brand-border flex items-center justify-center text-lg" title={badge}>
-                {recentBadges[i]?.icon || '🎖️'}
+                {['🏆', '🛡️', '⭐'][i] || '🎖️'}
               </div>
             ))}
           </div>
@@ -268,7 +312,7 @@ function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
                   <div className="mt-2 w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${progressPct}%` }}
+                      animate={{ width: `${completedProjects > 0 ? Math.min(100, Math.round((completedProjects / (activeEnrollments.length + completedProjects)) * 100)) : 0}%` }}
                       transition={{ duration: 1, delay: 0.3 + i * 0.2 }}
                       className="h-full bg-gradient-to-r from-brand-red to-brand-red-dark rounded-full"
                     />
@@ -286,25 +330,24 @@ function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
         </div>
 
         <div className="bg-white border border-brand-border rounded-2xl p-5 flex flex-col">
-          <h3 className="font-black text-lg text-slate-900 mb-1">Weekly Activity</h3>
-          <p className="text-sm text-slate-500 mb-6">Hours spent this week</p>
-          <div className="flex-1 flex items-end gap-2 min-h-[160px]">
-            {weekActivity.map((w, i) => (
-              <div key={w.day} className="flex-1 flex flex-col items-center gap-2">
-                <span className="text-xs font-black text-slate-400">{w.hours}h</span>
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${(w.hours / maxHours) * 100}%` }}
-                  transition={{ duration: 0.6, delay: i * 0.08 }}
-                  className="w-full bg-gradient-to-t from-brand-red to-brand-red-dark rounded-t-lg min-h-[8px]"
-                />
-                <span className="text-xs text-slate-400">{w.day}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-brand-border flex justify-between items-center">
-            <span className="text-sm text-slate-500 font-medium">Total</span>
-            <span className="text-base font-black text-brand-red">{weekActivity.reduce((s, w) => s + w.hours, 0)}h</span>
+          <h3 className="font-black text-lg text-slate-900 mb-1">Quick Stats</h3>
+          <p className="text-sm text-slate-500 mb-6">Your learning at a glance</p>
+          <div className="flex-1 space-y-4">
+            {[
+              { label: 'Active Enrollments', value: activeEnrollments.length, icon: BookOpen, color: 'text-brand-red' },
+              { label: 'Completed', value: completedProjects, icon: CheckCircle2, color: 'text-emerald-500' },
+              { label: 'XP Points', value: currentUser.xpPoints.toLocaleString(), icon: Zap, color: 'text-amber-500' },
+              { label: 'Badges Earned', value: currentUser.badges.length, icon: Award, color: 'text-purple-500' },
+            ].map((s, i) => {
+              const SIcon = s.icon;
+              return (
+                <motion.div key={s.label} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+                  <SIcon className={`w-5 h-5 ${s.color}`} />
+                  <div><p className="font-bold text-sm text-slate-900">{s.value}</p><p className="text-[10px] text-slate-500">{s.label}</p></div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -319,22 +362,25 @@ function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
             </button>
           </div>
           <div className="space-y-3">
-            {upcomingItems.map((ev, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + i * 0.1 }}
+            {loading ? (
+              <div className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
+            ) : newsEvents.length > 0 ? newsEvents.map((ev, i) => (
+              <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.1 }}
                 className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-brand-border hover:border-brand-red/20 transition-colors"
               >
-                <div className={`w-3 h-3 rounded-full ${ev.dotColor} shrink-0`} />
+                <div className={`w-3 h-3 rounded-full ${['bg-brand-blue', 'bg-brand-red', 'bg-emerald-500'][i % 3]} shrink-0`} />
                 <div className="flex-1">
                   <h4 className="font-bold text-sm text-slate-900">{ev.title}</h4>
                   <p className="text-xs text-slate-500 font-medium">{ev.date}</p>
                 </div>
                 <Clock className="w-4 h-4 text-slate-400" />
               </motion.div>
-            ))}
+            )) : (
+              <div className="text-center py-6 text-slate-400">
+                <Calendar className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-xs">No upcoming events</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -347,14 +393,10 @@ function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {currentUser.badges.slice(0, 6).map((badge, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3 + i * 0.1 }}
+              <motion.div key={i} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 + i * 0.1 }}
                 className="flex flex-col items-center p-4 rounded-xl bg-slate-50 border border-brand-border hover:-translate-y-0.5 hover:border-brand-red/20 transition-all"
               >
-                <span className="text-2xl mb-2">{recentBadges[i]?.icon || '🎖️'}</span>
+                <span className="text-2xl mb-2">{['🏆', '🛡️', '⭐', '🎖️', '🏅', '🔰'][i] || '🎖️'}</span>
                 <span className="font-bold text-xs text-slate-600 text-center leading-tight">{badge}</span>
               </motion.div>
             ))}
@@ -368,44 +410,41 @@ function OverviewPage({ currentUser, studentId, onNavigate }: OverviewProps) {
         </div>
       </div>
 
-      {/* VEX Team Summary */}
-      <div className="mt-6">
-        <div className="bg-white border border-brand-border rounded-2xl p-5">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Cpu className="w-5 h-5 text-brand-red" />
-                <h3 className="font-black text-lg text-slate-900">VEX Competition Team</h3>
-                <span className="text-[10px] font-mono font-bold bg-brand-red/10 text-brand-red px-2 py-0.5 rounded-full">#{MOCK_VEX_TEAM.number}</span>
-              </div>
-              <p className="text-sm text-slate-500 font-medium">{MOCK_VEX_TEAM.name} · {MOCK_VEX_TEAM.school}</p>
-            </div>
-            <button onClick={() => onNavigate('vex-team')} className="text-sm font-black text-brand-red hover:underline flex items-center gap-1 shrink-0 uppercase tracking-wider">
-              Full Hub <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            {[
-              { label: 'Active Robots', value: MOCK_VEX_ROBOTS.filter(r => r.status === 'active').length.toString(), icon: Cpu, color: 'text-cyan-400' },
-              { label: 'Awards', value: MOCK_VEX_AWARDS.filter(a => !a.upcoming).length.toString(), icon: Trophy, color: 'text-yellow-400' },
-              { label: 'Wins', value: MOCK_VEX_MATCHES.filter(m => m.result === 'win').length.toString(), icon: Swords, color: 'text-emerald-400' },
-              { label: 'Members', value: MOCK_VEX_TEAM.members.length.toString(), icon: User, color: 'text-blue-400' },
-            ].map((stat, i) => {
-              const StatIcon = stat.icon;
-              return (
-                <div key={i} className="bg-slate-50 rounded-xl p-3 border border-brand-border">
-                  <StatIcon className={`w-4 h-4 ${stat.color} mb-1`} />
-                  <p className="font-black text-xl text-slate-900">{stat.value}</p>
-                  <p className="text-xs text-slate-500 font-medium">{stat.label}</p>
+      {/* VEX Competition Summary */}
+      {vexStats.tournaments > 0 && (
+        <div className="mt-6">
+          <div className="bg-white border border-brand-border rounded-2xl p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Cpu className="w-5 h-5 text-brand-red" />
+                  <h3 className="font-black text-lg text-slate-900">VEX Competition</h3>
                 </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">{MOCK_VEX_TEAM.members.slice(0, 3).join(', ')}{MOCK_VEX_TEAM.members.length > 3 ? ` +${MOCK_VEX_TEAM.members.length - 3} more` : ''}</span>
+                <p className="text-sm text-slate-500 font-medium">Active tournaments and matches</p>
+              </div>
+              <button onClick={() => onNavigate('vex-team')} className="text-sm font-black text-brand-red hover:underline flex items-center gap-1 shrink-0 uppercase tracking-wider">
+                Full Hub <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Tournaments', value: vexStats.tournaments.toString(), icon: Trophy, color: 'text-amber-500' },
+                { label: 'Matches', value: vexStats.matches.toString(), icon: Swords, color: 'text-brand-blue' },
+                { label: 'Wins', value: vexStats.wins.toString(), icon: Award, color: 'text-emerald-500' },
+              ].map((stat, i) => {
+                const StatIcon = stat.icon;
+                return (
+                  <div key={i} className="bg-slate-50 rounded-xl p-3 border border-brand-border">
+                    <StatIcon className={`w-4 h-4 ${stat.color} mb-1`} />
+                    <p className="font-black text-xl text-slate-900">{stat.value}</p>
+                    <p className="text-xs text-slate-500 font-medium">{stat.label}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
