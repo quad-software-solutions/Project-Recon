@@ -46,19 +46,24 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   const [programsLoading, setProgramsLoading] = useState(true);
 
   React.useEffect(() => {
-    cmsPublicApi.getPartners()
+    const abort = new AbortController();
+    const { signal } = abort;
+
+    cmsPublicApi.getPartners(signal)
       .then(data => setPartners(data.filter(p => p.is_active)))
-      .catch(console.error);
-    
-    cmsPublicApi.getFaqs()
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); });
+
+    cmsPublicApi.getFaqs(signal)
       .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))))
-      .catch(console.error);
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
     setProgramsLoading(true);
-    getPrograms()
+    getPrograms(signal)
       .then(data => setPrograms(data))
-      .catch(console.error)
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); })
       .finally(() => setProgramsLoading(false));
+
+    return () => abort.abort();
   }, []);
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
@@ -92,13 +97,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   };
 
   return (
-    <motion.div
-      key="home-screen"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-    >
+    <>
       <Hero
         onDiscoverPrograms={() => {
           const el = document.getElementById('academic-programs');
@@ -131,7 +130,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
+                    transition={{ delay: Math.min(i * 0.1, 0.6) }}
                   className="text-center"
                 >
                   <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mx-auto mb-3">
@@ -182,7 +181,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
+                  transition={{ delay: Math.min(idx * 0.1, 0.6) }}
                 className={`flex items-center justify-center animate-logo-float ${idx === 6 ? 'col-span-2 sm:col-span-3' : ''}`}
                 style={{ animationDelay: `${(idx % 4) * 0.3}s` }}
               >
@@ -267,7 +266,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               initial={{ opacity: 0, y: 35 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.15 }}
+              transition={{ duration: 0.5, delay: Math.min(idx * 0.15, 0.6) }}
               className="bg-white rounded-card shadow-premium-sm hover:shadow-premium-lg border border-brand-border-light/45 overflow-hidden flex flex-col group h-full transition-all duration-500 card-float hover:shadow-[0_20px_60px_-8px_rgba(37,51,141,0.15)] hover:border-[#25338d]/20"
             >
               <div className="relative aspect-video w-full bg-slate-100 overflow-hidden cursor-pointer" onClick={() => onSetSelectedProgramSpec(prog)}>
@@ -424,10 +423,10 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: idx * 0.08 }}
+              transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.6) }}
               className="group relative rounded-xl overflow-hidden border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all aspect-[4/3]"
             >
-              <img src={photo.src} alt={photo.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <img src={photo.src} alt={photo.label} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
                 <span className="text-white font-sans font-bold text-xs">{photo.label}</span>
               </div>
@@ -534,6 +533,6 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
           </motion.div>
         </div>
       </motion.section>
-    </motion.div>
+    </>
   );
 }

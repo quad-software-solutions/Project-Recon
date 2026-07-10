@@ -48,7 +48,7 @@ export default function App() {
 
   const handleLogoutAndNavigate = () => {
     handleLogout();
-    handleTabChange('home');
+    handleTabChange('login');
   };
 
   const [selectedProgramSpec, setSelectedProgramSpec] = useState<any>(null);
@@ -130,8 +130,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-paper text-brand-ink flex flex-col font-sans animated-grid-bg relative overflow-x-hidden" id="applet-viewport">
-      <AnimatedParticles />
+    <div className="min-h-screen bg-brand-paper text-brand-ink flex flex-col font-sans relative overflow-x-hidden" id="applet-viewport">
 
       {activeTab !== 'dashboard' && (
         <Navbar

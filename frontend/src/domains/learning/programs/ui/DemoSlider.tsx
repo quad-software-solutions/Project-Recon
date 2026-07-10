@@ -72,6 +72,7 @@ export default function DemoSlider({ slides, onCta }: DemoSliderProps) {
                     loop
                     muted
                     playsInline
+                    preload="none"
                     className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-500"
                   />
                   ) : (

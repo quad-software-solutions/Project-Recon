@@ -16,6 +16,13 @@ function ParticleField() {
     if (!ctx) return;
 
     let animFrame: number;
+    let running = true;
+    const observer = new IntersectionObserver(([entry]) => {
+      running = entry.isIntersecting;
+      if (running) animate();
+      else cancelAnimationFrame(animFrame);
+    });
+    observer.observe(canvas);
     const particles: { x: number; y: number; vx: number; vy: number; size: number; alpha: number; life: number; maxLife: number }[] = [];
 
     function resize() {
@@ -40,7 +47,7 @@ function ParticleField() {
     }
 
     function animate() {
-      if (!ctx || !canvas) return;
+      if (!ctx || !canvas || !running) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let i = particles.length - 1; i >= 0; i--) {
@@ -77,6 +84,7 @@ function ParticleField() {
 
     return () => {
       cancelAnimationFrame(animFrame);
+      observer.disconnect();
       window.removeEventListener('resize', resize);
     };
   }, []);

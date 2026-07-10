@@ -59,9 +59,9 @@ function toProgramDisplay(p: any, index = 0): ProgramDisplay {
   };
 }
 
-export async function getPrograms(): Promise<ProgramDisplay[]> {
+export async function getPrograms(signal?: AbortSignal): Promise<ProgramDisplay[]> {
   try {
-    const res = await http.get<ProgramListResponse>(`${BASE}/`);
+    const res = await http.get<ProgramListResponse>(`${BASE}/`, { signal });
     const programs = Array.isArray(res) ? res : res.results;
     return programs.filter(program => program.is_active !== false).map(toProgramDisplay);
   } catch {

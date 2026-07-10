@@ -35,14 +35,14 @@ export interface AboutUsResponse {
 }
 
 export const cmsPublicApi = {
-  getHeroBanners: () => http.get<HeroBannerResponse[]>('/cms/hero-banners/'),
-  getNews: (params?: Record<string, string>) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params }),
+  getHeroBanners: (signal?: AbortSignal) => http.get<HeroBannerResponse[]>('/cms/hero-banners/', { signal }),
+  getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
   getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),
-  getPartners: () => http.get<CmsPartnerResponse[]>('/cms/partners/'),
+  getPartners: (signal?: AbortSignal) => http.get<CmsPartnerResponse[]>('/cms/partners/', { signal }),
   getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
   getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
-  getFaqs: async () => {
-    const res = await http.get<FaqResponse[] | { results: FaqResponse[] }>('/cms/faqs/');
+  getFaqs: async (signal?: AbortSignal) => {
+    const res = await http.get<FaqResponse[] | { results: FaqResponse[] }>('/cms/faqs/', { signal });
     return Array.isArray(res) ? res : (res.results ?? []);
   },
   submitContactRequest: (data: { name: string; email: string; subject?: string; description: string }) => 
