@@ -133,17 +133,19 @@ export default function App() {
     <div className="min-h-screen bg-brand-paper text-brand-ink flex flex-col font-sans animated-grid-bg relative overflow-x-hidden" id="applet-viewport">
       <AnimatedParticles />
 
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={handleTabChange}
-        currentUser={currentUser}
-        onLogout={handleLogoutAndNavigate}
-        onOpenAuth={(mode) => {
-          handleTabChange(mode === 'register' ? 'registration' : 'login');
-        }}
-        cartCount={getCartItemsCount()}
-        onOpenCart={openCart}
-      />
+      {activeTab !== 'dashboard' && (
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={handleTabChange}
+          currentUser={currentUser}
+          onLogout={handleLogoutAndNavigate}
+          onOpenAuth={(mode) => {
+            handleTabChange(mode === 'register' ? 'registration' : 'login');
+          }}
+          cartCount={getCartItemsCount()}
+          onOpenCart={openCart}
+        />
+      )}
 
       <main className={`flex-grow ${activeTab !== 'dashboard' && activeTab !== 'command-center' ? 'pt-[64px]' : ''}`}>
         <AnimatePresence mode="wait">

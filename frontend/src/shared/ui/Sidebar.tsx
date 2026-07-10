@@ -89,16 +89,7 @@ export function Sidebar({
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}${drawerOpen ? ' open' : ''}`}>
         {/* Header */}
         <div className="sidebar-header">
-          <div className="flex items-center justify-between">
-            <button onClick={() => handleNav('overview')} className="hover:opacity-80 transition-opacity shrink-0">
-              {collapsed ? (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center">
-                  <span className="text-white font-black text-sm">E</span>
-                </div>
-              ) : (
-                <BrandLogo className="sidebar-logo h-7 w-[90px]" logoUrl={branding.logoUrl || undefined} />
-              )}
-            </button>
+          <div className="flex items-center justify-end">
             <div className="sidebar-header-actions flex items-center">
               {/* Desktop collapse */}
               <button

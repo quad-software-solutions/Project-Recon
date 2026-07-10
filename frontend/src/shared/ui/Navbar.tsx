@@ -79,9 +79,6 @@ const NAV_ITEMS: NavItem[] = [
   { tab: 'registration', label: 'Programs', icon: GraduationCap, mega: 'programs', auth: 'guest' },
   { tab: 'store', label: 'Store', icon: ShoppingBag, mega: 'store', auth: 'guest' },
   { tab: 'competitions', label: 'Events', icon: Trophy, mega: 'events', auth: 'guest' },
-  { tab: 'community', label: 'Community', icon: Users, auth: 'user' },
-  { tab: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, auth: 'user' },
-  { tab: 'command-center', label: 'Command Center', icon: Award, auth: 'user', roles: ['Manager', 'Admin'] },
 ];
 
 const getMegaPanelAlignment = (mega?: string) =>
@@ -296,21 +293,7 @@ export default function Navbar({
 
           {/* Right side: search, notifications, auth */}
           <div className="flex items-center gap-1">
-            {/* Search trigger */}
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-brand-muted-darker bg-brand-blue/5 hover:bg-brand-blue/10 border border-brand-blue/10 hover:border-brand-blue/25 rounded-lg transition-all duration-200 group"
-            >
-              <Search className="w-3.5 h-3.5 text-brand-muted group-hover:text-brand-blue transition-colors" />
-              <span>Search</span>
-              <kbd className="text-[9px] font-mono text-brand-muted bg-white/80 px-1 py-0.5 rounded border border-slate-200/60">⌘K</kbd>
-            </button>
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="sm:hidden p-2 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-all duration-200"
-            >
-              <Search className="w-4 h-4" />
-            </button>
+            {/* Search and cart triggers removed to make header clean */}
 
             {/* Cart button */}
             <button
@@ -327,27 +310,7 @@ export default function Navbar({
             </button>
 
             <div className="hidden sm:flex items-center gap-1">
-              {currentUser ? (
-                <div className="flex items-center gap-1">
-                  <NotificationCenter />
-                  <button
-                    onClick={() => handleNavClick('dashboard')}
-                    className="flex items-center gap-2 text-sm font-medium text-white bg-gradient-to-r from-brand-blue to-brand-blue-dark px-3.5 py-1.5 rounded-lg shadow-[0_3px_10px_-2px_rgba(37,51,141,0.3)] hover:shadow-[0_5px_15px_-2px_rgba(37,51,141,0.4)] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200"
-                    id="nav-profile-button"
-                  >
-                    <User className="w-3.5 h-3.5" />
-                    <span className="max-w-[90px] truncate text-xs">{currentUser.name.split(' ')[0]} · {currentUser.xpPoints}XP</span>
-                  </button>
-                  <button
-                    onClick={onLogout}
-                    className="p-2 rounded-lg text-brand-muted hover:text-brand-red hover:bg-red-50/60 transition-all duration-200"
-                    title="Logout"
-                    id="btn-logout"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
+              {!currentUser && (
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => onOpenAuth('login')}
