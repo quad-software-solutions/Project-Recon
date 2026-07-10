@@ -172,25 +172,7 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <Zap className="w-6 h-6 text-emerald-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase">XP Points</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{currentUser.xpPoints.toLocaleString()}</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-            <Award className="w-6 h-6 text-purple-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase">Badges</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{currentUser.badges.length}</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
             <TrendingUp className="w-6 h-6 text-blue-500" />
@@ -265,19 +247,6 @@ function ProfileInfo({ currentUser }: { currentUser: UserProfile }) {
           <p className="text-sm font-semibold text-slate-900">{currentUser.role}</p>
         </div>
       </div>
-
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Achievements</p>
-        <div className="flex flex-wrap gap-2">
-          {currentUser.badges.length > 0 ? currentUser.badges.map((badge, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-xs font-semibold bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700">
-              <Star className="w-3 h-3 text-amber-400" />{badge}
-            </span>
-          )) : (
-            <p className="text-xs text-slate-400">No badges yet</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -295,11 +264,13 @@ function ChangePasswordForm() {
     setError('');
     setSuccess(false);
     if (!form.current_password || !form.new_password || !form.confirm_password) { setError('All fields are required'); return; }
-    if (form.new_password.length < 8) { setError('Password must be at least 8 characters'); return; }
+    if (form.new_password.length <= 6) { setError('Password must be greater than 6 characters'); return; }
+    if (!/[A-Z]/.test(form.new_password)) { setError('Password must contain at least one uppercase letter'); return; }
+    if (!/[!@#$%^&*(),.?":{}|<>\-_]/.test(form.new_password)) { setError('Password must contain at least one special character'); return; }
     if (form.new_password !== form.confirm_password) { setError('Passwords do not match'); return; }
     setSubmitting(true);
     try {
-      await securityApi.changePassword({ current_password: form.current_password, new_password: form.new_password });
+      await securityApi.changePassword({ old_password: form.current_password, new_password: form.new_password });
       setSuccess(true);
       setForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (e: any) {
@@ -351,6 +322,19 @@ function ChangePasswordForm() {
               {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {form.new_password && (
+            <div className="mt-2 space-y-1 pl-1">
+              <p className={`text-[10px] font-medium flex items-center gap-1.5 transition-colors ${form.new_password.length > 6 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                {form.new_password.length > 6 ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-slate-300" />} Greater than 6 characters
+              </p>
+              <p className={`text-[10px] font-medium flex items-center gap-1.5 transition-colors ${/[A-Z]/.test(form.new_password) ? 'text-emerald-600' : 'text-slate-500'}`}>
+                {/[A-Z]/.test(form.new_password) ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-slate-300" />} At least 1 uppercase letter
+              </p>
+              <p className={`text-[10px] font-medium flex items-center gap-1.5 transition-colors ${/[!@#$%^&*(),.?":{}|<>\-_]/.test(form.new_password) ? 'text-emerald-600' : 'text-slate-500'}`}>
+                {/[!@#$%^&*(),.?":{}|<>\-_]/.test(form.new_password) ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-slate-300" />} At least 1 special character
+              </p>
+            </div>
+          )}
         </div>
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Confirm New Password</label>

@@ -185,10 +185,6 @@ export default function App() {
             <CompetitionPage currentUser={currentUser} />
           )}
 
-          {activeTab === 'community' && (
-            <CommunityPage />
-          )}
-
           {activeTab === 'consultancy' && (
             <motion.div key="consultancy-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
               <LabConsultancy />
@@ -204,12 +200,6 @@ export default function App() {
           {activeTab === 'dashboard' && currentUser && (
             <motion.div key="dashboard-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
               <DashboardPage currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
-            </motion.div>
-          )}
-
-          {activeTab === 'command-center' && currentUser && hasPermission(currentUser, 'command-center:view') && (
-            <motion.div key="command-center-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-              <EventCommandCenter currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
             </motion.div>
           )}
         </AnimatePresence>

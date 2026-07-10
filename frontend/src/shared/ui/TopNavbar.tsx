@@ -41,9 +41,8 @@ export function TopNavbar({ title, subtitle, userName, userRole, onLogout }: Top
           <h1 className="font-semibold text-base text-slate-900 truncate leading-tight">{title}</h1>
         </div>
 
-        {/* Right — notifications + user */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <NotificationCenter />
+        {/* Right — user */}
+        <div className="flex items-center gap-2">
 
           {/* User button */}
           <div className="relative" ref={profileRef}>
