@@ -123,6 +123,7 @@ def delete_team(team: TournamentTeam, actor=None) -> None:
         ValidationError: If tournament is closed.
     """
     TournamentTeamValidator.validate_tournament_not_closed(team.tournament)
+    TournamentTeamValidator.validate_team_not_in_completed_match(team)
 
     with transaction.atomic():
         log_action(actor, "DELETE_TOURNAMENT_TEAM", team, team.id)

@@ -7,8 +7,13 @@ from rest_framework import status
 
 from apps.accounts.models import Branch
 from apps.accounts.services import user_service
-from apps.events.constants import EventStatus, Visibility, EventType
-from apps.events.models import Event, Tournament, TournamentCategory, TournamentTeam
+from apps.events.constants import EventStatus, MatchSideType, MatchStatus, Visibility, EventType
+from apps.events.models import Event, Match, Tournament, TournamentCategory, TournamentTeam
+from apps.events.services.match_service import (
+    assign_team_to_side,
+    create_match,
+    record_scores,
+)
 
 
 @override_settings(AUTH_REQUIRE_DEVICE_VERIFICATION=False)
@@ -440,3 +445,176 @@ class AdminTournamentTeamApiTest(EventApiTestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class AdminMatchApiTest(EventApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tournament_event = self._create_tournament_event(
+            title="Match Tournament",
+        )
+        self.category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        self.tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        self.team_a = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Team Alpha"
+        )
+        self.team_b = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Team Beta"
+        )
+        self.valid_match_data = {
+            "tournament": str(self.tournament.id),
+            "round": "Qualification",
+            "scheduled_at": (timezone.now() + timezone.timedelta(hours=1)).isoformat(),
+        }
+
+    def test_create_match_as_super_admin(self):
+        self._auth(self.super_admin)
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/",
+            self.valid_match_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["round"], "Qualification")
+        self.assertEqual(response.data["status"], MatchStatus.SCHEDULED)
+
+    def test_create_match_as_branch_manager(self):
+        self._auth(self.branch_manager)
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/",
+            self.valid_match_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_create_match_as_student_forbidden(self):
+        self._auth(self.student)
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/",
+            self.valid_match_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_matches(self):
+        self._auth(self.super_admin)
+        create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.get(f"{self.base_url}/admin/matches/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_list_matches_filtered_by_tournament(self):
+        self._auth(self.super_admin)
+        create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.get(
+            f"{self.base_url}/admin/matches/?tournament={self.tournament.id}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_get_match_detail(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.get(
+            f"{self.base_url}/admin/matches/{match.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(match.id))
+
+    def test_update_match(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.patch(
+            f"{self.base_url}/admin/matches/{match.id}/",
+            {"round": "Final"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["round"], "Final")
+
+    def test_delete_match(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.delete(
+            f"{self.base_url}/admin/matches/{match.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_assign_team_to_side(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/{match.id}/assign-team/",
+            {"side": MatchSideType.SIDE_A, "tournament_team": str(self.team_a.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["side"], MatchSideType.SIDE_A)
+
+    def test_assign_team_missing_fields(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/{match.id}/assign-team/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_remove_team_from_side(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/{match.id}/remove-team/",
+            {"side": MatchSideType.SIDE_A, "tournament_team": str(self.team_a.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_record_scores(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/{match.id}/record-scores/",
+            {"side_a_score": 10, "side_b_score": 5},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], MatchStatus.SCHEDULED)
+
+    def test_record_scores_missing_fields(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/{match.id}/record-scores/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_complete_match(self):
+        self._auth(self.super_admin)
+        match = create_match({**self.valid_match_data, "tournament": self.tournament})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        response = self.client.post(
+            f"{self.base_url}/admin/matches/{match.id}/complete/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], MatchStatus.COMPLETED)
+
+    def test_tournament_matches_list_endpoint(self):
+        self._auth(self.super_admin)
+        create_match({**self.valid_match_data, "tournament": self.tournament})
+        response = self.client.get(
+            f"{self.base_url}/admin/tournaments/{self.tournament.id}/matches/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)

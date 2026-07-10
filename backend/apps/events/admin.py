@@ -1,6 +1,26 @@
 from django.contrib import admin
 
-from apps.events.models import Event, Tournament, TournamentCategory, TournamentTeam
+from apps.events.models import (
+    Event,
+    Match,
+    MatchParticipant,
+    MatchSide,
+    Tournament,
+    TournamentCategory,
+    TournamentTeam,
+)
+
+
+class MatchSideInline(admin.TabularInline):
+    model = MatchSide
+    extra = 0
+    readonly_fields = ("id", "side", "score", "created_at", "updated_at")
+
+
+class MatchParticipantInline(admin.TabularInline):
+    model = MatchParticipant
+    extra = 0
+    readonly_fields = ("id", "created_at")
 
 
 @admin.register(Event)
@@ -34,3 +54,26 @@ class TournamentTeamAdmin(admin.ModelAdmin):
     list_filter = ("tournament",)
     search_fields = ("team_name", "organization")
     readonly_fields = ("id", "wins", "losses", "draws", "points", "created_at", "updated_at")
+
+
+@admin.register(Match)
+class MatchAdmin(admin.ModelAdmin):
+    list_display = ("tournament", "round", "status", "scheduled_at", "completed_at", "winning_side")
+    list_filter = ("status", "round")
+    search_fields = ("tournament__event__title",)
+    readonly_fields = ("id", "created_at", "updated_at")
+    inlines = [MatchSideInline]
+
+
+@admin.register(MatchSide)
+class MatchSideAdmin(admin.ModelAdmin):
+    list_display = ("match", "side", "score", "created_at")
+    readonly_fields = ("id", "created_at", "updated_at")
+    inlines = [MatchParticipantInline]
+
+
+@admin.register(MatchParticipant)
+class MatchParticipantAdmin(admin.ModelAdmin):
+    list_display = ("tournament_team", "match_side", "created_at")
+    search_fields = ("tournament_team__team_name",)
+    readonly_fields = ("id", "created_at")

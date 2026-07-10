@@ -1,6 +1,7 @@
 from rest_framework.exceptions import ValidationError
 
-from apps.events.models import TournamentTeam
+from apps.events.constants import MatchStatus
+from apps.events.models import MatchParticipant, TournamentTeam
 
 
 class TournamentTeamValidator:
@@ -63,3 +64,23 @@ class TournamentTeamValidator:
         """
         if tournament.is_closed:
             raise ValidationError("Cannot modify teams in a closed tournament.")
+
+    @staticmethod
+    def validate_team_not_in_completed_match(team):
+        """
+        Ensure the team is not a participant in any completed match.
+
+        Args:
+            team: TournamentTeam instance.
+
+        Raises:
+            ValidationError: If team is in a completed match.
+        """
+        exists = MatchParticipant.objects.filter(
+            tournament_team=team,
+            match_side__match__status=MatchStatus.COMPLETED,
+        ).exists()
+        if exists:
+            raise ValidationError(
+                f"Cannot delete team '{team.team_name}' because it is referenced by completed matches."
+            )

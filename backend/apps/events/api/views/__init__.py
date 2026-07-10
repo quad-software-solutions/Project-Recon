@@ -26,6 +26,15 @@ from .tournament_team import (
     AdminTeamRetrieveUpdateDestroyView,
     AdminTournamentTeamListView,
 )
+from .match import (
+    AdminMatchListCreateView,
+    AdminMatchRetrieveUpdateDestroyView,
+    AdminMatchAssignTeamView,
+    AdminMatchRemoveTeamView,
+    AdminMatchRecordScoresView,
+    AdminMatchCompleteView,
+    AdminTournamentMatchListView,
+)
 
 __all__ = [
     "PublicEventListView",
@@ -48,4 +57,11 @@ __all__ = [
     "AdminTeamListCreateView",
     "AdminTeamRetrieveUpdateDestroyView",
     "AdminTournamentTeamListView",
+    "AdminMatchListCreateView",
+    "AdminMatchRetrieveUpdateDestroyView",
+    "AdminMatchAssignTeamView",
+    "AdminMatchRemoveTeamView",
+    "AdminMatchRecordScoresView",
+    "AdminMatchCompleteView",
+    "AdminTournamentMatchListView",
 ]

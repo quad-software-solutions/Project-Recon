@@ -30,3 +30,15 @@ class WorkshopLevel(models.TextChoices):
     BEGINNER = "BEGINNER", "Beginner"
     INTERMEDIATE = "INTERMEDIATE", "Intermediate"
     ADVANCED = "ADVANCED", "Advanced"
+
+
+class MatchStatus(models.TextChoices):
+    SCHEDULED = "SCHEDULED", "Scheduled"
+    LIVE = "LIVE", "Live"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+class MatchSideType(models.TextChoices):
+    SIDE_A = "SIDE_A", "Side A"
+    SIDE_B = "SIDE_B", "Side B"

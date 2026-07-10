@@ -2,8 +2,8 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
-from apps.events.constants import EventStatus, Visibility, EventType, RegistrationMode
-from apps.events.models import Event, Tournament, TournamentCategory, TournamentTeam
+from apps.events.constants import EventStatus, MatchSideType, MatchStatus, Visibility, EventType, RegistrationMode
+from apps.events.models import Event, Match, MatchParticipant, Tournament, TournamentCategory, TournamentTeam
 from apps.events.services.event_service import (
     create_event,
     get_event_or_404,
@@ -37,6 +37,17 @@ from apps.events.services.tournament_team_service import (
     list_teams,
     update_team,
     delete_team,
+)
+from apps.events.services.match_service import (
+    assign_team_to_side,
+    complete_match,
+    create_match,
+    delete_match,
+    get_match_or_404,
+    list_matches,
+    record_scores,
+    remove_team_from_side,
+    update_match,
 )
 
 
@@ -425,3 +436,243 @@ class TournamentTeamServiceTest(TestCase):
         team.tournament.refresh_from_db()
         with self.assertRaises(ValidationError):
             delete_team(team)
+
+    def test_delete_team_in_completed_match(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Locked Team",
+        })
+        team2 = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Opponent Team",
+        })
+        match = create_match({
+            "tournament": self.tournament.id,
+            "round": "Final",
+            "scheduled_at": timezone.now(),
+        })
+        assign_team_to_side(match, MatchSideType.SIDE_A, team)
+        assign_team_to_side(match, MatchSideType.SIDE_B, team2)
+        record_scores(match, 10, 5)
+        complete_match(match)
+        with self.assertRaises(ValidationError):
+            delete_team(team)
+
+
+class MatchServiceTest(TestCase):
+    def setUp(self):
+        self.valid_data = {
+            "title": "Test Tournament",
+            "description": "desc",
+            "location": "loc",
+            "event_type": EventType.TOURNAMENT,
+            "start_datetime": timezone.now() + timezone.timedelta(days=1),
+            "end_datetime": timezone.now() + timezone.timedelta(days=2),
+            "visibility": Visibility.PUBLIC,
+            "status": EventStatus.DRAFT,
+        }
+        self.event = create_event(self.valid_data)
+        self.category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        self.tournament = Tournament.objects.create(
+            event=self.event,
+            category=self.category,
+            max_teams=10,
+        )
+        self.team_a = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Team Alpha",
+        })
+        self.team_b = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Team Beta",
+        })
+        self.match_data = {
+            "tournament": self.tournament.id,
+            "round": "Qualification",
+            "scheduled_at": timezone.now(),
+        }
+
+    def test_create_match(self):
+        match = create_match({**self.match_data})
+        self.assertEqual(match.round, "Qualification")
+        self.assertEqual(match.status, MatchStatus.SCHEDULED)
+        self.assertIsNone(match.winning_side)
+        self.assertEqual(match.sides.count(), 2)
+
+    def test_create_match_missing_tournament(self):
+        with self.assertRaises(ValidationError):
+            create_match({"round": "Final", "scheduled_at": timezone.now()})
+
+    def test_create_match_missing_round(self):
+        with self.assertRaises(ValidationError):
+            create_match({"tournament": self.tournament.id, "scheduled_at": timezone.now()})
+
+    def test_create_match_missing_scheduled_at(self):
+        with self.assertRaises(ValidationError):
+            create_match({"tournament": self.tournament.id, "round": "Final"})
+
+    def test_create_match_closed_tournament(self):
+        self.tournament.is_closed = True
+        self.tournament.save(update_fields=["is_closed"])
+        with self.assertRaises(ValidationError):
+            create_match({**self.match_data})
+
+    def test_get_match_or_404_found(self):
+        match = create_match({**self.match_data})
+        found = get_match_or_404(match.id)
+        self.assertEqual(found.id, match.id)
+
+    def test_get_match_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_match_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_list_matches(self):
+        create_match({**self.match_data})
+        create_match({
+            **self.match_data,
+            "round": "Final",
+        })
+        self.assertEqual(list_matches().count(), 2)
+
+    def test_list_matches_filtered_by_tournament(self):
+        create_match({**self.match_data})
+        other_event = create_event({**self.valid_data, "title": "Other Tournament"})
+        other_tournament = Tournament.objects.create(
+            event=other_event, category=self.category
+        )
+        create_match({
+            "tournament": other_tournament.id,
+            "round": "Final",
+            "scheduled_at": timezone.now(),
+        })
+        self.assertEqual(list_matches(tournament_id=self.tournament.id).count(), 1)
+
+    def test_update_match(self):
+        match = create_match({**self.match_data})
+        updated = update_match(match, {"round": "Final"})
+        self.assertEqual(updated.round, "Final")
+
+    def test_update_match_cannot_change_tournament(self):
+        match = create_match({**self.match_data})
+        with self.assertRaises(ValidationError):
+            update_match(match, {"tournament": self.tournament.id})
+
+    def test_update_match_completed(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        complete_match(match)
+        with self.assertRaises(ValidationError):
+            update_match(match, {"round": "Changed"})
+
+    def test_delete_match(self):
+        match = create_match({**self.match_data})
+        delete_match(match)
+        with self.assertRaises(NotFound):
+            get_match_or_404(match.id)
+
+    def test_assign_team_to_side(self):
+        match = create_match({**self.match_data})
+        participant = assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        self.assertIsNotNone(participant)
+        self.assertEqual(match.sides.get(side=MatchSideType.SIDE_A).participants.count(), 1)
+
+    def test_assign_team_wrong_tournament(self):
+        other_event = create_event({**self.valid_data, "title": "Other Event"})
+        other_tournament = Tournament.objects.create(
+            event=other_event, category=self.category
+        )
+        match = create_match({"tournament": other_tournament.id, "round": "Final", "scheduled_at": timezone.now()})
+        with self.assertRaises(ValidationError):
+            assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+
+    def test_assign_team_duplicate(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        with self.assertRaises(ValidationError):
+            assign_team_to_side(match, MatchSideType.SIDE_B, self.team_a)
+
+    def test_assign_team_completed_match(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        complete_match(match)
+        with self.assertRaises(ValidationError):
+            assign_team_to_side(match, MatchSideType.SIDE_A, self.team_b)
+
+    def test_remove_team_from_side(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        remove_team_from_side(match, MatchSideType.SIDE_A, self.team_a)
+        self.assertEqual(match.sides.get(side=MatchSideType.SIDE_A).participants.count(), 0)
+
+    def test_record_scores(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        sides = {s.side: s for s in match.sides.all()}
+        self.assertEqual(sides[MatchSideType.SIDE_A].score, 10)
+        self.assertEqual(sides[MatchSideType.SIDE_B].score, 5)
+
+    def test_record_scores_completed_match(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        complete_match(match)
+        with self.assertRaises(ValidationError):
+            record_scores(match, 20, 15)
+
+    def test_record_scores_negative(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        with self.assertRaises(ValidationError):
+            record_scores(match, -1, 5)
+
+    def test_complete_match_side_a_wins(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        completed = complete_match(match)
+        self.assertEqual(completed.status, MatchStatus.COMPLETED)
+        self.assertIsNotNone(completed.completed_at)
+        self.assertEqual(completed.winning_side.side, MatchSideType.SIDE_A)
+
+    def test_complete_match_side_b_wins(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 3, 7)
+        completed = complete_match(match)
+        self.assertEqual(completed.status, MatchStatus.COMPLETED)
+        self.assertEqual(completed.winning_side.side, MatchSideType.SIDE_B)
+
+    def test_complete_match_draw(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 5, 5)
+        completed = complete_match(match)
+        self.assertEqual(completed.status, MatchStatus.COMPLETED)
+        self.assertIsNone(completed.winning_side)
+
+    def test_complete_match_missing_teams(self):
+        match = create_match({**self.match_data})
+        record_scores(match, 5, 5)
+        with self.assertRaises(ValidationError):
+            complete_match(match)
+
+    def test_complete_match_already_completed(self):
+        match = create_match({**self.match_data})
+        assign_team_to_side(match, MatchSideType.SIDE_A, self.team_a)
+        assign_team_to_side(match, MatchSideType.SIDE_B, self.team_b)
+        record_scores(match, 10, 5)
+        complete_match(match)
+        with self.assertRaises(ValidationError):
+            complete_match(match)

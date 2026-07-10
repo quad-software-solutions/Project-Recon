@@ -21,6 +21,13 @@ from apps.events.api.views import (
     AdminTeamListCreateView,
     AdminTeamRetrieveUpdateDestroyView,
     AdminTournamentTeamListView,
+    AdminMatchListCreateView,
+    AdminMatchRetrieveUpdateDestroyView,
+    AdminMatchAssignTeamView,
+    AdminMatchRemoveTeamView,
+    AdminMatchRecordScoresView,
+    AdminMatchCompleteView,
+    AdminTournamentMatchListView,
 )
 
 urlpatterns = [
@@ -96,5 +103,37 @@ urlpatterns = [
         "admin/tournaments/<uuid:pk>/teams/",
         AdminTournamentTeamListView.as_view(),
         name="events-admin-tournament-teams-list",
+    ),
+    # Matches
+    path("admin/matches/", AdminMatchListCreateView.as_view(), name="events-admin-match-list"),
+    path(
+        "admin/matches/<uuid:pk>/",
+        AdminMatchRetrieveUpdateDestroyView.as_view(),
+        name="events-admin-match-detail",
+    ),
+    path(
+        "admin/matches/<uuid:pk>/assign-team/",
+        AdminMatchAssignTeamView.as_view(),
+        name="events-admin-match-assign-team",
+    ),
+    path(
+        "admin/matches/<uuid:pk>/remove-team/",
+        AdminMatchRemoveTeamView.as_view(),
+        name="events-admin-match-remove-team",
+    ),
+    path(
+        "admin/matches/<uuid:pk>/record-scores/",
+        AdminMatchRecordScoresView.as_view(),
+        name="events-admin-match-record-scores",
+    ),
+    path(
+        "admin/matches/<uuid:pk>/complete/",
+        AdminMatchCompleteView.as_view(),
+        name="events-admin-match-complete",
+    ),
+    path(
+        "admin/tournaments/<uuid:pk>/matches/",
+        AdminTournamentMatchListView.as_view(),
+        name="events-admin-tournament-matches-list",
     ),
 ]
