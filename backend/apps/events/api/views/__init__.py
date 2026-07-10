@@ -21,6 +21,11 @@ from .tournament_category import (
     AdminTournamentCategoryListCreateView,
     AdminTournamentCategoryRetrieveUpdateDestroyView,
 )
+from .tournament_team import (
+    AdminTeamListCreateView,
+    AdminTeamRetrieveUpdateDestroyView,
+    AdminTournamentTeamListView,
+)
 
 __all__ = [
     "PublicEventListView",
@@ -40,4 +45,7 @@ __all__ = [
     "AdminTournamentReopenView",
     "AdminTournamentCategoryListCreateView",
     "AdminTournamentCategoryRetrieveUpdateDestroyView",
+    "AdminTeamListCreateView",
+    "AdminTeamRetrieveUpdateDestroyView",
+    "AdminTournamentTeamListView",
 ]

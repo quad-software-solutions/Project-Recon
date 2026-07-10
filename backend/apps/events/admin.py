@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.events.models import Event, Tournament, TournamentCategory
+from apps.events.models import Event, Tournament, TournamentCategory, TournamentTeam
 
 
 @admin.register(Event)
@@ -26,3 +26,11 @@ class TournamentCategoryAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name", "code")
     readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(TournamentTeam)
+class TournamentTeamAdmin(admin.ModelAdmin):
+    list_display = ("team_name", "tournament", "wins", "losses", "points", "created_at")
+    list_filter = ("tournament",)
+    search_fields = ("team_name", "organization")
+    readonly_fields = ("id", "wins", "losses", "draws", "points", "created_at", "updated_at")

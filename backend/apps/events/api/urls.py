@@ -18,6 +18,9 @@ from apps.events.api.views import (
     AdminTournamentReopenView,
     AdminTournamentCategoryListCreateView,
     AdminTournamentCategoryRetrieveUpdateDestroyView,
+    AdminTeamListCreateView,
+    AdminTeamRetrieveUpdateDestroyView,
+    AdminTournamentTeamListView,
 )
 
 urlpatterns = [
@@ -81,5 +84,17 @@ urlpatterns = [
         "admin/tournament-categories/<uuid:pk>/",
         AdminTournamentCategoryRetrieveUpdateDestroyView.as_view(),
         name="events-admin-tournament-category-detail",
+    ),
+    # Tournament Teams
+    path("admin/tournament-teams/", AdminTeamListCreateView.as_view(), name="events-admin-team-list"),
+    path(
+        "admin/tournament-teams/<uuid:pk>/",
+        AdminTeamRetrieveUpdateDestroyView.as_view(),
+        name="events-admin-team-detail",
+    ),
+    path(
+        "admin/tournaments/<uuid:pk>/teams/",
+        AdminTournamentTeamListView.as_view(),
+        name="events-admin-tournament-teams-list",
     ),
 ]

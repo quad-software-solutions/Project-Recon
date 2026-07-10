@@ -8,7 +8,7 @@ from rest_framework import status
 from apps.accounts.models import Branch
 from apps.accounts.services import user_service
 from apps.events.constants import EventStatus, Visibility, EventType
-from apps.events.models import Event, Tournament, TournamentCategory
+from apps.events.models import Event, Tournament, TournamentCategory, TournamentTeam
 
 
 @override_settings(AUTH_REQUIRE_DEVICE_VERIFICATION=False)
@@ -321,3 +321,122 @@ class AdminTournamentApiTest(EventApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(response.data["is_closed"])
+
+
+class AdminTournamentTeamApiTest(EventApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tournament_event = self._create_tournament_event(
+            title="Team Tournament",
+        )
+        self.category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        self.tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        self.valid_team_data = {
+            "tournament": str(self.tournament.id),
+            "team_name": "Robo Warriors",
+            "organization": "School A",
+        }
+
+    def test_create_team_as_super_admin(self):
+        self._auth(self.super_admin)
+        response = self.client.post(
+            f"{self.base_url}/admin/tournament-teams/",
+            self.valid_team_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["team_name"], "Robo Warriors")
+
+    def test_create_team_as_branch_manager(self):
+        self._auth(self.branch_manager)
+        response = self.client.post(
+            f"{self.base_url}/admin/tournament-teams/",
+            self.valid_team_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_create_team_as_student_forbidden(self):
+        self._auth(self.student)
+        response = self.client.post(
+            f"{self.base_url}/admin/tournament-teams/",
+            self.valid_team_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_teams(self):
+        self._auth(self.super_admin)
+        TournamentTeam.objects.create(tournament=self.tournament, team_name="Team A")
+        response = self.client.get(f"{self.base_url}/admin/tournament-teams/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_list_teams_filtered_by_tournament(self):
+        self._auth(self.super_admin)
+        TournamentTeam.objects.create(tournament=self.tournament, team_name="Team A")
+        response = self.client.get(
+            f"{self.base_url}/admin/tournament-teams/?tournament={self.tournament.id}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_get_team_detail(self):
+        self._auth(self.super_admin)
+        team = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Detail Team"
+        )
+        response = self.client.get(
+            f"{self.base_url}/admin/tournament-teams/{team.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["team_name"], "Detail Team")
+
+    def test_update_team(self):
+        self._auth(self.super_admin)
+        team = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Old Name"
+        )
+        response = self.client.patch(
+            f"{self.base_url}/admin/tournament-teams/{team.id}/",
+            {"team_name": "New Name"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["team_name"], "New Name")
+
+    def test_delete_team(self):
+        self._auth(self.super_admin)
+        team = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Delete Me"
+        )
+        response = self.client.delete(
+            f"{self.base_url}/admin/tournament-teams/{team.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_tournament_teams_list_endpoint(self):
+        self._auth(self.super_admin)
+        TournamentTeam.objects.create(tournament=self.tournament, team_name="Team A")
+        response = self.client.get(
+            f"{self.base_url}/admin/tournaments/{self.tournament.id}/teams/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_create_team_duplicate_name_returns_400(self):
+        self._auth(self.super_admin)
+        self.client.post(
+            f"{self.base_url}/admin/tournament-teams/",
+            self.valid_team_data,
+            format="json",
+        )
+        response = self.client.post(
+            f"{self.base_url}/admin/tournament-teams/",
+            self.valid_team_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

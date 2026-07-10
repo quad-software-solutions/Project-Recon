@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.events.constants import EventStatus, Visibility, EventType, RegistrationMode
-from apps.events.models import Event, Tournament, TournamentCategory
+from apps.events.models import Event, Tournament, TournamentCategory, TournamentTeam
 from apps.events.services.event_service import (
     create_event,
     get_event_or_404,
@@ -30,6 +30,13 @@ from apps.events.services.tournament_category_service import (
     list_categories,
     update_category,
     delete_category,
+)
+from apps.events.services.tournament_team_service import (
+    create_team,
+    get_team_or_404,
+    list_teams,
+    update_team,
+    delete_team,
 )
 
 
@@ -283,3 +290,138 @@ class TournamentCategoryServiceTest(TestCase):
         tournament = Tournament.objects.create(event=event, category=category)
         with self.assertRaises(ValidationError):
             delete_category(category)
+
+
+class TournamentTeamServiceTest(TestCase):
+    def setUp(self):
+        self.valid_data = {
+            "title": "Test Tournament",
+            "description": "desc",
+            "location": "loc",
+            "event_type": EventType.TOURNAMENT,
+            "start_datetime": timezone.now() + timezone.timedelta(days=1),
+            "end_datetime": timezone.now() + timezone.timedelta(days=2),
+            "visibility": Visibility.PUBLIC,
+            "status": EventStatus.DRAFT,
+        }
+        self.event = create_event(self.valid_data)
+        self.category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        self.tournament = Tournament.objects.create(
+            event=self.event,
+            category=self.category,
+            max_teams=10,
+        )
+
+    def test_create_team(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Robo Warriors",
+        })
+        self.assertEqual(team.team_name, "Robo Warriors")
+        self.assertEqual(team.tournament.id, self.tournament.id)
+
+    def test_create_team_duplicate_name(self):
+        create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Robo Warriors",
+        })
+        with self.assertRaises(ValidationError):
+            create_team({
+                "tournament": self.tournament.id,
+                "team_name": "Robo Warriors",
+            })
+
+    def test_create_team_max_teams_exceeded(self):
+        self.tournament.max_teams = 1
+        self.tournament.save(update_fields=["max_teams"])
+        create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Team One",
+        })
+        with self.assertRaises(ValidationError):
+            create_team({
+                "tournament": self.tournament.id,
+                "team_name": "Team Two",
+            })
+
+    def test_create_team_closed_tournament(self):
+        self.tournament.is_closed = True
+        self.tournament.save(update_fields=["is_closed"])
+        with self.assertRaises(ValidationError):
+            create_team({
+                "tournament": self.tournament.id,
+                "team_name": "Team Three",
+            })
+
+    def test_create_team_missing_tournament(self):
+        with self.assertRaises(ValidationError):
+            create_team({"team_name": "Orphans"})
+
+    def test_get_team_or_404_found(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Cyber Knights",
+        })
+        found = get_team_or_404(team.id)
+        self.assertEqual(found.id, team.id)
+
+    def test_get_team_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_team_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_list_teams(self):
+        create_team({"tournament": self.tournament.id, "team_name": "Team A"})
+        create_team({"tournament": self.tournament.id, "team_name": "Team B"})
+        self.assertEqual(list_teams().count(), 2)
+
+    def test_list_teams_filtered_by_tournament(self):
+        create_team({"tournament": self.tournament.id, "team_name": "Team A"})
+        other_event = create_event({**self.valid_data, "title": "Other"})
+        other_tournament = Tournament.objects.create(
+            event=other_event, category=self.category
+        )
+        create_team({"tournament": other_tournament.id, "team_name": "Team B"})
+        self.assertEqual(list_teams(tournament_id=self.tournament.id).count(), 1)
+
+    def test_update_team(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Old Name",
+        })
+        updated = update_team(team, {"team_name": "New Name"})
+        self.assertEqual(updated.team_name, "New Name")
+
+    def test_update_team_duplicate_name(self):
+        create_team({"tournament": self.tournament.id, "team_name": "Team One"})
+        team2 = create_team({"tournament": self.tournament.id, "team_name": "Team Two"})
+        with self.assertRaises(ValidationError):
+            update_team(team2, {"team_name": "Team One"})
+
+    def test_update_team_cannot_change_tournament(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Fixed Team",
+        })
+        with self.assertRaises(ValidationError):
+            update_team(team, {"tournament": self.tournament.id})
+
+    def test_delete_team(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Delete Me",
+        })
+        delete_team(team)
+        with self.assertRaises(NotFound):
+            get_team_or_404(team.id)
+
+    def test_delete_team_closed_tournament(self):
+        team = create_team({
+            "tournament": self.tournament.id,
+            "team_name": "Stuck Team",
+        })
+        self.tournament.is_closed = True
+        self.tournament.save(update_fields=["is_closed"])
+        # Refresh team's cached tournament reference from DB
+        team.tournament.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            delete_team(team)
