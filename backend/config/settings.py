@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'apps.shared',
     'apps.cms',
     'apps.academic',
+    'apps.events',
 
 ]
 

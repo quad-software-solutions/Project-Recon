@@ -1,0 +1,32 @@
+from django.db import models
+
+
+class EventStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Draft"
+    PUBLISHED = "PUBLISHED", "Published"
+    CANCELLED = "CANCELLED", "Cancelled"
+    COMPLETED = "COMPLETED", "Completed"
+
+
+class Visibility(models.TextChoices):
+    PUBLIC = "PUBLIC", "Public"
+    PRIVATE = "PRIVATE", "Private"
+
+
+class RegistrationMode(models.TextChoices):
+    NONE = "NONE", "None"
+    PUBLIC = "PUBLIC", "Public"
+    STUDENT = "STUDENT", "Student"
+    SUBPROGRAM_STUDENT = "SUBPROGRAM_STUDENT", "Sub Program Student"
+
+
+class EventType(models.TextChoices):
+    GENERAL = "GENERAL", "General"
+    TOURNAMENT = "TOURNAMENT", "Tournament"
+    WORKSHOP = "WORKSHOP", "Workshop"
+
+
+class WorkshopLevel(models.TextChoices):
+    BEGINNER = "BEGINNER", "Beginner"
+    INTERMEDIATE = "INTERMEDIATE", "Intermediate"
+    ADVANCED = "ADVANCED", "Advanced"
