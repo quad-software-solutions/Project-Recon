@@ -63,6 +63,19 @@ from apps.events.services.workshop_service import (
     list_workshops,
     update_workshop,
 )
+from apps.events.services.registration_service import (
+    approve_registration,
+    cancel_registration,
+    convert_registration_to_team,
+    get_registration_or_404,
+    list_registrations,
+    register_for_event,
+    reject_registration,
+)
+from apps.events.services.tournament_service import (
+    create_tournament,
+)
+from apps.academic.models import Student
 
 
 class EventServiceTest(TestCase):
@@ -959,3 +972,239 @@ class WorkshopServiceTest(TestCase):
         delete_workshop(workshop)
         with self.assertRaises(NotFound):
             get_workshop_or_404(workshop.id)
+
+
+class RegistrationServiceTest(TestCase):
+    def setUp(self):
+        from apps.events.constants import RegistrationMode
+        from apps.accounts.models import Branch
+
+        self.branch = Branch.objects.create(name="Test Branch", code="TB01")
+        self.valid_data = {
+            "title": "Test Event",
+            "description": "Description",
+            "location": "Location",
+            "event_type": EventType.GENERAL,
+            "start_datetime": timezone.now() + timezone.timedelta(days=1),
+            "end_datetime": timezone.now() + timezone.timedelta(days=2),
+            "visibility": Visibility.PUBLIC,
+            "status": EventStatus.PUBLISHED,
+            "is_active": True,
+            "registration_enabled": True,
+            "registration_mode": RegistrationMode.STUDENT,
+        }
+        self.event = create_event(self.valid_data)
+        self.student_user = User.objects.create_user(
+            email="student@test.com", password="Pass1234!",
+            first_name="Test", last_name="Student",
+        )
+        self.student = Student.objects.create(
+            user=self.student_user,
+            branch=self.branch,
+            date_joined=timezone.now().date(),
+        )
+
+    def _make_public_event(self):
+        from apps.events.constants import RegistrationMode
+        self.event.registration_mode = RegistrationMode.PUBLIC
+        self.event.save(update_fields=["registration_mode"])
+
+    def _make_tournament_event(self):
+        self.event.event_type = EventType.TOURNAMENT
+        self.event.save(update_fields=["event_type"])
+        category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        return Tournament.objects.create(event=self.event, category=category)
+
+    def test_register_student(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        self.assertEqual(registration.event.id, self.event.id)
+        self.assertEqual(registration.student.id, self.student.id)
+        self.assertEqual(registration.registration_status, "PENDING")
+
+    def test_register_public(self):
+        self._make_public_event()
+        data = {
+            "public_full_name": "John Public",
+            "public_email": "john@example.com",
+            "public_phone": "+1234567890",
+        }
+        registration = register_for_event(self.event.id, data)
+        self.assertEqual(registration.public_full_name, "John Public")
+        self.assertEqual(registration.public_email, "john@example.com")
+        self.assertEqual(registration.registration_status, "PENDING")
+
+    def test_register_public_missing_fields(self):
+        self._make_public_event()
+        with self.assertRaises(ValidationError):
+            register_for_event(self.event.id, {"public_full_name": "Incomplete"})
+
+    def test_register_student_wrong_mode(self):
+        self._make_public_event()
+        with self.assertRaises(ValidationError):
+            register_for_event(self.event.id, {"student": str(self.student.id)})
+
+    def test_register_public_wrong_mode(self):
+        event = create_event({**self.valid_data, "title": "Student Only"})
+        with self.assertRaises(ValidationError):
+            register_for_event(event.id, {
+                "public_full_name": "John", "public_email": "john@test.com",
+                "public_phone": "+123",
+            })
+
+    def test_register_registration_disabled(self):
+        event = Event.objects.create(
+            title="No Reg", description="desc", location="loc",
+            event_type=EventType.GENERAL,
+            start_datetime=timezone.now() + timezone.timedelta(days=1),
+            end_datetime=timezone.now() + timezone.timedelta(days=2),
+            visibility=Visibility.PUBLIC, status=EventStatus.PUBLISHED,
+            is_active=True, registration_enabled=False,
+            registration_mode=None,
+        )
+        with self.assertRaises(ValidationError):
+            register_for_event(event.id, {"student": str(self.student.id)})
+
+    def test_register_capacity_full(self):
+        event = create_event({**self.valid_data, "title": "Full Event", "capacity": 1, "enrolled_count": 1})
+        with self.assertRaises(ValidationError):
+            register_for_event(event.id, {"student": str(self.student.id)})
+
+    def test_register_duplicate_student(self):
+        register_for_event(self.event.id, {"student": str(self.student.id)})
+        with self.assertRaises(ValidationError):
+            register_for_event(self.event.id, {"student": str(self.student.id)})
+
+    def test_register_duplicate_public_email(self):
+        self._make_public_event()
+        data = {"public_full_name": "John", "public_email": "john@test.com", "public_phone": "+123"}
+        register_for_event(self.event.id, data)
+        with self.assertRaises(ValidationError):
+            register_for_event(self.event.id, data)
+
+    def test_register_deadline_passed(self):
+        event = Event.objects.create(
+            title="Late Event", description="desc", location="loc",
+            event_type=EventType.GENERAL,
+            start_datetime=timezone.now() + timezone.timedelta(days=1),
+            end_datetime=timezone.now() + timezone.timedelta(days=2),
+            visibility=Visibility.PUBLIC, status=EventStatus.PUBLISHED,
+            is_active=True, registration_enabled=True,
+            registration_mode="STUDENT",
+            registration_deadline=timezone.now() - timezone.timedelta(hours=1),
+        )
+        with self.assertRaises(ValidationError):
+            register_for_event(event.id, {"student": str(self.student.id)})
+
+    def test_register_not_published(self):
+        event = create_event({
+            **self.valid_data, "title": "Draft Event",
+            "status": EventStatus.DRAFT,
+        })
+        with self.assertRaises(ValidationError):
+            register_for_event(event.id, {"student": str(self.student.id)})
+
+    def test_get_registration_or_404_found(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        found = get_registration_or_404(registration.id)
+        self.assertEqual(found.id, registration.id)
+
+    def test_get_registration_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_registration_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_list_registrations(self):
+        register_for_event(self.event.id, {"student": str(self.student.id)})
+        self.assertEqual(list_registrations().count(), 1)
+
+    def test_list_registrations_filtered_by_event(self):
+        other_event = create_event({**self.valid_data, "title": "Other Event"})
+        register_for_event(self.event.id, {"student": str(self.student.id)})
+        other_user = User.objects.create_user(
+            email="other@test.com", password="Pass1234!"
+        )
+        other_student = Student.objects.create(user=other_user, branch=self.branch, date_joined=timezone.now().date())
+        register_for_event(other_event.id, {"student": str(other_student.id)})
+        self.assertEqual(list_registrations(event_id=self.event.id).count(), 1)
+
+    def test_approve_registration(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        approved = approve_registration(registration)
+        self.assertEqual(approved.registration_status, "APPROVED")
+        self.assertIsNotNone(approved.approved_at)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.enrolled_count, 1)
+
+    def test_approve_registration_capacity(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        self.event.capacity = 0
+        self.event.save(update_fields=["capacity"])
+        registration.event.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            approve_registration(registration)
+
+    def test_approve_already_approved(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        approve_registration(registration)
+        with self.assertRaises(ValidationError):
+            approve_registration(registration)
+
+    def test_reject_registration(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        rejected = reject_registration(registration)
+        self.assertEqual(rejected.registration_status, "REJECTED")
+
+    def test_reject_already_rejected(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        reject_registration(registration)
+        with self.assertRaises(ValidationError):
+            reject_registration(registration)
+
+    def test_cancel_registration(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        cancelled = cancel_registration(registration)
+        self.assertEqual(cancelled.registration_status, "CANCELLED")
+        self.assertIsNotNone(cancelled.cancelled_at)
+
+    def test_cancel_registration_decrements_enrolled(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        approve_registration(registration)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.enrolled_count, 1)
+        cancel_registration(registration)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.enrolled_count, 0)
+
+    def test_cancel_twice(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        cancel_registration(registration)
+        with self.assertRaises(ValidationError):
+            cancel_registration(registration)
+
+    def test_convert_registration_to_team(self):
+        tournament = self._make_tournament_event()
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        approve_registration(registration)
+        team = convert_registration_to_team(registration, "Robo Warriors")
+        self.assertEqual(team.team_name, "Robo Warriors")
+        self.assertEqual(team.registration.id, registration.id)
+        self.assertEqual(team.tournament.id, tournament.id)
+
+    def test_convert_not_approved(self):
+        self._make_tournament_event()
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        with self.assertRaises(ValidationError):
+            convert_registration_to_team(registration, "Robo Warriors")
+
+    def test_convert_not_tournament(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        approve_registration(registration)
+        with self.assertRaises(ValidationError):
+            convert_registration_to_team(registration, "Robo Warriors")
+
+    def test_convert_duplicate(self):
+        self._make_tournament_event()
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        approve_registration(registration)
+        convert_registration_to_team(registration, "Robo Warriors")
+        with self.assertRaises(ValidationError):
+            convert_registration_to_team(registration, "Robo Warriors 2")

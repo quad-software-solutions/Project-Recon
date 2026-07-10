@@ -32,6 +32,15 @@ from apps.events.api.views import (
     AdminTournamentWinnerView,
     AdminWorkshopListCreateView,
     AdminWorkshopRetrieveUpdateDestroyView,
+    AdminRegistrationListView,
+    AdminRegistrationDetailView,
+    AdminRegistrationApproveView,
+    AdminRegistrationRejectView,
+    AdminRegistrationCancelView,
+    AdminRegistrationConvertTeamView,
+    EventRegisterView,
+    MyRegistrationListView,
+    MyRegistrationCancelView,
 )
 
 urlpatterns = [
@@ -157,5 +166,43 @@ urlpatterns = [
         "admin/tournaments/<uuid:pk>/winner/",
         AdminTournamentWinnerView.as_view(),
         name="events-admin-tournament-winner",
+    ),
+    # Registration
+    path("events/<uuid:pk>/register/", EventRegisterView.as_view(), name="events-register"),
+    path("my-registrations/", MyRegistrationListView.as_view(), name="events-my-registrations"),
+    path(
+        "my-registrations/<uuid:pk>/cancel/",
+        MyRegistrationCancelView.as_view(),
+        name="events-my-registrations-cancel",
+    ),
+    path(
+        "admin/registrations/",
+        AdminRegistrationListView.as_view(),
+        name="events-admin-registration-list",
+    ),
+    path(
+        "admin/registrations/<uuid:pk>/",
+        AdminRegistrationDetailView.as_view(),
+        name="events-admin-registration-detail",
+    ),
+    path(
+        "admin/registrations/<uuid:pk>/approve/",
+        AdminRegistrationApproveView.as_view(),
+        name="events-admin-registration-approve",
+    ),
+    path(
+        "admin/registrations/<uuid:pk>/reject/",
+        AdminRegistrationRejectView.as_view(),
+        name="events-admin-registration-reject",
+    ),
+    path(
+        "admin/registrations/<uuid:pk>/cancel/",
+        AdminRegistrationCancelView.as_view(),
+        name="events-admin-registration-cancel",
+    ),
+    path(
+        "admin/registrations/<uuid:pk>/convert-to-team/",
+        AdminRegistrationConvertTeamView.as_view(),
+        name="events-admin-registration-convert-to-team",
     ),
 ]

@@ -6,6 +6,7 @@ from .match import Match
 from .match_side import MatchSide
 from .match_participant import MatchParticipant
 from .workshop import Workshop
+from .registration import EventRegistration
 
 __all__ = [
     "Event",
@@ -16,4 +17,5 @@ __all__ = [
     "MatchSide",
     "MatchParticipant",
     "Workshop",
+    "EventRegistration",
 ]

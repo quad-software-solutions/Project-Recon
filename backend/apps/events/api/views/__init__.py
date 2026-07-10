@@ -43,6 +43,17 @@ from .workshop import (
     AdminWorkshopListCreateView,
     AdminWorkshopRetrieveUpdateDestroyView,
 )
+from .registration import (
+    AdminRegistrationApproveView,
+    AdminRegistrationCancelView,
+    AdminRegistrationConvertTeamView,
+    AdminRegistrationDetailView,
+    AdminRegistrationListView,
+    AdminRegistrationRejectView,
+    EventRegisterView,
+    MyRegistrationCancelView,
+    MyRegistrationListView,
+)
 
 __all__ = [
     "PublicEventListView",
@@ -76,4 +87,13 @@ __all__ = [
     "AdminTournamentWinnerView",
     "AdminWorkshopListCreateView",
     "AdminWorkshopRetrieveUpdateDestroyView",
+    "EventRegisterView",
+    "MyRegistrationListView",
+    "MyRegistrationCancelView",
+    "AdminRegistrationListView",
+    "AdminRegistrationDetailView",
+    "AdminRegistrationApproveView",
+    "AdminRegistrationRejectView",
+    "AdminRegistrationCancelView",
+    "AdminRegistrationConvertTeamView",
 ]

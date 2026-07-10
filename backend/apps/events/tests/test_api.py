@@ -9,8 +9,17 @@ from apps.accounts.models import Branch
 from apps.accounts.permissions.roles import Roles
 from apps.accounts.services import user_service
 from apps.accounts.services.user_service import _create_user_with_role
-from apps.events.constants import EventStatus, MatchSideType, MatchStatus, Visibility, EventType
-from apps.events.models import Event, Match, Tournament, TournamentCategory, TournamentTeam, Workshop
+from apps.academic.models import Student
+from apps.events.constants import (
+    EventStatus,
+    MatchSideType,
+    MatchStatus,
+    RegistrationMode,
+    RegistrationStatus,
+    Visibility,
+    EventType,
+)
+from apps.events.models import Event, EventRegistration, Match, Tournament, TournamentCategory, TournamentTeam, Workshop
 from apps.events.services.match_service import (
     assign_team_to_side,
     complete_match,
@@ -895,4 +904,248 @@ class AdminWorkshopApiTest(EventApiTestCase):
         response = self.client.get(
             f"{self.base_url}/admin/workshops/{workshop.id}/"
         )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class RegistrationApiTest(EventApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.student_obj = Student.objects.create(
+            user=self.student, branch=self.branch,
+            date_joined=timezone.now().date(),
+        )
+
+    def _make_registerable_event(self, **overrides):
+        data = {
+            "registration_enabled": True,
+            "registration_mode": RegistrationMode.STUDENT,
+            "status": EventStatus.PUBLISHED,
+            "is_active": True,
+        }
+        data.update(overrides)
+        return self._create_event(**data)
+
+    def _make_public_event(self, **overrides):
+        data = {
+            "registration_enabled": True,
+            "registration_mode": RegistrationMode.PUBLIC,
+            "status": EventStatus.PUBLISHED,
+            "is_active": True,
+        }
+        data.update(overrides)
+        return self._create_event(**data)
+
+    def _make_tournament_event_with_registration(self, **overrides):
+        data = {
+            "event_type": EventType.TOURNAMENT,
+            "registration_enabled": True,
+            "registration_mode": RegistrationMode.STUDENT,
+            "status": EventStatus.PUBLISHED,
+            "is_active": True,
+        }
+        data.update(overrides)
+        return self._create_event(**data)
+
+    def test_public_register_success(self):
+        event = self._make_public_event()
+        response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            {
+                "public_full_name": "John Public",
+                "public_email": "john@example.com",
+                "public_phone": "+1234567890",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["registration_status"], "PENDING")
+
+    def test_public_register_missing_fields(self):
+        event = self._make_public_event()
+        response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            {"public_full_name": "John"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_student_register_success(self):
+        self._auth(self.student)
+        event = self._make_registerable_event()
+        response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["registration_status"], "PENDING")
+        self.assertEqual(str(response.data["student"]), str(self.student_obj.id))
+
+    def test_student_register_unauthenticated_fails_for_student_mode(self):
+        event = self._make_registerable_event()
+        response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_registration_disabled(self):
+        event = self._create_event()
+        response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            {"public_full_name": "John", "public_email": "john@test.com", "public_phone": "+123"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_my_registrations_list(self):
+        self._auth(self.student)
+        event = self._make_registerable_event()
+        self.client.post(f"{self.base_url}/events/{event.id}/register/", format="json")
+        response = self.client.get(f"{self.base_url}/my-registrations/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_my_registrations_cancel(self):
+        self._auth(self.student)
+        event = self._make_registerable_event()
+        reg_response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/", format="json"
+        )
+        reg_id = reg_response.data["id"]
+        response = self.client.post(
+            f"{self.base_url}/my-registrations/{reg_id}/cancel/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["registration_status"], "CANCELLED")
+
+    def test_my_registrations_cancel_other_student(self):
+        self._auth(self.student)
+        event = self._make_registerable_event()
+        reg_response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/", format="json"
+        )
+        reg_id = reg_response.data["id"]
+        other_student_user = user_service.create_student_user(
+            "other@test.com", "Other", "Student", "StrongP@ssw0rd!2026", self.branch
+        )
+        user_service.activate_user(other_student_user)
+        Student.objects.create(
+            user=other_student_user, branch=self.branch,
+            date_joined=timezone.now().date(),
+        )
+        self._auth(other_student_user)
+        response = self.client.post(
+            f"{self.base_url}/my-registrations/{reg_id}/cancel/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def _create_registration_for_admin(self, event):
+        reg = EventRegistration.objects.create(
+            event=event,
+            public_full_name="John Public",
+            public_email="john@example.com",
+            public_phone="+1234567890",
+            registration_status=RegistrationStatus.PENDING,
+        )
+        return str(reg.id)
+
+    def test_admin_list_registrations(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event()
+        self._create_registration_for_admin(event)
+        response = self.client.get(f"{self.base_url}/admin/registrations/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_admin_list_registrations_filter_by_event(self):
+        self._auth(self.super_admin)
+        event1 = self._make_registerable_event(title="Event 1")
+        event2 = self._make_registerable_event(title="Event 2")
+        self._create_registration_for_admin(event1)
+        response = self.client.get(
+            f"{self.base_url}/admin/registrations/?event={event1.id}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_admin_get_registration_detail(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event()
+        reg_id = self._create_registration_for_admin(event)
+        response = self.client.get(
+            f"{self.base_url}/admin/registrations/{reg_id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(str(response.data["id"]), reg_id)
+
+    def test_admin_approve_registration(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event()
+        reg_id = self._create_registration_for_admin(event)
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg_id}/approve/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["registration_status"], "APPROVED")
+
+    def test_admin_reject_registration(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event()
+        reg_id = self._create_registration_for_admin(event)
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg_id}/reject/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["registration_status"], "REJECTED")
+
+    def test_admin_cancel_registration(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event()
+        reg_id = self._create_registration_for_admin(event)
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg_id}/cancel/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["registration_status"], "CANCELLED")
+
+    def test_admin_convert_to_team(self):
+        self._auth(self.super_admin)
+        event = self._make_tournament_event_with_registration()
+        category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        Tournament.objects.create(event=event, category=category)
+        reg_id = self._create_registration_for_admin(event)
+        reg = EventRegistration.objects.get(id=reg_id)
+        reg.registration_status = RegistrationStatus.APPROVED
+        reg.save(update_fields=["registration_status"])
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg_id}/convert-to-team/",
+            {"team_name": "Robo Warriors"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["team_name"], "Robo Warriors")
+
+    def test_admin_convert_to_team_missing_name(self):
+        self._auth(self.super_admin)
+        event = self._make_tournament_event_with_registration()
+        category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        Tournament.objects.create(event=event, category=category)
+        reg_id = self._create_registration_for_admin(event)
+        reg = EventRegistration.objects.get(id=reg_id)
+        reg.registration_status = RegistrationStatus.APPROVED
+        reg.save(update_fields=["registration_status"])
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg_id}/convert-to-team/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_admin_registrations_permission_denied_for_regular_user(self):
+        self._auth(self.student)
+        response = self.client.get(f"{self.base_url}/admin/registrations/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

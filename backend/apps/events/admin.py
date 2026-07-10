@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from apps.events.models import (
     Event,
+    EventRegistration,
     Match,
     MatchParticipant,
     MatchSide,
@@ -85,4 +86,12 @@ class WorkshopAdmin(admin.ModelAdmin):
     list_display = ("event", "instructor", "level", "duration_minutes", "price", "created_at")
     list_filter = ("level",)
     search_fields = ("event__title", "instructor__email")
+    readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(EventRegistration)
+class EventRegistrationAdmin(admin.ModelAdmin):
+    list_display = ("event", "student", "public_email", "registration_status", "payment_status", "registered_at")
+    list_filter = ("registration_status", "payment_status")
+    search_fields = ("event__title", "public_email", "student__user__email")
     readonly_fields = ("id", "created_at", "updated_at")

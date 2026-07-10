@@ -42,3 +42,18 @@ class MatchStatus(models.TextChoices):
 class MatchSideType(models.TextChoices):
     SIDE_A = "SIDE_A", "Side A"
     SIDE_B = "SIDE_B", "Side B"
+
+
+class RegistrationStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    APPROVED = "APPROVED", "Approved"
+    REJECTED = "REJECTED", "Rejected"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+class PaymentStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    PAID = "PAID", "Paid"
+    FAILED = "FAILED", "Failed"
+    CANCELLED = "CANCELLED", "Cancelled"
+    REFUNDED = "REFUNDED", "Refunded"

@@ -10,6 +10,14 @@ class TournamentTeam(models.Model):
         on_delete=models.PROTECT,
         related_name="teams",
     )
+    registration = models.ForeignKey(
+        "events.EventRegistration",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tournament_teams",
+        db_index=True,
+    )
     team_name = models.CharField(max_length=255)
     organization = models.CharField(max_length=255, null=True, blank=True)
     coach_name = models.CharField(max_length=255, null=True, blank=True)
