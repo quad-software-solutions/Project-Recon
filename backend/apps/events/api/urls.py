@@ -12,6 +12,12 @@ from apps.events.api.views import (
     AdminEventUnpublishView,
     AdminEventActivateView,
     AdminEventDeactivateView,
+    AdminTournamentListCreateView,
+    AdminTournamentRetrieveUpdateDestroyView,
+    AdminTournamentCloseView,
+    AdminTournamentReopenView,
+    AdminTournamentCategoryListCreateView,
+    AdminTournamentCategoryRetrieveUpdateDestroyView,
 )
 
 urlpatterns = [
@@ -47,5 +53,33 @@ urlpatterns = [
         "admin/events/<uuid:pk>/deactivate/",
         AdminEventDeactivateView.as_view(),
         name="events-admin-deactivate",
+    ),
+    # Tournaments
+    path("admin/tournaments/", AdminTournamentListCreateView.as_view(), name="events-admin-tournament-list"),
+    path(
+        "admin/tournaments/<uuid:pk>/",
+        AdminTournamentRetrieveUpdateDestroyView.as_view(),
+        name="events-admin-tournament-detail",
+    ),
+    path(
+        "admin/tournaments/<uuid:pk>/close/",
+        AdminTournamentCloseView.as_view(),
+        name="events-admin-tournament-close",
+    ),
+    path(
+        "admin/tournaments/<uuid:pk>/reopen/",
+        AdminTournamentReopenView.as_view(),
+        name="events-admin-tournament-reopen",
+    ),
+    # Tournament Categories
+    path(
+        "admin/tournament-categories/",
+        AdminTournamentCategoryListCreateView.as_view(),
+        name="events-admin-tournament-category-list",
+    ),
+    path(
+        "admin/tournament-categories/<uuid:pk>/",
+        AdminTournamentCategoryRetrieveUpdateDestroyView.as_view(),
+        name="events-admin-tournament-category-detail",
     ),
 ]

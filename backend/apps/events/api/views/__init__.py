@@ -11,6 +11,16 @@ from .event import (
     AdminEventActivateView,
     AdminEventDeactivateView,
 )
+from .tournament import (
+    AdminTournamentListCreateView,
+    AdminTournamentRetrieveUpdateDestroyView,
+    AdminTournamentCloseView,
+    AdminTournamentReopenView,
+)
+from .tournament_category import (
+    AdminTournamentCategoryListCreateView,
+    AdminTournamentCategoryRetrieveUpdateDestroyView,
+)
 
 __all__ = [
     "PublicEventListView",
@@ -24,4 +34,10 @@ __all__ = [
     "AdminEventUnpublishView",
     "AdminEventActivateView",
     "AdminEventDeactivateView",
+    "AdminTournamentListCreateView",
+    "AdminTournamentRetrieveUpdateDestroyView",
+    "AdminTournamentCloseView",
+    "AdminTournamentReopenView",
+    "AdminTournamentCategoryListCreateView",
+    "AdminTournamentCategoryRetrieveUpdateDestroyView",
 ]

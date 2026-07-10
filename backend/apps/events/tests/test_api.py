@@ -8,7 +8,7 @@ from rest_framework import status
 from apps.accounts.models import Branch
 from apps.accounts.services import user_service
 from apps.events.constants import EventStatus, Visibility, EventType
-from apps.events.models import Event
+from apps.events.models import Event, Tournament, TournamentCategory
 
 
 @override_settings(AUTH_REQUIRE_DEVICE_VERIFICATION=False)
@@ -50,6 +50,10 @@ class EventApiTestCase(APITestCase):
 
     def _create_event(self, **overrides):
         data = {**self.valid_event_data, **overrides}
+        return Event.objects.create(**data)
+
+    def _create_tournament_event(self, **overrides):
+        data = {**self.valid_event_data, "event_type": EventType.TOURNAMENT, **overrides}
         return Event.objects.create(**data)
 
 
@@ -202,3 +206,118 @@ class AdminEventApiTest(EventApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(response.data["is_active"])
+
+
+class AdminTournamentApiTest(EventApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tournament_event = self._create_tournament_event(
+            title="Tournament Event",
+        )
+        self.category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        self.valid_tournament_data = {
+            "event": str(self.tournament_event.id),
+            "category": str(self.category.id),
+            "max_teams": 16,
+        }
+
+    def test_create_tournament_as_super_admin(self):
+        self._auth(self.super_admin)
+        response = self.client.post(
+            f"{self.base_url}/admin/tournaments/",
+            self.valid_tournament_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["category_name"], "VEX IQ")
+
+    def test_create_tournament_as_branch_manager(self):
+        self._auth(self.branch_manager)
+        response = self.client.post(
+            f"{self.base_url}/admin/tournaments/",
+            self.valid_tournament_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_create_tournament_as_student_forbidden(self):
+        self._auth(self.student)
+        response = self.client.post(
+            f"{self.base_url}/admin/tournaments/",
+            self.valid_tournament_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_tournaments(self):
+        self._auth(self.super_admin)
+        tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        response = self.client.get(f"{self.base_url}/admin/tournaments/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_get_tournament_detail(self):
+        self._auth(self.super_admin)
+        tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        response = self.client.get(
+            f"{self.base_url}/admin/tournaments/{tournament.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(tournament.id))
+
+    def test_update_tournament(self):
+        self._auth(self.super_admin)
+        tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        new_category = TournamentCategory.objects.create(name="VEX V5", code="VEX_V5")
+        response = self.client.patch(
+            f"{self.base_url}/admin/tournaments/{tournament.id}/",
+            {"category": str(new_category.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["category_name"], "VEX V5")
+
+    def test_delete_tournament(self):
+        self._auth(self.super_admin)
+        tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        response = self.client.delete(
+            f"{self.base_url}/admin/tournaments/{tournament.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_close_tournament(self):
+        self._auth(self.super_admin)
+        tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        response = self.client.post(
+            f"{self.base_url}/admin/tournaments/{tournament.id}/close/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_closed"])
+
+    def test_reopen_tournament(self):
+        self._auth(self.super_admin)
+        tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+            is_closed=True,
+        )
+        response = self.client.post(
+            f"{self.base_url}/admin/tournaments/{tournament.id}/reopen/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["is_closed"])
