@@ -43,33 +43,24 @@ import SystemLogs from './SystemLogs';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'settings' | 'account' | 'moderation' | 'audit' | 'notifications' | 'maintenance' | 'partners' | 'vex-roles' | 'branches' | 'registrations' | 'cms';
+type SectionId = 'users' | 'roles' | 'academics' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms';
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
   { id: 'users', label: 'Accounts & Users', icon: Users, group: 'main' },
   { id: 'roles', label: 'Roles & Permissions', icon: Shield, group: 'main' },
   { id: 'academics', label: 'Academic Catalog', icon: GraduationCap, group: 'main' },
   { id: 'registrations', label: 'Enrollments', icon: ClipboardList, group: 'main' },
-  { id: 'partners', label: 'Strategic Partners', icon: Handshake, group: 'main' },
-  { id: 'vex-roles', label: 'VEX Teams', icon: UserCog, group: 'vex' },
   { id: 'branches', label: 'Branches', icon: GitBranch, group: 'main' },
   { id: 'cms', label: 'Content Manager', icon: LayoutDashboard, group: 'main' },
-  { id: 'moderation', label: 'Content Moderation', icon: MessageSquare, group: 'system' },
   { id: 'audit', label: 'System Logs', icon: FileText, group: 'system' },
-  { id: 'notifications', label: 'Notifications', icon: Bell, group: 'system' },
-  { id: 'settings', label: 'System Settings', icon: Settings, group: 'system' },
   { id: 'account', label: 'My Account', icon: Shield, group: 'system' },
-  { id: 'maintenance', label: 'System Health', icon: Activity, group: 'system' },
 ];
 
 const pageTitle: Record<SectionId, string> = {
-  overview: 'Overview', users: 'User Management', roles: 'Roles & Permissions',
+  users: 'User Management', roles: 'Roles & Permissions',
   academics: 'Academic Catalog',
-  partners: 'Partners & Sponsors', 'vex-roles': 'VEX Role Management',
   branches: 'Branch Management', registrations: 'Registration Management',
-  moderation: 'Content Moderation', audit: 'Audit Logs',
-  notifications: 'Notifications', settings: 'System Settings', maintenance: 'Maintenance',
+  audit: 'Audit Logs',
   cms: 'Content Management', account: 'My Account',
 };
 
@@ -2032,26 +2023,19 @@ function AdminRegistrations() {
 
 /* ─── MAIN ─── */
 export default function AdminDashboard({ currentUser, onLogout }: Props) {
-  const [activeSection, setActiveSection] = useState<SectionId>('overview');
+  const [activeSection, setActiveSection] = useState<SectionId>('users');
 
   const renderPage = () => {
     switch (activeSection) {
-      case 'overview': return <Overview />;
       case 'users': return <UserManagementPanel title="User Management" />;
       case 'roles': return <RolesPermissions />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
-      case 'partners': return <PartnerSponsorshipPanel />;
-      case 'vex-roles': return <VexRolesAdmin />;
       case 'branches': return <BranchSectionShell />;
-      case 'moderation': return <ContentModeration />;
       case 'audit': return <SystemLogs />;
-      case 'notifications': return <NotificationsPanel />;
-      case 'settings': return <SystemSettings />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
-      case 'maintenance': return <SystemHealth />;
       case 'registrations': return <AdminRegistrations />;
       case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;
-      default: return <Overview />;
+      default: return <UserManagementPanel title="User Management" />;
     }
   };
 
@@ -2073,16 +2057,6 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       }}
       onLogout={onLogout}
     >
-      <DashboardCommandCenter
-        title="Admin Control Center"
-        subtitle="Accounts, moderation, security logs, and platform operations."
-        signals={[
-          { label: 'User Queue', value: '24', detail: 'pending account actions', icon: Users, tone: 'blue' },
-          { label: 'Moderation', value: '4', detail: 'open content flags', icon: MessageSquare, tone: 'amber' },
-          { label: 'System Logs', value: 'Live', detail: 'audit API connected', icon: FileText, tone: 'emerald' },
-          { label: 'Health', value: '99.97%', detail: 'platform uptime', icon: Activity, tone: 'emerald' },
-        ]}
-      />
       {renderPage()}
     </AppLayout>
   );
