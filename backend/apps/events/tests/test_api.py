@@ -83,13 +83,13 @@ class PublicEventApiTest(EventApiTestCase):
         self._create_event(status=EventStatus.PUBLISHED, visibility=Visibility.PUBLIC)
         response = self.client.get(f"{self.base_url}/events/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_list_public_events_excludes_draft(self):
         self._create_event(status=EventStatus.DRAFT)
         response = self.client.get(f"{self.base_url}/events/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(len(response.data["results"]), 0)
 
     def test_event_detail(self):
         event = self._create_event()
@@ -113,7 +113,7 @@ class PublicEventApiTest(EventApiTestCase):
         )
         response = self.client.get(f"{self.base_url}/events/live/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_upcoming_events(self):
         self._create_event(
@@ -122,7 +122,7 @@ class PublicEventApiTest(EventApiTestCase):
         )
         response = self.client.get(f"{self.base_url}/events/upcoming/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_past_events(self):
         now = timezone.now()
@@ -134,7 +134,7 @@ class PublicEventApiTest(EventApiTestCase):
         )
         response = self.client.get(f"{self.base_url}/events/past/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
 
 class AdminEventApiTest(EventApiTestCase):
@@ -1410,3 +1410,277 @@ class EventPaymentApiTest(EventApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "ok")
+
+
+class PublicTournamentApiTest(EventApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tournament_event = self._create_tournament_event(
+            title="Public Tournament",
+            status=EventStatus.PUBLISHED,
+            is_active=True,
+        )
+        self.category = TournamentCategory.objects.create(name="VEX IQ", code="VEX_IQ")
+        self.tournament = Tournament.objects.create(
+            event=self.tournament_event,
+            category=self.category,
+        )
+        self.team_a = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Team Alpha", points=10, wins=2
+        )
+        self.team_b = TournamentTeam.objects.create(
+            tournament=self.tournament, team_name="Team Beta", points=5, wins=1
+        )
+
+    def test_list_public_tournaments(self):
+        response = self.client.get(f"{self.base_url}/events/tournaments/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_public_tournament_list_excludes_draft(self):
+        Tournament.objects.create(
+            event=self._create_tournament_event(
+                title="Draft Tournament", status=EventStatus.DRAFT
+            ),
+            category=self.category,
+        )
+        response = self.client.get(f"{self.base_url}/events/tournaments/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_public_tournament_detail(self):
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{self.tournament.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["event_title"], "Public Tournament")
+
+    def test_public_tournament_standings(self):
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{self.tournament.id}/standings/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["team_name"], "Team Alpha")
+        self.assertEqual(response.data[1]["team_name"], "Team Beta")
+
+    def test_public_tournament_standings_top_n(self):
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{self.tournament.id}/standings/?top=1"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["team_name"], "Team Alpha")
+
+    def test_public_tournament_winner(self):
+        from apps.events.services.match_service import (
+            assign_team_to_side, complete_match, create_match, record_scores,
+        )
+        from apps.events.services.ranking_service import update_tournament_statistics
+
+        match = create_match({"tournament": self.tournament, "round": "Final", "scheduled_at": timezone.now()})
+        assign_team_to_side(match, "SIDE_A", str(self.team_a.id))
+        assign_team_to_side(match, "SIDE_B", str(self.team_b.id))
+        record_scores(match, 10, 5)
+        complete_match(match)
+        update_tournament_statistics(self.tournament)
+
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{self.tournament.id}/winner/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["team_name"], "Team Alpha")
+
+    def test_public_tournament_winner_no_matches(self):
+        empty_tournament = Tournament.objects.create(
+            event=self._create_tournament_event(
+                title="Empty Tournament", status=EventStatus.PUBLISHED, is_active=True
+            ),
+            category=self.category,
+        )
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{empty_tournament.id}/winner/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data)
+
+    def test_public_tournament_matches(self):
+        from apps.events.services.match_service import create_match
+
+        create_match(
+            {"tournament": self.tournament, "round": "Final", "scheduled_at": timezone.now() + timezone.timedelta(days=1)}
+        )
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{self.tournament.id}/matches/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["round"], "Final")
+
+    def test_public_tournament_not_found(self):
+        response = self.client.get(
+            f"{self.base_url}/events/tournaments/{uuid.uuid4()}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PublicWorkshopApiTest(EventApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.instructor = _create_user_with_role(
+            "ws_instructor@test.com", "Workshop", "Instructor", "StrongP@ssw0rd!2026",
+            status="ACTIVE", is_email_verified=True, role=Roles.INSTRUCTOR, branch=self.branch,
+        )
+        self.workshop_event = self._create_workshop_event(
+            title="Public Workshop",
+            status=EventStatus.PUBLISHED,
+            is_active=True,
+        )
+        self.workshop = Workshop.objects.create(
+            event=self.workshop_event,
+            instructor=self.instructor,
+            duration_minutes=120,
+            level="BEGINNER",
+            price=50.00,
+        )
+
+    def test_list_public_workshops(self):
+        response = self.client.get(f"{self.base_url}/events/workshops/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_public_workshop_list_excludes_draft(self):
+        draft_event = self._create_workshop_event(
+            title="Draft Workshop", status=EventStatus.DRAFT
+        )
+        Workshop.objects.create(
+            event=draft_event, instructor=self.instructor,
+            duration_minutes=60, level="ADVANCED",
+        )
+        response = self.client.get(f"{self.base_url}/events/workshops/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_public_workshop_detail(self):
+        response = self.client.get(
+            f"{self.base_url}/events/workshops/{self.workshop.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["event_title"], "Public Workshop")
+        self.assertEqual(response.data["instructor_name"], "Workshop Instructor")
+
+    def test_public_workshop_detail_not_found(self):
+        response = self.client.get(
+            f"{self.base_url}/events/workshops/{uuid.uuid4()}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_public_workshop_serializer_excludes_sensitive_fields(self):
+        response = self.client.get(
+            f"{self.base_url}/events/workshops/{self.workshop.id}/"
+        )
+        self.assertNotIn("instructor", response.data)
+        self.assertNotIn("event", response.data)
+
+
+class PublicEventPaginationFilterTest(EventApiTestCase):
+    def test_pagination_default_page_size(self):
+        for i in range(25):
+            self._create_event(
+                title=f"Event {i}",
+                status=EventStatus.PUBLISHED,
+                visibility=Visibility.PUBLIC,
+            )
+        response = self.client.get(f"{self.base_url}/events/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 20)
+        self.assertIsNotNone(response.data["next"])
+
+    def test_pagination_page_size_param(self):
+        for i in range(10):
+            self._create_event(
+                title=f"Event {i}",
+                status=EventStatus.PUBLISHED,
+                visibility=Visibility.PUBLIC,
+            )
+        response = self.client.get(
+            f"{self.base_url}/events/?page_size=5"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 5)
+
+    def test_search_by_title(self):
+        self._create_event(
+            title="Robotics Competition",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+        )
+        self._create_event(
+            title="Art Exhibition",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+        )
+        response = self.client.get(
+            f"{self.base_url}/events/?search=Robotics"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["title"], "Robotics Competition")
+
+    def test_filter_by_event_type(self):
+        self._create_event(
+            title="General Event",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+            event_type=EventType.GENERAL,
+        )
+        self._create_event(
+            title="Tournament Event",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+            event_type=EventType.TOURNAMENT,
+        )
+        response = self.client.get(
+            f"{self.base_url}/events/?event_type=TOURNAMENT"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["event_type"], "TOURNAMENT")
+
+    def test_order_by_title(self):
+        self._create_event(
+            title="Z Event",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+        )
+        self._create_event(
+            title="A Event",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+        )
+        response = self.client.get(
+            f"{self.base_url}/events/?ordering=title"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["title"], "A Event")
+        self.assertEqual(response.data["results"][1]["title"], "Z Event")
+
+    def test_order_by_start_datetime_desc(self):
+        now = timezone.now()
+        self._create_event(
+            title="Later Event",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+            start_datetime=now + timezone.timedelta(days=10),
+        )
+        self._create_event(
+            title="Earlier Event",
+            status=EventStatus.PUBLISHED,
+            visibility=Visibility.PUBLIC,
+            start_datetime=now + timezone.timedelta(days=1),
+        )
+        response = self.client.get(
+            f"{self.base_url}/events/?ordering=-start_datetime"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["title"], "Later Event")

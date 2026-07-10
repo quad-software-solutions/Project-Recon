@@ -3,13 +3,18 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from django_filters import rest_framework as django_filters
+from rest_framework import filters
+
 from apps.accounts.permissions.roles import (
     get_active_branch_ids,
     user_is_branch_manager,
     user_is_secretary,
 )
+from apps.events.api.pagination import StandardResultsSetPagination
 from apps.events.api.permissions import IsEventStaff
 from apps.events.api.serializers import EventSerializer, EventAdminSerializer
+from apps.events.constants import EventType
 from apps.events.services.event_service import (
     list_events,
     create_event,
@@ -29,9 +34,19 @@ from apps.events.services.queries import (
 )
 
 
+class EventFilter(django_filters.FilterSet):
+    event_type = django_filters.ChoiceFilter(choices=EventType.choices)
+
+
 class PublicEventListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = EventSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [django_filters.DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = EventFilter
+    search_fields = ["title", "description", "location"]
+    ordering_fields = ["start_datetime", "end_datetime", "title"]
+    ordering = ["start_datetime"]
 
     @extend_schema(tags=["Events - Public"])
     def get_queryset(self):
@@ -51,6 +66,7 @@ class PublicEventDetailView(generics.RetrieveAPIView):
 class LiveEventListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = EventSerializer
+    pagination_class = StandardResultsSetPagination
 
     @extend_schema(tags=["Events - Public"])
     def get_queryset(self):
@@ -60,6 +76,7 @@ class LiveEventListView(generics.ListAPIView):
 class UpcomingEventListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = EventSerializer
+    pagination_class = StandardResultsSetPagination
 
     @extend_schema(tags=["Events - Public"])
     def get_queryset(self):
@@ -69,6 +86,10 @@ class UpcomingEventListView(generics.ListAPIView):
 class PastEventListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = EventSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["start_datetime", "end_datetime", "title"]
+    ordering = ["-end_datetime"]
 
     @extend_schema(tags=["Events - Public"])
     def get_queryset(self):

@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.accounts.permissions.roles import (
@@ -10,7 +11,8 @@ from apps.accounts.permissions.roles import (
 from apps.events.api.permissions import (
     IsEventStaffOrInstructor,
 )
-from apps.events.api.serializers import WorkshopAdminSerializer
+from apps.events.api.serializers import WorkshopAdminSerializer, WorkshopSerializer
+from apps.events.models import Workshop
 from apps.events.services.workshop_service import (
     create_workshop,
     delete_workshop,
@@ -18,6 +20,26 @@ from apps.events.services.workshop_service import (
     list_workshops,
     update_workshop,
 )
+
+
+class PublicWorkshopListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = WorkshopSerializer
+
+    def get_queryset(self):
+        return Workshop.objects.filter(
+            event__status="PUBLISHED",
+            event__is_active=True,
+        ).select_related("event", "instructor").order_by("-created_at")
+
+
+class PublicWorkshopDetailView(generics.RetrieveAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = WorkshopSerializer
+    lookup_url_kwarg = "pk"
+
+    def get_object(self):
+        return get_workshop_or_404(self.kwargs["pk"])
 
 
 class AdminWorkshopListCreateView(generics.ListCreateAPIView):

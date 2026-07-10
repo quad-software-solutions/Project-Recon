@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.accounts.permissions.roles import (
@@ -8,7 +9,13 @@ from apps.accounts.permissions.roles import (
     user_is_secretary,
 )
 from apps.events.api.permissions import IsEventStaff
-from apps.events.api.serializers import TournamentAdminSerializer
+from apps.events.api.serializers import (
+    MatchAdminSerializer,
+    TeamStandingSerializer,
+    TournamentAdminSerializer,
+    TournamentSerializer,
+)
+from apps.events.models import Tournament
 from apps.events.services.tournament_service import (
     list_tournaments,
     create_tournament,
@@ -18,6 +25,67 @@ from apps.events.services.tournament_service import (
     close_tournament,
     reopen_tournament,
 )
+from apps.events.services.match_service import list_matches
+from apps.events.services.ranking_service import get_standings, get_tournament_winner
+
+
+class PublicTournamentListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = TournamentSerializer
+
+    def get_queryset(self):
+        return Tournament.objects.filter(
+            event__status="PUBLISHED",
+            event__is_active=True,
+        ).select_related("event", "category").order_by("-created_at")
+
+
+class PublicTournamentDetailView(generics.RetrieveAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = TournamentSerializer
+    lookup_url_kwarg = "pk"
+
+    def get_object(self):
+        return get_tournament_or_404(self.kwargs["pk"])
+
+
+class PublicTournamentStandingsView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(tags=["Events - Public"])
+    def get(self, request, pk):
+        tournament = get_tournament_or_404(pk)
+        top_n = request.query_params.get("top")
+        if top_n is not None:
+            try:
+                top_n = int(top_n)
+            except (ValueError, TypeError):
+                top_n = None
+        standings = get_standings(tournament.id, top_n=top_n)
+        serializer = TeamStandingSerializer(standings, many=True)
+        return Response(serializer.data)
+
+
+class PublicTournamentWinnerView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(tags=["Events - Public"])
+    def get(self, request, pk):
+        tournament = get_tournament_or_404(pk)
+        winner = get_tournament_winner(tournament.id)
+        if winner is None:
+            return Response(None)
+        return Response(TeamStandingSerializer(winner).data)
+
+
+class PublicTournamentMatchListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = MatchAdminSerializer
+
+    @extend_schema(tags=["Events - Public"])
+    def get_queryset(self):
+        tournament = get_tournament_or_404(self.kwargs["pk"])
+        return list_matches(tournament_id=tournament.id)
 
 
 class AdminTournamentListCreateView(generics.ListCreateAPIView):

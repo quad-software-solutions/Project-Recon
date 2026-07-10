@@ -6,6 +6,13 @@ from apps.events.api.views import (
     LiveEventListView,
     UpcomingEventListView,
     PastEventListView,
+    PublicTournamentListView,
+    PublicTournamentDetailView,
+    PublicTournamentStandingsView,
+    PublicTournamentWinnerView,
+    PublicTournamentMatchListView,
+    PublicWorkshopListView,
+    PublicWorkshopDetailView,
     AdminEventListCreateView,
     AdminEventRetrieveUpdateDestroyView,
     AdminEventPublishView,
@@ -170,6 +177,35 @@ urlpatterns = [
         "admin/tournaments/<uuid:pk>/winner/",
         AdminTournamentWinnerView.as_view(),
         name="events-admin-tournament-winner",
+    ),
+    # Public Tournaments
+    path("events/tournaments/", PublicTournamentListView.as_view(), name="events-public-tournament-list"),
+    path(
+        "events/tournaments/<uuid:pk>/",
+        PublicTournamentDetailView.as_view(),
+        name="events-public-tournament-detail",
+    ),
+    path(
+        "events/tournaments/<uuid:pk>/standings/",
+        PublicTournamentStandingsView.as_view(),
+        name="events-public-tournament-standings",
+    ),
+    path(
+        "events/tournaments/<uuid:pk>/winner/",
+        PublicTournamentWinnerView.as_view(),
+        name="events-public-tournament-winner",
+    ),
+    path(
+        "events/tournaments/<uuid:pk>/matches/",
+        PublicTournamentMatchListView.as_view(),
+        name="events-public-tournament-matches",
+    ),
+    # Public Workshops
+    path("events/workshops/", PublicWorkshopListView.as_view(), name="events-public-workshop-list"),
+    path(
+        "events/workshops/<uuid:pk>/",
+        PublicWorkshopDetailView.as_view(),
+        name="events-public-workshop-detail",
     ),
     # Registration
     path("events/<uuid:pk>/register/", EventRegisterView.as_view(), name="events-register"),

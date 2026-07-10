@@ -4,7 +4,7 @@ from .tournament_category import TournamentCategorySerializer
 from .tournament_team import TournamentTeamAdminSerializer
 from .match import MatchAdminSerializer
 from .ranking import TeamStandingSerializer
-from .workshop import WorkshopAdminSerializer
+from .workshop import WorkshopAdminSerializer, WorkshopSerializer
 from .registration import (
     PublicRegistrationSerializer,
     StudentRegistrationSerializer,

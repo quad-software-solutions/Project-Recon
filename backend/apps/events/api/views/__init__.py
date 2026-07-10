@@ -12,6 +12,11 @@ from .event import (
     AdminEventDeactivateView,
 )
 from .tournament import (
+    PublicTournamentListView,
+    PublicTournamentDetailView,
+    PublicTournamentStandingsView,
+    PublicTournamentWinnerView,
+    PublicTournamentMatchListView,
     AdminTournamentListCreateView,
     AdminTournamentRetrieveUpdateDestroyView,
     AdminTournamentCloseView,
@@ -40,6 +45,8 @@ from .ranking import (
     AdminTournamentWinnerView,
 )
 from .workshop import (
+    PublicWorkshopListView,
+    PublicWorkshopDetailView,
     AdminWorkshopListCreateView,
     AdminWorkshopRetrieveUpdateDestroyView,
 )
@@ -67,6 +74,13 @@ __all__ = [
     "LiveEventListView",
     "UpcomingEventListView",
     "PastEventListView",
+    "PublicTournamentListView",
+    "PublicTournamentDetailView",
+    "PublicTournamentStandingsView",
+    "PublicTournamentWinnerView",
+    "PublicTournamentMatchListView",
+    "PublicWorkshopListView",
+    "PublicWorkshopDetailView",
     "AdminEventListCreateView",
     "AdminEventRetrieveUpdateDestroyView",
     "AdminEventPublishView",
