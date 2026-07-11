@@ -29,7 +29,11 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
 
   useEffect(() => {
     const abort = new AbortController();
+<<<<<<< HEAD
     cmsPublicApi.getNews(abort.signal)
+=======
+    cmsPublicApi.getNews(undefined, abort.signal)
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
       .then(res => setNews((res.results ?? []).filter(n => n.is_active)))
       .catch(err => { if (err.name !== 'AbortError') console.error(err); });
     return () => abort.abort();

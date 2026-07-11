@@ -58,11 +58,52 @@ export interface TeamMemberResponse {
   is_active: boolean;
 }
 
+<<<<<<< HEAD
+=======
+export interface AboutUsResponse {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  image: string | null;
+  order: number;
+  is_active: boolean;
+}
+
+export interface MapNodeResponse {
+  id: string;
+  city: string;
+  country: string;
+  title: string;
+  achievement: string;
+  x: number;
+  y: number;
+  lat: string;
+  lng: string;
+  image: string;
+  category: string;
+  is_active: boolean;
+}
+
+export interface TeamMemberResponse {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  image: string;
+  is_active: boolean;
+}
+
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
 export const cmsPublicApi = {
   getHeroBanners: (signal?: AbortSignal) => http.get<HeroBannerResponse[]>('/cms/hero-banners/', { signal }),
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
   getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),
   getPartners: (signal?: AbortSignal) => http.get<CmsPartnerResponse[]>('/cms/partners/', { signal }),
+<<<<<<< HEAD
+=======
+
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
   getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
   getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
   getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),

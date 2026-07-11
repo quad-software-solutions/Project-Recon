@@ -7,7 +7,11 @@ import {
   Handshake, UserCog, Swords, Medal, Wrench, ClipboardList, Cpu, Star, Target,
   Edit3, Trash2, Eye, EyeOff, Search, Filter, Download, ChevronDown, Save, X,
   UserPlus, UserCheck, UserX, Lock, Globe, Zap, TrendingUp, TrendingDown,
+<<<<<<< HEAD
   Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch, BellOff, CheckCircle2
+=======
+  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch, BellOff, CheckCircle2, Calendar, UserCheck as UserCheckIcon, Trophy
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
 } from 'lucide-react';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
@@ -44,7 +48,11 @@ import AdminOverviewDashboard from './AdminOverviewDashboard';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
+<<<<<<< HEAD
 type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms';
+=======
+type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'classes' | 'staff-attendance' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events' | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops' | 'event-registrations' | 'certificates';
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
@@ -58,10 +66,22 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'account', label: 'My Account', icon: Shield, group: 'system' },
 ];
 
+<<<<<<< HEAD
 const pageTitle: Record<SectionId, string> = {
   overview: 'Dashboard', users: 'User Management', roles: 'Roles & Permissions',
   academics: 'Academic Catalog',
   branches: 'Branch Management', registrations: 'Registration Management',
+=======
+const pageTitle: Record<string, string> = {
+  overview: 'Dashboard', users: 'User Management', roles: 'Roles & Permissions',
+  academics: 'Academic Catalog', classes: 'Class Management',
+  'staff-attendance': 'Staff Attendance',
+  branches: 'Branch Management', registrations: 'Registration Management',
+  events: 'Events Management', tournaments: 'Tournament Management',
+  'tournament-teams': 'Team Management', matches: 'Match Management',
+  workshops: 'Workshop Management', 'event-registrations': 'Event Registrations',
+  certificates: 'Certificate Management',
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
   audit: 'Audit Logs',
   cms: 'Content Management', account: 'My Account',
 };
@@ -2095,6 +2115,11 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'users': return <UserManagementPanel title="User Management" />;
       case 'roles': return <RolesPermissions />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
+<<<<<<< HEAD
+=======
+      case 'classes': return <ClassManagerPanel />;
+      case 'staff-attendance': return <StaffAttendanceManager />;
+>>>>>>> 080e2b5a6212164f9ec2053023bbefac7f16f238
       case 'branches': return <BranchSectionShell />;
       case 'audit': return <SystemLogs />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
