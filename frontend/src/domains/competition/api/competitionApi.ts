@@ -59,8 +59,8 @@ function mapBackendEventToWorkshop(e: eventsApi.BackendEvent): Workshop {
 function mapBackendMatchToResult(m: eventsApi.BackendMatch): MatchResult {
   const sideA = m.sides?.find(s => s.side === 'SIDE_A');
   const sideB = m.sides?.find(s => s.side === 'SIDE_B');
-  const teamA = sideA?.participants?.[0]?.tournament_team_name || '—';
-  const teamB = sideB?.participants?.[0]?.tournament_team_name || '—';
+  const teamA = sideA?.participants?.[0]?.team_name || '—';
+  const teamB = sideB?.participants?.[0]?.team_name || '—';
   const status: 'scheduled' | 'live' | 'completed' = m.status === 'LIVE' ? 'live' : m.status === 'COMPLETED' ? 'completed' : 'scheduled';
   return {
     id: m.id,
@@ -395,7 +395,7 @@ function mapBackendMatchToDetail(m: eventsApi.BackendMatch): MatchDetail {
     sides: (m.sides || []).map(s => ({
       side: s.side,
       score: s.score,
-      teams: s.participants?.map(p => p.tournament_team_name || '') || [],
+      teams: s.participants?.map(p => p.team_name || '') || [],
     })),
   };
 }

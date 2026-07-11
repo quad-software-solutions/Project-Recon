@@ -268,13 +268,13 @@ export default function TeamManager() {
                           <div className="flex items-center gap-3 flex-1">
                             <span className="text-[10px] font-bold text-slate-400 w-20 truncate">{match.round}</span>
                             <span className="text-xs font-medium text-slate-700 flex-1 text-right truncate">
-                              {sideA?.participants?.map(p => p.tournament_team_name).join(', ') || 'TBD'}
+                              {sideA?.participants?.map(p => (p as any).team_name || p.tournament_team_name).join(', ') || 'TBD'}
                             </span>
                             <span className="text-xs font-black text-slate-900 min-w-[40px] text-center">
                               {match.status === 'COMPLETED' ? `${teamScore ?? '-'}:${opponentScore ?? '-'}` : 'vs'}
                             </span>
                             <span className="text-xs font-medium text-slate-700 flex-1 truncate">
-                              {sideB?.participants?.map(p => p.tournament_team_name).join(', ') || 'TBD'}
+                              {sideB?.participants?.map(p => (p as any).team_name || p.tournament_team_name).join(', ') || 'TBD'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 ml-2 shrink-0">

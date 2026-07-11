@@ -484,7 +484,7 @@ function MatchControl() {
                     : <input type="number" value={sc.a} onChange={e => setScoreInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], a: e.target.value } }))}
                         className="w-16 text-center text-sm font-black bg-white border border-slate-200 rounded-lg px-2 py-1" placeholder="0" disabled={!isLive} />}
                 </div>
-                <p className="text-[10px] text-slate-600 mt-1">{s0?.participants?.map((p: any) => p.tournament_team_name || p.tournament_team?.slice(-6)).join(' · ') || '—'}</p>
+                <p className="text-[10px] text-slate-600 mt-1">{s0?.participants?.map((p: any) => p.team_name || p.tournament_team_name || p.tournament_team?.slice(-6)).join(' · ') || '—'}</p>
               </div>
               <span className="text-[9px] font-black text-slate-400">VS</span>
               <div className="flex-1 bg-blue-50 rounded-xl p-3 border border-blue-100">
@@ -494,7 +494,7 @@ function MatchControl() {
                     : <input type="number" value={sc.b} onChange={e => setScoreInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], b: e.target.value } }))}
                         className="w-16 text-center text-sm font-black bg-white border border-slate-200 rounded-lg px-2 py-1" placeholder="0" disabled={!isLive} />}
                 </div>
-                <p className="text-[10px] text-slate-600 mt-1">{s1?.participants?.map((p: any) => p.tournament_team_name || p.tournament_team?.slice(-6)).join(' · ') || '—'}</p>
+                <p className="text-[10px] text-slate-600 mt-1">{s1?.participants?.map((p: any) => p.team_name || p.tournament_team_name || p.tournament_team?.slice(-6)).join(' · ') || '—'}</p>
               </div>
             </div>
             <div className="flex gap-2 mt-3">

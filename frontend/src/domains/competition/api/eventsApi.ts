@@ -111,7 +111,7 @@ export interface BackendMatchParticipant {
   id: string;
   match_side: string;
   tournament_team: string;
-  tournament_team_name?: string;
+  team_name?: string;
   created_at: string;
 }
 

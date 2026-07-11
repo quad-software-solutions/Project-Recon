@@ -427,11 +427,11 @@ export default function TournamentManager() {
                           <div key={match.id} className="bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-100 flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
                               <span className="text-[10px] font-bold text-slate-400 w-20 truncate">{match.round}</span>
-                              <span className="text-xs font-medium text-slate-700 flex-1 text-right truncate">{sideA?.participants?.[0]?.tournament_team_name || 'TBD'}</span>
+                              <span className="text-xs font-medium text-slate-700 flex-1 text-right truncate">{(sideA?.participants?.[0] as any)?.team_name || sideA?.participants?.[0]?.tournament_team_name || 'TBD'}</span>
                               <span className="text-xs font-black text-slate-900 min-w-[40px] text-center">
                                 {match.status === 'COMPLETED' ? `${sideA?.score ?? '-'}:${sideB?.score ?? '-'}` : 'vs'}
                               </span>
-                              <span className="text-xs font-medium text-slate-700 flex-1 truncate">{sideB?.participants?.[0]?.tournament_team_name || 'TBD'}</span>
+                              <span className="text-xs font-medium text-slate-700 flex-1 truncate">{(sideB?.participants?.[0] as any)?.team_name || sideB?.participants?.[0]?.tournament_team_name || 'TBD'}</span>
                             </div>
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-2 ${
                               match.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' :

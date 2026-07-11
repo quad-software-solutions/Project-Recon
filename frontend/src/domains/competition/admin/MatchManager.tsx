@@ -174,8 +174,8 @@ export default function MatchManager() {
           {filtered.map((m, i) => {
             const sideA = m.sides?.find(s => s.side === 'SIDE_A');
             const sideB = m.sides?.find(s => s.side === 'SIDE_B');
-            const teamANames = sideA?.participants?.map(p => p.tournament_team_name).join(', ') || 'TBD';
-            const teamBNames = sideB?.participants?.map(p => p.tournament_team_name).join(', ') || 'TBD';
+            const teamANames = sideA?.participants?.map(p => (p as any).team_name || p.tournament_team_name).join(', ') || 'TBD';
+            const teamBNames = sideB?.participants?.map(p => (p as any).team_name || p.tournament_team_name).join(', ') || 'TBD';
             return (
               <motion.div key={m.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                 className="bg-white border border-brand-border rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer" onClick={() => setSelectedMatch(m)}>
@@ -273,7 +273,7 @@ export default function MatchManager() {
                       </div>
                       {side?.participants?.map(p => (
                         <div key={p.id} className="flex items-center justify-between bg-white/80 rounded-lg px-3 py-2 mb-1.5 last:mb-0">
-                          <span className="text-xs font-medium text-slate-900">{p.tournament_team_name}</span>
+                          <span className="text-xs font-medium text-slate-900">{(p as any).team_name || p.tournament_team_name}</span>
                           <button onClick={() => handleRemoveTeam(sideKey, p.tournament_team)} className="text-slate-400 hover:text-red-500"><X className="w-3 h-3" /></button>
                         </div>
                       )) || <p className="text-xs text-slate-400 text-center py-3">No teams assigned</p>}
