@@ -59,25 +59,41 @@ export default function TournamentCertificateManager({ tournamentId, tournament,
   useEffect(() => {
     setLoading(true);
     setError(null);
-    Promise.all([
-      adminGetTournamentTeams(tournamentId).catch(() => []),
-      adminGetRegistrations({ event: tournamentId }).catch(() => []),
-      fetchCertificateTemplatesApi().catch(() => []),
-    ]).then(([t, r, ct]) => {
-      setTeams(t);
-      setRegistrations(r);
-      setCertTemplates(ct);
-      const initialAwards: TeamAwardState[] = t.map(team => ({
-        teamId: team.id,
-        teamName: team.team_name,
+
+    if (isStaff) {
+      Promise.all([
+        adminGetTournamentTeams(tournamentId).catch(() => []),
+        adminGetRegistrations({ event: tournamentId }).catch(() => []),
+        fetchCertificateTemplatesApi().catch(() => []),
+      ]).then(([t, r, ct]) => {
+        setTeams(t);
+        setRegistrations(r);
+        setCertTemplates(ct);
+        const initialAwards: TeamAwardState[] = t.map(team => ({
+          teamId: team.id,
+          teamName: team.team_name,
+          awards: {},
+        }));
+        setTeamAwards(initialAwards);
+      }).catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+    } else {
+      setTeams([]);
+      setRegistrations([]);
+      setCertTemplates([]);
+      const initialAwards: TeamAwardState[] = standings.map(s => ({
+        teamId: s.teamName,
+        teamName: s.teamName,
         awards: {},
       }));
       setTeamAwards(initialAwards);
-    }).catch(err => setError(err.message))
-    .finally(() => setLoading(false));
-  }, [tournamentId]);
+      setLoading(false);
+    }
+  }, [tournamentId, isStaff, standings]);
 
-  const findStudentForTeam = (team: BackendTournamentTeam): { studentId: string | null; email: string; name: string } => {
+  const findStudentForTeam = (team: BackendTournamentTeam | null): { studentId: string | null; email: string; name: string } => {
+    if (!team) return { studentId: null, email: '', name: '' };
+    if (!isStaff) return { studentId: null, email: '', name: team.team_name };
     const regByTeamId = registrations.find(r => r.id === team.registration);
     if (regByTeamId?.student) {
       return { studentId: regByTeamId.student, email: regByTeamId.student_email || '', name: regByTeamId.public_full_name || team.team_name };
@@ -124,10 +140,11 @@ export default function TournamentCertificateManager({ tournamentId, tournament,
   const previewTeam = teamAwards.find(ta => ta.teamId === selectedTeam);
   const previewAward = selectedAward ? VEX_AWARDS.find(a => a.key === selectedAward) : null;
 
-  const selectedTeamData = teams.find(t => t.id === selectedTeam);
-  const previewStudent = selectedTeamData ? findStudentForTeam(selectedTeamData) : null;
+  const previewTeamData = teams.find(t => t.id === selectedTeam) || teams.find(t => t.team_name === selectedTeam) || null;
+  const previewStudent = findStudentForTeam(previewTeamData);
 
   const issueCertificates = async () => {
+    if (!isStaff) return;
     setIssuing(true);
     setIssueLog([]);
     const logs: string[] = [];
