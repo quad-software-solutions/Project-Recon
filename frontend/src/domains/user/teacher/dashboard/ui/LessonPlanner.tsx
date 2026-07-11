@@ -4,7 +4,7 @@ import {
   Search, Filter, Calendar, BookOpen, Target, TrendingUp,
   X, Edit3, Save, Loader2, ChevronDown, ChevronUp, Copy,
   Flag, AlertTriangle, MessageSquare,
-  Download, LayoutGrid, List, GripVertical, CalendarDays,
+  Download, LayoutGrid, List, CalendarDays,
   BarChart3, Eye, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,12 +40,7 @@ const TRACK_BG: Record<string, string> = {
   'Enjoy AI': 'bg-purple-500',
 };
 
-const INITIAL_LESSONS: LessonItem[] = [
-  { id: 1, title: 'Introduction to PID Controllers', description: 'Cover fundamental PID control theory with practical robot arm exercises.', track: 'VEX V5', date: 'Mon, Jun 16', duration: '2h', status: 'completed', topics: ['Proportional Control', 'Integral Tuning', 'Derivative Dampening'], priority: 'high', subTasks: [{ id: 101, title: 'Watch intro video', done: true }, { id: 102, title: 'Build test rig', done: true }, { id: 103, title: 'Run calibration', done: true }] },
-  { id: 2, title: 'Sensor Calibration Lab', description: 'Hands-on calibration of gyroscope, ultrasonic, and color sensors.', track: 'VEX IQ', date: 'Tue, Jun 17', duration: '1.5h', status: 'in-progress', topics: ['Gyroscope Calibration', 'Ultrasonic Ranging', 'Color Sensor Thresholds'], priority: 'high', subTasks: [{ id: 201, title: 'Review sensor docs', done: true }, { id: 202, title: 'Calibrate gyro', done: false }, { id: 203, title: 'Test range finder', done: false }] },
-  { id: 3, title: 'Autonomous Navigation Basics', description: 'Introduce line following, obstacle detection, and path planning.', track: 'Enjoy AI', date: 'Wed, Jun 18', duration: '2h', status: 'planned', topics: ['Line Following', 'Obstacle Detection', 'Path Planning'], priority: 'medium', subTasks: [{ id: 301, title: 'Prepare maze', done: false }, { id: 302, title: 'Write path algorithm', done: false }] },
-  { id: 4, title: 'Mechanical Design Review', description: 'Review gear ratios, structural integrity, and weight distribution principles.', track: 'VEX V5', date: 'Thu, Jun 19', duration: '1h', status: 'planned', topics: ['Gear Ratios', 'Structural Integrity', 'Weight Distribution'], priority: 'low', subTasks: [] },
-];
+
 
 const statusStyles = {
   'completed': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', icon: CheckCircle2, label: 'Completed', dot: 'bg-emerald-500', bar: 'bg-emerald-400' },
@@ -60,7 +55,7 @@ const PRIORITY_STYLES = {
 };
 
 export default function LessonPlanner() {
-  const [lessons, setLessons] = useState(INITIAL_LESSONS);
+  const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -415,7 +410,7 @@ export default function LessonPlanner() {
           {sorted.length === 0 ? (
             <div className="py-12 text-center text-slate-400">
               <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">No lessons match your filters</p>
+              <p className="text-sm font-medium">{lessons.length === 0 ? 'No lessons yet — click "New Lesson" to create your first one' : 'No lessons match your filters'}</p>
             </div>
           ) : sorted.map((lesson, i) => {
             const s = statusStyles[lesson.status];

@@ -6,7 +6,7 @@ import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
 import AdminAccount from '@/src/domains/user/shared/ui/AdminAccount';
-import { fetchEnrollmentsApi, fetchStudentsApi, fetchAttendanceSessionsApi, fetchStudentProgressApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
+import { fetchEnrollmentsApi, fetchStudentsApi, fetchStudentProgressApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
 
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';

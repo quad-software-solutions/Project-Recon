@@ -1,2 +1,3 @@
 export type TeacherSectionId =
-  | 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity';
+  | 'class' | 'progress' | 'lessons' | 'gradebook' | 'metrics' | 'notes' | 'activity'
+  | 'attendance' | 'reports' | 'account';
