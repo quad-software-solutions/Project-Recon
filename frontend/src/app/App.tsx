@@ -43,11 +43,11 @@ export default function App() {
     getCartTotal, getCartItemsCount, openCart, closeCart,
   } = useCart();
 
-  const { activeTab, handleTabChange } = useNavigation(currentUser);
+  const { activeTab, handleTabChange, forceNavigate } = useNavigation(currentUser);
 
-  const handleLogoutAndNavigate = () => {
-    handleLogout();
-    handleTabChange('login');
+  const handleLogoutAndNavigate = async () => {
+    await handleLogout();
+    forceNavigate('login');
   };
 
   const [selectedProgramSpec, setSelectedProgramSpec] = useState<any>(null);

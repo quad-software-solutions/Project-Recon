@@ -27,7 +27,8 @@ export function useNavigation(currentUser: UserProfile | null) {
     const user = savedUser ? JSON.parse(savedUser) : null;
     let tab = tabFromPath(window.location.pathname);
     tab = canAccessTab(user, tab) ? tab : getDefaultAuthenticatedTab(user);
-    if (user && tab !== 'dashboard') {
+    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+    if (user && authRoutes.includes(tab)) {
       tab = 'dashboard';
       window.history.replaceState(null, '', pathFromTab(tab, user));
     }
@@ -38,7 +39,8 @@ export function useNavigation(currentUser: UserProfile | null) {
     const handlePopState = () => {
       const requestedTab = tabFromPath(window.location.pathname);
       let nextTab = canAccessTab(currentUser, requestedTab) ? requestedTab : getDefaultAuthenticatedTab(currentUser);
-      if (currentUser && nextTab !== 'dashboard') {
+      const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+      if (currentUser && authRoutes.includes(nextTab)) {
         nextTab = 'dashboard';
       }
       setActiveTab(nextTab);
@@ -50,7 +52,8 @@ export function useNavigation(currentUser: UserProfile | null) {
 
   const handleTabChange = useCallback((tab: ActiveTab) => {
     let nextTab = canAccessTab(currentUser, tab) ? tab : getDefaultAuthenticatedTab(currentUser);
-    if (currentUser && nextTab !== 'dashboard') {
+    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+    if (currentUser && authRoutes.includes(nextTab)) {
       nextTab = 'dashboard';
     }
     setActiveTab(nextTab);
@@ -65,5 +68,11 @@ export function useNavigation(currentUser: UserProfile | null) {
     }
   };
 
-  return { activeTab, handleTabChange, triggerAuthFlow };
+  /** Bypass all auth guards — used exclusively by logout to avoid stale-closure issues. */
+  const forceNavigate = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    window.history.pushState(null, '', tab === 'home' ? '/' : `/${tab}`);
+  }, []);
+
+  return { activeTab, handleTabChange, triggerAuthFlow, forceNavigate };
 }
