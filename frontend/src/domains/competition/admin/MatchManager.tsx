@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Gamepad2, Clock, Edit3, Trash2, CheckCircle, Play, Swords, Users, Trophy, Activity, BarChart3, Calendar, Filter } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, Gamepad2, Clock, Edit3, Trash2, CheckCircle, Swords, Users, Trophy, Activity, BarChart3, Calendar, Filter } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendMatch, BackendTournamentTeam, SideType } from '../api/eventsApi';
 
@@ -184,7 +184,7 @@ export default function MatchManager() {
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/10 flex items-center justify-center"><Gamepad2 className="w-4 h-4 text-amber-600" /></div>
                     <div>
                       <h4 className="font-bold text-sm text-slate-900">{m.round}</h4>
-                      <span className="text-[10px] text-slate-500">{m.tournament_event_title}</span>
+                      <span className="text-[10px] text-slate-500">{m.tournament_title}</span>
                     </div>
                   </div>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(m.status)}`}>{m.status}</span>
@@ -250,18 +250,12 @@ export default function MatchManager() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-black text-lg text-slate-900">{selectedMatch.round}</h3>
-                  <p className="text-xs text-slate-500">{selectedMatch.tournament_event_title}</p>
+                  <p className="text-xs text-slate-500">{selectedMatch.tournament_title}</p>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-1 inline-block ${statusBadge(selectedMatch.status)}`}>{selectedMatch.status}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedMatch.status !== 'COMPLETED' && selectedMatch.status !== 'CANCELLED' && (
-                    <>
-                      {selectedMatch.status !== 'LIVE' && (
-                        <button onClick={async () => { try { await eventsApi.adminUpdateMatch(selectedMatch.id, { status: 'LIVE' } as any); const u = await eventsApi.adminGetMatch(selectedMatch.id); setSelectedMatch(u); } catch (err: any) { setError(err.message); } }}
-                          className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"><Play className="w-4 h-4" /></button>
-                      )}
-                      <button onClick={handleComplete} className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><CheckCircle className="w-4 h-4" /></button>
-                    </>
+                    <button onClick={handleComplete} className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><CheckCircle className="w-4 h-4" /></button>
                   )}
                   <button onClick={() => setSelectedMatch(null)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>
                 </div>

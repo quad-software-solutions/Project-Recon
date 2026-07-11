@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Trophy, MapPin, Calendar, Users, DollarSign, Shield, Loader2, AlertCircle,
-  Gamepad2, CheckCircle, Clock, Swords, Medal, Target, Flame, Award, ScrollText,
+  Gamepad2, CheckCircle, Clock, Swords, Medal, Target, Flame, Award, ScrollText, Sparkles,
 } from 'lucide-react';
 import { getTournamentById, getMatches, getTournamentStandings, type StandingEntry } from '../../api/competitionApi';
 import { type Tournament, type MatchResult } from '@/src/shared/types';
@@ -87,48 +87,64 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         {/* Hero header */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 mb-6 text-white">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center">
-                <Trophy className="w-8 h-8 text-amber-400" />
-              </div>
-              <div>
-                <h2 className="font-black text-2xl md:text-3xl">{tournament.title}</h2>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[tournament.storedStatus]}`}>{tournament.storedStatus}</span>
-                  <span className="text-[11px] text-white/60">{tournament.category}</span>
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 mb-6 text-white">
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+            backgroundSize: '40px 40px',
+          }} />
+          <div className="absolute top-0 right-0 w-72 h-72 bg-red-600/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-56 h-56 bg-blue-600/10 rounded-full blur-3xl" />
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center border border-amber-500/10">
+                  <Trophy className="w-8 h-8 text-amber-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-red-500/10 text-red-400 border border-red-500/20 rounded-full">
+                      <Trophy className="w-2.5 h-2.5" /> EthioRobotics
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
+                      <Sparkles className="w-2 h-2" /> 2025
+                    </span>
+                  </div>
+                  <h2 className="font-black text-2xl md:text-3xl">{tournament.title}</h2>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[tournament.storedStatus]}`}>{tournament.storedStatus}</span>
+                    <span className="text-[11px] text-white/60">{tournament.category}</span>
+                  </div>
                 </div>
               </div>
+              {liveMatches.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-[10px] font-black shadow-lg shadow-red-500/25">
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  {liveMatches.length} LIVE
+                </div>
+              )}
             </div>
-            {liveMatches.length > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-[10px] font-black">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                {liveMatches.length} LIVE
-              </div>
-            )}
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white/5 rounded-xl p-3">
-              <Calendar className="w-4 h-4 text-white/60 mb-1" />
-              <p className="text-[9px] font-black uppercase text-white/40">Date</p>
-              <p className="text-xs font-bold mt-0.5">{new Date(tournament.startDateTime).toLocaleDateString()}</p>
-            </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <MapPin className="w-4 h-4 text-white/60 mb-1" />
-              <p className="text-[9px] font-black uppercase text-white/40">Location</p>
-              <p className="text-xs font-bold mt-0.5 truncate">{tournament.location}</p>
-            </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <Users className="w-4 h-4 text-white/60 mb-1" />
-              <p className="text-[9px] font-black uppercase text-white/40">Teams</p>
-              <p className="text-xs font-bold mt-0.5">{tournament.enrolledCount} / {tournament.maxTeams || '∞'}</p>
-            </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <DollarSign className="w-4 h-4 text-white/60 mb-1" />
-              <p className="text-[9px] font-black uppercase text-white/40">Prize Pool</p>
-              <p className="text-xs font-bold mt-0.5">{(tournament as any).prizePool || '—'}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/5">
+                <Calendar className="w-4 h-4 text-white/60 mb-1" />
+                <p className="text-[9px] font-black uppercase text-white/40">Date</p>
+                <p className="text-xs font-bold mt-0.5">{new Date(tournament.startDateTime).toLocaleDateString()}</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/5">
+                <MapPin className="w-4 h-4 text-white/60 mb-1" />
+                <p className="text-[9px] font-black uppercase text-white/40">Location</p>
+                <p className="text-xs font-bold mt-0.5 truncate">{tournament.location}</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/5">
+                <Users className="w-4 h-4 text-white/60 mb-1" />
+                <p className="text-[9px] font-black uppercase text-white/40">Teams</p>
+                <p className="text-xs font-bold mt-0.5">{tournament.enrolledCount} / {tournament.maxTeams || '∞'}</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/5">
+                <DollarSign className="w-4 h-4 text-white/60 mb-1" />
+                <p className="text-[9px] font-black uppercase text-white/40">Prize Pool</p>
+                <p className="text-xs font-bold mt-0.5">{(tournament as any).prizePool || '—'}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -141,7 +157,7 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                   tab === t.id
-                    ? 'bg-white text-brand-red shadow-sm'
+                    ? 'bg-gradient-to-r from-brand-red to-brand-red-dark text-white shadow-md shadow-brand-red/20'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >

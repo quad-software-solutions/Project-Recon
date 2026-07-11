@@ -9,7 +9,7 @@ import {
 import { UserProfile, Enrollment } from '@/src/shared/types';
 import { fetchStudentsApi, fetchEnrollmentsApi, fetchStudentCertificatesApi, fetchProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
 import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
-import { getTournaments, getMatches, getWorkshops } from '@/src/domains/competition/api/competitionApi';
+
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
@@ -213,26 +213,13 @@ interface OverviewProps {
 function OverviewPage({ currentUser, studentId, onNavigate, enrollments }: OverviewProps) {
   const [loading, setLoading] = useState(true);
   const [newsEvents, setNewsEvents] = useState<{ title: string; date: string }[]>([]);
-  const [vexStats, setVexStats] = useState({ tournaments: 0, matches: 0, wins: 0 });
-
   useEffect(() => {
-    Promise.all([
-      cmsPublicApi.getNews({ limit: '3' }),
-      getTournaments(),
-      getMatches(''),
-    ]).then(([news, tor, mat]) => {
+    cmsPublicApi.getNews({ limit: '3' }).then(news => {
       const items = news?.results || [];
       setNewsEvents(items.map(n => ({
         title: n.title,
         date: new Date(n.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
       })));
-      const torList = tor || [];
-      const matList = mat || [];
-      setVexStats({
-        tournaments: torList.length,
-        matches: matList.length,
-        wins: matList.filter(m => m.status === 'completed' && m.score1 > m.score2).length,
-      });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 

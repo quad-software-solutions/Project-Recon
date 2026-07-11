@@ -9,6 +9,7 @@ const defaultForm = {
   start_datetime: '', end_datetime: '', visibility: 'PUBLIC' as eventsApi.Visibility,
   registration_enabled: false, registration_mode: 'PUBLIC' as eventsApi.RegistrationMode,
   payment_required: false, registration_fee: '', capacity: '', youtube_live_url: '',
+  branch: '',
 };
 
 interface EventManagerProps {
@@ -61,6 +62,7 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
       registration_fee: e.registration_fee || '',
       capacity: e.capacity?.toString() || '',
       youtube_live_url: e.youtube_live_url || '',
+      branch: e.branch || '',
     });
     setShowForm(true);
   };
@@ -79,6 +81,7 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
         registration_fee: form.registration_enabled && form.payment_required ? form.registration_fee : null,
         capacity: form.capacity ? parseInt(form.capacity) : null,
         youtube_live_url: form.youtube_live_url || null,
+        branch: form.branch || null,
       };
       if (editingId) {
         await eventsApi.adminUpdateEvent(editingId, payload as Partial<BackendEvent>);
@@ -163,19 +166,33 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="font-black text-lg text-slate-900">Events</h3>
-          <p className="text-xs text-slate-500 mt-1">{events.length} events ({events.filter(e => e.status === 'PUBLISHED').length} published)</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" />
+      {/* Admin page header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border border-slate-700/60 p-6">
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+          backgroundSize: '40px 40px',
+        }} />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-red-500/10 text-red-400 border border-red-500/20 rounded-full">
+                Admin · EthioRobotics
+              </span>
+            </div>
+            <h3 className="font-black text-lg text-white">Events</h3>
+            <p className="text-xs text-slate-400 mt-1">{events.length} events ({events.filter(e => e.status === 'PUBLISHED').length} published)</p>
           </div>
-          <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-95 transition-all">
-            <Plus className="w-4 h-4" /> New Event
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="w-48 pl-9 pr-3 py-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-red" />
+            </div>
+            <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-95 transition-all">
+              <Plus className="w-4 h-4" /> New Event
+            </button>
+          </div>
         </div>
       </div>
 
@@ -188,7 +205,7 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
         <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="bg-slate-50 border-b border-brand-border">
+              <thead><tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-brand-border">
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Title</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden md:table-cell">Type</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden md:table-cell">Schedule</th>
@@ -264,7 +281,12 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className="relative bg-white w-full max-w-xl rounded-3xl shadow-2xl p-6 md:p-8 z-10 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-black text-lg text-slate-900">{editingId ? 'Edit Event' : 'New Event'}</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-red/10 to-brand-red/5 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-brand-red" />
+                  </div>
+                  <h3 className="font-black text-lg text-slate-900">{editingId ? 'Edit Event' : 'New Event'}</h3>
+                </div>
                 <button onClick={() => setShowForm(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>
               </div>
               <div className="flex flex-col gap-4">
@@ -278,9 +300,19 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Branch</label>
+                    <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
+                      <option value="">All Branches</option>
+                      {branches.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Location *</label>
                     <input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Event Type</label>
                     <select value={form.event_type} onChange={e => setForm(p => ({ ...p, event_type: e.target.value as eventsApi.EventType }))}
@@ -289,6 +321,11 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
                       <option value="TOURNAMENT">Tournament</option>
                       <option value="WORKSHOP">Workshop</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Capacity</label>
+                    <input type="number" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: e.target.value }))} placeholder="Unlimited"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -303,20 +340,13 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
                       className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Visibility</label>
-                    <select value={form.visibility} onChange={e => setForm(p => ({ ...p, visibility: e.target.value as eventsApi.Visibility }))}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
-                      <option value="PUBLIC">Public</option>
-                      <option value="PRIVATE">Private</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Capacity</label>
-                    <input type="number" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: e.target.value }))} placeholder="Unlimited"
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
-                  </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Visibility</label>
+                  <select value={form.visibility} onChange={e => setForm(p => ({ ...p, visibility: e.target.value as eventsApi.Visibility }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
+                    <option value="PUBLIC">Public</option>
+                    <option value="PRIVATE">Private</option>
+                  </select>
                 </div>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">

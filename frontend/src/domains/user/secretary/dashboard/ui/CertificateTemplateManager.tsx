@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Award, FileText, Eye, Image, RotateCcw, Shield, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, Award, FileText, Eye, Image, RotateCcw, Shield, CheckCircle2, Upload } from 'lucide-react';
 import { Certificate } from '@/src/shared/types';
-import { fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi, setCertificateTemplateActiveApi, fetchSubProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi, setCertificateTemplateActiveApi, fetchSubProgramsApi, decodeBodyWithSignatory } from '@/src/domains/learning/academics/api/academicApi';
 
-const defaultForm = {
-  sub_program: '', title: '', background: '', institute_logo: '', signature: '', body_text: '',
+interface TemplateForm {
+  sub_program: string;
+  title: string;
+  body_text: string;
+  signatory_name: string;
+  signatory_title: string;
+}
+
+const defaultForm: TemplateForm = {
+  sub_program: '', title: '', body_text: '', signatory_name: '', signatory_title: '',
 };
 
 export default function CertificateTemplateManager() {
@@ -17,7 +25,13 @@ export default function CertificateTemplateManager() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Certificate | null>(null);
-  const [form, setForm] = useState(defaultForm);
+  const [form, setForm] = useState<TemplateForm>(defaultForm);
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -32,24 +46,49 @@ export default function CertificateTemplateManager() {
 
   useEffect(() => { load(); }, []);
 
+  const resetFileState = () => {
+    setBackgroundFile(null);
+    setLogoFile(null);
+    setSignatureFile(null);
+    setBackgroundPreview(null);
+    setLogoPreview(null);
+    setSignaturePreview(null);
+  };
+
   const openCreate = () => {
     setEditing(null);
     setForm(defaultForm);
+    resetFileState();
     setShowForm(true);
   };
 
   const openEdit = (t: Certificate) => {
     setEditing(t);
+    const decoded = decodeBodyWithSignatory(t.body_text || '');
     setForm({
-      sub_program: (t as any).sub_program || '',
+      sub_program: t.sub_program || '',
       title: t.title,
-      background: (t as any).background || '',
-      institute_logo: (t as any).institute_logo || '',
-      signature: (t as any).signature || '',
-      body_text: (t as any).body_text || '',
+      body_text: decoded.body,
+      signatory_name: decoded.signatory_name,
+      signatory_title: decoded.signatory_title,
     });
+    resetFileState();
+    setBackgroundPreview(t.background_url || null);
+    setLogoPreview(t.institute_logo_url || null);
+    setSignaturePreview(t.signature_url || null);
     setShowForm(true);
   };
+
+  const buildPayload = () => ({
+    sub_program: form.sub_program,
+    title: form.title,
+    body_text: form.body_text,
+    background: backgroundFile,
+    institute_logo: logoFile,
+    signature: signatureFile,
+    signatory_name: form.signatory_name,
+    signatory_title: form.signatory_title,
+  });
 
   const handleSave = async () => {
     if (!form.title || !form.sub_program) return;
@@ -57,13 +96,14 @@ export default function CertificateTemplateManager() {
     setError(null);
     try {
       if (editing) {
-        await updateCertificateTemplateApi(editing.id, form);
+        await updateCertificateTemplateApi(editing.id, buildPayload());
       } else {
-        await createCertificateTemplateApi(form);
+        await createCertificateTemplateApi(buildPayload());
       }
       setShowForm(false);
       setEditing(null);
       setForm(defaultForm);
+      resetFileState();
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save template');
@@ -197,15 +237,78 @@ export default function CertificateTemplateManager() {
                     </select></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Body Text</label>
                     <textarea value={form.body_text} onChange={e => setForm(p => ({ ...p, body_text: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="Certificate body text..." /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Background Image URL</label>
-                    <input value={form.background} onChange={e => setForm(p => ({ ...p, background: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="https://..." /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Institute Logo URL</label>
-                    <input value={form.institute_logo} onChange={e => setForm(p => ({ ...p, institute_logo: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="https://..." /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Signature Image URL</label>
-                    <input value={form.signature} onChange={e => setForm(p => ({ ...p, signature: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="https://..." /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Name</label>
+                      <input value={form.signatory_name} onChange={e => setForm(p => ({ ...p, signatory_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="e.g. Dr. John Smith" /></div>
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Title</label>
+                      <input value={form.signatory_title} onChange={e => setForm(p => ({ ...p, signatory_title: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="e.g. Principal, Director" /></div>
+                  </div>
+                  {/* Background Image */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Background Image</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors flex-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{backgroundFile ? backgroundFile.name : 'Choose file...'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0] || null;
+                          setBackgroundFile(f);
+                          if (f) setBackgroundPreview(URL.createObjectURL(f));
+                        }} />
+                      </label>
+                      {(backgroundPreview || editing) && !backgroundFile && (
+                        <span className="text-[10px] text-slate-400">Current image preserved if no new file selected</span>
+                      )}
+                    </div>
+                    {backgroundPreview && (
+                      <img src={backgroundPreview} alt="Background preview" className="mt-2 max-h-24 rounded-lg object-cover border border-brand-border" />
+                    )}
+                  </div>
+                  {/* Institute Logo */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Institute Logo</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors flex-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{logoFile ? logoFile.name : 'Choose file...'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0] || null;
+                          setLogoFile(f);
+                          if (f) setLogoPreview(URL.createObjectURL(f));
+                        }} />
+                      </label>
+                      {logoPreview && !logoFile && (
+                        <span className="text-[10px] text-slate-400">Current image preserved</span>
+                      )}
+                    </div>
+                    {logoPreview && (
+                      <img src={logoPreview} alt="Logo preview" className="mt-2 max-h-24 rounded-lg object-cover border border-brand-border" />
+                    )}
+                  </div>
+                  {/* Signature Image */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signature Image</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors flex-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{signatureFile ? signatureFile.name : 'Choose file...'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0] || null;
+                          setSignatureFile(f);
+                          if (f) setSignaturePreview(URL.createObjectURL(f));
+                        }} />
+                      </label>
+                      {signaturePreview && !signatureFile && (
+                        <span className="text-[10px] text-slate-400">Current image preserved</span>
+                      )}
+                    </div>
+                    {signaturePreview && (
+                      <img src={signaturePreview} alt="Signature preview" className="mt-2 max-h-24 rounded-lg object-cover border border-brand-border" />
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
-                  <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                  <button onClick={() => { setShowForm(false); resetFileState(); }} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                   <button onClick={handleSave} disabled={saving || !form.title || !form.sub_program}
                     className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}

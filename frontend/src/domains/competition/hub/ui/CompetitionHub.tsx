@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import {
   Trophy, MapPin, Users, Calendar, ChevronRight, Search, Loader2, AlertCircle,
   Clock, DollarSign, Lock, User, ExternalLink, GraduationCap,
-  EyeOff, X, Shield, CheckCircle2, Activity, Zap, Gamepad2,
+  EyeOff, X, Shield, CheckCircle2, Activity, Zap, Gamepad2, Sparkles, Flame,
 } from 'lucide-react';
 import { UserProfile, type Tournament, type Workshop } from '@/src/shared/types';
 import {
@@ -133,9 +133,36 @@ export default function CompetitionHub({ currentUser, onViewTournament }: Compet
   ];
 
   return (
-    <div>
+    <div className="space-y-6">
+      {/* Hero */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border border-slate-700/60 p-6 sm:p-8">
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+          backgroundSize: '40px 40px',
+        }} />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-red-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="relative max-w-3xl">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20 rounded-full">
+              <Trophy className="w-3.5 h-3.5" />
+              EthioRobotics
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
+              <Sparkles className="w-3 h-3" /> 2025 Season
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold text-white">
+            Competitions & Events
+          </h1>
+          <p className="mt-2 text-base text-slate-300">
+            Browse upcoming tournaments, workshops, and events. Register to participate and showcase your skills.
+          </p>
+        </div>
+      </div>
+
       {/* Type tabs */}
-      <div className="flex gap-1 mb-6 p-1 bg-slate-100 border border-slate-200 rounded-2xl w-fit">
+      <div className="flex gap-1 p-1 bg-slate-100 border border-slate-200 rounded-2xl w-fit">
         {([
           { id: 'tournaments' as ViewTab, label: 'Tournaments', icon: Trophy },
           { id: 'workshops' as ViewTab, label: 'Workshops', icon: GraduationCap },

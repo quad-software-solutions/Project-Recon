@@ -89,10 +89,11 @@ export interface SubscriptionTier {
 export interface Certificate {
   id: string;
   sub_program: string;
+  sub_program_name?: string;
   title: string;
-  background: string;
-  institute_logo?: string;
-  signature?: string;
+  background_url?: string | null;
+  institute_logo_url?: string | null;
+  signature_url?: string | null;
   body_text: string;
   is_active: boolean;
   created_at: string;

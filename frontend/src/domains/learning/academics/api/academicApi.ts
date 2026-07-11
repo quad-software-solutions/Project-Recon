@@ -121,16 +121,33 @@ export type LearningMaterialPayload = {
 export type CertificateTemplatePayload = {
   sub_program: string;
   title: string;
-  background?: string;
-  institute_logo?: string;
-  signature?: string;
+  background?: File | null;
+  institute_logo?: File | null;
+  signature?: File | null;
   body_text: string;
+  signatory_name?: string;
+  signatory_title?: string;
 };
 
+const SIGNATORY_SEP = '\n\n---SIGNATORY---\n';
+
+function encodeBodyWithSignatory(body: string, name?: string, title?: string): string {
+  if (!name && !title) return body;
+  return `${body}${SIGNATORY_SEP}${name || ''}\n${title || ''}`;
+}
+
+export function decodeBodyWithSignatory(body: string): { body: string; signatory_name: string; signatory_title: string } {
+  const idx = body.indexOf(SIGNATORY_SEP);
+  if (idx === -1) return { body, signatory_name: '', signatory_title: '' };
+  const main = body.slice(0, idx);
+  const parts = body.slice(idx + SIGNATORY_SEP.length).split('\n');
+  return { body: main, signatory_name: parts[0] || '', signatory_title: parts[1] || '' };
+}
+
 export type StaffAttendanceRecordPayload = {
-  user: string;
+  staff_member: string;
   status: string;
-  remarks?: string;
+  notes?: string;
 };
 
 // ─── Programs ───
@@ -384,12 +401,25 @@ export async function fetchCertificateTemplatesApi(): Promise<Certificate[]> {
   return unwrapList(await http.get<ListResponse<Certificate>>(`${BASE}/certificate-templates/`));
 }
 
+function toCertificateFormData(payload: Partial<CertificateTemplatePayload>): FormData {
+  const fd = new FormData();
+  if (payload.sub_program) fd.append('sub_program', payload.sub_program);
+  if (payload.title) fd.append('title', payload.title);
+  if (payload.background instanceof File) fd.append('background', payload.background);
+  if (payload.institute_logo instanceof File) fd.append('institute_logo', payload.institute_logo);
+  if (payload.signature instanceof File) fd.append('signature', payload.signature);
+  if (payload.body_text !== undefined) {
+    fd.append('body_text', encodeBodyWithSignatory(payload.body_text, payload.signatory_name, payload.signatory_title));
+  }
+  return fd;
+}
+
 export async function createCertificateTemplateApi(payload: CertificateTemplatePayload): Promise<Certificate> {
-  return http.post<Certificate>(`${BASE}/certificate-templates/`, payload);
+  return http.post<Certificate>(`${BASE}/certificate-templates/`, toCertificateFormData(payload));
 }
 
 export async function updateCertificateTemplateApi(id: string, payload: Partial<CertificateTemplatePayload>): Promise<Certificate> {
-  return http.patch<Certificate>(`${BASE}/certificate-templates/${id}/`, payload);
+  return http.patch<Certificate>(`${BASE}/certificate-templates/${id}/`, toCertificateFormData(payload));
 }
 
 export async function setCertificateTemplateActiveApi(id: string, active: boolean): Promise<Certificate> {

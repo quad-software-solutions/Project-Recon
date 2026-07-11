@@ -398,7 +398,7 @@ function TeamsPanel() {
               return (
               <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                 <td className="py-3 px-2 font-bold text-slate-900">{t.team_name || 'Unnamed Team'} <span className="text-slate-400 font-medium">({t.id?.slice(-6)})</span></td>
-                <td className="py-3 px-2 text-slate-600">{t.tournament_event_title || t.tournament?.slice(-6) || '—'}</td>
+                <td className="py-3 px-2 text-slate-600">{t.tournament_title || t.tournament?.slice(-6) || '—'}</td>
                 <td className="py-3 px-2 text-slate-600">{t.coach_name || '—'}</td>
                 <td className="py-3 px-2 text-center">
                   <button onClick={() => handleToggle(t.id, 'checked_in', t.checked_in)} disabled={ciBusy} className="mx-auto">
@@ -512,7 +512,7 @@ function MatchControl() {
               </button>}
               {isCompleted && m.winning_side && (
                 <div className="flex-1 text-center py-2">
-                  <span className="text-[10px] font-bold text-emerald-600">Winner: {m.winning_side === s0?.id ? 'Red Alliance' : 'Blue Alliance'}</span>
+                  <span className="text-[10px] font-bold text-emerald-600">Winner: {m.winning_side_label === 'SIDE_A' ? 'Red Alliance' : 'Blue Alliance'}</span>
                 </div>
               )}
             </div>
@@ -1082,7 +1082,7 @@ function VexMatchesPanel() {
       const list = Array.isArray(data) ? data : [];
       const transformed: VexMatchRecord[] = list.map(m => ({
         id: m.id,
-        event: m.tournament_event_title || `Match ${m.round}`,
+        event: m.tournament_title || `Match ${m.round}`,
         date: m.scheduled_at ? new Date(m.scheduled_at).toISOString().split('T')[0] : '—',
         round: m.round,
         opponent: `Team (${m.tournament?.slice(-4) || '—'})`,

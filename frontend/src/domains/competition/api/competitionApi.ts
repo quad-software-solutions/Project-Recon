@@ -384,13 +384,13 @@ function mapBackendMatchToDetail(m: eventsApi.BackendMatch): MatchDetail {
   return {
     id: m.id,
     tournamentId: m.tournament,
-    tournamentName: m.tournament_event_title || '',
+    tournamentName: m.tournament_title || '',
     round: m.round,
     status: m.status,
     scheduledAt: m.scheduled_at,
     startedAt: m.started_at || null,
     completedAt: m.completed_at || null,
-    winningSide: m.winning_side || null,
+    winningSide: m.winning_side_label || m.winning_side || null,
     sides: (m.sides || []).map(s => ({
       side: s.side,
       score: s.score,

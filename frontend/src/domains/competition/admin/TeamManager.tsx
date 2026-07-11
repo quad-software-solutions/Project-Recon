@@ -143,7 +143,7 @@ export default function TeamManager() {
                       <div><span className="text-xs font-semibold text-slate-900">{t.team_name}</span>{t.organization && <span className="text-[10px] text-slate-500 block">{t.organization}</span>}</div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-600">{t.tournament_event_title || t.tournament}</td>
+                  <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-600">{t.tournament_title || t.tournament}</td>
                   <td className="px-4 py-3 text-center"><span className="text-xs text-slate-600">{t.wins}/{t.losses}/{t.draws}</span></td>
                   <td className="px-4 py-3 text-center"><span className="font-black text-sm text-slate-900">{t.points}</span></td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
@@ -210,7 +210,7 @@ export default function TeamManager() {
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-red/10 to-brand-red/5 flex items-center justify-center"><Users className="w-6 h-6 text-brand-red" /></div>
                   <div>
                     <h3 className="font-black text-lg text-slate-900">{selectedTeam.team_name}</h3>
-                    <p className="text-xs text-slate-500">{selectedTeam.tournament_event_title || selectedTeam.tournament}</p>
+                    <p className="text-xs text-slate-500">{selectedTeam.tournament_title || selectedTeam.tournament}</p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedTeam(null)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>

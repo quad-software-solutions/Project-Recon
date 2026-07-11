@@ -25,11 +25,9 @@ export default function StaffAttendanceManager() {
     setLoading(true);
     Promise.all([
       fetchStaffAttendanceSessionsApi(),
-      fetchAvailableStaffApi(),
       branchesApi.list().catch(() => []),
-    ]).then(([s, staff, b]) => {
+    ]).then(([s, b]) => {
       setSessions(Array.isArray(s) ? s : []);
-      setAvailableStaff(Array.isArray(staff) ? staff : []);
       const branchList = Array.isArray(b) ? b : (b as any)?.results || [];
       setBranches(branchList);
     }).catch(() => setError('Failed to load staff attendance')).finally(() => setLoading(false));
@@ -79,13 +77,22 @@ export default function StaffAttendanceManager() {
     }
   };
 
-  const openRecords = (session: any) => {
+  const openRecords = async (session: any) => {
     setShowRecords(session);
     const existing: Record<string, string> = {};
     if (session.records) {
       session.records.forEach((r: any) => { existing[r.staff_member || r.user] = r.status; });
     }
     setRecordForm(existing);
+    setAvailableStaff([]);
+    if (session.branch) {
+      try {
+        const staff = await fetchAvailableStaffApi({ branch: session.branch });
+        setAvailableStaff(Array.isArray(staff) ? staff : []);
+      } catch {
+        setAvailableStaff([]);
+      }
+    }
   };
 
   const handleSaveRecords = async () => {
@@ -93,7 +100,7 @@ export default function StaffAttendanceManager() {
     setRecordSaving(true);
     setError(null);
     try {
-      const records = Object.entries(recordForm).map(([user, status]) => ({ user, status: status as string }));
+      const records = Object.entries(recordForm).map(([user, status]) => ({ staff_member: user, status: status as string }));
       await upsertStaffAttendanceRecordsApi(showRecords.id, records);
       setShowRecords(null);
       load();

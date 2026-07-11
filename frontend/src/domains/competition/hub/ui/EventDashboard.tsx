@@ -5,7 +5,7 @@ import {
   GraduationCap, TrendingUp, Clock, AlertCircle,
 } from 'lucide-react';
 import { getEvents, getLiveEvents, getUpcomingEvents, getPastEvents, adminGetRegistrations } from '../../api/competitionApi';
-import { type Tournament, type Workshop, type EventComputedState } from '@/src/shared/types';
+import { type Tournament, type Workshop } from '@/src/shared/types';
 
 export default function EventDashboard() {
   const [events, setEvents] = useState<(Tournament | Workshop)[]>([]);

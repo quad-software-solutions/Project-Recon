@@ -66,7 +66,7 @@ export interface BackendTournamentCategory {
 export interface BackendTournamentTeam {
   id: string;
   tournament: string;
-  tournament_event_title?: string;
+  tournament_title?: string;
   registration?: string | null;
   team_name: string;
   organization?: string | null;
@@ -84,12 +84,13 @@ export interface BackendTournamentTeam {
 export interface BackendMatch {
   id: string;
   tournament: string;
-  tournament_event_title?: string;
+  tournament_title?: string;
   round: string;
   scheduled_at: string;
   started_at?: string | null;
   completed_at?: string | null;
   winning_side?: string | null;
+  winning_side_label?: string | null;
   status: MatchStatus;
   created_at: string;
   updated_at: string;

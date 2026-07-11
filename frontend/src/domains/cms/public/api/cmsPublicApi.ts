@@ -58,6 +58,30 @@ export interface AboutUsResponse {
   is_active: boolean;
 }
 
+export interface MapNodeResponse {
+  id: string;
+  city: string;
+  country: string;
+  title: string;
+  achievement: string;
+  x: number;
+  y: number;
+  lat: string;
+  lng: string;
+  image: string;
+  category: string;
+  is_active: boolean;
+}
+
+export interface TeamMemberResponse {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  image: string;
+  is_active: boolean;
+}
+
 export const cmsPublicApi = {
   getHeroBanners: (signal?: AbortSignal) => http.get<HeroBannerResponse[]>('/cms/hero-banners/', { signal }),
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
@@ -67,6 +91,8 @@ export const cmsPublicApi = {
   getTeamMembers: () => http.get<TeamMemberResponse[]>('/cms/team-members/'),
   getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
   getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
+  getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
+  getTeamMembers: () => http.get<TeamMemberResponse[]>('/cms/team-members/'),
   getFaqs: async (signal?: AbortSignal) => {
     const res = await http.get<FaqResponse[] | { results: FaqResponse[] }>('/cms/faqs/', { signal });
     return Array.isArray(res) ? res : (res.results ?? []);

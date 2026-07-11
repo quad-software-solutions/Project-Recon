@@ -7,12 +7,13 @@ import {
 } from 'lucide-react';
 import type { Certificate, StudentCertificate, StudentProfile } from '@/src/shared/types';
 import {
-  fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi,
-  setCertificateTemplateActiveApi, fetchSubProgramsApi, fetchStudentCertificatesApi,
-  fetchStudentsApi, searchStudentsApi, issueStudentCertificateApi,
-  fetchEnrollmentsApi, downloadCertificateReportPdf
-} from '@/src/domains/learning/academics/api/academicApi';
-import { adminGetRegistrations } from '@/src/domains/competition/api/eventsApi';
+   fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi,
+   setCertificateTemplateActiveApi, fetchSubProgramsApi, fetchStudentCertificatesApi,
+   fetchStudentsApi, searchStudentsApi, issueStudentCertificateApi,
+   fetchEnrollmentsApi, downloadCertificateReportPdf, decodeBodyWithSignatory
+ } from '@/src/domains/learning/academics/api/academicApi';
+ import { adminGetRegistrations } from '@/src/domains/competition/api/eventsApi';
+ import BrandLogo from '@/src/shared/ui/BrandLogo';
 
 type TabId = 'overview' | 'templates' | 'issue' | 'issued';
 
@@ -20,8 +21,16 @@ interface Props {
   currentUserRole?: string;
 }
 
-const defaultTemplateForm = {
-  sub_program: '', title: '', background: '', institute_logo: '', signature: '', body_text: '',
+interface TemplateForm {
+  sub_program: string;
+  title: string;
+  body_text: string;
+  signatory_name: string;
+  signatory_title: string;
+}
+
+const defaultTemplateForm: TemplateForm = {
+  sub_program: '', title: '', body_text: '', signatory_name: '', signatory_title: '',
 };
 
 export default function CertificateManager({ currentUserRole }: Props) {
@@ -215,7 +224,7 @@ function OverviewTab({ templates, activeTemplates, issuedCerts, recentCerts, uni
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-slate-900 truncate">{t.title}</p>
-                    <p className="text-[10px] text-slate-400">{(t as any).sub_program_name || '—'}</p>
+                    <p className="text-[10px] text-slate-400">{t.sub_program_name || '—'}</p>
                   </div>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${t.is_active !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                     {t.is_active !== false ? 'Active' : 'Inactive'}
@@ -245,39 +254,70 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(defaultTemplateForm);
   const [preview, setPreview] = useState<Certificate | null>(null);
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
 
   const filtered = templates.filter(t => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return t.title.toLowerCase().includes(q) || ((t as any).sub_program_name || '').toLowerCase().includes(q);
+    return t.title.toLowerCase().includes(q) || (t.sub_program_name || '').toLowerCase().includes(q);
   });
 
-  const openCreate = () => { setEditing(null); setForm(defaultTemplateForm); setShowForm(true); };
+  const resetFileState = () => {
+    setBackgroundFile(null);
+    setLogoFile(null);
+    setSignatureFile(null);
+    setBackgroundPreview(null);
+    setLogoPreview(null);
+    setSignaturePreview(null);
+  };
+
+  const openCreate = () => { setEditing(null); setForm(defaultTemplateForm); resetFileState(); setShowForm(true); };
   const openEdit = (t: Certificate) => {
     setEditing(t);
+    const decoded = decodeBodyWithSignatory(t.body_text || '');
     setForm({
-      sub_program: (t as any).sub_program || '',
+      sub_program: t.sub_program || '',
       title: t.title,
-      background: (t as any).background || '',
-      institute_logo: (t as any).institute_logo || '',
-      signature: (t as any).signature || '',
-      body_text: t.body_text || '',
+      body_text: decoded.body,
+      signatory_name: decoded.signatory_name,
+      signatory_title: decoded.signatory_title,
     });
+    resetFileState();
+    setBackgroundPreview(t.background_url || null);
+    setLogoPreview(t.institute_logo_url || null);
+    setSignaturePreview(t.signature_url || null);
     setShowForm(true);
   };
+
+  const buildPayload = () => ({
+    sub_program: form.sub_program,
+    title: form.title,
+    body_text: form.body_text,
+    background: backgroundFile,
+    institute_logo: logoFile,
+    signature: signatureFile,
+    signatory_name: form.signatory_name,
+    signatory_title: form.signatory_title,
+  });
 
   const handleSave = async () => {
     if (!form.title || !form.sub_program) return;
     setSaving(true);
     try {
       if (editing) {
-        await updateCertificateTemplateApi(editing.id, form);
+        await updateCertificateTemplateApi(editing.id, buildPayload());
       } else {
-        await createCertificateTemplateApi(form);
+        await createCertificateTemplateApi(buildPayload());
       }
       setShowForm(false);
       setEditing(null);
       setForm(defaultTemplateForm);
+      resetFileState();
       onRefresh();
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Failed to save template');
@@ -297,13 +337,13 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
 
   const duplicateTemplate = async (t: Certificate) => {
     try {
+      const decoded = decodeBodyWithSignatory(t.body_text || '');
       await createCertificateTemplateApi({
-        sub_program: (t as any).sub_program || '',
+        sub_program: t.sub_program || '',
         title: `${t.title} (Copy)`,
-        background: (t as any).background || '',
-        institute_logo: (t as any).institute_logo || '',
-        signature: (t as any).signature || '',
-        body_text: t.body_text || '',
+        body_text: decoded.body,
+        signatory_name: decoded.signatory_name,
+        signatory_title: decoded.signatory_title,
       });
       onRefresh();
     } catch (e) {
@@ -353,7 +393,7 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                       <span className="text-xs font-semibold text-slate-900">{t.title}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{(t as any).sub_program_name || '—'}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{t.sub_program_name || '—'}</td>
                   <td className="px-4 py-3 text-center hidden md:table-cell">
                     <span className="text-[10px] text-slate-400">{t.body_text ? `${t.body_text.slice(0, 30)}...` : '—'}</span>
                   </td>
@@ -435,27 +475,86 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                       placeholder="e.g. This certifies that {{participant_name}} has completed {{workshop_name}}" />
                     <p className="text-[10px] text-slate-400 mt-1">Use placeholders: {'{{participant_name}}'}, {'{{event_name}}'}, {'{{workshop_name}}'}, {'{{issue_date}}'}</p>
                   </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Background Image URL</label>
-                    <input value={form.background} onChange={e => setForm(p => ({ ...p, background: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
-                      placeholder="https://..." />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Name</label>
+                      <input value={form.signatory_name} onChange={e => setForm(p => ({ ...p, signatory_name: e.target.value }))}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
+                        placeholder="e.g. Dr. John Smith" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Title</label>
+                      <input value={form.signatory_title} onChange={e => setForm(p => ({ ...p, signatory_title: e.target.value }))}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
+                        placeholder="e.g. Principal, Director" />
+                    </div>
                   </div>
+                  {/* Background Image */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Institute Logo URL</label>
-                    <input value={form.institute_logo} onChange={e => setForm(p => ({ ...p, institute_logo: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
-                      placeholder="https://..." />
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Background Image</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors flex-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{backgroundFile ? backgroundFile.name : 'Choose file...'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0] || null;
+                          setBackgroundFile(f);
+                          if (f) setBackgroundPreview(URL.createObjectURL(f));
+                        }} />
+                      </label>
+                      {(backgroundPreview || editing) && !backgroundFile && (
+                        <span className="text-[10px] text-slate-400">Current image preserved if no new file selected</span>
+                      )}
+                    </div>
+                    {backgroundPreview && (
+                      <img src={backgroundPreview} alt="Background preview" className="mt-2 max-h-24 rounded-lg object-cover border border-slate-200" />
+                    )}
                   </div>
+                  {/* Institute Logo */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signature Image URL</label>
-                    <input value={form.signature} onChange={e => setForm(p => ({ ...p, signature: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
-                      placeholder="https://..." />
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Institute Logo</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors flex-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{logoFile ? logoFile.name : 'Choose file...'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0] || null;
+                          setLogoFile(f);
+                          if (f) setLogoPreview(URL.createObjectURL(f));
+                        }} />
+                      </label>
+                      {logoPreview && !logoFile && (
+                        <span className="text-[10px] text-slate-400">Current image preserved</span>
+                      )}
+                    </div>
+                    {logoPreview && (
+                      <img src={logoPreview} alt="Logo preview" className="mt-2 max-h-24 rounded-lg object-cover border border-slate-200" />
+                    )}
+                  </div>
+                  {/* Signature Image */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signature Image</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors flex-1">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{signatureFile ? signatureFile.name : 'Choose file...'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const f = e.target.files?.[0] || null;
+                          setSignatureFile(f);
+                          if (f) setSignaturePreview(URL.createObjectURL(f));
+                        }} />
+                      </label>
+                      {signaturePreview && !signatureFile && (
+                        <span className="text-[10px] text-slate-400">Current image preserved</span>
+                      )}
+                    </div>
+                    {signaturePreview && (
+                      <img src={signaturePreview} alt="Signature preview" className="mt-2 max-h-24 rounded-lg object-cover border border-slate-200" />
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
-                  <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                  <button onClick={() => { setShowForm(false); resetFileState(); }} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                   <button onClick={handleSave} disabled={saving || !form.title || !form.sub_program}
                     className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
@@ -477,38 +576,75 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
-                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-brand-blue p-8 text-center">
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <div className="w-2 h-2 bg-amber-400 rounded-full" />
-                      <p className="font-mono text-[10px] text-amber-300 uppercase tracking-[0.3em] font-bold">CERTIFICATE</p>
-                      <div className="w-2 h-2 bg-amber-400 rounded-full" />
-                    </div>
-                    <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-                      <Shield className="w-7 h-7 text-amber-400" />
-                    </div>
-                    <h2 className="font-black text-2xl text-white mb-2 tracking-tight">ETHIO ROBOTICS</h2>
-                    <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-4" />
-                    <p className="text-slate-300 text-sm mb-1">This certifies that</p>
-                    <p className="font-bold text-2xl text-white mb-1">[Student Name]</p>
-                    <p className="text-slate-300 text-sm mb-3">has completed</p>
-                    <p className="font-bold text-lg text-amber-300">{preview.title}</p>
-                    {preview.body_text && (
-                      <p className="text-slate-400 text-xs mt-3 max-w-sm mx-auto">{preview.body_text}</p>
-                    )}
-                    <div className="mt-4 flex items-center justify-center gap-2 text-slate-400">
-                      <Shield className="w-4 h-4" />
-                      <p className="font-mono text-xs">CERT-XXXX-0001</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 flex items-center justify-between bg-slate-50">
-                  <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Template Preview
-                  </span>
-                  <button onClick={() => setPreview(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Close</button>
-                </div>
+              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-lg overflow-hidden">
+                {(() => {
+                  const decoded = decodeBodyWithSignatory(preview.body_text || '');
+                  return (
+                    <>
+                      <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
+                        {/* Ornamental top border */}
+                        <div className="flex items-center justify-center gap-1 pt-6 px-8">
+                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                          <div className="flex items-center gap-0.5">
+                            <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                            <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
+                            <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                          </div>
+                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                        </div>
+                        <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
+                          <div className="w-28 h-auto">
+                            <BrandLogo className="w-full h-auto" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                            <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
+                            <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                          </div>
+                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent" />
+                          <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
+                          <p className="font-black text-2xl text-white tracking-tight">[Student Name]</p>
+                          <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
+                          <p className="font-bold text-base text-brand-red">{preview.title}</p>
+                          {decoded.body && (
+                            <p className="text-slate-400 text-[10px] max-w-xs leading-relaxed">{decoded.body}</p>
+                          )}
+                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent mt-1" />
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                              <Shield className="w-2.5 h-2.5 text-brand-cyan" />
+                              <p className="font-mono text-[9px]">CERT-XXXX-0001</p>
+                            </div>
+                            <span className="text-slate-600 text-[9px]">|</span>
+                            <p className="font-mono text-[9px] text-slate-400">{new Date().toISOString().slice(0, 10)}</p>
+                          </div>
+                          {/* Signature area */}
+                          {(preview.signature_url || decoded.signatory_name) && (
+                            <div className="flex items-end justify-center gap-8 mt-2 pt-2 border-t border-white/10 w-full max-w-xs">
+                              {decoded.signatory_name && (
+                                <div className="text-center">
+                                  {preview.signature_url && (
+                                    <img src={preview.signature_url} alt="Signature" className="h-8 mx-auto mb-0.5 object-contain" />
+                                  )}
+                                  <div className="w-20 h-px bg-white/30 mx-auto mb-0.5" />
+                                  <p className="text-white text-[9px] font-bold leading-tight">{decoded.signatory_name}</p>
+                                  <p className="text-brand-cyan text-[7px] uppercase tracking-wider font-bold">{decoded.signatory_title || 'Principal'}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-red via-brand-cyan to-brand-red opacity-60" />
+                      </div>
+                      <div className="p-3 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
+                        <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Template Preview
+                        </span>
+                        <button onClick={() => setPreview(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Close</button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </motion.div>
           </>
@@ -972,40 +1108,54 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
-                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-brand-blue p-8 text-center">
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <div className="w-2 h-2 bg-amber-400 rounded-full" />
-                      <p className="font-mono text-[10px] text-amber-300 uppercase tracking-[0.3em] font-bold">CERTIFICATE</p>
-                      <div className="w-2 h-2 bg-amber-400 rounded-full" />
+              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-lg overflow-hidden">
+                <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
+                  {/* Ornamental top border */}
+                  <div className="flex items-center justify-center gap-1 pt-6 px-8">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                    <div className="flex items-center gap-0.5">
+                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
+                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
                     </div>
-                    <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-                      <Shield className="w-7 h-7 text-amber-400" />
-                    </div>
-                    <h2 className="font-black text-2xl text-white mb-2 tracking-tight">ETHIO ROBOTICS</h2>
-                    <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-4" />
-                    <p className="text-slate-300 text-sm mb-1">This certifies that</p>
-                    <p className="font-bold text-2xl text-white mb-1">{showDetail.student_name || 'Student'}</p>
-                    <p className="text-slate-300 text-sm mb-3">has completed</p>
-                    <p className="font-bold text-lg text-amber-300">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-slate-400">
-                      <Shield className="w-4 h-4" />
-                      <p className="font-mono text-xs">{showDetail.certificate_number}</p>
-                    </div>
-                    <p className="text-slate-500 text-[10px] mt-2">{showDetail.issued_at?.slice(0, 10) || ''}</p>
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
                   </div>
+                  <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
+                    <div className="w-28 h-auto">
+                      <BrandLogo className="w-full h-auto" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                      <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
+                      <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                    </div>
+                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent" />
+                    <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
+                    <p className="font-black text-2xl text-white tracking-tight">{showDetail.student_name || 'Student'}</p>
+                    <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
+                    <p className="font-bold text-base text-brand-red">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
+                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent mt-1" />
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-1.5 text-slate-400">
+                        <Shield className="w-2.5 h-2.5 text-brand-cyan" />
+                        <p className="font-mono text-[9px]">{showDetail.certificate_number}</p>
+                      </div>
+                      <span className="text-slate-600 text-[9px]">|</span>
+                      <p className="font-mono text-[9px] text-slate-400">{showDetail.issued_at?.slice(0, 10) || ''}</p>
+                    </div>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-red via-brand-cyan to-brand-red opacity-60" />
                 </div>
-                <div className="p-5 flex items-center justify-between bg-slate-50">
-                  <div className="flex items-center gap-2 text-xs text-emerald-600 font-semibold">
-                    <CheckCircle2 className="w-4 h-4" /> Verified & Authentic
+                <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
+                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+                    <CheckCircle2 className="w-3 h-3" /> Verified & Authentic
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setShowDetail(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Close</button>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setShowDetail(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Close</button>
                     {showDetail.pdf && (
                       <a href={showDetail.pdf} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red px-4 py-1.5 rounded-lg hover:bg-brand-red-dark transition-colors">
-                        <Download className="w-3.5 h-3.5" /> Download PDF
+                        className="flex items-center gap-1 text-[10px] font-bold text-white bg-brand-red px-3 py-1 rounded-lg hover:bg-brand-red-dark transition-colors">
+                        <Download className="w-2.5 h-2.5" /> Download PDF
                       </a>
                     )}
                   </div>

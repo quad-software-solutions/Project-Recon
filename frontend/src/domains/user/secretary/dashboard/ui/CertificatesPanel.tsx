@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Award, Download, Shield, FileText, Users, Calendar } from 'lucide-react';
 import { StudentCertificate, StudentProfile, Certificate } from '@/src/shared/types';
 import { fetchStudentCertificatesApi, fetchStudentsApi, fetchCertificateTemplatesApi, issueStudentCertificateApi, searchStudentsApi, fetchEnrollmentsApi } from '@/src/domains/learning/academics/api/academicApi';
+import BrandLogo from '@/src/shared/ui/BrandLogo';
 
 export default function CertificatesPanel() {
   const [certs, setCerts] = useState<StudentCertificate[]>([]);
@@ -275,41 +276,55 @@ export default function CertificatesPanel() {
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
               <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-lg overflow-hidden">
-                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-brand-blue p-8 text-center">
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <div className="w-2 h-2 bg-amber-400 rounded-full" />
-                      <p className="font-mono text-[10px] text-amber-300 uppercase tracking-[0.3em] font-bold">CERTIFICATE</p>
-                      <div className="w-2 h-2 bg-amber-400 rounded-full" />
+                <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
+                  {/* Ornamental top border */}
+                  <div className="flex items-center justify-center gap-1 pt-6 px-8">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                    <div className="flex items-center gap-0.5">
+                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
+                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
                     </div>
-                    <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-                      <Shield className="w-7 h-7 text-amber-400" />
-                    </div>
-                    <h2 className="font-black text-2xl text-white mb-2 tracking-tight">ETHIO ROBOTICS</h2>
-                    <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-4" />
-                    <p className="text-slate-300 text-sm mb-1">This certifies that</p>
-                    <p className="font-bold text-2xl text-white mb-1">{showDetail.student_name || 'Student'}</p>
-                    <p className="text-slate-300 text-sm mb-3">has completed</p>
-                    <p className="font-bold text-lg text-amber-300">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
-                    <div className="mt-4 flex items-center justify-center gap-2 text-slate-400">
-                      <Shield className="w-4 h-4" />
-                      <p className="font-mono text-xs">{showDetail.certificate_number}</p>
-                    </div>
-                    <p className="text-slate-500 text-[10px] mt-2">{showDetail.issued_at?.slice(0, 10) || ''}</p>
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
                   </div>
+                  <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
+                    <div className="w-28 h-auto">
+                      <BrandLogo className="w-full h-auto" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                      <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
+                      <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                    </div>
+                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent" />
+                    <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
+                    <p className="font-black text-2xl text-white tracking-tight">{showDetail.student_name || 'Student'}</p>
+                    <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
+                    <p className="font-bold text-base text-brand-red">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
+                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent mt-1" />
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-1.5 text-slate-400">
+                        <Shield className="w-2.5 h-2.5 text-brand-cyan" />
+                        <p className="font-mono text-[9px]">{showDetail.certificate_number}</p>
+                      </div>
+                      <span className="text-slate-600 text-[9px]">|</span>
+                      <p className="font-mono text-[9px] text-slate-400">{showDetail.issued_at?.slice(0, 10) || ''}</p>
+                    </div>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-red via-brand-cyan to-brand-red opacity-60" />
                 </div>
-                <div className="p-5 flex items-center justify-between bg-slate-50">
-                  <div className="flex items-center gap-2 text-xs text-emerald-600 font-semibold">
-                    <Shield className="w-4 h-4" /> Verified & Authentic
+                <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
+                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+                    <Shield className="w-3 h-3" /> Verified & Authentic
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setShowDetail(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setShowDetail(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-100 rounded-lg">
                       Close
                     </button>
                     {showDetail.pdf && (
                       <a href={showDetail.pdf} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red px-4 py-1.5 rounded-lg hover:bg-brand-red-dark transition-colors">
-                        <Download className="w-3.5 h-3.5" /> Download PDF
+                        className="flex items-center gap-1 text-[10px] font-bold text-white bg-brand-red px-3 py-1 rounded-lg hover:bg-brand-red-dark transition-colors">
+                        <Download className="w-2.5 h-2.5" /> Download PDF
                       </a>
                     )}
                   </div>
