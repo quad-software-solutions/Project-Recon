@@ -225,7 +225,12 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
         <div className="p-4 md:p-6">
           {accountTab === 'profile' && <ProfileInfo currentUser={currentUser} />}
           {accountTab === 'password' && <ChangePasswordForm />}
-          {accountTab === 'email' && <EmailVerificationForm />}
+          {accountTab === 'email' && <EmailVerificationForm currentUser={currentUser} onVerify={() => {
+            const updated = { ...currentUser, is_email_verified: true };
+            const existing = localStorage.getItem('ethio_robotics_user');
+            if (existing) localStorage.setItem('ethio_robotics_user', JSON.stringify(updated));
+            onUserUpdate?.(updated);
+          }} />}
           {accountTab === 'devices' && <TrustedDevicesPanel />}
         </div>
       </div>
@@ -360,12 +365,12 @@ function ChangePasswordForm() {
 }
 
 /* ─── Email Verification ─── */
-function EmailVerificationForm() {
+function EmailVerificationForm({ currentUser, onVerify }: { currentUser: UserProfile; onVerify?: () => void }) {
   const [step, setStep] = useState<'idle' | 'sent' | 'verify'>('idle');
   const [otp, setOtp] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState(currentUser.is_email_verified || false);
 
   const handleRequest = async () => {
     setSubmitting(true);
@@ -387,6 +392,7 @@ function EmailVerificationForm() {
     try {
       await securityApi.verifyEmail(otp);
       setSuccess(true);
+      onVerify?.();
     } catch (e: any) {
       setError(e?.response?.data?.detail || e?.message || 'Invalid OTP');
     } finally {

@@ -48,11 +48,12 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   let token = localStorage.getItem('access_token');
-  const isFormData = init.body instanceof FormData;
-  const headers: Record<string, string> = isFormData
-    ? { ...init.headers as Record<string, string> }
-    : { 'Content-Type': 'application/json', ...init.headers as Record<string, string> };
+  const headers: Record<string, string> = { ...init.headers as Record<string, string> };
   
+  if (!(init.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+  }
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }

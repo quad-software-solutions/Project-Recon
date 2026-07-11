@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, Search, Filter, Plus, X, Loader2, AlertCircle, CheckCircle,
-  ChevronDown, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive
+  ChevronDown, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar
 } from 'lucide-react';
 import {
   fetchUsersApi, toggleUserStatusApi, archiveUserApi,
@@ -46,6 +46,8 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
   const [confirmArchive, setConfirmArchive] = useState<AdminUserResponse | null>(null);
   const [viewingUser, setViewingUser] = useState<AdminUserResponse | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [actionMenuUserId, setActionMenuUserId] = useState<string | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '' });
   const [addUserRole, setAddUserRole] = useState<'staff' | 'branch_manager'>('staff');
 
@@ -67,6 +69,17 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!actionMenuUserId) return;
+    const handler = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setActionMenuUserId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [actionMenuUserId]);
 
   const handleToggle = async (u: AdminUserResponse) => {
     setToggling(u.id);
@@ -228,12 +241,40 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => setViewingUser(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50" title="View"><Eye className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setEditingUser({ ...u })} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50" title="Edit"><Edit3 className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleToggle(u)} disabled={toggling === u.id} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50" title={u.status === 'Active' ? 'Deactivate' : 'Activate'}>
-                          {toggling === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : u.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                        <button onClick={() => setViewingUser(u)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors">
+                          <Eye className="w-3.5 h-3.5" /> View
                         </button>
-                        <button onClick={() => setConfirmArchive(u)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" title="Archive"><Archive className="w-3.5 h-3.5" /></button>
+                        <div className="relative" ref={actionMenuRef}>
+                          <button onClick={(e) => { e.stopPropagation(); setActionMenuUserId(actionMenuUserId === u.id ? null : u.id); }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                          <AnimatePresence>
+                            {actionMenuUserId === u.id && (
+                              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg border border-slate-200 shadow-lg z-10 py-1 overflow-hidden">
+                                <button onClick={() => { setActionMenuUserId(null); setEditingUser({ ...u }); }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 transition-colors">
+                                  <Edit3 className="w-3.5 h-3.5 text-amber-500" /> Edit
+                                </button>
+                                <button onClick={() => { setActionMenuUserId(null); handleToggle(u); }} disabled={toggling === u.id}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50">
+                                  {toggling === u.id
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : u.status === 'Active'
+                                      ? <UserX className="w-3.5 h-3.5 text-emerald-500" />
+                                      : <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                                  }
+                                  {u.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button onClick={() => { setActionMenuUserId(null); setConfirmArchive(u); }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors">
+                                  <Archive className="w-3.5 h-3.5" /> Archive
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -313,36 +354,145 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
         {viewingUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" onClick={() => setViewingUser(null)}>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-4 border-b border-slate-100">
-                <h3 className="font-bold text-base text-slate-900">User Details</h3>
-                <button onClick={() => setViewingUser(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-start justify-between p-6 border-b border-slate-100">
+                <div className="flex items-center gap-4">
+                  {viewingUser.profile_picture ? (
+                    <img src={viewingUser.profile_picture} alt={viewingUser.full_name} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center text-white font-bold text-xl shrink-0">
+                      {viewingUser.first_name?.[0] || viewingUser.email?.[0] || '?'}{viewingUser.last_name?.[0] || ''}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-900">{viewingUser.full_name}</h3>
+                    <p className="text-xs text-slate-500">{viewingUser.email}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ROLE_BADGE[resolveRole(viewingUser)] || 'bg-slate-50 text-slate-600'}`}>
+                        {resolveRole(viewingUser)}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${STATUS_STYLE(viewingUser.status).color}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_STYLE(viewingUser.status).dot}`} />
+                        {viewingUser.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setViewingUser(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"><X className="w-4 h-4" /></button>
               </div>
-              <div className="p-4 space-y-3 text-sm">
-                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center text-white font-bold">{viewingUser.first_name?.[0]}</div>
-                  <div><p className="font-bold text-slate-900">{viewingUser.first_name} {viewingUser.last_name}</p><p className="text-xs text-slate-500">{viewingUser.email}</p></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><p className="text-[10px] text-slate-400">Phone</p><p className="text-xs font-medium">{viewingUser.phone_number || '—'}</p></div>
-                  <div><p className="text-[10px] text-slate-400">Gender</p><p className="text-xs font-medium">{viewingUser.gender || '—'}</p></div>
-                  <div><p className="text-[10px] text-slate-400">Status</p><p className="text-xs font-medium">{viewingUser.status}</p></div>
-                  <div><p className="text-[10px] text-slate-400">Verified</p><p className="text-xs font-medium">{viewingUser.is_email_verified ? 'Yes' : 'No'}</p></div>
-                  <div className="col-span-2"><p className="text-[10px] text-slate-400">Joined</p><p className="text-xs font-medium">{viewingUser.created_at?.slice(0, 10) || '—'}</p></div>
-                </div>
-                {viewingUser.assignments && viewingUser.assignments.length > 0 && (
-                  <div className="pt-2 border-t border-slate-100">
-                    <p className="text-[10px] text-slate-400 mb-1">Assignments</p>
-                    {viewingUser.assignments.map(a => (
-                      <div key={a.id} className="flex items-center gap-2 text-xs py-1">
-                        <Shield className="w-3 h-3 text-slate-400" />
-                        <span className="font-medium">{a.role.replace('_', ' ')}</span>
-                        {a.branch_name && <span className="text-slate-400">@{a.branch_name}</span>}
-                        {!a.is_active && <span className="text-[9px] text-red-500">inactive</span>}
+
+              {/* Body */}
+              <div className="p-6 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Contact */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Contact</h4>
+                    <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400"><Phone className="w-3.5 h-3.5" /></div>
+                        <div><p className="text-[10px] text-slate-400">Phone</p><p className="text-sm font-medium text-slate-900">{viewingUser.phone_number || '—'}</p></div>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400"><Mail className="w-3.5 h-3.5" /></div>
+                        <div><p className="text-[10px] text-slate-400">Email</p><p className="text-sm font-medium text-slate-900">{viewingUser.email}</p></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Personal Info */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Personal Info</h4>
+                    <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400"><Users className="w-3.5 h-3.5" /></div>
+                        <div><p className="text-[10px] text-slate-400">Gender</p><p className="text-sm font-medium text-slate-900">{viewingUser.gender || '—'}</p></div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400"><Calendar className="w-3.5 h-3.5" /></div>
+                        <div><p className="text-[10px] text-slate-400">Date of Birth</p><p className="text-sm font-medium text-slate-900">{viewingUser.date_of_birth || '—'}</p></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Account</h4>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div><p className="text-[10px] text-slate-400 mb-0.5">Status</p><p className={`text-sm font-semibold ${STATUS_STYLE(viewingUser.status).color}`}>{viewingUser.status}</p></div>
+                      <div><p className="text-[10px] text-slate-400 mb-0.5">Email Verified</p><p className="text-sm font-semibold text-slate-900">{viewingUser.is_email_verified ? 'Yes' : 'No'}</p></div>
+                      <div><p className="text-[10px] text-slate-400 mb-0.5">Member Since</p><p className="text-sm font-semibold text-slate-900">{viewingUser.created_at?.slice(0, 10) || '—'}</p></div>
+                      <div><p className="text-[10px] text-slate-400 mb-0.5">Last Updated</p><p className="text-sm font-semibold text-slate-900">{viewingUser.updated_at?.slice(0, 10) || '—'}</p></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assignments */}
+                {viewingUser.assignments && viewingUser.assignments.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Assignments ({viewingUser.assignments.length})</h4>
+                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Role</th>
+                            <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Branch</th>
+                            <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Primary</th>
+                            <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {viewingUser.assignments.map(a => (
+                            <tr key={a.id} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-2.5 font-medium text-slate-900 capitalize">{a.role.replace('_', ' ')}</td>
+                              <td className="px-4 py-2.5 text-slate-600">{a.branch_name || '—'}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                {a.is_primary
+                                  ? <span className="text-emerald-500 font-bold">✓</span>
+                                  : <span className="text-slate-300">—</span>
+                                }
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                  {a.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* Action Bar */}
+              <div className="flex items-center justify-between p-6 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => { setViewingUser(null); setEditingUser({ ...viewingUser }); }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+                    <Edit3 className="w-3.5 h-3.5" /> Edit User
+                  </button>
+                  <button onClick={() => handleToggle(viewingUser)}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors shadow-sm ${
+                      viewingUser.status === 'Active'
+                        ? 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'
+                        : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                    }`}>
+                    {viewingUser.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                    {viewingUser.status === 'Active' ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button onClick={() => { setViewingUser(null); setConfirmArchive(viewingUser); }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm">
+                    <Archive className="w-3.5 h-3.5" /> Archive
+                  </button>
+                </div>
+                <button onClick={() => setViewingUser(null)}
+                  className="px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                  Close
+                </button>
               </div>
             </motion.div>
           </div>
@@ -368,7 +518,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                 <div className="grid grid-cols-2 gap-2">
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={editingUser.phone_number || ''} onChange={e => setEditingUser(p => p ? { ...p, phone_number: e.target.value } : p)} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Gender</label>
-                    <select value={editingUser.gender || ''} onChange={e => setEditingUser(p => p ? { ...p, gender: e.target.value } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={editingUser.gender || ''} onChange={e => setEditingUser(p => p ? { ...p, gender: e.target.value as AdminUserResponse['gender'] } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
                       <option value="">Prefer not to say</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>

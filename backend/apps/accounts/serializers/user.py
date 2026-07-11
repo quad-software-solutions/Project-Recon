@@ -72,6 +72,9 @@ class CreateStaffUserSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     branch_id = serializers.UUIDField()
     role = serializers.ChoiceField(choices=Roles.choices, default=Roles.INSTRUCTOR)
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_null=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
 
 
 class CreateBranchManagerSerializer(serializers.Serializer):
@@ -82,6 +85,9 @@ class CreateBranchManagerSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=100)
     password = serializers.CharField(write_only=True, min_length=8)
     branch_id = serializers.UUIDField()
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_null=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
 
 
 class ChangeEmailSerializer(serializers.Serializer):

@@ -40,12 +40,14 @@ import UserManagementPanel from './UserManagementPanel';
 import AdminAccount from './AdminAccount';
 import SystemHealth from './SystemHealth';
 import SystemLogs from './SystemLogs';
+import AdminOverviewDashboard from './AdminOverviewDashboard';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'users' | 'roles' | 'academics' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms';
+type SectionId = 'overview' | 'users' | 'roles' | 'academics' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms';
 
 const NAV_ITEMS: NavItem[] = [
+  { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
   { id: 'users', label: 'Accounts & Users', icon: Users, group: 'main' },
   { id: 'roles', label: 'Roles & Permissions', icon: Shield, group: 'main' },
   { id: 'academics', label: 'Academic Catalog', icon: GraduationCap, group: 'main' },
@@ -57,7 +59,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const pageTitle: Record<SectionId, string> = {
-  users: 'User Management', roles: 'Roles & Permissions',
+  overview: 'Dashboard', users: 'User Management', roles: 'Roles & Permissions',
   academics: 'Academic Catalog',
   branches: 'Branch Management', registrations: 'Registration Management',
   audit: 'Audit Logs',
@@ -1971,7 +1973,6 @@ function VexRolesAdmin() {
           ))}
         </div>
       </div>
-
       <AnimatePresence>
         {showAdd && (
           <>
@@ -2086,10 +2087,11 @@ function AdminRegistrations() {
 
 /* ─── MAIN ─── */
 export default function AdminDashboard({ currentUser, onLogout }: Props) {
-  const [activeSection, setActiveSection] = useState<SectionId>('users');
+  const [activeSection, setActiveSection] = useState<SectionId>('overview');
 
   const renderPage = () => {
     switch (activeSection) {
+      case 'overview': return <AdminOverviewDashboard />;
       case 'users': return <UserManagementPanel title="User Management" />;
       case 'roles': return <RolesPermissions />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
