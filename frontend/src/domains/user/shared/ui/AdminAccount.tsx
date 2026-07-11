@@ -370,7 +370,7 @@ function EmailVerificationForm({ currentUser, onVerify }: { currentUser: UserPro
   const [otp, setOtp] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState((currentUser as any).is_email_verified || false);
+  const [success, setSuccess] = useState(currentUser.is_email_verified || false);
 
   const handleRequest = async () => {
     setSubmitting(true);

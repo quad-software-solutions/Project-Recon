@@ -74,7 +74,19 @@ function withUiAliases<T>(endpoint: string, item: T): T {
   return item;
 }
 
-function toBackendPayload(endpoint: string, data: unknown): Record<string, unknown> {
+function dataURItoBlob(dataURI: string): Blob {
+  const [prefix, base64] = dataURI.split(',');
+  const mimeString = prefix.split(':')[1].split(';')[0];
+  const byteString = atob(base64);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
+}
+
+function toBackendPayload(endpoint: string, data: unknown): Record<string, unknown> | FormData {
   const source = (data ?? {}) as Record<string, unknown>;
   const has = (k: string) => k in source;
 
@@ -146,6 +158,10 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
     for (const k of keys) {
       if (has(k)) { val = source[k]; break; }
     }
+    // If it's an image field and it's a URL, don't send it to backend to avoid File validation error
+    if (backendKey === 'image' && typeof val === 'string' && val.startsWith('http')) {
+      continue;
+    }
     result[backendKey] = val ?? null;
   }
 
@@ -157,6 +173,30 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
   // status conversion for contact-requests
   if (endpoint === 'contact-requests' && has('status') && typeof source.status === 'string') {
     result.status = STATUS_TO_BACKEND[source.status] ?? source.status;
+  }
+
+  // Check if we need to send FormData
+  let needsFormData = false;
+  for (const val of Object.values(result)) {
+    if (typeof val === 'string' && val.startsWith('data:image/')) {
+      needsFormData = true;
+      break;
+    }
+  }
+
+  if (needsFormData) {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(result)) {
+      if (typeof v === 'string' && v.startsWith('data:image/')) {
+        const blob = dataURItoBlob(v);
+        fd.append(k, blob, 'upload.jpg');
+      } else if (v !== null && v !== undefined) {
+        // If it's an array or object (not file), we should JSON stringify if backend expects it
+        // but for now, simple fields
+        fd.append(k, String(v));
+      }
+    }
+    return fd;
   }
 
   return result;

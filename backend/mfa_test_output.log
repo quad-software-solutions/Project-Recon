@@ -1,0 +1,76 @@
+/home/heisenberg/.local/lib/python3.10/site-packages/jwt/api_jwt.py:153: InsecureKeyLengthWarning: The HMAC key is 24 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+  return self._jws.encode(
+/home/heisenberg/.local/lib/python3.10/site-packages/jwt/api_jwt.py:371: InsecureKeyLengthWarning: The HMAC key is 24 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+  decoded = self.decode_complete(
+18 objects imported automatically (use -v 2 for details).
+
+--- TESTING EMAIL VERIFICATION FLOW ---
+1. Triggering Email Verification Request...
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: Your EMAIL_VERIFICATION Code
+From: noreply@recon.local
+To: anom@gmail.com
+Date: Tue, 07 Jul 2026 08:14:44 -0000
+Message-ID: 
+ <178341208457.16459.6036081221591664032@heisenberg-ThinkPad-X390-Yoga>
+
+Your one-time password is: 715872
+It expires in 10 minutes.
+-------------------------------------------------------------------------------
+
+============================================================
+📧 EMAIL SENT
+   To:      anom@gmail.com
+   Subject: Your EMAIL_VERIFICATION Code
+   From:    noreply@recon.local
+   Body:
+Your one-time password is: 715872
+It expires in 10 minutes.
+============================================================
+
+Bad Request: /api/v1/accounts/email-verification/verify/
+Bad Request: /api/v1/accounts/email-verification/verify/
+SUCCESS: Email verification requested successfully.
+Retrieved OTP from DB: pbkdf2_sha256$1000000$lPE3ogRZX7hSK5SXfARLp0$rad+vf3O091tirvk5/c39OlS0RUyTj4LYMDvK5rMuvg=
+2. Submitting Invalid OTP...
+SUCCESS: Invalid OTP rejected with status 400
+3. Submitting Valid OTP...
+FAILED: Expected 204, got 400 - b'{"otp":["Ensure this field has no more than 12 characters."]}'
+User is_email_verified after valid OTP: False
+
+--- TESTING DEVICE VERIFICATION FLOW ---
+4. Triggering Device Verification Request...
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: Your DEVICE_VERIFICATION Code
+From: noreply@recon.local
+To: anom@gmail.com
+Date: Tue, 07 Jul 2026 08:14:47 -0000
+Message-ID: 
+ <178341208717.16459.4635768458421295043@heisenberg-ThinkPad-X390-Yoga>
+
+Your one-time password is: 902463
+It expires in 10 minutes.
+-------------------------------------------------------------------------------
+
+============================================================
+📧 EMAIL SENT
+   To:      anom@gmail.com
+   Subject: Your DEVICE_VERIFICATION Code
+   From:    noreply@recon.local
+   Body:
+Your one-time password is: 902463
+It expires in 10 minutes.
+============================================================
+
+Bad Request: /api/v1/accounts/device-verification/verify/
+Bad Request: /api/v1/accounts/device-verification/verify/
+SUCCESS: Device verification requested successfully.
+Retrieved Device OTP from DB: pbkdf2_sha256$1000000$y2SQDUo1YQQNyLG0TtLmjf$y63vYsJsF4Nh5K/SpbfF20GwpfGI5gtHh7H1yxJi8v4=
+5. Submitting Invalid Device OTP...
+SUCCESS: Invalid Device OTP rejected with status 400
+6. Submitting Valid Device OTP...
+FAILED: Expected 200, got 400 - b'{"otp":["Ensure this field has no more than 12 characters."],"device_id":["This field is required."]}'

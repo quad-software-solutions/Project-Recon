@@ -194,7 +194,7 @@ export default function AdminOverviewDashboard() {
     {
       label: 'Total Users', value: String(totalUsers), icon: Users,
       color: 'text-brand-blue', bg: 'bg-brand-blue/5',
-      detail: `${(Object.values(usersByRole) as number[]).reduce((a, b) => a + b, 0)} accounts`,
+      detail: `${Object.values(usersByRole).reduce((a, b) => a + b, 0)} accounts`,
     },
     {
       label: 'Students', value: String(usersByRole['Student'] || 0), icon: GraduationCap,

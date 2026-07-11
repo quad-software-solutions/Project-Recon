@@ -46,8 +46,19 @@ export function useBranding(): BrandingData {
         }
       }
     };
+    
+    const handleCustom = (e: Event) => {
+      const customEvent = e as CustomEvent<BrandingData>;
+      setData(customEvent.detail);
+    };
+
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('branding-updated', handleCustom);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('branding-updated', handleCustom);
+    };
   }, []);
 
   return data;

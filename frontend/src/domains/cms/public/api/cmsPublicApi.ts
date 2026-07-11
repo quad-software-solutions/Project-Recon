@@ -87,8 +87,7 @@ export const cmsPublicApi = {
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
   getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),
   getPartners: (signal?: AbortSignal) => http.get<CmsPartnerResponse[]>('/cms/partners/', { signal }),
-  getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
-  getTeamMembers: () => http.get<TeamMemberResponse[]>('/cms/team-members/'),
+
   getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
   getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
   getFaqs: async (signal?: AbortSignal) => {

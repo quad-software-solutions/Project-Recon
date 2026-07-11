@@ -131,6 +131,11 @@ class CreateStaffUserView(generics.CreateAPIView):
             assigned_by=request.user,
         )
 
+        # Apply optional profile fields if provided
+        profile_fields = {k: serializer.validated_data[k] for k in ("phone_number", "gender", "date_of_birth") if k in serializer.validated_data}
+        if profile_fields:
+            user = update_user(user, actor=request.user, **profile_fields)
+
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 class CreateBranchManagerView(generics.CreateAPIView):
@@ -153,6 +158,12 @@ class CreateBranchManagerView(generics.CreateAPIView):
             branch=branch,
             assigned_by=request.user,
         )
+
+        # Apply optional profile fields if provided
+        profile_fields = {k: serializer.validated_data[k] for k in ("phone_number", "gender", "date_of_birth") if k in serializer.validated_data}
+        if profile_fields:
+            user = update_user(user, actor=request.user, **profile_fields)
+
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 class UserActivateView(APIView):
