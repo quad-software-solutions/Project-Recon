@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ShoppingBag, ShoppingCart, CreditCard, Lock, Minus, Plus, Trash2, ShieldCheck, Star, X, CheckCircle2, Filter, Truck, BadgeCheck, Zap, Sparkles, Heart, Tag } from 'lucide-react';
-import { ROBOTICS_PRODUCTS } from '@/src/shared/constants/mock-data';
-import { Product, CartItem } from '@/src/shared/types';
+import { Search, ShoppingBag, ShoppingCart, CreditCard, Lock, Minus, Plus, Trash2, ShieldCheck, Star, X, CheckCircle2, Filter, Truck, BadgeCheck, Zap, Sparkles, Heart, Tag, Loader2 } from 'lucide-react';
+import type { Product, CartItem } from '@/src/shared/types';
+import { getProducts } from '../api/productApi';
 import Robotics3DShowcase from './Robotics3DShowcase';
 
 interface StoreTabProps {
@@ -14,9 +14,12 @@ interface StoreTabProps {
   onCheckout: () => void;
 }
 
-const CATEGORIES = ['All', ...Array.from(new Set(ROBOTICS_PRODUCTS.map(p => p.category)))];
-
 export default function StoreTab({ cart, onAddToCart, onUpdateQuantity, onRemoveFromCart, cartTotal, onCheckout }: StoreTabProps) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    getProducts().then(setProducts).catch(() => setProducts([])).finally(() => setLoading(false));
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'chappa' | 'stripe'>('chappa');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -27,7 +30,8 @@ export default function StoreTab({ cart, onAddToCart, onUpdateQuantity, onRemove
   const [activeCategory, setActiveCategory] = useState('All');
   const [wishlist, setWishlist] = useState<string[]>([]);
 
-  const filteredProducts = ROBOTICS_PRODUCTS
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const filteredProducts = products
     .filter(p => activeCategory === 'All' || p.category === activeCategory)
     .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -106,7 +110,7 @@ export default function StoreTab({ cart, onAddToCart, onUpdateQuantity, onRemove
           {/* Categories */}
           <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
             <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 className={`px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap uppercase tracking-wider transition-all ${
                   activeCategory === cat
@@ -119,7 +123,11 @@ export default function StoreTab({ cart, onAddToCart, onUpdateQuantity, onRemove
 
           {/* Product Grid */}
           <div id="store-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 scroll-mt-28">
-            {filteredProducts.map(p => (
+            {loading ? (
+              <div className="col-span-full flex justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
+              </div>
+            ) : filteredProducts.map(p => (
               <motion.div key={p.id} layout initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                 className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200 p-4 flex flex-col hover:border-brand-red/40 transition-all group"
               >

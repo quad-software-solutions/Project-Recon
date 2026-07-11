@@ -44,12 +44,14 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    cmsPublicApi.getHeroBanners().then((data) => {
+    const abort = new AbortController();
+    cmsPublicApi.getHeroBanners(abort.signal).then((data) => {
       if (data && data.length > 0) {
         setBanners(data);
-        setActiveImages(data.map(b => b.image));
+        setActiveImages(data.map((b, i) => b.image || SLIDER_IMAGES[i % SLIDER_IMAGES.length]));
       }
-    }).catch(console.error);
+    }).catch(err => { if (err.name !== 'AbortError') console.error(err); });
+    return () => abort.abort();
   }, []);
 
   useEffect(() => {

@@ -256,14 +256,14 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
               </div>
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name</label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} placeholder="e.g. Yonas" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name</label><input value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} placeholder="e.g. Tadesse" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name <span className="text-red-500">*</span></label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} placeholder="e.g. Yonas" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name <span className="text-red-500">*</span></label><input value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} placeholder="e.g. Tadesse" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
                 </div>
-                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email</label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="e.g. yonas.tadesse@email.com" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Password</label><input type="password" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} placeholder="e.g. ••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email <span className="text-red-500">*</span></label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="e.g. yonas.tadesse@email.com" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Password <span className="text-red-500">*</span></label><input type="password" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} placeholder="e.g. ••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Gender</label>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone <span className="text-slate-400 text-[10px]">(optional)</span></label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Gender <span className="text-slate-400 text-[10px]">(optional)</span></label>
                     <select value={formData.gender} onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
                       <option value="">Prefer not to say</option>
                       <option value="Male">Male</option>
@@ -272,8 +272,8 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date of Birth</label><input type="date" value={formData.date_of_birth} onChange={e => setFormData(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch</label>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date of Birth <span className="text-slate-400 text-[10px]">(optional)</span></label><input type="date" value={formData.date_of_birth} onChange={e => setFormData(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch <span className="text-red-500">*</span></label>
                     <select value={formData.branch_id} onChange={e => setFormData(p => ({ ...p, branch_id: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
                       <option value="">Select branch...</option>
                       {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -289,7 +289,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                   </div>
                 </div>
                 {addUserRole === 'staff' && (
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Role</label>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Role <span className="text-slate-400 text-[10px]">(optional)</span></label>
                     <select value={formData.role} onChange={e => setFormData(p => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
                       <option value="instructor">Instructor</option>
                       <option value="secretary">Secretary</option>

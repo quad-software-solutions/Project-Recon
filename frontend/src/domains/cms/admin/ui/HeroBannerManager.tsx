@@ -57,10 +57,6 @@ export default function HeroBannerManager({ addToast }: Props) {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!editing?.title?.trim()) errors.title = 'Title is required';
-    if (!editing?.subtitle?.trim()) errors.subtitle = 'Subtitle is required';
-    if (!editing?.description?.trim()) errors.description = 'Description is required';
-    if (!editing?.imageUrl?.trim()) errors.imageUrl = 'Image URL is required';
-    if (!editing?.linkUrl?.trim()) errors.linkUrl = 'Link URL is required';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -113,11 +109,11 @@ export default function HeroBannerManager({ addToast }: Props) {
           </div>
           <div className="p-4 flex flex-col gap-3">
             <Field label="Title" value={editing.title ?? ''} onChange={v => { setEditing({ ...editing, title: v }); clearError('title'); }} error={formErrors.title} required placeholder="e.g. Welcome to STEM Center" />
-            <Field label="Subtitle" value={editing.subtitle ?? ''} onChange={v => { setEditing({ ...editing, subtitle: v }); clearError('subtitle'); }} error={formErrors.subtitle} required placeholder="e.g. Building the Future, One Robot at a Time" />
-            <Textarea label="Description" value={editing.description ?? ''} onChange={v => { setEditing({ ...editing, description: v }); clearError('description'); }} error={formErrors.description} required placeholder="e.g. A brief overview of what makes our program unique..." />
+            <Field label="Subtitle" value={editing.subtitle ?? ''} onChange={v => { setEditing({ ...editing, subtitle: v }); clearError('subtitle'); }} error={formErrors.subtitle} placeholder="e.g. Building the Future, One Robot at a Time" />
+            <Textarea label="Description" value={editing.description ?? ''} onChange={v => { setEditing({ ...editing, description: v }); clearError('description'); }} error={formErrors.description} placeholder="e.g. A brief overview of what makes our program unique..." />
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/banner.jpg" />
+                <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} placeholder="e.g. https://example.com/banner.jpg" />
               </div>
               <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
               <button type="button" onClick={() => imageInputRef.current?.click()}
@@ -130,7 +126,7 @@ export default function HeroBannerManager({ addToast }: Props) {
                 <img src={editing.imageUrl} alt="" className="w-full h-36 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               </div>
             )}
-            <Field label="Link URL" value={editing.linkUrl ?? ''} onChange={v => { setEditing({ ...editing, linkUrl: v }); clearError('linkUrl'); }} error={formErrors.linkUrl} required placeholder="e.g. https://example.com/register" />
+            <Field label="Link URL" value={editing.linkUrl ?? ''} onChange={v => { setEditing({ ...editing, linkUrl: v }); clearError('linkUrl'); }} error={formErrors.linkUrl} placeholder="e.g. https://example.com/register" />
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
                 Priority <span className="text-red-400 ml-0.5">*</span>

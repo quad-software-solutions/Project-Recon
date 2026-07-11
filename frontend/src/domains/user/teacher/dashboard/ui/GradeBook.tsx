@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   BookOpen, Save, Star, Search, X, Loader2, BarChart3, CheckCircle2, TrendingUp, TrendingDown,
-  Trophy, Download, Settings, Sliders, MessageSquare, History, Clock, ArrowUpDown, Users, Target, GraduationCap
+  Trophy, Download, Settings, Sliders, MessageSquare, History, Clock, ArrowUpDown, Users, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -56,7 +56,6 @@ export default function GradeBook({ students }: Props) {
   });
   const [showHistory, setShowHistory] = useState(false);
   const [showWeightsModal, setShowWeightsModal] = useState(false);
-  const [tempWeights, setTempWeights] = useState(DEFAULT_WEIGHTS);
 
   const getDefaultGrade = (): StudentGrade => ({
     practical: { scores: [0] },

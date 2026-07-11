@@ -121,27 +121,42 @@ export type LearningMaterialPayload = {
 export type CertificateTemplatePayload = {
   sub_program: string;
   title: string;
-  background?: string;
-  institute_logo?: string;
-  signature?: string;
+  background?: File | null;
+  institute_logo?: File | null;
+  signature?: File | null;
   body_text: string;
+  signatory_name?: string;
+  signatory_title?: string;
 };
 
+const SIGNATORY_SEP = '\n\n---SIGNATORY---\n';
+
+function encodeBodyWithSignatory(body: string, name?: string, title?: string): string {
+  if (!name && !title) return body;
+  return `${body}${SIGNATORY_SEP}${name || ''}\n${title || ''}`;
+}
+
+export function decodeBodyWithSignatory(body: string): { body: string; signatory_name: string; signatory_title: string } {
+  const idx = body.indexOf(SIGNATORY_SEP);
+  if (idx === -1) return { body, signatory_name: '', signatory_title: '' };
+  const main = body.slice(0, idx);
+  const parts = body.slice(idx + SIGNATORY_SEP.length).split('\n');
+  return { body: main, signatory_name: parts[0] || '', signatory_title: parts[1] || '' };
+}
+
 export type StaffAttendanceRecordPayload = {
-  user: string;
+  staff_member: string;
   status: string;
-  remarks?: string;
+  notes?: string;
 };
 
 // ─── Programs ───
 export async function fetchProgramsApi(): Promise<Program[]> {
-  try { return unwrapList(await http.get<ListResponse<Program>>(`${BASE}/programs/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<Program>>(`${BASE}/programs/`));
 }
 
 export async function fetchSubProgramsApi(programId?: string): Promise<SubProgram[]> {
-  try { return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/${queryString({ program: programId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/${queryString({ program: programId })}`));
 }
 
 export async function createProgramApi(payload: AcademicProgramPayload): Promise<Program> {
@@ -170,8 +185,7 @@ export async function setSubProgramActiveApi(id: string, active: boolean): Promi
 
 // ─── Classes ───
 export async function fetchClassesApi(subProgramId?: string): Promise<AcademicClass[]> {
-  try { return unwrapList(await http.get<ListResponse<AcademicClass>>(`${BASE}/classes/${queryString({ sub_program: subProgramId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<AcademicClass>>(`${BASE}/classes/${queryString({ sub_program: subProgramId })}`));
 }
 
 export async function createClassApi(payload: AcademicClassPayload): Promise<AcademicClass> {
@@ -192,8 +206,7 @@ export async function setClassActiveApi(id: string, active: boolean): Promise<Ac
 
 // ─── Enrollment Periods ───
 export async function fetchEnrollmentPeriodsApi(): Promise<EnrollmentPeriod[]> {
-  try { return unwrapList(await http.get<ListResponse<EnrollmentPeriod>>(`${BASE}/enrollment-periods/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<EnrollmentPeriod>>(`${BASE}/enrollment-periods/`));
 }
 
 export async function createEnrollmentPeriodApi(payload: EnrollmentPeriodPayload): Promise<EnrollmentPeriod> {
@@ -210,8 +223,7 @@ export async function setEnrollmentPeriodActiveApi(id: string, active: boolean):
 
 // ─── Enrollments ───
 export async function fetchEnrollmentsApi(studentId?: string): Promise<Enrollment[]> {
-  try { return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ student: studentId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ student: studentId })}`));
 }
 
 export async function enrollStudentApi(payload: StaffEnrollmentPayload): Promise<Enrollment> {
@@ -236,13 +248,11 @@ export async function completeEnrollmentApi(id: string): Promise<Enrollment> {
 
 // ─── Students ───
 export async function fetchStudentsApi(): Promise<StudentProfile[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/`));
 }
 
 export async function searchStudentsApi(query: string): Promise<StudentProfile[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/${queryString({ q: query })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/${queryString({ q: query })}`));
 }
 
 export async function createStudentApi(payload: { email: string; first_name: string; last_name: string; password: string; branch: string }): Promise<any> {
@@ -267,19 +277,16 @@ export async function createCashPaymentApi(payload: CashPaymentPayload): Promise
 }
 
 export async function fetchPaymentsApi(): Promise<EnrollmentPayment[]> {
-  try { return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/`));
 }
 
 // ─── Attendance ───
 export async function fetchAttendanceSessionsApi(classId: string): Promise<AttendanceSession[]> {
-  try { return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/${queryString({ enrolled_class: classId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/${queryString({ enrolled_class: classId })}`));
 }
 
 export async function fetchAttendanceRecordsApi(sessionId: string): Promise<AttendanceRecord[]> {
-  try { return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/sessions/${sessionId}/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/sessions/${sessionId}/`));
 }
 
 export async function createAttendanceSessionApi(payload: { enrolled_class: string; session_date: string; topic?: string }): Promise<AttendanceSession> {
@@ -295,8 +302,7 @@ export async function updateAttendanceRecordApi(sessionId: string, recordId: str
 }
 
 export async function fetchEnrollmentAttendanceHistoryApi(enrollmentId: string): Promise<AttendanceRecord[]> {
-  try { return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/enrollments/${enrollmentId}/history/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/enrollments/${enrollmentId}/history/`));
 }
 
 export async function fetchEnrollmentAttendanceSummaryApi(enrollmentId: string): Promise<Record<string, unknown>> {
@@ -305,13 +311,11 @@ export async function fetchEnrollmentAttendanceSummaryApi(enrollmentId: string):
 
 // ─── Staff Attendance ───
 export async function fetchAvailableStaffApi(params?: { branch?: string; role?: string }): Promise<any[]> {
-  try { return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/available-staff/${queryString(params)}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/available-staff/${queryString(params)}`));
 }
 
 export async function fetchStaffAttendanceSessionsApi(params?: { branch?: string; session_date?: string }): Promise<any[]> {
-  try { return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/${queryString(params)}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/${queryString(params)}`));
 }
 
 export async function createStaffAttendanceSessionApi(payload: { branch: string; session_date: string; notes?: string }): Promise<any> {
@@ -336,8 +340,7 @@ export async function updateStaffAttendanceRecordApi(sessionId: string, recordId
 
 // ─── Milestones & Progress ───
 export async function fetchMilestonesApi(subProgramId: string): Promise<LearningMilestone[]> {
-  try { return unwrapList(await http.get<ListResponse<LearningMilestone>>(`${BASE}/learning-milestones/${queryString({ sub_program: subProgramId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<LearningMilestone>>(`${BASE}/learning-milestones/${queryString({ sub_program: subProgramId })}`));
 }
 
 export async function createMilestoneApi(payload: LearningMilestonePayload): Promise<LearningMilestone> {
@@ -357,8 +360,7 @@ export async function customizeMilestoneApi(id: string, payload: Partial<Learnin
 }
 
 export async function fetchStudentProgressApi(enrollmentId: string): Promise<StudentProgress[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/enrollments/${enrollmentId}/history/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/enrollments/${enrollmentId}/history/`));
 }
 
 export async function fetchStudentProgressSummaryApi(enrollmentId: string): Promise<Record<string, unknown>> {
@@ -375,8 +377,7 @@ export async function updateStudentProgressApi(id: string, payload: { status: st
 
 // ─── Learning Materials ───
 export async function fetchLearningMaterialsApi(subProgramId?: string): Promise<LearningMaterial[]> {
-  try { return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/${queryString({ sub_program: subProgramId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/${queryString({ sub_program: subProgramId })}`));
 }
 
 export async function createLearningMaterialApi(payload: LearningMaterialPayload): Promise<LearningMaterial> {
@@ -397,16 +398,28 @@ export function downloadLearningMaterialApi(id: string) {
 
 // ─── Certificates ───
 export async function fetchCertificateTemplatesApi(): Promise<Certificate[]> {
-  try { return unwrapList(await http.get<ListResponse<Certificate>>(`${BASE}/certificate-templates/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<Certificate>>(`${BASE}/certificate-templates/`));
+}
+
+function toCertificateFormData(payload: Partial<CertificateTemplatePayload>): FormData {
+  const fd = new FormData();
+  if (payload.sub_program) fd.append('sub_program', payload.sub_program);
+  if (payload.title) fd.append('title', payload.title);
+  if (payload.background instanceof File) fd.append('background', payload.background);
+  if (payload.institute_logo instanceof File) fd.append('institute_logo', payload.institute_logo);
+  if (payload.signature instanceof File) fd.append('signature', payload.signature);
+  if (payload.body_text !== undefined) {
+    fd.append('body_text', encodeBodyWithSignatory(payload.body_text, payload.signatory_name, payload.signatory_title));
+  }
+  return fd;
 }
 
 export async function createCertificateTemplateApi(payload: CertificateTemplatePayload): Promise<Certificate> {
-  return http.post<Certificate>(`${BASE}/certificate-templates/`, payload);
+  return http.post<Certificate>(`${BASE}/certificate-templates/`, toCertificateFormData(payload));
 }
 
 export async function updateCertificateTemplateApi(id: string, payload: Partial<CertificateTemplatePayload>): Promise<Certificate> {
-  return http.patch<Certificate>(`${BASE}/certificate-templates/${id}/`, payload);
+  return http.patch<Certificate>(`${BASE}/certificate-templates/${id}/`, toCertificateFormData(payload));
 }
 
 export async function setCertificateTemplateActiveApi(id: string, active: boolean): Promise<Certificate> {
@@ -414,8 +427,7 @@ export async function setCertificateTemplateActiveApi(id: string, active: boolea
 }
 
 export async function fetchStudentCertificatesApi(studentId?: string): Promise<StudentCertificate[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentCertificate>>(`${BASE}/student-certificates/${queryString({ student: studentId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentCertificate>>(`${BASE}/student-certificates/${queryString({ student: studentId })}`));
 }
 
 export async function issueStudentCertificateApi(payload: IssueCertificatePayload): Promise<StudentCertificate> {

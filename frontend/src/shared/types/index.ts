@@ -89,10 +89,11 @@ export interface SubscriptionTier {
 export interface Certificate {
   id: string;
   sub_program: string;
+  sub_program_name?: string;
   title: string;
-  background: string;
-  institute_logo?: string;
-  signature?: string;
+  background_url?: string | null;
+  institute_logo_url?: string | null;
+  signature_url?: string | null;
   body_text: string;
   is_active: boolean;
   created_at: string;
@@ -110,54 +111,79 @@ export interface AppNotification {
   icon?: string;
 }
 
-export interface Workshop {
-  id: string;
-  title: string;
-  description: string;
-  detailedDescription: string;
-  date: string;
-  time: string;
-  duration: string;
-  instructor: string;
-  instructorRole: string;
-  instructorImage: string;
-  location: string;
-  category: 'VEX IQ' | 'VEX V5' | 'Enjoy AI' | 'Arduino' | 'STEM' | 'Coding';
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
-  capacity: number;
-  enrolled: number;
-  price: number;
-  image: string;
-  topics: string[];
-  requirements: string[];
-  status: 'upcoming' | 'ongoing' | 'completed';
+export type EventStoredStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED';
+export type EventComputedState = 'FUTURE' | 'LIVE' | 'PAST';
+export type EventVisibility = 'PUBLIC' | 'PRIVATE';
+export type RegistrationMode = 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
+export type EventType = 'TOURNAMENT' | 'WORKSHOP' | 'GENERAL';
+export type WorkshopLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
+export function computeEventState(start: string, end: string): EventComputedState {
+  const now = new Date();
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (now < startDate) return 'FUTURE';
+  if (now >= startDate && now <= endDate) return 'LIVE';
+  return 'PAST';
 }
 
 export interface Tournament {
   id: string;
-  name: string;
-  date: string;
-  location: string;
-  status: 'upcoming' | 'live' | 'completed';
-  category: 'VEX IQ' | 'VEX V5' | 'Enjoy AI';
-  teams: TournamentTeam[];
-  maxTeams: number;
-  registrationDeadline: string;
-  prizePool: string;
-  streamUrl?: string;
+  title: string;
   description: string;
+  startDateTime: string;
+  endDateTime: string;
+  location: string;
+  eventType: EventType;
+  storedStatus: EventStoredStatus;
+  computedState: EventComputedState;
+  visibility: EventVisibility;
+  registrationEnabled: boolean;
+  registrationMode: RegistrationMode;
+  registrationDeadline: string | null;
+  paymentRequired: boolean;
+  registrationFee: string | null;
+  capacity: number;
+  enrolledCount: number;
+  category: string;
+  maxTeams: number;
+  prizePool: string;
+}
+
+export interface Workshop {
+  id: string;
+  title: string;
+  description: string;
+  startDateTime: string;
+  endDateTime: string;
+  location: string;
+  eventType: EventType;
+  storedStatus: EventStoredStatus;
+  computedState: EventComputedState;
+  visibility: EventVisibility;
+  registrationEnabled: boolean;
+  registrationMode: RegistrationMode;
+  registrationDeadline: string | null;
+  paymentRequired: boolean;
+  registrationFee: string | null;
+  capacity: number;
+  enrolledCount: number;
+  instructor: string;
+  level: WorkshopLevel;
+  duration: number;
+  price: number;
 }
 
 export interface TournamentTeam {
   id: string;
-  name: string;
-  school: string;
-  members: number;
+  teamName: string;
+  organization: string;
+  coachName: string;
   wins: number;
   losses: number;
-  score: number;
+  draws: number;
+  points: number;
   rank?: number;
-  avatar?: string;
 }
 
 export interface MatchResult {
@@ -333,6 +359,7 @@ export type PaymentMethod = 'CASH' | 'ONLINE';
 export type PaymentProvider = 'CHAPA' | 'STRIPE';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+export type SessionStatus = 'DRAFT' | 'PUBLISHED';
 export type ProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 export type MaterialType = 'PDF' | 'PPT' | 'PPTX' | 'DOC' | 'DOCX' | 'IMAGE' | 'ZIP' | 'OTHER';
 
@@ -625,4 +652,30 @@ export interface AnalyticsData {
   programDistribution: { program: string; count: number; color: string }[];
   topMetrics: { label: string; value: string; change: string; trend: 'up' | 'down' }[];
   recentTransactions: { id: string; student: string; amount: number; type: string; date: string; status: string }[];
+}
+
+export interface StaffAttendanceSession {
+  id: string;
+  branch: string;
+  branch_name?: string;
+  date: string;
+  status: SessionStatus;
+  notes: string;
+  created_by: string;
+  created_by_name?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  records?: StaffAttendanceRecord[];
+}
+
+export interface StaffAttendanceRecord {
+  id: string;
+  session: string;
+  staff_member: string;
+  staff_member_name?: string;
+  status: AttendanceStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }

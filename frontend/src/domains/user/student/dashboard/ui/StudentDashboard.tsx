@@ -9,7 +9,7 @@ import {
 import { UserProfile, Enrollment } from '@/src/shared/types';
 import { fetchStudentsApi, fetchEnrollmentsApi, fetchStudentCertificatesApi, fetchProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
 import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
-import { getTournaments, getMatches, getWorkshops } from '@/src/domains/competition/api/competitionApi';
+
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
@@ -20,7 +20,6 @@ import Account from './Account';
 import AttendanceTracker from './AttendanceTracker';
 import ProgressMilestones from './ProgressMilestones';
 import UpcomingEvents from './UpcomingEvents';
-import VexTeamHub from './VexTeamHub';
 import MyRegistrations from './MyRegistrations';
 import LearningResources from './LearningResources';
 import Achievements from './Achievements';
@@ -35,7 +34,7 @@ interface StudentDashboardProps {
   onLogout: () => void;
 }
 
-type SectionId = 'overview' | 'account' | 'attendance' | 'progress' | 'events' | 'resources' | 'achievements' | 'feedback' | 'certificates' | 'leaderboard' | 'videos' | 'referrals' | 'vex-team' | 'registrations';
+type SectionId = 'overview' | 'account' | 'attendance' | 'progress' | 'events' | 'resources' | 'achievements' | 'feedback' | 'certificates' | 'leaderboard' | 'videos' | 'referrals' | 'registrations';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3, group: 'main' },
@@ -48,7 +47,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: CalendarDays, group: 'main' },
   { id: 'registrations', label: 'My Registrations', icon: ClipboardList, group: 'main' },
   { id: 'events', label: 'Upcoming Events', icon: Calendar, group: 'main' },
-  { id: 'vex-team', label: 'VEX Team Hub', icon: Users, group: 'vex' },
   { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, group: 'main' },
   { id: 'referrals', label: 'Referral Program', icon: Gift, group: 'main' },
   { id: 'feedback', label: 'Parent Feedback', icon: MessageCircle, group: 'main' },
@@ -165,7 +163,6 @@ export default function StudentDashboard({ currentUser, onLogout }: StudentDashb
       case 'leaderboard': return <Leaderboard />;
       case 'videos':     return <VideoLibrary />;
       case 'referrals':  return <ReferralProgram currentUser={currentUser} />;
-      case 'vex-team':   return <VexTeamHub />;
       case 'registrations': return <MyRegistrations studentId={studentId} />;
     }
   };
@@ -191,7 +188,7 @@ export default function StudentDashboard({ currentUser, onLogout }: StudentDashb
     >
       <DashboardCommandCenter
         title="Learning Command Center"
-        subtitle="Progress, events, certificates, and VEX team readiness."
+        subtitle="Progress, events, certificates."
         signals={[
           { label: 'XP', value: currentUser.xpPoints.toLocaleString(), detail: 'current points', icon: Zap, tone: 'amber' },
           { label: 'Active', value: String(activeCount), detail: 'active enrollments', icon: TrendingUp, tone: 'emerald' },
@@ -216,26 +213,13 @@ interface OverviewProps {
 function OverviewPage({ currentUser, studentId, onNavigate, enrollments }: OverviewProps) {
   const [loading, setLoading] = useState(true);
   const [newsEvents, setNewsEvents] = useState<{ title: string; date: string }[]>([]);
-  const [vexStats, setVexStats] = useState({ tournaments: 0, matches: 0, wins: 0 });
-
   useEffect(() => {
-    Promise.all([
-      cmsPublicApi.getNews({ limit: '3' }),
-      getTournaments(),
-      getMatches(),
-    ]).then(([news, tor, mat]) => {
+    cmsPublicApi.getNews({ limit: '3' }).then(news => {
       const items = news?.results || [];
       setNewsEvents(items.map(n => ({
         title: n.title,
         date: new Date(n.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
       })));
-      const torList = tor || [];
-      const matList = mat || [];
-      setVexStats({
-        tournaments: torList.length,
-        matches: matList.length,
-        wins: matList.filter(m => m.status === 'completed' && m.score1 > m.score2).length,
-      });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -410,41 +394,7 @@ function OverviewPage({ currentUser, studentId, onNavigate, enrollments }: Overv
         </div>
       </div>
 
-      {/* VEX Competition Summary */}
-      {vexStats.tournaments > 0 && (
-        <div className="mt-6">
-          <div className="bg-white border border-brand-border rounded-2xl p-5">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Cpu className="w-5 h-5 text-brand-red" />
-                  <h3 className="font-black text-lg text-slate-900">VEX Competition</h3>
-                </div>
-                <p className="text-sm text-slate-500 font-medium">Active tournaments and matches</p>
-              </div>
-              <button onClick={() => onNavigate('vex-team')} className="text-sm font-black text-brand-red hover:underline flex items-center gap-1 shrink-0 uppercase tracking-wider">
-                Full Hub <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Tournaments', value: vexStats.tournaments.toString(), icon: Trophy, color: 'text-amber-500' },
-                { label: 'Matches', value: vexStats.matches.toString(), icon: Swords, color: 'text-brand-blue' },
-                { label: 'Wins', value: vexStats.wins.toString(), icon: Award, color: 'text-emerald-500' },
-              ].map((stat, i) => {
-                const StatIcon = stat.icon;
-                return (
-                  <div key={i} className="bg-slate-50 rounded-xl p-3 border border-brand-border">
-                    <StatIcon className={`w-4 h-4 ${stat.color} mb-1`} />
-                    <p className="font-black text-xl text-slate-900">{stat.value}</p>
-                    <p className="text-xs text-slate-500 font-medium">{stat.label}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* VEX Competition Summary — disabled (no backend) */}
     </div>
   );
 }

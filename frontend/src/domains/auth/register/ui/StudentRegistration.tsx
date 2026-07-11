@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Phone, BookOpen, ShieldCheck, Check, CreditCard, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, Info, ArrowRight, Clock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { registerApi } from '../api/registerApi';
-import { fetchProgramsApi } from '../../../learning/academics/api/academicApi';
-import type { Program } from '@/src/shared/types';
+import { fetchProgramsApi, fetchSubProgramsApi } from '../../../learning/academics/api/academicApi';
+import type { Program, SubProgram } from '@/src/shared/types';
 
 interface SavedEnrollment {
   ref: string;
@@ -54,37 +54,7 @@ const staggerItem = {
   visible: { opacity: 1, y: 0 }
 };
 
-const COURSE_CATEGORIES = [
-  {
-    id: 'robotics',
-    title: 'Robotics Classes',
-    icon: Cpu,
-    courses: [
-      { id: 'vex-v5', name: 'VEX V5 Competitive', priceClass: 3500, pricePrivate: 7000, desc: 'Professional metallic builds & C++ logic integrations.' },
-      { id: 'vex-iq', name: 'VEX IQ Junior', priceClass: 3000, pricePrivate: 6000, desc: 'Mechanical assembly and block-based programming.' },
-      { id: 'enjoy-ai', name: 'Enjoy AI Autonomous', priceClass: 4000, pricePrivate: 8000, desc: 'Autonomous driving & computer vision systems.' }
-    ]
-  },
-  {
-    id: 'programming',
-    title: 'Programming Languages',
-    icon: Laptop,
-    courses: [
-      { id: 'python', name: 'Python Programming', priceClass: 2500, pricePrivate: 5000, desc: 'Algorithms, data structures, and AI foundations.' },
-      { id: 'cpp', name: 'C++ Engineering', priceClass: 2800, pricePrivate: 5600, desc: 'Low-level hardware control and competitive coding.' },
-      { id: 'web', name: 'Web Development', priceClass: 2000, pricePrivate: 4000, desc: 'HTML, CSS, JS, and React frontend mastery.' }
-    ]
-  },
-  {
-    id: 'languages',
-    title: 'World Languages',
-    icon: Globe,
-    courses: [
-      { id: 'mandarin', name: 'Mandarin Chinese', priceClass: 2000, pricePrivate: 4000, desc: 'Immersive Mandarin reading and speaking.' },
-      { id: 'spanish', name: 'Spanish', priceClass: 2000, pricePrivate: 4000, desc: 'Conversational Spanish for global communication.' }
-    ]
-  }
-];
+
 
 export default function StudentRegistration() {
   const [step, setStep] = useState<1 | 2>(1);
@@ -101,12 +71,20 @@ export default function StudentRegistration() {
   const [savedEnrollments] = useState<SavedEnrollment[]>(loadEnrollments);
   const [showHistory, setShowHistory] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
   const [programsLoading, setProgramsLoading] = useState(true);
+  const [programsError, setProgramsError] = useState('');
 
   useEffect(() => {
-    fetchProgramsApi().then(data => {
-      if (data.length > 0) setPrograms(data);
-    }).catch(() => {}).finally(() => setProgramsLoading(false));
+    Promise.all([
+      fetchProgramsApi(),
+      fetchSubProgramsApi()
+    ]).then(([progs, subs]) => {
+      if (progs.length > 0) setPrograms(progs);
+      if (subs.length > 0) setSubPrograms(subs);
+    }).catch(() => {
+      setProgramsError('Failed to load programs');
+    }).finally(() => setProgramsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -127,14 +105,23 @@ export default function StudentRegistration() {
     });
   };
 
-  const courseCategories = programs.length > 0
-    ? programs.map(p => ({
-        id: p.slug || p.id,
-        title: p.name,
-        icon: p.name.toLowerCase().includes('robot') || p.name.toLowerCase().includes('vex') ? Cpu : Laptop,
-        courses: [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 7000, desc: p.description || '' }],
-      }))
-    : COURSE_CATEGORIES;
+  const courseCategories = programs.map(p => {
+    const subs = subPrograms.filter(s => s.program === p.id);
+    return {
+      id: p.slug || p.id,
+      title: p.name,
+      icon: p.name.toLowerCase().includes('robot') || p.name.toLowerCase().includes('vex') ? Cpu : Laptop,
+      courses: subs.length > 0
+        ? subs.map(s => ({
+            id: s.slug || s.id,
+            name: s.name,
+            priceClass: s.fee,
+            pricePrivate: s.fee * 2,
+            desc: s.description || p.description || '',
+          }))
+        : [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 7000, desc: p.description || '' }],
+    };
+  });
 
   const allCourses = courseCategories.flatMap(cat => cat.courses);
 
@@ -478,7 +465,22 @@ export default function StudentRegistration() {
                   animate="visible"
                   className="flex flex-col gap-6"
                 >
-                  {courseCategories.map((category) => (
+                  {programsLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Loader2 className="w-8 h-8 text-brand-red animate-spin" />
+                      <span className="ml-3 font-bold text-slate-600">Loading programs...</span>
+                    </div>
+                  ) : programsError ? (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                      <p className="text-red-700 font-bold">{programsError}</p>
+                    </div>
+                  ) : courseCategories.length === 0 ? (
+                    <div className="bg-white/80 rounded-2xl p-12 text-center">
+                      <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                      <p className="text-lg font-bold text-slate-600">No courses available</p>
+                      <p className="text-sm text-slate-500 mt-1">Programs will appear here once they are added.</p>
+                    </div>
+                  ) : courseCategories.map((category) => (
                     <motion.div
                       key={category.id}
                       variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}

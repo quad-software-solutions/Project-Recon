@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   PlusCircle, ListOrdered, Users, Gamepad2, Award, Trophy, Camera, Handshake,
@@ -7,51 +7,18 @@ import {
   Sparkles, Shield, Medal, Star, GitBranch, Play, Flag, ClipboardList,
   DollarSign, Globe, Target, ArrowUpRight, QrCode, ExternalLink, Download, BookOpen,
   Youtube, Podcast, Radio, Tv, MonitorPlay, ListVideo, Timer,
-  Cpu, Swords, Hash, Wrench, Zap, ChevronRight, Activity as ActivityIcon, User, LogOut
+  Cpu, Swords, Hash, Wrench, Zap, ChevronRight, Activity as ActivityIcon, User, LogOut, Loader2, AlertCircle
 } from 'lucide-react';
-import { MOCK_CERTIFICATES, MOCK_VEX_TEAM, MOCK_VEX_ROBOTS, MOCK_VEX_AWARDS, MOCK_VEX_NOTEBOOK, MOCK_VEX_MATCHES } from '@/src/shared/constants/mock-data';
-import { UserProfile, VexRobot, VexNotebookEntry, VexMatchRecord } from '@/src/shared/types';
+import { UserProfile, VexRobot, VexMatchRecord, VexTeam, StudentAward } from '@/src/shared/types';
+import * as eventsApi from '../../api/eventsApi';
+
+
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 
 type SectionId = 'overview' | 'create' | 'events' | 'teams' | 'matches' | 'judging' | 'brackets' | 'media' | 'sponsors' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook';
 
-interface CompetitionSummary {
-  type: string; total: number; active: number; completed: number; icon: React.ElementType; color: string;
-}
 
-const COMP_SUMMARY: CompetitionSummary[] = [
-  { type: 'Friendly', total: 12, active: 3, completed: 9, icon: Sparkles, color: 'from-emerald-500 to-teal-500' },
-  { type: 'Local', total: 8, active: 2, completed: 6, icon: MapPin, color: 'from-blue-500 to-indigo-500' },
-  { type: 'National', total: 4, active: 1, completed: 3, icon: Trophy, color: 'from-brand-red to-brand-red-dark' },
-  { type: 'African', total: 2, active: 0, completed: 2, icon: Globe, color: 'from-purple-500 to-violet-500' },
-];
-
-const MOCK_EVENTS = [
-  { id: 'evt-1', name: 'Bole Prep Friendly Scrimmage', type: 'Friendly', program: 'VEX V5', date: '2026-07-15', teams: 14, status: 'Registration Open', registrationFee: 0 },
-  { id: 'evt-2', name: 'Addis Ababa VEX Qualifier', type: 'Local', program: 'VEX V5', date: '2026-08-20', teams: 32, status: 'Registration Open', registrationFee: 500 },
-  { id: 'evt-3', name: 'Ethiopian VEX National Championship', type: 'National', program: 'VEX IQ / V5', date: '2026-10-10', teams: 64, status: 'Draft', registrationFee: 1500 },
-  { id: 'evt-4', name: 'African Robotics Championship 2026', type: 'African', program: 'VEX V5', date: '2027-01-15', teams: 120, status: 'Planning', registrationFee: 3000 },
-  { id: 'evt-5', name: 'AASTU Summer VEX Camp', type: 'Friendly', program: 'VEX IQ', date: '2026-07-28', teams: 10, status: 'Registration Open', registrationFee: 0 },
-  { id: 'evt-6', name: 'Gondar City Robotics Cup', type: 'Local', program: 'VEX IQ', date: '2026-09-05', teams: 20, status: 'Draft', registrationFee: 300 },
-];
-
-const MOCK_TEAMS = [
-  { id: 'T-001', name: 'Robo Lions', school: 'Bole Prep', program: 'VEX V5', city: 'Addis Ababa', checkedIn: true, inspected: true },
-  { id: 'T-002', name: 'Tech Titans', school: 'Sandalwood Academy', program: 'VEX V5', city: 'Addis Ababa', checkedIn: true, inspected: false },
-  { id: 'T-003', name: 'Iron Eagles', school: 'AASTU', program: 'VEX V5', city: 'Addis Ababa', checkedIn: false, inspected: false },
-  { id: 'T-004', name: 'Mech Warriors', school: 'Gondar U', program: 'VEX IQ', city: 'Gondar', checkedIn: true, inspected: true },
-  { id: 'T-005', name: 'Circuit Breakers', school: 'Bahr Dar Prep', program: 'VEX V5', city: 'Bahr Dar', checkedIn: false, inspected: false },
-  { id: 'T-006', name: 'Bot Builders', school: 'Lideta School', program: 'VEX IQ', city: 'Addis Ababa', checkedIn: true, inspected: true },
-];
-
-const MOCK_MATCHES = [
-  { id: 'M-01', round: 'Qualification', field: 1, red: ['T-001', 'T-004'], blue: ['T-002', 'T-006'], redScore: 42, blueScore: 38, status: 'completed' },
-  { id: 'M-02', round: 'Qualification', field: 2, red: ['T-003', 'T-006'], blue: ['T-001', 'T-005'], redScore: 28, blueScore: 45, status: 'completed' },
-  { id: 'M-03', round: 'Qualification', field: 1, red: ['T-002', 'T-005'], blue: ['T-003', 'T-004'], redScore: 0, blueScore: 0, status: 'live' },
-  { id: 'M-04', round: 'Qualification', field: 2, red: ['T-001', 'T-003'], blue: ['T-004', 'T-006'], redScore: 0, blueScore: 0, status: 'scheduled' },
-  { id: 'M-05', round: 'Qualification', field: 1, red: ['T-005', 'T-006'], blue: ['T-001', 'T-002'], redScore: 0, blueScore: 0, status: 'scheduled' },
-];
 
 interface EventCommandCenterProps {
   currentUser?: UserProfile | null;
@@ -86,18 +53,6 @@ const ADMIN_SECTIONS: SectionId[] = [
 ];
 
 const MOBILE_PRIMARY: SectionId[] = ['overview', 'vex-overview', 'events', 'matches'];
-
-const STATUS_STYLES: Record<string, string> = {
-  'Registration Open': 'bg-emerald-100 text-emerald-700',
-  'Draft': 'bg-slate-100 text-slate-600',
-  'Planning': 'bg-amber-100 text-amber-700',
-};
-
-const MATCH_STATUS: Record<string, string> = {
-  completed: 'bg-emerald-100 text-emerald-700',
-  live: 'bg-brand-red/10 text-brand-red animate-pulse',
-  scheduled: 'bg-blue-100 text-blue-600',
-};
 
 export default function EventCommandCenter({ currentUser, onLogout }: EventCommandCenterProps) {
   const isManager = currentUser?.role === 'Manager';
@@ -157,23 +112,49 @@ export default function EventCommandCenter({ currentUser, onLogout }: EventComma
 
 /* ─── OVERVIEW ─── */
 function Overview() {
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      eventsApi.adminGetTournaments().catch(() => []),
+      eventsApi.adminGetMatches().catch(() => []),
+    ]).then(([ts, ms]) => {
+      setTournaments(Array.isArray(ts) ? ts : []);
+      setMatches(Array.isArray(ms) ? ms : []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const totalT = tournaments.length;
+  const closedT = tournaments.filter((t: any) => t.is_closed).length;
+  const activeT = totalT - closedT;
+  const liveM = matches.filter((m: any) => m.status === 'LIVE').length;
+  const completedM = matches.filter((m: any) => m.status === 'COMPLETED').length;
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {COMP_SUMMARY.map((c, i) => (
-          <motion.div key={c.type} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+        {[
+          { label: 'Total Events', total: totalT, active: activeT, completed: closedT, icon: Trophy, color: 'from-brand-red to-brand-red-dark' },
+          { label: 'Active', total: activeT, active: activeT, completed: 0, icon: ActivityIcon, color: 'from-emerald-500 to-teal-500' },
+          { label: 'Live Matches', total: liveM, active: liveM, completed: 0, icon: Gamepad2, color: 'from-blue-500 to-indigo-500' },
+          { label: 'Completed Matches', total: completedM, active: 0, completed: completedM, icon: Medal, color: 'from-purple-500 to-violet-500' },
+        ].map((c, i) => (
+          <motion.div key={c.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
             className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-all"
           >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">{c.type}</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">{c.label}</span>
               <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${c.color} flex items-center justify-center`}>
                 <c.icon className="w-4 h-4 text-white" />
               </div>
             </div>
             <p className="font-black text-2xl text-slate-900">{c.total}</p>
             <p className="text-xs text-slate-500 mt-1">
-              <span className="text-emerald-600 font-bold">{c.active} active</span>
-              <span className="mx-1">·</span>
+              {c.active > 0 && <><span className="text-emerald-600 font-bold">{c.active} active</span><span className="mx-1">·</span></>}
               <span className="text-slate-400">{c.completed} completed</span>
             </p>
           </motion.div>
@@ -210,29 +191,35 @@ function Overview() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h3 className="font-bold text-sm text-slate-900 mb-4 flex items-center gap-2"><Calendar className="w-4 h-4 text-brand-red" />Upcoming Events</h3>
           <div className="space-y-3">
-            {MOCK_EVENTS.filter(e => e.status === 'Registration Open').map(e => (
-              <div key={e.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+            {tournaments.filter((t: any) => !t.is_closed).slice(0, 5).map((t: any) => (
+              <div key={t.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">{e.name}</p>
-                  <p className="text-[10px] text-slate-500">{e.date} · {e.teams} teams · {e.program}</p>
+                  <p className="text-xs font-bold text-slate-900">{t.event_title || t.event || 'Tournament'}</p>
+                  <p className="text-[10px] text-slate-500">{t.max_teams || '—'} max teams</p>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">{e.status}</span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">{t.is_closed ? 'Closed' : 'Open'}</span>
               </div>
             ))}
+            {!tournaments.filter((t: any) => !t.is_closed).length && (
+              <p className="text-xs text-slate-400 text-center py-4">No upcoming events</p>
+            )}
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h3 className="font-bold text-sm text-slate-900 mb-4 flex items-center gap-2"><ClipboardList className="w-4 h-4 text-brand-red" />Recent Results</h3>
           <div className="space-y-3">
-            {MOCK_MATCHES.filter(m => m.status === 'completed').slice(0, 3).map(m => (
+            {matches.filter((m: any) => m.status === 'COMPLETED').slice(0, 3).map((m: any) => (
               <div key={m.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-900">{m.round} · Field {m.field}</p>
-                  <p className="text-[9px] text-slate-500">Red: {m.redScore} · Blue: {m.blueScore}</p>
+                  <p className="text-[10px] font-bold text-slate-900">{m.round}</p>
+                  <p className="text-[9px] text-slate-500">{m.sides?.map((s: any) => `${s.score ?? 0}`).join(' · ') || '—'}</p>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600">{m.redScore > m.blueScore ? 'Red Wins' : 'Blue Wins'}</span>
+                <span className="text-[10px] font-bold text-emerald-600">{m.winning_side ? 'Winner' : '—'}</span>
               </div>
             ))}
+            {!matches.filter((m: any) => m.status === 'COMPLETED').length && (
+              <p className="text-xs text-slate-400 text-center py-4">No completed matches</p>
+            )}
           </div>
         </div>
       </div>
@@ -242,43 +229,56 @@ function Overview() {
 
 /* ─── CREATE EVENT ─── */
 function CreateEvent() {
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState('');
+  const [maxTeams, setMaxTeams] = useState('');
+  const [fee, setFee] = useState('');
+  const [location, setLocation] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name || !date) { setError('Name and date are required'); return; }
+    setSaving(true); setError(null);
+    try {
+      const evt = await eventsApi.adminCreateEvent({
+        title: name, event_type: 'TOURNAMENT', visibility: 'PUBLIC',
+        start_datetime: `${date}T08:00:00Z`, end_datetime: `${date}T18:00:00Z`,
+        location: location || 'TBD', registration_enabled: true,
+        payment_required: !!fee, registration_fee: fee || null,
+        status: 'DRAFT',
+      });
+      await eventsApi.adminCreateTournament({
+        event: evt.id, category: category || 'General',
+        max_teams: maxTeams ? parseInt(maxTeams) : null,
+        prize_pool: null,
+      });
+      setSuccess(true);
+      setTimeout(() => { setName(''); setCategory(''); setDate(''); setMaxTeams(''); setFee(''); setLocation(''); setSuccess(false); }, 2000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create event');
+    } finally { setSaving(false); }
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 max-w-3xl">
       <h3 className="font-bold text-sm text-slate-900 mb-1">New Competition Event</h3>
       <p className="text-xs text-slate-500 mb-6">Create a friendly scrimmage, local qualifier, national championship, or African competition.</p>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        {[
-          { type: 'Friendly', desc: 'Scrimmage, practice', icon: Sparkles, color: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
-          { type: 'Local', desc: 'City, zonal qualifier', icon: MapPin, color: 'border-blue-300 bg-blue-50 text-blue-700' },
-          { type: 'National', desc: 'Country championship', icon: Trophy, color: 'border-red-300 bg-red-50 text-red-700' },
-          { type: 'African', desc: 'Continental', icon: Globe, color: 'border-purple-300 bg-purple-50 text-purple-700' },
-        ].map(t => (
-          <button key={t.type} className={`p-4 rounded-xl border-2 ${t.color} text-center transition-all hover:shadow-md`}>
-            <t.icon className="w-5 h-5 mx-auto mb-1" />
-            <p className="text-xs font-black">{t.type}</p>
-            <p className="text-[9px] opacity-70">{t.desc}</p>
-          </button>
-        ))}
-      </div>
+      {error && <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-xs text-red-700"><AlertCircle className="w-4 h-4 shrink-0" /><span>{error}</span></div>}
+      {success && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4 text-xs text-emerald-700"><CheckCircle2 className="w-4 h-4 shrink-0" /><span>Event created successfully!</span></div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Event Name</label><input className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Addis Ababa VEX Qualifier" /></div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Program</label>
-          <select className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
-            <option>VEX IQ (Elementary/Middle)</option><option>VEX V5 (High School)</option><option>VEX U (University)</option>
-          </select>
-        </div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Date</label><input type="date" className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" /></div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Max Teams</label><input className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. 40" /></div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Registration Fee (ETB)</label><input className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="0 for free events" /></div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Venue</label><input className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Bole Prep Hall" /></div>
-        <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Game Season</label>
-          <select className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
-            <option>2025-2026 (Override)</option><option>2026-2027 (Level Up)</option>
-          </select>
-        </div>
+        <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Event Name *</label><input value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Addis Ababa VEX Qualifier" /></div>
+        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Category</label><input value={category} onChange={e => setCategory(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. VEX V5" /></div>
+        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Date *</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" /></div>
+        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Max Teams</label><input type="number" value={maxTeams} onChange={e => setMaxTeams(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. 40" /></div>
+        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Registration Fee (ETB)</label><input type="number" value={fee} onChange={e => setFee(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="0 for free" /></div>
+        <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Location</label><input value={location} onChange={e => setLocation(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Bole Prep Hall" /></div>
       </div>
-      <button className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white text-xs font-black uppercase tracking-wider px-6 py-3 rounded-xl shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 transition-all flex items-center gap-2">
-        <PlusCircle className="w-4 h-4" /> Create Event
+      <button onClick={handleSubmit} disabled={saving}
+        className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white text-xs font-black uppercase tracking-wider px-6 py-3 rounded-xl shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 transition-all flex items-center gap-2 disabled:opacity-50">
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />} {saving ? 'Creating...' : 'Create Event'}
       </button>
     </div>
   );
@@ -286,31 +286,68 @@ function CreateEvent() {
 
 /* ─── ALL EVENTS ─── */
 function AllEvents() {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    eventsApi.adminGetTournaments().then(data => setEvents(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleToggleClose = async (id: string, isClosed: boolean) => {
+    setTogglingId(id);
+    try {
+      if (isClosed) await eventsApi.adminReopenTournament(id);
+      else await eventsApi.adminCloseTournament(id);
+      const data = await eventsApi.adminGetTournaments();
+      setEvents(Array.isArray(data) ? data : []);
+    } catch { /* ignore */ } finally { setTogglingId(null); }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id); setDeleteError(null);
+    try {
+      await eventsApi.adminDeleteTournament(id);
+      setEvents(prev => prev.filter((e: any) => e.id !== id));
+    } catch (err: any) { setDeleteError(err?.message || 'Delete failed'); }
+    finally { setDeletingId(null); }
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+
   return (
     <div className="flex flex-col gap-4">
+      {deleteError && <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700"><AlertCircle className="w-4 h-4 shrink-0" /><span>{deleteError}</span><button onClick={() => setDeleteError(null)} className="ml-auto"><X className="w-3.5 h-3.5" /></button></div>}
       <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-4 py-2 max-w-md">
         <Search className="w-4 h-4 text-slate-400" />
         <input className="w-full text-sm bg-transparent outline-none" placeholder="Search events..." />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {MOCK_EVENTS.map(e => (
+        {events.map((e: any) => (
           <motion.div key={e.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-all"
           >
             <div className="flex items-center justify-between mb-3">
-              <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${STATUS_STYLES[e.status] || 'bg-slate-100 text-slate-600'}`}>{e.status}</span>
-              <span className="text-[9px] font-bold text-slate-400">{e.type}</span>
+              <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${e.is_closed ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>{e.is_closed ? 'Closed' : 'Open'}</span>
+              <span className="text-[9px] font-bold text-slate-400">{e.category || 'Tournament'}</span>
             </div>
-            <h4 className="font-bold text-sm text-slate-900 mb-2">{e.name}</h4>
+            <h4 className="font-bold text-sm text-slate-900 mb-2">{e.event_title || e.event || 'Untitled'}</h4>
             <div className="text-[10px] text-slate-500 space-y-1">
-              <p className="flex items-center gap-1.5"><Calendar className="w-3 h-3" />{e.date}</p>
-              <p className="flex items-center gap-1.5"><Users className="w-3 h-3" />{e.teams} teams</p>
-              <p className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{e.program}</p>
-              {e.registrationFee > 0 && <p className="flex items-center gap-1.5"><DollarSign className="w-3 h-3" />{e.registrationFee} ETB / team</p>}
+              <p className="flex items-center gap-1.5"><Users className="w-3 h-3" />{e.max_teams || '—'} max teams</p>
+              {e.prize_pool && <p className="flex items-center gap-1.5"><DollarSign className="w-3 h-3" />{e.prize_pool} ETB</p>}
             </div>
             <div className="flex gap-2 mt-4">
-              <button className="flex-1 text-[10px] font-bold text-brand-red bg-brand-red/10 px-3 py-2 rounded-lg hover:bg-brand-red/20 transition-colors">Manage</button>
-              <button className="flex-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors">Preview</button>
+              <button onClick={() => handleToggleClose(e.id, e.is_closed)} disabled={togglingId === e.id}
+                className="flex-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50">
+                {togglingId === e.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : e.is_closed ? 'Reopen' : 'Close'}
+              </button>
+              <button onClick={() => handleDelete(e.id)} disabled={deletingId === e.id}
+                className="flex-1 text-[10px] font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50">
+                {deletingId === e.id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Delete'}
+              </button>
             </div>
           </motion.div>
         ))}
@@ -321,86 +358,173 @@ function AllEvents() {
 
 /* ─── TEAMS ─── */
 function TeamsPanel() {
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    eventsApi.adminGetTeams().then(data => setTeams(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const handleToggle = async (id: string, field: 'checked_in' | 'inspected', current: boolean) => {
+    setUpdatingId(`${id}-${field}`);
+    try {
+      await eventsApi.adminUpdateTeam(id, { [field]: !current });
+      setTeams(prev => prev.map((t: any) => t.id === id ? { ...t, [field]: !current } : t));
+    } catch { /* ignore */ } finally { setUpdatingId(null); }
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-4 py-2 max-w-md">
-        <Search className="w-4 h-4 text-slate-400" />
-        <input className="w-full text-sm bg-transparent outline-none" placeholder="Search teams..." />
-      </div>
-      <div className="overflow-x-auto">
+      {!teams.length && (
+        <div className="flex flex-col items-center py-16 text-center gap-3">
+          <Users className="w-12 h-12 text-slate-300" />
+          <p className="text-sm text-slate-500">No teams registered yet.</p>
+        </div>
+      )}
+      {teams.length > 0 && <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200">
-            <th className="text-left py-3 px-2">Team</th><th className="text-left py-3 px-2">School</th><th className="text-left py-3 px-2">Program</th>
-            <th className="text-left py-3 px-2">City</th><th className="text-center py-3 px-2">Check-In</th><th className="text-center py-3 px-2">Inspection</th>
+            <th className="text-left py-3 px-2">Team</th><th className="text-left py-3 px-2">Tournament</th><th className="text-left py-3 px-2">Coach</th>
+            <th className="text-center py-3 px-2">Check-In</th><th className="text-center py-3 px-2">Inspection</th>
           </tr></thead>
           <tbody>
-            {MOCK_TEAMS.map(t => (
+            {teams.map((t: any) => {
+              const ciBusy = updatingId === `${t.id}-checked_in`;
+              const insBusy = updatingId === `${t.id}-inspected`;
+              return (
               <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="py-3 px-2 font-bold text-slate-900">{t.name} <span className="text-slate-400 font-medium">({t.id})</span></td>
-                <td className="py-3 px-2 text-slate-600">{t.school}</td>
-                <td className="py-3 px-2"><span className="text-[10px] font-bold text-brand-red bg-brand-red/10 px-2 py-0.5 rounded-md">{t.program}</span></td>
-                <td className="py-3 px-2 text-slate-500">{t.city}</td>
-                <td className="py-3 px-2 text-center">{t.checkedIn ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300 mx-auto" />}</td>
-                <td className="py-3 px-2 text-center">{t.inspected ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300 mx-auto" />}</td>
+                <td className="py-3 px-2 font-bold text-slate-900">{t.team_name || 'Unnamed Team'} <span className="text-slate-400 font-medium">({t.id?.slice(-6)})</span></td>
+                <td className="py-3 px-2 text-slate-600">{t.tournament_title || t.tournament?.slice(-6) || '—'}</td>
+                <td className="py-3 px-2 text-slate-600">{t.coach_name || '—'}</td>
+                <td className="py-3 px-2 text-center">
+                  <button onClick={() => handleToggle(t.id, 'checked_in', t.checked_in)} disabled={ciBusy} className="mx-auto">
+                    {ciBusy ? <Loader2 className="w-4 h-4 animate-spin text-slate-400 mx-auto" /> : t.checked_in ? <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto cursor-pointer hover:text-emerald-600" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 mx-auto cursor-pointer hover:border-brand-red" />}
+                  </button>
+                </td>
+                <td className="py-3 px-2 text-center">
+                  <button onClick={() => handleToggle(t.id, 'inspected', t.inspected)} disabled={insBusy} className="mx-auto">
+                    {insBusy ? <Loader2 className="w-4 h-4 animate-spin text-slate-400 mx-auto" /> : t.inspected ? <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto cursor-pointer hover:text-emerald-600" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 mx-auto cursor-pointer hover:border-brand-red" />}
+                  </button>
+                </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }
 
 /* ─── MATCH CONTROL ─── */
 function MatchControl() {
+  const [matches, setMatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    eventsApi.adminGetMatches().then(data => setMatches(Array.isArray(data) ? data : [])).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [scoreInputs, setScoreInputs] = useState<Record<string, { a: string; b: string }>>({});
+
+  const handleStart = async (id: string) => {
+    setActionId(id);
+    try { await eventsApi.adminUpdateMatch(id, { status: 'LIVE' as any }); setMatches(prev => prev.map((m: any) => m.id === id ? { ...m, status: 'LIVE' } : m)); } catch { /* ignore */ }
+    finally { setActionId(null); }
+  };
+
+  const handleRecordScores = async (id: string) => {
+    const s = scoreInputs[id] || { a: '0', b: '0' };
+    setActionId(id);
+    try {
+      await eventsApi.adminRecordMatchScores(id, { side_a_score: parseInt(s.a) || 0, side_b_score: parseInt(s.b) || 0 });
+      const updated = await eventsApi.adminGetMatch(id);
+      setMatches(prev => prev.map((m: any) => m.id === id ? updated : m));
+    } catch { /* ignore */ } finally { setActionId(null); }
+  };
+
+  const handleComplete = async (id: string) => {
+    setActionId(id);
+    try { await eventsApi.adminCompleteMatch(id); setMatches(prev => prev.map((m: any) => m.id === id ? { ...m, status: 'COMPLETED' } : m)); }
+    catch { /* ignore */ } finally { setActionId(null); }
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {MOCK_MATCHES.map(m => (
-          <div key={m.id} className={`bg-white rounded-2xl border-2 p-5 transition-all ${m.status === 'live' ? 'border-brand-red shadow-lg shadow-brand-red/10' : 'border-slate-200'}`}>
+        {matches.map((m: any) => {
+          const s0 = m.sides?.[0];
+          const s1 = m.sides?.[1];
+          const isCompleted = m.status === 'COMPLETED';
+          const isLive = m.status === 'LIVE';
+          const isScheduled = m.status === 'SCHEDULED';
+          const sc = scoreInputs[m.id] || { a: '', b: '' };
+          const busy = actionId === m.id;
+          return (
+          <div key={m.id} className={`bg-white rounded-2xl border-2 p-5 transition-all ${isLive ? 'border-brand-red shadow-lg shadow-brand-red/10' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[9px] font-black text-slate-500 uppercase">{m.round} · Field {m.field}</span>
-              <span className={`text-[9px] font-bold px-2 py-1 rounded-md ${MATCH_STATUS[m.status] || ''}`}>
-                {m.status === 'live' && <><span className="inline-block w-1.5 h-1.5 bg-brand-red rounded-full animate-pulse mr-1" /></>}
-                {m.status.toUpperCase()}
+              <span className="text-[9px] font-black text-slate-500 uppercase">{m.round}</span>
+              <span className={`text-[9px] font-bold px-2 py-1 rounded-md ${isLive ? 'bg-brand-red/10 text-brand-red' : isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-600'}`}>
+                {isLive && <><span className="inline-block w-1.5 h-1.5 bg-brand-red rounded-full animate-pulse mr-1" /></>}
+                {m.status}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex-1 bg-red-50 rounded-xl p-3 border border-red-100">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-red-600">RED</span>
-                  <span className="font-black text-lg text-slate-900">{m.status === 'completed' ? m.redScore : '-'}</span>
+                  {isCompleted ? <span className="font-black text-lg text-slate-900">{s0?.score ?? '-'}</span>
+                    : <input type="number" value={sc.a} onChange={e => setScoreInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], a: e.target.value } }))}
+                        className="w-16 text-center text-sm font-black bg-white border border-slate-200 rounded-lg px-2 py-1" placeholder="0" disabled={!isLive} />}
                 </div>
-                <p className="text-[10px] text-slate-600 mt-1">{m.red.join(' · ')}</p>
+                <p className="text-[10px] text-slate-600 mt-1">{s0?.participants?.map((p: any) => p.tournament_team_name || p.tournament_team?.slice(-6)).join(' · ') || '—'}</p>
               </div>
               <span className="text-[9px] font-black text-slate-400">VS</span>
               <div className="flex-1 bg-blue-50 rounded-xl p-3 border border-blue-100">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-blue-600">BLUE</span>
-                  <span className="font-black text-lg text-slate-900">{m.status === 'completed' ? m.blueScore : '-'}</span>
+                  {isCompleted ? <span className="font-black text-lg text-slate-900">{s1?.score ?? '-'}</span>
+                    : <input type="number" value={sc.b} onChange={e => setScoreInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], b: e.target.value } }))}
+                        className="w-16 text-center text-sm font-black bg-white border border-slate-200 rounded-lg px-2 py-1" placeholder="0" disabled={!isLive} />}
                 </div>
-                <p className="text-[10px] text-slate-600 mt-1">{m.blue.join(' · ')}</p>
+                <p className="text-[10px] text-slate-600 mt-1">{s1?.participants?.map((p: any) => p.tournament_team_name || p.tournament_team?.slice(-6)).join(' · ') || '—'}</p>
               </div>
             </div>
-            {m.status === 'completed' && (
-              <div className="mt-3 text-center">
-                <span className="text-[10px] font-bold text-emerald-600">Winner: {m.redScore > m.blueScore ? 'Red Alliance' : 'Blue Alliance'}</span>
-              </div>
-            )}
+            <div className="flex gap-2 mt-3">
+              {isScheduled && <button onClick={() => handleStart(m.id)} disabled={busy}
+                className="flex-1 text-[10px] font-bold bg-emerald-500 text-white px-3 py-2 rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50">
+                {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : <><Play className="w-3 h-3 inline mr-1" />Start</>}
+              </button>}
+              {isLive && <button onClick={() => handleRecordScores(m.id)} disabled={busy}
+                className="flex-1 text-[10px] font-bold bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50">
+                {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Save Scores'}
+              </button>}
+              {isLive && <button onClick={() => handleComplete(m.id)} disabled={busy}
+                className="flex-1 text-[10px] font-bold bg-brand-red text-white px-3 py-2 rounded-lg hover:bg-brand-red-dark transition-colors disabled:opacity-50">
+                {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : <><Flag className="w-3 h-3 inline mr-1" />Complete</>}
+              </button>}
+              {isCompleted && m.winning_side && (
+                <div className="flex-1 text-center py-2">
+                  <span className="text-[10px] font-bold text-emerald-600">Winner: {m.winning_side_label === 'SIDE_A' ? 'Red Alliance' : 'Blue Alliance'}</span>
+                </div>
+              )}
+            </div>
           </div>
-        ))}
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-200 p-5">
-        <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-brand-red" />Match Timer</h3>
-        <div className="flex items-center gap-4">
-          <div className="text-4xl font-black text-slate-900 font-mono">1:45</div>
-          <div className="flex gap-2">
-            <button className="bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1.5"><Play className="w-3.5 h-3.5" /> Start</button>
-            <button className="bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-1.5"><Flag className="w-3.5 h-3.5" /> Pause</button>
-            <button className="bg-slate-200 text-slate-600 text-xs font-bold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">Reset</button>
+          );
+        })}
+        {!matches.length && (
+          <div className="col-span-full flex flex-col items-center py-12 text-center gap-3">
+            <Gamepad2 className="w-12 h-12 text-slate-300" />
+            <p className="text-sm text-slate-500">No matches yet. Create a tournament and schedule matches to see them here.</p>
           </div>
-          <span className="text-[10px] text-slate-400 ml-2">Autonomous: 15s | Driver: 1:45</span>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -652,10 +776,13 @@ function SponsorsPanel() {
 function ReportsPanel() {
   const [selectedAward, setSelectedAward] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
+  const [events, setEvents] = useState<any[]>([]);
 
-  const awardCerts = MOCK_CERTIFICATES.filter(c =>
-    c.type === 'award' && (selectedEvent === 'all' || c.eventId === selectedEvent)
-  );
+  useEffect(() => {
+    eventsApi.adminGetTournaments().then(data => setEvents(Array.isArray(data) ? data : [])).catch(() => {});
+  }, []);
+
+  const awardCerts: StudentAward[] = [];
 
   const AWARD_TYPES = [
     { key: 'Excellence Award', icon: Trophy, desc: 'Top overall team across all criteria', color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -679,8 +806,8 @@ function ReportsPanel() {
           <select value={selectedEvent} onChange={e => setSelectedEvent(e.target.value)}
             className="text-[10px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-red/20">
             <option value="all">All Events</option>
-            {MOCK_EVENTS.map(e => (
-              <option key={e.id} value={e.id}>{e.name} ({e.date})</option>
+            {events.map((e: any) => (
+              <option key={e.id} value={e.id}>{e.event_title || e.event || 'Event'} ({e.id?.slice(-6)})</option>
             ))}
           </select>
         </div>
@@ -807,12 +934,39 @@ function ReportsPanel() {
 
 /* ─── VEX TEAM OVERVIEW ─── */
 function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }) {
-  const team = MOCK_VEX_TEAM;
-  const activeRobots = MOCK_VEX_ROBOTS.filter(r => r.status === 'active');
-  const awardsWon = MOCK_VEX_AWARDS.filter(a => !a.upcoming);
-  const matchWins = MOCK_VEX_MATCHES.filter(m => m.result === 'win').length;
-  const matchLosses = MOCK_VEX_MATCHES.filter(m => m.result === 'loss').length;
-  const lastMatch = MOCK_VEX_MATCHES.filter(m => m.result !== 'upcoming')[0];
+  const [team, setTeam] = useState<VexTeam | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    eventsApi.adminGetTeams().then(teams => {
+      const raw: any = Array.isArray(teams) ? teams[0] : null;
+      if (raw) {
+        setTeam({
+          id: raw.id,
+          name: raw.team_name || 'My Team',
+          number: raw.id?.slice(-4) || '0000',
+          school: raw.organization || '',
+          location: '',
+          members: [],
+          coach: raw.coach_name || '',
+          bio: `${raw.team_name || 'Team'} from ${raw.organization || 'Ethiopia'}`,
+          established: new Date().getFullYear().toString(),
+          avatar: '🤖',
+          color: '#E63946',
+        });
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+
+  if (!team) return (
+    <div className="flex flex-col items-center py-20 text-center gap-4">
+      <Cpu className="w-16 h-16 text-slate-300" />
+      <h3 className="font-black text-xl text-slate-600">No Team Found</h3>
+      <p className="text-sm text-slate-400 max-w-md">Register a team in the Teams section to see your VEX team overview here.</p>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -828,27 +982,18 @@ function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }
               <p className="text-slate-500 text-sm font-medium">{team.bio}</p>
               <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-500">
                 <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-brand-red" />{team.location}</span>
-                <span className="flex items-center gap-1.5"><User className="w-4 h-4 text-brand-red" />{team.members.length} Members</span>
-                <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-brand-red" />Est. {team.established}</span>
+                <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-brand-red" />{team.school}</span>
                 <span className="flex items-center gap-1.5"><Star className="w-4 h-4 text-amber-400" />Coach: {team.coach}</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="px-6 md:px-8 py-4 border-t border-slate-100 flex flex-wrap gap-2">
-          {team.members.map((m, i) => (
-            <span key={i} className="text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-              <Star className="w-3 h-3 text-amber-400" />{m}
-            </span>
-          ))}
-        </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: 'Active Robots', value: activeRobots.length.toString(), icon: Cpu, color: 'text-cyan-400' },
-          { label: 'Awards Won', value: awardsWon.length.toString(), icon: Trophy, color: 'text-yellow-400' },
-          { label: 'Match Wins', value: matchWins.toString(), icon: CheckCircle2, color: 'text-emerald-400' },
-          { label: 'Total Matches', value: (matchWins + matchLosses).toString(), icon: ActivityIcon, color: 'text-blue-400' },
+          { label: 'Matches', value: '0', icon: Swords, color: 'text-blue-400' },
+          { label: 'Wins', value: '0', icon: CheckCircle2, color: 'text-emerald-400' },
+          { label: 'Rating', value: '—', icon: Star, color: 'text-amber-400' },
         ].map((stat, i) => {
           const StatIcon = stat.icon;
           return (
@@ -899,21 +1044,6 @@ function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }
             <p className="font-black text-4xl tracking-tight">{team.number}</p>
             <p className="text-sm text-white/80 mt-1">{team.name}</p>
           </div>
-          {lastMatch && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-5">
-              <h4 className="font-black text-sm text-slate-900 mb-3 flex items-center gap-2">
-                <Swords className="w-4 h-4 text-brand-red" />Last Match
-              </h4>
-              <p className="text-xs text-slate-500">{lastMatch.event}</p>
-              <p className="font-bold text-lg text-white mt-1">{lastMatch.score}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${lastMatch.result === 'win' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400'}`}>
-                  {lastMatch.result === 'win' ? 'VICTORY' : 'LOSS'}
-                </span>
-                <span className="text-[10px] text-slate-400">vs {lastMatch.opponent.split('(')[0].trim()}</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -923,105 +1053,10 @@ function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }
 /* ─── VEX ROBOTS ─── */
 function VexRobotsPanel({ selected, onSelect }: { selected: VexRobot | null; onSelect: (r: VexRobot | null) => void }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <div className="lg:col-span-5 flex flex-col gap-3">
-        {MOCK_VEX_ROBOTS.map((robot, i) => {
-          const isSelected = selected?.id === robot.id;
-          return (
-            <motion.div key={robot.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-              onClick={() => onSelect(isSelected ? null : robot)}
-              className={`relative bg-white rounded-2xl border p-4 cursor-pointer transition-all duration-200 ${isSelected ? 'border-brand-red/40 bg-brand-red/5 shadow-lg' : 'border-slate-200 hover:-translate-y-0.5'}`}
-            >
-              {isSelected && <motion.div layoutId="robot-bar-ecc" className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-brand-red to-brand-red-dark rounded-l-2xl" />}
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-100">
-                  <img src={robot.image} alt={robot.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${robot.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 text-slate-500'}`}>{robot.status}</span>
-                    <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">{robot.season}</span>
-                  </div>
-                  <h3 className={`font-black text-sm leading-snug ${isSelected ? 'text-brand-red' : 'text-slate-900'}`}>{robot.name}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{robot.competition}</p>
-                </div>
-                <ChevronRight className={`w-4 h-4 mt-1 shrink-0 ${isSelected ? 'text-brand-red translate-x-0.5' : 'text-slate-400'}`} />
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-      <div className="lg:col-span-7">
-        <AnimatePresence mode="wait">
-          {selected ? (
-            <motion.div key={selected.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-              className="bg-white rounded-3xl border border-slate-200 overflow-hidden"
-            >
-              <div className="relative h-48 md:h-56 bg-slate-50 overflow-hidden">
-                <img src={selected.image} alt={selected.name} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/60 to-transparent" />
-                <div className="absolute bottom-4 left-6 right-6">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${selected.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 text-slate-500'}`}>{selected.status}</span>
-                    <span className="text-[9px] font-black text-white bg-slate-600 px-2 py-0.5 rounded-md">{selected.season}</span>
-                  </div>
-                  <h2 className="font-black text-xl md:text-2xl text-white leading-tight">{selected.name}</h2>
-                  <p className="text-sm text-white/70">{selected.competition}</p>
-                </div>
-              </div>
-              <div className="p-6 md:p-8">
-                <p className="text-sm text-slate-500 leading-relaxed font-medium mb-6">{selected.description}</p>
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  {[
-                    { icon: Cpu, label: 'Brain', value: selected.brain },
-                    { icon: Wrench, label: 'Drivetrain', value: selected.drivetrain },
-                    { icon: Target, label: 'Weight', value: selected.weight },
-                  ].map((m, i) => (
-                    <div key={i} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                      <m.icon className="w-4 h-4 text-brand-red mb-1" />
-                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{m.label}</p>
-                      <p className="text-xs font-bold text-slate-900 mt-0.5">{m.value}</p>
-                    </div>
-                  ))}
-                </div>
-                <h3 className="font-black text-base text-slate-900 mb-3 flex items-center gap-2 uppercase tracking-tight">
-                  <Zap className="w-4 h-4 text-brand-red" />Specifications
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
-                  {selected.specs.map((spec, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span className="text-xs text-slate-600 font-medium">{spec}</span>
-                    </div>
-                  ))}
-                </div>
-                {selected.achievements.length > 0 && (
-                  <>
-                    <h3 className="font-black text-base text-slate-900 mb-3 flex items-center gap-2 uppercase tracking-tight">
-                      <Medal className="w-4 h-4 text-amber-400" />Achievements
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selected.achievements.map((ach, i) => (
-                        <span key={i} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-                          <Trophy className="w-3 h-3" />{ach}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="bg-white/60 backdrop-blur-sm rounded-3xl border border-dashed border-slate-200 p-14 flex flex-col items-center text-center min-h-[400px] justify-center"
-            >
-              <Cpu className="w-16 h-16 text-slate-400 mb-4 opacity-30" />
-              <h3 className="font-black text-xl text-slate-600 mb-1">Select a Robot</h3>
-              <p className="text-sm text-slate-400 max-w-xs font-medium">Click on any robot from the left panel to view specs, achievements, and build photos.</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+    <div className="flex flex-col items-center py-20 text-center gap-4">
+      <Wrench className="w-16 h-16 text-slate-300" />
+      <h3 className="font-black text-xl text-slate-600">No Robots Yet</h3>
+      <p className="text-sm text-slate-400 max-w-md">Robot data will appear here once your team registers a VEX robot build.</p>
     </div>
   );
 }
@@ -1029,38 +1064,52 @@ function VexRobotsPanel({ selected, onSelect }: { selected: VexRobot | null; onS
 /* ─── VEX AWARDS ─── */
 function VexAwardsPanel() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {MOCK_VEX_AWARDS.map((award, i) => (
-        <motion.div key={award.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-          className={`relative bg-white border rounded-2xl p-5 overflow-hidden transition-all hover:shadow-md ${award.upcoming ? 'border-dashed border-amber-300/50 bg-amber-50/30' : 'border-slate-200'}`}
-        >
-          {award.upcoming && (
-            <div className="absolute top-3 right-3">
-              <span className="text-[9px] font-black uppercase bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">Upcoming</span>
-            </div>
-          )}
-          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${award.color} flex items-center justify-center text-2xl mb-4 shadow-sm`}>{award.icon}</div>
-          <h3 className="font-black text-base text-slate-900 mb-1">{award.name}</h3>
-          <p className="text-xs text-slate-500 font-medium mb-1">{award.event}</p>
-          <p className="text-[10px] text-slate-400 flex items-center gap-1 mb-3">
-            <Calendar className="w-3 h-3" />{award.date}
-            <span className="ml-1 text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{award.category}</span>
-          </p>
-          <p className="text-xs text-slate-500 leading-relaxed">{award.description}</p>
-        </motion.div>
-      ))}
+    <div className="flex flex-col items-center py-20 text-center gap-4">
+      <Medal className="w-16 h-16 text-slate-300" />
+      <h3 className="font-black text-xl text-slate-600">No Awards Yet</h3>
+      <p className="text-sm text-slate-400 max-w-md">Award history will appear once your team earns competition recognition.</p>
     </div>
   );
 }
 
 /* ─── VEX MATCHES ─── */
 function VexMatchesPanel() {
+  const [matches, setMatches] = useState<VexMatchRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    eventsApi.adminGetMatches().then(data => {
+      const list = Array.isArray(data) ? data : [];
+      const transformed: VexMatchRecord[] = list.map(m => ({
+        id: m.id,
+        event: m.tournament_title || `Match ${m.round}`,
+        date: m.scheduled_at ? new Date(m.scheduled_at).toISOString().split('T')[0] : '—',
+        round: m.round,
+        opponent: `Team (${m.tournament?.slice(-4) || '—'})`,
+        score: m.sides?.length ? `${m.sides[0]?.score ?? 0} — ${m.sides[1]?.score ?? 0}` : '—',
+        result: m.status === 'COMPLETED' ? (m.winning_side ? 'win' : 'loss') : 'upcoming',
+        notes: m.status === 'LIVE' ? 'In progress' : m.status === 'SCHEDULED' ? 'Scheduled' : '',
+      }));
+      setMatches(transformed);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+
+  if (!matches.length) return (
+    <div className="flex flex-col items-center py-20 text-center gap-4">
+      <Swords className="w-16 h-16 text-slate-300" />
+      <h3 className="font-black text-xl text-slate-600">No Matches Yet</h3>
+      <p className="text-sm text-slate-400 max-w-md">Match history will appear once your team participates in competitions.</p>
+    </div>
+  );
+
   return (
     <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
       <div className="px-6 py-5 border-b border-slate-100">
         <h3 className="font-black text-lg text-slate-900 flex items-center gap-2">
           <Swords className="w-5 h-5 text-brand-red" />Match History
-          <span className="text-xs font-medium text-slate-400 ml-2">{MOCK_VEX_MATCHES.length} matches</span>
+          <span className="text-xs font-medium text-slate-400 ml-2">{matches.length} matches</span>
         </h3>
       </div>
       <div className="overflow-x-auto">
@@ -1073,7 +1122,7 @@ function VexMatchesPanel() {
             </tr>
           </thead>
           <tbody>
-            {MOCK_VEX_MATCHES.map((m, i) => (
+            {matches.map((m, i) => (
               <motion.tr key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
                 className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${m.result === 'upcoming' ? 'opacity-60' : ''}`}
               >
@@ -1106,53 +1155,10 @@ function VexMatchesPanel() {
 /* ─── VEX NOTEBOOK ─── */
 function VexNotebookPanel({ expanded, onToggle }: { expanded: string | null; onToggle: (id: string | null) => void }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-black text-lg text-slate-900 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-brand-red" />Engineering Notebook
-        </h3>
-        <span className="text-xs text-slate-400 font-medium">{MOCK_VEX_NOTEBOOK.length} entries</span>
-      </div>
-      <div className="relative">
-        <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-slate-200" />
-        <div className="flex flex-col gap-6">
-          {MOCK_VEX_NOTEBOOK.map((entry, i) => {
-            const isExpanded = expanded === entry.id;
-            return (
-              <motion.div key={entry.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
-                className="relative pl-12"
-              >
-                <div className={`absolute left-[11px] top-1 w-[17px] h-[17px] rounded-full border-2 border-white ${isExpanded ? 'bg-brand-red' : 'bg-slate-300'}`} />
-                <div className={`p-5 rounded-2xl border transition-all cursor-pointer ${isExpanded ? 'bg-brand-red/5 border-brand-red/20' : 'bg-slate-50 border-slate-200'}`}
-                  onClick={() => onToggle(isExpanded ? null : entry.id)}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">{entry.title}</h4>
-                      <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
-                        <Calendar className="w-3 h-3" />{entry.date}<span className="text-slate-300">·</span><User className="w-3 h-3" />{entry.author}
-                      </p>
-                    </div>
-                    <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                  </div>
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                        <p className="text-sm text-slate-500 leading-relaxed mt-3 pt-3 border-t border-slate-200/50">{entry.content}</p>
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          {entry.tags.map((tag, i) => (
-                            <span key={i} className="text-[9px] font-bold text-brand-red bg-brand-red/5 border border-brand-red/10 px-2 py-0.5 rounded-full">{tag}</span>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="flex flex-col items-center py-20 text-center gap-4">
+      <BookOpen className="w-16 h-16 text-slate-300" />
+      <h3 className="font-black text-xl text-slate-600">No Notebook Entries</h3>
+      <p className="text-sm text-slate-400 max-w-md">Engineering notebook entries will appear once your team documents their design process.</p>
     </div>
   );
 }

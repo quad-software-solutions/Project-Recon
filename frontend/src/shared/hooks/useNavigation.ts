@@ -12,7 +12,6 @@ function tabFromPath(path: string): ActiveTab {
   if (path.startsWith('/register')) return 'register';
   if (path.startsWith('/forgot-password')) return 'forgot-password';
   if (path.startsWith('/reset-password')) return 'reset-password';
-  if (path.startsWith('/command-center')) return 'command-center';
   if (path.startsWith('/registration')) return 'registration';
   return 'home';
 }
@@ -26,14 +25,24 @@ export function useNavigation(currentUser: UserProfile | null) {
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     const savedUser = localStorage.getItem('ethio_robotics_user');
     const user = savedUser ? JSON.parse(savedUser) : null;
-    const tab = tabFromPath(window.location.pathname);
-    return canAccessTab(user, tab) ? tab : getDefaultAuthenticatedTab(user);
+    let tab = tabFromPath(window.location.pathname);
+    tab = canAccessTab(user, tab) ? tab : getDefaultAuthenticatedTab(user);
+    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+    if (user && authRoutes.includes(tab)) {
+      tab = 'dashboard';
+      window.history.replaceState(null, '', pathFromTab(tab, user));
+    }
+    return tab;
   });
 
   useEffect(() => {
     const handlePopState = () => {
       const requestedTab = tabFromPath(window.location.pathname);
-      const nextTab = canAccessTab(currentUser, requestedTab) ? requestedTab : getDefaultAuthenticatedTab(currentUser);
+      let nextTab = canAccessTab(currentUser, requestedTab) ? requestedTab : getDefaultAuthenticatedTab(currentUser);
+      const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+      if (currentUser && authRoutes.includes(nextTab)) {
+        nextTab = 'dashboard';
+      }
       setActiveTab(nextTab);
       if (nextTab !== requestedTab) window.history.replaceState(null, '', pathFromTab(nextTab, currentUser));
     };
@@ -42,7 +51,11 @@ export function useNavigation(currentUser: UserProfile | null) {
   }, [currentUser]);
 
   const handleTabChange = useCallback((tab: ActiveTab) => {
-    const nextTab = canAccessTab(currentUser, tab) ? tab : getDefaultAuthenticatedTab(currentUser);
+    let nextTab = canAccessTab(currentUser, tab) ? tab : getDefaultAuthenticatedTab(currentUser);
+    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+    if (currentUser && authRoutes.includes(nextTab)) {
+      nextTab = 'dashboard';
+    }
     setActiveTab(nextTab);
     window.history.pushState(null, '', pathFromTab(nextTab, currentUser));
   }, [currentUser]);
@@ -55,5 +68,11 @@ export function useNavigation(currentUser: UserProfile | null) {
     }
   };
 
-  return { activeTab, handleTabChange, triggerAuthFlow };
+  /** Bypass all auth guards — used exclusively by logout to avoid stale-closure issues. */
+  const forceNavigate = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    window.history.pushState(null, '', tab === 'home' ? '/' : `/${tab}`);
+  }, []);
+
+  return { activeTab, handleTabChange, triggerAuthFlow, forceNavigate };
 }

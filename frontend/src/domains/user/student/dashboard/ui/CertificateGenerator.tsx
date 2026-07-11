@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Award, Download, Shield, CheckCircle2, Trophy, Star, Loader2, ExternalLink } from 'lucide-react';
 import { fetchStudentCertificatesApi, downloadCertificateReportPdf } from '@/src/domains/learning/academics/api/academicApi';
 import type { StudentCertificate } from '@/src/shared/types';
+import BrandLogo from '@/src/shared/ui/BrandLogo';
 
 interface Props { studentId: string }
 
@@ -49,36 +50,53 @@ export default function CertificateGenerator({ studentId }: Props) {
 
           {selected && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden">
-              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-[#002f87] p-10 text-center">
-                <div className="relative z-10">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="w-2 h-2 bg-amber-400 rounded-full" />
-                    <p className="font-mono text-[10px] text-amber-300 uppercase tracking-[0.3em] font-bold">CERTIFICATE</p>
-                    <div className="w-2 h-2 bg-amber-400 rounded-full" />
+              className="bg-white rounded-3xl border border-brand-border shadow-lg overflow-hidden">
+              <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
+                {/* Ornamental top border */}
+                <div className="flex items-center justify-center gap-1 pt-6 px-8">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                  <div className="flex items-center gap-0.5">
+                    <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                    <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
+                    <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
                   </div>
-                  <h2 className="font-display font-extrabold text-3xl text-slate-900 mb-2 tracking-tight">ETHIO ROBOTICS</h2>
-                  <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mb-6" />
-                  <p className="text-slate-600 text-sm mb-1">This certifies that</p>
-                  <p className="font-display font-bold text-2xl text-slate-900 mb-1">{selected.student_name}</p>
-                  <p className="text-slate-600 text-sm mb-4">has completed</p>
-                  <p className="font-display font-bold text-lg text-[#57dffe]">{selected.certificate_title || selected.sub_program_name}</p>
-                  <div className="mt-6 flex items-center justify-center gap-2 text-slate-400">
-                    <Shield className="w-4 h-4" />
-                    <p className="font-mono text-xs">{selected.certificate_number}</p>
-                  </div>
-                  <p className="text-slate-500 text-[10px] mt-2">{selected.issued_at?.slice(0, 10)}</p>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
                 </div>
+                <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
+                  <div className="w-28 h-auto">
+                    <BrandLogo className="w-full h-auto" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                    <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
+                    <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+                  </div>
+                  <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent" />
+                  <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
+                  <p className="font-black text-2xl text-white tracking-tight">{selected.student_name}</p>
+                  <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
+                  <p className="font-bold text-base text-brand-red">{selected.certificate_title || selected.sub_program_name}</p>
+                  <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent mt-1" />
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Shield className="w-2.5 h-2.5 text-brand-cyan" />
+                      <p className="font-mono text-[9px]">{selected.certificate_number}</p>
+                    </div>
+                    <span className="text-slate-600 text-[9px]">|</span>
+                    <p className="font-mono text-[9px] text-slate-400">{selected.issued_at?.slice(0, 10) || ''}</p>
+                  </div>
+                </div>
+                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-red via-brand-cyan to-brand-red opacity-60" />
               </div>
 
-              <div className="p-5 flex items-center justify-between bg-slate-50">
-                <div className="flex items-center gap-2 text-xs text-emerald-600 font-semibold">
-                  <CheckCircle2 className="w-4 h-4" /> Verified & Authentic
+              <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+                  <CheckCircle2 className="w-3 h-3" /> Verified & Authentic
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button onClick={() => downloadCertificateReportPdf(studentId)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-900 bg-brand-red text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
-                    <Download className="w-3.5 h-3.5" /> Download PDF
+                    className="flex items-center gap-1 text-[10px] font-bold text-white bg-brand-red px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
+                    <Download className="w-2.5 h-2.5" /> Download PDF
                   </button>
                 </div>
               </div>

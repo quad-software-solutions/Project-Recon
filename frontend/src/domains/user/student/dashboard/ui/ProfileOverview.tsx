@@ -31,7 +31,14 @@ export default function ProfileOverview({ currentUser, enrollmentCount = 0, onUs
     setSaving(true);
     setError('');
     try {
-      const updated = await updateUserApi(currentUser.id, form);
+      const payload = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone_number: form.phone_number || null,
+        date_of_birth: form.date_of_birth || null,
+        gender: form.gender || null,
+      };
+      const updated = await updateUserApi(currentUser.id, payload);
       const newName = `${form.first_name} ${form.last_name}`.trim();
       const updatedUser: UserProfile = {
         ...currentUser,

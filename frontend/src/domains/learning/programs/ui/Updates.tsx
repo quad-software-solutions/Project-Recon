@@ -16,7 +16,7 @@ const COLORS: Record<string, { border: string; bg: string; text: string; icon: s
 
 const stagger = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } }
+  visible: { transition: { staggerChildren: 0.3 } }
 };
 const cardUp = {
   hidden: { opacity: 0, y: 40 },
@@ -28,9 +28,11 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
   const [news, setNews] = useState<NewsArticleResponse[]>([]);
 
   useEffect(() => {
-    cmsPublicApi.getNews()
+    const abort = new AbortController();
+    cmsPublicApi.getNews(abort.signal)
       .then(res => setNews((res.results ?? []).filter(n => n.is_active)))
-      .catch(console.error);
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); });
+    return () => abort.abort();
   }, []);
 
   return (
