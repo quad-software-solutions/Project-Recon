@@ -43,7 +43,15 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
     setSaving(true);
     setError('');
     try {
-      await updateUserApi(currentUser.id, form);
+      // Sanitize empty strings to null for backend validation
+      const payload = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone_number: form.phone_number || null,
+        date_of_birth: form.date_of_birth || null,
+        gender: form.gender || null,
+      };
+      await updateUserApi(currentUser.id, payload);
       const newName = `${form.first_name} ${form.last_name}`.trim();
       const updatedUser: UserProfile = {
         ...currentUser,
