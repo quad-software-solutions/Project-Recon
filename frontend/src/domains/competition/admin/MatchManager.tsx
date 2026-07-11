@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Gamepad2, Clock, Edit3, Trash2, CheckCircle, Play, Swords } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, Gamepad2, Clock, Edit3, Trash2, CheckCircle, Play, Swords, Users, Trophy, Activity, BarChart3, Calendar, Filter } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendMatch, BackendTournamentTeam, SideType } from '../api/eventsApi';
 
@@ -15,12 +15,15 @@ export default function MatchManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [tournamentFilter, setTournamentFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [selectedMatch, setSelectedMatch] = useState<BackendMatch | null>(null);
   const [assignForm, setAssignForm] = useState({ side: 'SIDE_A' as SideType, tournament_team: '' });
   const [scoreForm, setScoreForm] = useState(defaultScoreForm);
+  const [showDashboard, setShowDashboard] = useState(true);
 
   const load = () => {
     setLoading(true);
@@ -101,7 +104,17 @@ export default function MatchManager() {
     return map[s] || 'bg-slate-100 text-slate-600';
   };
 
-  const filtered = matches.filter(m => m.round?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = matches.filter(m => {
+    const matchesSearch = m.round?.toLowerCase().includes(search.toLowerCase());
+    const matchesTournament = tournamentFilter === 'all' || m.tournament === tournamentFilter;
+    const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+    return matchesSearch && matchesTournament && matchesStatus;
+  });
+
+  const totalMatches = matches.length;
+  const liveCount = matches.filter(m => m.status === 'LIVE').length;
+  const completedCount = matches.filter(m => m.status === 'COMPLETED').length;
+  const scheduledCount = matches.filter(m => m.status === 'SCHEDULED').length;
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
 
@@ -109,10 +122,47 @@ export default function MatchManager() {
     <div className="flex flex-col gap-6">
       {error && (<div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700"><AlertCircle className="w-4 h-4 shrink-0" /><span>{error}</span><button onClick={() => setError(null)} className="ml-auto"><X className="w-3.5 h-3.5" /></button></div>)}
 
+      {/* Dashboard Stats */}
+      {showDashboard && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Matches', value: totalMatches, icon: Gamepad2, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Scheduled', value: scheduledCount, icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+            { label: 'Live', value: liveCount, icon: Activity, color: 'text-red-600', bg: 'bg-red-50' },
+            { label: 'Completed', value: completedCount, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          ].map((stat, i) => {
+            const SIcon = stat.icon;
+            return (
+              <motion.div key={stat.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-xl border border-slate-200 p-4"
+              >
+                <div className={`w-8 h-8 rounded-lg ${stat.bg} flex items-center justify-center mb-2`}><SIcon className={`w-4 h-4 ${stat.color}`} /></div>
+                <p className="text-xl font-bold text-slate-900">{stat.value}</p>
+                <p className="text-sm text-slate-500">{stat.label}</p>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div><h3 className="font-black text-lg text-slate-900">Matches</h3><p className="text-xs text-slate-500 mt-1">{matches.filter(m => m.status === 'COMPLETED').length} completed / {matches.length} total</p></div>
-        <div className="flex items-center gap-2">
-          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
+        <div><h3 className="font-black text-lg text-slate-900">Matches</h3><p className="text-xs text-slate-500 mt-1">{completedCount} completed / {totalMatches} total</p></div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setShowDashboard(p => !p)} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> {showDashboard ? 'Hide' : 'Stats'}</button>
+          <select value={tournamentFilter} onChange={e => setTournamentFilter(e.target.value)}
+            className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
+            <option value="all">All Tournaments</option>
+            {tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event}</option>)}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
+            <option value="all">All Status</option>
+            <option value="SCHEDULED">Scheduled</option>
+            <option value="LIVE">Live</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rounds..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
           <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25"><Plus className="w-4 h-4" /> New Match</button>
         </div>
       </div>
@@ -124,8 +174,8 @@ export default function MatchManager() {
           {filtered.map((m, i) => {
             const sideA = m.sides?.find(s => s.side === 'SIDE_A');
             const sideB = m.sides?.find(s => s.side === 'SIDE_B');
-            const teamAName = sideA?.participants?.[0]?.tournament_team_name || 'TBD';
-            const teamBName = sideB?.participants?.[0]?.tournament_team_name || 'TBD';
+            const teamANames = sideA?.participants?.map(p => p.tournament_team_name).join(', ') || 'TBD';
+            const teamBNames = sideB?.participants?.map(p => p.tournament_team_name).join(', ') || 'TBD';
             return (
               <motion.div key={m.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                 className="bg-white border border-brand-border rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer" onClick={() => setSelectedMatch(m)}>
@@ -140,11 +190,23 @@ export default function MatchManager() {
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(m.status)}`}>{m.status}</span>
                 </div>
                 <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                  <span className="text-xs font-semibold text-slate-700">{teamAName}</span>
-                  <span className="text-sm font-black text-slate-900">{sideA?.score ?? '-'} : {sideB?.score ?? '-'}</span>
-                  <span className="text-xs font-semibold text-slate-700">{teamBName}</span>
+                  <div className="flex-1 text-center min-w-0">
+                    <span className="text-xs font-semibold text-slate-700 block truncate">{teamANames}</span>
+                    <span className="text-[9px] text-slate-400 uppercase">Side A</span>
+                  </div>
+                  <div className="mx-4 text-center">
+                    <span className="text-lg font-black text-slate-900">{sideA?.score ?? '-'} : {sideB?.score ?? '-'}</span>
+                    <p className="text-[9px] text-slate-400 uppercase">Score</p>
+                  </div>
+                  <div className="flex-1 text-center min-w-0">
+                    <span className="text-xs font-semibold text-slate-700 block truncate">{teamBNames}</span>
+                    <span className="text-[9px] text-slate-400 uppercase">Side B</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-400"><Clock className="w-3 h-3" />{m.scheduled_at?.slice(0, 16) || 'TBD'}</div>
+                <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{m.scheduled_at?.slice(0, 16) || 'TBD'}</span>
+                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{(sideA?.participants?.length || 0) + (sideB?.participants?.length || 0)} participants</span>
+                </div>
               </motion.div>
             );
           })}
@@ -186,7 +248,11 @@ export default function MatchManager() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6 md:p-8 z-10 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <div><h3 className="font-black text-lg text-slate-900">{selectedMatch.round}</h3><p className="text-xs text-slate-500">{selectedMatch.tournament_event_title}</p></div>
+                <div>
+                  <h3 className="font-black text-lg text-slate-900">{selectedMatch.round}</h3>
+                  <p className="text-xs text-slate-500">{selectedMatch.tournament_event_title}</p>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-1 inline-block ${statusBadge(selectedMatch.status)}`}>{selectedMatch.status}</span>
+                </div>
                 <div className="flex items-center gap-2">
                   {selectedMatch.status !== 'COMPLETED' && selectedMatch.status !== 'CANCELLED' && (
                     <>
@@ -201,20 +267,44 @@ export default function MatchManager() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between bg-slate-50 rounded-2xl px-6 py-4 mb-6">
-                {selectedMatch.sides?.map(side => {
-                  const teamName = side.participants?.[0]?.tournament_team_name || 'TBD';
+              {/* Sides Display */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {(['SIDE_A', 'SIDE_B'] as SideType[]).map(sideKey => {
+                  const side = selectedMatch.sides?.find(s => s.side === sideKey);
                   return (
-                    <div key={side.id} className="flex-1 text-center">
-                      <span className="text-xs font-bold text-slate-500 uppercase">{side.side === 'SIDE_A' ? 'Side A' : 'Side B'}</span>
-                      <p className="font-bold text-sm text-slate-900 mt-1">{teamName}</p>
-                      <p className="text-2xl font-black text-slate-900 mt-1">{side.score}</p>
+                    <div key={sideKey} className={`rounded-2xl p-4 border ${sideKey === 'SIDE_A' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{sideKey === 'SIDE_A' ? 'Side A' : 'Side B'}</span>
+                        <span className="text-lg font-black text-slate-900">{side?.score ?? '-'}</span>
+                      </div>
+                      {side?.participants?.map(p => (
+                        <div key={p.id} className="flex items-center justify-between bg-white/80 rounded-lg px-3 py-2 mb-1.5 last:mb-0">
+                          <span className="text-xs font-medium text-slate-900">{p.tournament_team_name}</span>
+                          <button onClick={() => handleRemoveTeam(sideKey, p.tournament_team)} className="text-slate-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                        </div>
+                      )) || <p className="text-xs text-slate-400 text-center py-3">No teams assigned</p>}
                     </div>
                   );
                 })}
               </div>
 
+              {/* Times */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { icon: Calendar, label: 'Scheduled', value: selectedMatch.scheduled_at?.slice(0, 16) || '—' },
+                  { icon: Clock, label: 'Started', value: selectedMatch.started_at?.slice(0, 16) || '—' },
+                  { icon: CheckCircle, label: 'Completed', value: selectedMatch.completed_at?.slice(0, 16) || '—' },
+                ].map((m, i) => (
+                  <div key={i} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <m.icon className="w-4 h-4 text-brand-red mb-1" />
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{m.label}</p>
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">{m.value}</p>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex flex-col gap-4">
+                {/* Assign Teams */}
                 <div className="bg-slate-50 rounded-2xl p-4">
                   <h4 className="font-bold text-xs text-slate-700 mb-3">Assign Teams</h4>
                   <div className="flex items-center gap-2">
@@ -225,17 +315,26 @@ export default function MatchManager() {
                       <option value="">Select team...</option>
                       {teams.filter(t => t.tournament === selectedMatch.tournament).map(t => <option key={t.id} value={t.id}>{t.team_name}</option>)}
                     </select>
-                    <button onClick={handleAssign} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark">Assign</button>
+                    <button onClick={handleAssign} disabled={!assignForm.tournament_team} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark disabled:opacity-50">Assign</button>
                   </div>
                 </div>
 
+                {/* Record Scores */}
                 <div className="bg-slate-50 rounded-2xl p-4">
                   <h4 className="font-bold text-xs text-slate-700 mb-3">Record Scores</h4>
                   <div className="flex items-center gap-3">
-                    <div><label className="text-[10px] text-slate-500 block">Side A</label><input type="number" value={scoreForm.side_a_score} onChange={e => setScoreForm(p => ({ ...p, side_a_score: parseInt(e.target.value) || 0 }))} className="w-24 px-3 py-2 bg-white border border-brand-border rounded-lg text-sm" /></div>
-                    <span className="font-bold text-slate-400 mt-5">:</span>
-                    <div><label className="text-[10px] text-slate-500 block">Side B</label><input type="number" value={scoreForm.side_b_score} onChange={e => setScoreForm(p => ({ ...p, side_b_score: parseInt(e.target.value) || 0 }))} className="w-24 px-3 py-2 bg-white border border-brand-border rounded-lg text-sm" /></div>
-                    <button onClick={handleRecordScores} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark mt-5">Save Scores</button>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-1">Side A</label>
+                      <input type="number" value={scoreForm.side_a_score} onChange={e => setScoreForm(p => ({ ...p, side_a_score: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2 bg-white border border-brand-border rounded-lg text-sm" />
+                    </div>
+                    <span className="font-bold text-slate-400 mt-6">:</span>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-1">Side B</label>
+                      <input type="number" value={scoreForm.side_b_score} onChange={e => setScoreForm(p => ({ ...p, side_b_score: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2 bg-white border border-brand-border rounded-lg text-sm" />
+                    </div>
+                    <button onClick={handleRecordScores} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark mt-6">Save Scores</button>
                   </div>
                 </div>
               </div>

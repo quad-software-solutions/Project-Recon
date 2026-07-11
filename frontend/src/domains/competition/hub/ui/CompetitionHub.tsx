@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, MapPin, Users, Calendar, ChevronRight, Shield, Medal, Target, Clock,
   SearchX, CheckCircle2, ExternalLink, Sparkles, Tv, Binary, GraduationCap,
-  BookOpen, User, Clock3, DollarSign, Wrench, Cpu, AlertCircle, Loader2, Search
+  BookOpen, User, Clock3, DollarSign, Wrench, Cpu, AlertCircle, Loader2, Search,
+  X, Lock, Eye, EyeOff
 } from 'lucide-react';
 
 import { UserProfile, type Tournament, type Workshop, type MatchResult } from '@/src/shared/types';
-import { getTournaments, getTournamentById, getMatches, getWorkshops, getWorkshopById, registerForTournament, enrollInWorkshop, getPastTournaments, getPastWorkshops } from '../../api/competitionApi';
+import { getTournaments, getTournamentById, getMatches, getWorkshops, getWorkshopById, registerForTournament, enrollInWorkshop, getPastTournaments, getPastWorkshops, getMyRegistrations, type PublicRegistrationData } from '../../api/competitionApi';
 
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed';
 type HubTab = 'tournaments' | 'workshops' | 'myteam';
@@ -46,7 +47,13 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchAll = () => {
+  const [showRegModal, setShowRegModal] = useState(false);
+  const [regTarget, setRegTarget] = useState<{ id: string; type: 'tournament' | 'workshop' } | null>(null);
+  const [regForm, setRegForm] = useState<PublicRegistrationData>({ public_full_name: '', public_email: '', public_phone: '', public_organization: '' });
+  const [regSubmitting, setRegSubmitting] = useState(false);
+  const [regError, setRegError] = useState<string | null>(null);
+
+  const fetchAll = useCallback(() => {
     setLoading(true);
     setError(null);
     Promise.all([
@@ -61,9 +68,26 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
       console.error(err);
       setError('Failed to load events');
     }).finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    if (currentUser) {
+      getMyRegistrations().then(regs => {
+        const tIds: string[] = [];
+        const wIds: string[] = [];
+        for (const r of regs) {
+          if (r.registration_status === 'PENDING' || r.registration_status === 'APPROVED') {
+            if (r.event_type === 'TOURNAMENT') tIds.push(r.event);
+            else if (r.event_type === 'WORKSHOP') wIds.push(r.event);
+          }
+        }
+        setRegisteredIds(tIds);
+        setEnrolledIds(wIds);
+      }).catch(() => {});
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (selectedTournament) {
@@ -114,21 +138,68 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
     { id: 'completed', icon: CheckCircle2, label: 'Completed' },
   ];
 
-  const handleRegister = async (tournamentId: string) => {
+  const openRegModal = (id: string, type: 'tournament' | 'workshop') => {
+    setRegTarget({ id, type });
+    setRegForm({ public_full_name: currentUser?.name || '', public_email: currentUser?.email || '', public_phone: currentUser?.phone_number || '', public_organization: '' });
+    setRegError(null);
+    setShowRegModal(true);
+  };
+  const closeRegModal = () => {
+    setShowRegModal(false);
+    setRegTarget(null);
+    setRegError(null);
+  };
+  const submitRegistration = async () => {
+    if (!regTarget) return;
+    if (!regForm.public_full_name.trim()) {
+      setRegError('Full name is required.');
+      return;
+    }
+    const email = regForm.public_email.trim();
+    if (!email) {
+      setRegError('Email is required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setRegError('Please enter a valid email address.');
+      return;
+    }
+    setRegSubmitting(true);
+    setRegError(null);
     try {
-      await registerForTournament(tournamentId);
-      setRegisteredIds(prev => [...prev, tournamentId]);
-    } catch {
-      setError('Registration failed. Please try again.');
+      const data: PublicRegistrationData = {
+        public_full_name: regForm.public_full_name.trim(),
+        public_email: email,
+        public_phone: regForm.public_phone?.trim() || undefined,
+        public_organization: regForm.public_organization?.trim() || undefined,
+      };
+      if (regTarget.type === 'tournament') {
+        await registerForTournament(regTarget.id, data);
+        setRegisteredIds(prev => [...prev, regTarget.id]);
+      } else {
+        await enrollInWorkshop(regTarget.id, data);
+        setEnrolledIds(prev => [...prev, regTarget.id]);
+      }
+      closeRegModal();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setRegError(msg);
+    } finally {
+      setRegSubmitting(false);
     }
   };
-  const handleEnroll = async (workshopId: string) => {
-    try {
-      await enrollInWorkshop(workshopId);
-      setEnrolledIds(prev => [...prev, workshopId]);
-    } catch {
-      setError('Enrollment failed. Please try again.');
-    }
+
+  const userRole = currentUser?.role || null;
+  const isStudent = userRole === 'Student';
+  const canRegister = (mode: string) => {
+    if (mode === 'PUBLIC') return true;
+    if (mode === 'STUDENT') return isStudent;
+    if (mode === 'SUBPROGRAM_STUDENT') return isStudent;
+    return false;
+  };
+  const isBeforeDeadline = (deadline: string | null) => {
+    if (!deadline) return true;
+    return new Date(deadline) > new Date();
   };
 
   const switchTab = (tab: HubTab) => {
@@ -250,7 +321,10 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
             sc={sc}
             statusFilter={statusFilter}
             onSelect={setSelectedTournament}
-            onRegister={handleRegister}
+            currentUser={currentUser}
+            canRegister={canRegister}
+            isBeforeDeadline={isBeforeDeadline}
+            openRegModal={openRegModal}
           />
         ) : hubTab === 'workshops' ? (
           <WorkshopsView
@@ -259,7 +333,10 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
             isEnrolled={isEnrolled}
             statusFilter={statusFilter}
             onSelect={setSelectedWorkshop}
-            onEnroll={handleEnroll}
+            openRegModal={openRegModal}
+            currentUser={currentUser}
+            canRegister={canRegister}
+            isBeforeDeadline={isBeforeDeadline}
           />
         ) : (
           <MyRegistrationsView
@@ -270,6 +347,87 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
             enrolledIds={enrolledIds}
           />
         )}
+
+        {/* Registration Modal */}
+        <AnimatePresence>
+          {showRegModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={closeRegModal}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            >
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-white rounded-3xl border border-slate-200 max-w-md w-full overflow-hidden shadow-2xl"
+              >
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-black text-lg text-slate-900 uppercase tracking-tight">
+                    {regTarget?.type === 'tournament' ? 'Register Your Team' : 'Enroll in Workshop'}
+                  </h3>
+                  <button onClick={closeRegModal} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                    <X className="w-5 h-5 text-slate-400" />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  {regTarget && (
+                    (() => {
+                      const ev = regTarget.type === 'tournament'
+                        ? tournaments.find(t => t.id === regTarget.id)
+                        : workshops.find(w => w.id === regTarget.id);
+                      if (ev && 'paymentRequired' in ev && ev.paymentRequired) {
+                        return (
+                          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-center gap-2">
+                            <DollarSign className="w-4 h-4 text-amber-600 shrink-0" />
+                            <div>
+                              <p className="text-[11px] font-black text-amber-700 uppercase tracking-wider">Registration Fee Required</p>
+                              <p className="text-xs text-amber-600 font-medium">Fee: {ev.registrationFee || 'Contact organizer'} ETB</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
+                  <div>
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Full Name *</label>
+                    <input value={regForm.public_full_name} onChange={e => setRegForm(p => ({ ...p, public_full_name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Email *</label>
+                    <input type="email" value={regForm.public_email} onChange={e => setRegForm(p => ({ ...p, public_email: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Phone</label>
+                    <input type="tel" value={regForm.public_phone || ''} onChange={e => setRegForm(p => ({ ...p, public_phone: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Organization / School</label>
+                    <input value={regForm.public_organization || ''} onChange={e => setRegForm(p => ({ ...p, public_organization: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all" />
+                  </div>
+                  {regError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs font-bold text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />{regError}
+                    </div>
+                  )}
+                </div>
+                <div className="p-6 pt-0">
+                  <button onClick={submitRegistration} disabled={regSubmitting}
+                    className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {regSubmitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />Submitting...</>
+                    ) : (
+                      <><Shield className="w-4 h-4" />Confirm Registration</>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -277,7 +435,7 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
 
 // ── Tournaments ──
 function TournamentsView({
-  filtered, selected, selectedMatches, isRegistered, selectedTournament, sc, statusFilter, onSelect, onRegister, currentUser,
+  filtered, selected, selectedMatches, isRegistered, selectedTournament, sc, statusFilter, onSelect, currentUser, canRegister, isBeforeDeadline, openRegModal,
 }: {
   filtered: Tournament[];
   selected: Tournament | undefined;
@@ -287,8 +445,10 @@ function TournamentsView({
   sc: Record<string, { bg: string; text: string; dot: string }>;
   statusFilter: string;
   onSelect: (id: string | null) => void;
-  onRegister: (id: string) => void;
   currentUser?: UserProfile | null;
+  canRegister: (mode: string) => boolean;
+  isBeforeDeadline: (deadline: string | null) => boolean;
+  openRegModal: (id: string, type: 'tournament' | 'workshop') => void;
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -430,15 +590,38 @@ function TournamentsView({
                       <div className="w-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
                         <CheckCircle2 className="w-5 h-5" />Team Registered Successfully
                       </div>
-                    ) : !currentUser ? (
+                    ) : !selected.registrationEnabled ? (
+                      <div className="w-full bg-slate-100 text-slate-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        <Lock className="w-5 h-5" />Registration Closed
+                      </div>
+                    ) : !isBeforeDeadline(selected.registrationDeadline) ? (
+                      <div className="w-full bg-slate-100 text-slate-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        <Clock className="w-5 h-5" />Registration Deadline Passed
+                      </div>
+                    ) : selected.maxTeams > 0 && selected.teams.length >= selected.maxTeams ? (
+                      <div className="w-full bg-slate-100 text-slate-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        Event Full
+                      </div>
+                    ) : selected.visibility === 'PRIVATE' && !currentUser ? (
                       <a href="/login"
                         className="group relative w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
                       >
                         <User className="w-5 h-5" />Sign In to Register
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                       </a>
+                    ) : selected.registrationMode !== 'PUBLIC' && !currentUser ? (
+                      <a href="/login"
+                        className="group relative w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
+                      >
+                        <User className="w-5 h-5" />Sign In to Register
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                      </a>
+                    ) : selected.registrationMode !== 'PUBLIC' && !canRegister(selected.registrationMode) ? (
+                      <div className="w-full bg-amber-500/10 border border-amber-500/30 text-amber-600 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        <Lock className="w-5 h-5" />Students Only
+                      </div>
                     ) : (
-                      <button onClick={() => onRegister(selected.id)}
+                      <button onClick={() => openRegModal(selected.id, 'tournament')}
                         className="group relative w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
                       >
                         <Shield className="w-5 h-5" />Register Your Team
@@ -466,14 +649,17 @@ function TournamentsView({
 
 // ── Workshops ──
 function WorkshopsView({
-  filteredWorkshops, selectedWorkshopData, isEnrolled, statusFilter, onSelect, onEnroll,
+  filteredWorkshops, selectedWorkshopData, isEnrolled, statusFilter, onSelect, openRegModal, currentUser, canRegister, isBeforeDeadline,
 }: {
   filteredWorkshops: Workshop[];
   selectedWorkshopData: Workshop | undefined;
   isEnrolled: boolean;
   statusFilter: string;
   onSelect: (id: string | null) => void;
-  onEnroll: (id: string) => void;
+  openRegModal: (id: string, type: 'tournament' | 'workshop') => void;
+  currentUser?: UserProfile | null;
+  canRegister: (mode: string) => boolean;
+  isBeforeDeadline: (deadline: string | null) => boolean;
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -656,23 +842,42 @@ function WorkshopsView({
                       <div className="w-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
                         <CheckCircle2 className="w-5 h-5" />You&apos;re Enrolled!
                       </div>
-                    ) : (
-                      <button onClick={() => onEnroll(selectedWorkshopData.id)}
-                        disabled={selectedWorkshopData.enrolled >= selectedWorkshopData.capacity}
-                        className={`group relative w-full py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all overflow-hidden ${
-                          selectedWorkshopData.enrolled >= selectedWorkshopData.capacity
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-brand-red to-brand-red-dark text-white shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98]'
-                        }`}
+                    ) : selectedWorkshopData.enrolled >= selectedWorkshopData.capacity ? (
+                      <div className="w-full bg-slate-100 text-slate-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider cursor-not-allowed">
+                        Workshop Full
+                      </div>
+                    ) : !selectedWorkshopData.registrationEnabled ? (
+                      <div className="w-full bg-slate-100 text-slate-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        <Lock className="w-5 h-5" />Registration Closed
+                      </div>
+                    ) : !isBeforeDeadline(selectedWorkshopData.registrationDeadline) ? (
+                      <div className="w-full bg-slate-100 text-slate-400 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        <Clock className="w-5 h-5" />Registration Deadline Passed
+                      </div>
+                    ) : selectedWorkshopData.visibility === 'PRIVATE' && !currentUser ? (
+                      <a href="/login"
+                        className="group relative w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
                       >
-                        {selectedWorkshopData.enrolled >= selectedWorkshopData.capacity ? (
-                          'Workshop Full'
-                        ) : (
-                          <><GraduationCap className="w-5 h-5" />Enroll Now — {selectedWorkshopData.price.toLocaleString()} ETB</>
-                        )}
-                        {selectedWorkshopData.enrolled < selectedWorkshopData.capacity && (
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                        )}
+                        <User className="w-5 h-5" />Sign In to Enroll
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                      </a>
+                    ) : selectedWorkshopData.registrationMode !== 'PUBLIC' && !currentUser ? (
+                      <a href="/login"
+                        className="group relative w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
+                      >
+                        <User className="w-5 h-5" />Sign In to Enroll
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                      </a>
+                    ) : selectedWorkshopData.registrationMode !== 'PUBLIC' && !canRegister(selectedWorkshopData.registrationMode) ? (
+                      <div className="w-full bg-amber-500/10 border border-amber-500/30 text-amber-600 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider">
+                        <Lock className="w-5 h-5" />Students Only
+                      </div>
+                    ) : (
+                      <button onClick={() => openRegModal(selectedWorkshopData.id, 'workshop')}
+                        className="group relative w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl hover:shadow-brand-red/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
+                      >
+                        <GraduationCap className="w-5 h-5" />Enroll Now — {selectedWorkshopData.price.toLocaleString()} ETB
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                       </button>
                     )}
                   </motion.div>

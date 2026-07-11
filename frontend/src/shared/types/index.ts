@@ -131,6 +131,12 @@ export interface Workshop {
   topics: string[];
   requirements: string[];
   status: 'upcoming' | 'ongoing' | 'completed';
+  visibility: 'PUBLIC' | 'PRIVATE';
+  registrationEnabled: boolean;
+  registrationMode: 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
+  registrationDeadline: string | null;
+  paymentRequired: boolean;
+  registrationFee?: string | null;
 }
 
 export interface Tournament {
@@ -146,6 +152,11 @@ export interface Tournament {
   prizePool: string;
   streamUrl?: string;
   description: string;
+  visibility: 'PUBLIC' | 'PRIVATE';
+  registrationEnabled: boolean;
+  registrationMode: 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
+  paymentRequired: boolean;
+  registrationFee?: string | null;
 }
 
 export interface TournamentTeam {

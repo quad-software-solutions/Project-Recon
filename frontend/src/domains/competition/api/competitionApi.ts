@@ -26,6 +26,11 @@ function mapEventToTournament(e: eventsApi.BackendEvent): Tournament {
     prizePool: t?.prize_pool || '0 ETB',
     streamUrl: e.youtube_live_url || undefined,
     description: e.description,
+    visibility: e.visibility,
+    registrationEnabled: e.registration_enabled,
+    registrationMode: e.registration_mode || 'NONE',
+    paymentRequired: e.payment_required,
+    registrationFee: e.registration_fee,
   };
 }
 
@@ -87,6 +92,12 @@ function mapEventToWorkshop(e: eventsApi.BackendEvent): Workshop {
     topics: [],
     requirements: [],
     status,
+    visibility: e.visibility,
+    registrationEnabled: e.registration_enabled,
+    registrationMode: e.registration_mode || 'NONE',
+    registrationDeadline: e.registration_deadline || null,
+    paymentRequired: e.payment_required,
+    registrationFee: e.registration_fee,
   };
 }
 
@@ -161,20 +172,36 @@ export async function getPastWorkshops(): Promise<Workshop[]> {
   }
 }
 
-export async function registerForTournament(tournamentId: string): Promise<void> {
+export interface PublicRegistrationData {
+  public_full_name: string;
+  public_email: string;
+  public_phone?: string;
+  public_organization?: string;
+}
+
+export async function registerForTournament(tournamentId: string, data?: PublicRegistrationData): Promise<void> {
   try {
-    await eventsApi.registerForEvent(tournamentId, {});
+    await eventsApi.registerForEvent(tournamentId, data || {});
   } catch (err) {
     console.error('registerForTournament failed:', err);
     throw new Error('Registration failed');
   }
 }
 
-export async function enrollInWorkshop(workshopId: string): Promise<void> {
+export async function enrollInWorkshop(workshopId: string, data?: PublicRegistrationData): Promise<void> {
   try {
-    await eventsApi.registerForEvent(workshopId, {});
+    await eventsApi.registerForEvent(workshopId, data || {});
   } catch (err) {
     console.error('enrollInWorkshop failed:', err);
     throw new Error('Enrollment failed');
+  }
+}
+
+export async function getMyRegistrations() {
+  try {
+    return await eventsApi.getMyRegistrations();
+  } catch (err) {
+    console.error('getMyRegistrations failed:', err);
+    return [];
   }
 }

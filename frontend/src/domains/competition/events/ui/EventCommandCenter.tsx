@@ -9,8 +9,14 @@ import {
   Youtube, Podcast, Radio, Tv, MonitorPlay, ListVideo, Timer,
   Cpu, Swords, Hash, Wrench, Zap, ChevronRight, Activity as ActivityIcon, User, LogOut
 } from 'lucide-react';
-import { MOCK_CERTIFICATES, MOCK_VEX_TEAM, MOCK_VEX_ROBOTS, MOCK_VEX_AWARDS, MOCK_VEX_NOTEBOOK, MOCK_VEX_MATCHES } from '@/src/shared/constants/mock-data';
-import { UserProfile, VexRobot, VexNotebookEntry, VexMatchRecord } from '@/src/shared/types';
+import { UserProfile, VexRobot, VexNotebookEntry, VexMatchRecord, VexTeam, VexAward, StudentAward } from '@/src/shared/types';
+
+const MOCK_CERTIFICATES: StudentAward[] = [];
+const MOCK_VEX_TEAM: VexTeam | null = null;
+const MOCK_VEX_ROBOTS: VexRobot[] = [];
+const MOCK_VEX_AWARDS: VexAward[] = [];
+const MOCK_VEX_NOTEBOOK: VexNotebookEntry[] = [];
+const MOCK_VEX_MATCHES: VexMatchRecord[] = [];
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 
@@ -807,7 +813,7 @@ function ReportsPanel() {
 
 /* ─── VEX TEAM OVERVIEW ─── */
 function VexTeamOverview({ onNavigate }: { onNavigate: (id: SectionId) => void }) {
-  const team = MOCK_VEX_TEAM;
+  const team = MOCK_VEX_TEAM as VexTeam;
   const activeRobots = MOCK_VEX_ROBOTS.filter(r => r.status === 'active');
   const awardsWon = MOCK_VEX_AWARDS.filter(a => !a.upcoming);
   const matchWins = MOCK_VEX_MATCHES.filter(m => m.result === 'win').length;
