@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Trophy, MapPin, Calendar, Users, DollarSign, Shield, Loader2, AlertCircle,
-  Gamepad2, CheckCircle, Clock, XCircle, Swords, Medal, Target,
+  Gamepad2, CheckCircle, Clock, Swords, Medal, Target, Flame, Award, ScrollText,
 } from 'lucide-react';
 import { getTournamentById, getMatches, getTournamentStandings, type StandingEntry } from '../../api/competitionApi';
 import { type Tournament, type MatchResult } from '@/src/shared/types';
@@ -12,7 +12,7 @@ interface TournamentDetailPageProps {
   onBack: () => void;
 }
 
-type DetailTab = 'overview' | 'teams' | 'matches' | 'rankings';
+type DetailTab = 'overview' | 'teams' | 'matches' | 'rankings' | 'results' | 'certificates';
 
 const STATUS_STYLE: Record<string, string> = {
   DRAFT: 'bg-slate-100 text-slate-600',
@@ -52,6 +52,10 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
     .finally(() => setLoading(false));
   }, [tournamentId]);
 
+  const liveMatches = useMemo(() => matches.filter(m => m.status === 'live'), [matches]);
+  const completedMatches = useMemo(() => matches.filter(m => m.status === 'completed'), [matches]);
+  const upcomingMatches = useMemo(() => matches.filter(m => m.status === 'scheduled'), [matches]);
+
   if (loading) return (
     <div className="flex justify-center py-20">
       <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
@@ -70,66 +74,72 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
     { id: 'overview', label: 'Overview', icon: Trophy },
     { id: 'teams', label: 'Teams', icon: Users },
     { id: 'matches', label: 'Matches', icon: Gamepad2 },
-    { id: 'rankings', label: 'Rankings', icon: Medal },
+    { id: 'rankings', label: 'Leaderboard', icon: Medal },
+    { id: 'results', label: 'Results', icon: Award },
+    { id: 'certificates', label: 'Certificates', icon: ScrollText },
   ];
 
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-red mb-4 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Back
+        <ArrowLeft className="w-4 h-4" /> Back to Events
       </button>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        {/* Header */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 mb-6">
+        {/* Hero header */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 mb-6 text-white">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/10 flex items-center justify-center">
-                <Trophy className="w-7 h-7 text-amber-600" />
+              <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center">
+                <Trophy className="w-8 h-8 text-amber-400" />
               </div>
               <div>
-                <h2 className="font-black text-2xl text-slate-900">{tournament.title}</h2>
-                <div className="flex items-center gap-2 mt-1">
+                <h2 className="font-black text-2xl md:text-3xl">{tournament.title}</h2>
+                <div className="flex items-center gap-2 mt-2">
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[tournament.storedStatus]}`}>{tournament.storedStatus}</span>
-                  <span className="text-[11px] text-slate-500">{tournament.category}</span>
+                  <span className="text-[11px] text-white/60">{tournament.category}</span>
                 </div>
               </div>
             </div>
+            {liveMatches.length > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-[10px] font-black">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                {liveMatches.length} LIVE
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-slate-50 rounded-xl p-3">
-              <Calendar className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase text-slate-400">Date</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">
-                {new Date(tournament.startDateTime).toLocaleDateString()}
-              </p>
+            <div className="bg-white/5 rounded-xl p-3">
+              <Calendar className="w-4 h-4 text-white/60 mb-1" />
+              <p className="text-[9px] font-black uppercase text-white/40">Date</p>
+              <p className="text-xs font-bold mt-0.5">{new Date(tournament.startDateTime).toLocaleDateString()}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3">
-              <MapPin className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase text-slate-400">Location</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5 truncate">{tournament.location}</p>
+            <div className="bg-white/5 rounded-xl p-3">
+              <MapPin className="w-4 h-4 text-white/60 mb-1" />
+              <p className="text-[9px] font-black uppercase text-white/40">Location</p>
+              <p className="text-xs font-bold mt-0.5 truncate">{tournament.location}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3">
-              <Users className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase text-slate-400">Teams</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">{tournament.enrolledCount} / {tournament.maxTeams || '∞'}</p>
+            <div className="bg-white/5 rounded-xl p-3">
+              <Users className="w-4 h-4 text-white/60 mb-1" />
+              <p className="text-[9px] font-black uppercase text-white/40">Teams</p>
+              <p className="text-xs font-bold mt-0.5">{tournament.enrolledCount} / {tournament.maxTeams || '∞'}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3">
-              <DollarSign className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase text-slate-400">Prize Pool</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">{(tournament as any).prizePool || '—'}</p>
+            <div className="bg-white/5 rounded-xl p-3">
+              <DollarSign className="w-4 h-4 text-white/60 mb-1" />
+              <p className="text-[9px] font-black uppercase text-white/40">Prize Pool</p>
+              <p className="text-xs font-bold mt-0.5">{(tournament as any).prizePool || '—'}</p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 p-1 bg-slate-100 border border-slate-200 rounded-xl w-fit">
+        <div className="flex gap-1 mb-6 p-1 bg-slate-100 border border-slate-200 rounded-xl overflow-x-auto">
           {TABS.map(t => {
             const TIcon = t.icon;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                   tab === t.id
                     ? 'bg-white text-brand-red shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
@@ -142,7 +152,7 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
           })}
         </div>
 
-        {/* Overview Tab */}
+        {/* Overview */}
         {tab === 'overview' && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6">
             <h3 className="font-black text-base text-slate-900 mb-3">Description</h3>
@@ -158,12 +168,26 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
                 <p className="text-[10px] text-slate-500 font-bold uppercase">Total Matches</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-black text-slate-900">
-                  {matches.filter(m => m.status === 'completed').length}
-                </p>
+                <p className="text-2xl font-black text-slate-900">{completedMatches.length}</p>
                 <p className="text-[10px] text-slate-500 font-bold uppercase">Completed</p>
               </div>
             </div>
+
+            {/* Live matches alert */}
+            {liveMatches.length > 0 && (
+              <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-xs font-black text-red-700 uppercase">Live Now</span>
+                </div>
+                {liveMatches.map(m => (
+                  <div key={m.id} className="text-sm text-red-600">
+                    <span className="font-bold">{m.team1}</span> vs <span className="font-bold">{m.team2}</span>
+                    <span className="ml-2 font-black">{m.score1} : {m.score2}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {tournament.registrationMode !== 'NONE' && (
               <div className="mt-6 p-4 bg-brand-red/5 border border-brand-red/10 rounded-xl">
@@ -172,7 +196,11 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div><span className="text-slate-500">Mode:</span> <span className="font-bold text-slate-800">{tournament.registrationMode}</span></div>
-                  <div><span className="text-slate-500">Enabled:</span> <span className={`font-bold ${tournament.registrationEnabled ? 'text-emerald-600' : 'text-red-600'}`}>{tournament.registrationEnabled ? 'Yes' : 'No'}</span></div>
+                  <div><span className="text-slate-500">Enabled:</span>
+                    <span className={`font-bold ml-1 ${tournament.registrationEnabled ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {tournament.registrationEnabled ? 'Yes' : 'No'}
+                    </span>
+                  </div>
                   {tournament.registrationDeadline && (
                     <div><span className="text-slate-500">Deadline:</span> <span className="font-bold text-slate-800">{new Date(tournament.registrationDeadline).toLocaleDateString()}</span></div>
                   )}
@@ -185,7 +213,7 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
           </div>
         )}
 
-        {/* Teams Tab */}
+        {/* Teams */}
         {tab === 'teams' && (
           <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
             {standings.length === 0 ? (
@@ -195,11 +223,10 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="text-left px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Team</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Organization</th>
                       <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">W</th>
                       <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">L</th>
                       <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">D</th>
@@ -214,7 +241,6 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
                             <span className="text-xs font-bold text-slate-900">{s.teamName}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-600">{s.organization || '—'}</td>
                         <td className="px-4 py-3 text-center text-xs font-bold text-emerald-600">{s.wins}</td>
                         <td className="px-4 py-3 text-center text-xs font-bold text-red-500">{s.losses}</td>
                         <td className="px-4 py-3 text-center text-xs text-slate-500">{s.draws}</td>
@@ -228,69 +254,99 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
           </div>
         )}
 
-        {/* Matches Tab */}
+        {/* Matches */}
         {tab === 'matches' && (
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
-            {matches.length === 0 ? (
-              <div className="text-center py-12">
+          <div className="space-y-4">
+            {liveMatches.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <h4 className="font-black text-xs text-red-700 flex items-center gap-1.5 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  LIVE — {liveMatches.length} Match{liveMatches.length > 1 ? 'es' : ''}
+                </h4>
+                {liveMatches.map(m => (
+                  <div key={m.id} className="bg-white rounded-xl px-4 py-3 border border-red-100 flex items-center justify-between mb-2 last:mb-0">
+                    <span className="text-xs font-bold text-slate-700">{m.team1} vs {m.team2}</span>
+                    <span className="text-sm font-black text-red-600">{m.score1} : {m.score2}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {upcomingMatches.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <h4 className="font-black text-xs text-slate-700 mb-3 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-brand-red" />
+                  Upcoming — {upcomingMatches.length} Match{upcomingMatches.length > 1 ? 'es' : ''}
+                </h4>
+                {upcomingMatches.map(m => (
+                  <div key={m.id} className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 flex items-center justify-between mb-2 last:mb-0">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-slate-700">{m.team1} vs {m.team2}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400">{m.round}</span>
+                      <span className="text-[10px] text-slate-500">{new Date(m.time).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {completedMatches.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <h4 className="font-black text-xs text-slate-700 p-4 pb-0 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-brand-red" />
+                  Completed — {completedMatches.length} Match{completedMatches.length > 1 ? 'es' : ''}
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="text-left px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Round</th>
+                        <th className="text-left px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Team A</th>
+                        <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Score</th>
+                        <th className="text-right px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Team B</th>
+                        <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {completedMatches.map(m => {
+                        const won = m.score1 > m.score2;
+                        return (
+                          <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3 text-xs font-bold text-slate-700">{m.round}</td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-medium text-slate-700">{m.team1}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`text-sm font-black ${won ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {m.score1} : {m.score2}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="text-xs font-medium text-slate-700">{m.team2}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${won ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                {won ? 'W' : 'L'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {matches.length === 0 && (
+              <div className="bg-white rounded-3xl border border-slate-200 text-center py-12">
                 <Gamepad2 className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm font-bold text-slate-500">No matches yet</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Round</th>
-                      <th className="text-left px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Team A</th>
-                      <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Score</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Team B</th>
-                      <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Status</th>
-                      <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase">Winner</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {matches.map(m => {
-                      const won = m.status === 'completed' && m.score1 > m.score2;
-                      return (
-                        <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 text-xs font-bold text-slate-700">{m.round}</td>
-                          <td className="px-4 py-3">
-                            <span className="text-xs font-medium text-slate-700">{m.team1}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`text-sm font-black ${m.status === 'completed' ? (won ? 'text-emerald-600' : 'text-red-500') : 'text-slate-400'}`}>
-                              {m.score1} : {m.score2}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-xs font-medium text-slate-700">{m.team2}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${MATCH_STATUS_STYLE[m.status === 'live' ? 'LIVE' : m.status === 'completed' ? 'COMPLETED' : 'SCHEDULED']}`}>
-                              {m.status === 'live' ? 'LIVE' : m.status === 'completed' ? 'COMPLETED' : 'SCHEDULED'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {m.status === 'completed' ? (
-                              <span className={`text-[9px] font-bold ${won ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {won ? 'Side A' : 'Side B'}
-                              </span>
-                            ) : (
-                              <span className="text-[9px] text-slate-400">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
               </div>
             )}
           </div>
         )}
 
-        {/* Rankings Tab */}
+        {/* Leaderboard */}
         {tab === 'rankings' && (
           <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
             {standings.length === 0 ? (
@@ -300,7 +356,7 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase w-16">Rank</th>
@@ -340,6 +396,71 @@ export default function TournamentDetailPage({ tournamentId, onBack }: Tournamen
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Results */}
+        {tab === 'results' && (
+          <div className="space-y-4">
+            {completedMatches.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-slate-200 text-center py-12">
+                <Award className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-500">No results yet</p>
+                <p className="text-xs text-slate-400 mt-1">Completed matches will appear here</p>
+              </div>
+            ) : (
+              completedMatches.map(m => {
+                const sideAWon = m.score1 > m.score2;
+                return (
+                  <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                    className={`bg-white rounded-2xl border p-5 ${
+                      sideAWon ? 'border-emerald-200' : 'border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-bold text-slate-500">{m.round}</span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                        sideAWon ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {sideAWon ? `${m.team1} Wins` : `${m.team2} Wins`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 text-center">
+                        <div className={`font-bold text-sm ${sideAWon ? 'text-emerald-600' : 'text-slate-700'}`}>{m.team1}</div>
+                      </div>
+                      <div className="text-center shrink-0">
+                        <span className={`text-2xl font-black ${sideAWon ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {m.score1}
+                        </span>
+                        <span className="text-lg font-black text-slate-300 mx-2">:</span>
+                        <span className={`text-2xl font-black ${!sideAWon ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {m.score2}
+                        </span>
+                      </div>
+                      <div className="flex-1 text-center">
+                        <div className={`font-bold text-sm ${!sideAWon ? 'text-emerald-600' : 'text-slate-700'}`}>{m.team2}</div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Certificates */}
+        {tab === 'certificates' && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center">
+            <ScrollText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="font-black text-lg text-slate-700 mb-2">Certificates</h3>
+            <p className="text-sm text-slate-400 max-w-md mx-auto">
+              Certificates will be available here once the tournament is completed and results are finalized.
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-500">
+              <Award className="w-4 h-4" />
+              Coming Soon
+            </div>
           </div>
         )}
       </motion.div>

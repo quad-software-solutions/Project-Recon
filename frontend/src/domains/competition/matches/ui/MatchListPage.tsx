@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, Gamepad2, Filter, Loader2, AlertCircle, Activity, CheckCircle, Calendar, XCircle } from 'lucide-react';
+import {
+  Search, Gamepad2, Filter, Loader2, AlertCircle, Activity, CheckCircle,
+  Calendar, XCircle, Video, Zap,
+} from 'lucide-react';
 import { getAllPublicMatches, type MatchDetail } from '../../api/competitionApi';
 import MatchCard from './MatchCard';
 
@@ -12,11 +15,29 @@ type StatusTab = 'all' | 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
 
 const STATUS_TABS: { id: StatusTab; label: string; icon: typeof Activity }[] = [
   { id: 'all', label: 'All', icon: Gamepad2 },
-  { id: 'LIVE', label: 'Live', icon: Activity },
+  { id: 'LIVE', label: 'Live', icon: Zap },
   { id: 'SCHEDULED', label: 'Scheduled', icon: Calendar },
   { id: 'COMPLETED', label: 'Completed', icon: CheckCircle },
   { id: 'CANCELLED', label: 'Cancelled', icon: XCircle },
 ];
+
+function LiveCountdown({ scheduledAt }: { scheduledAt: string }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = new Date(scheduledAt).getTime() - now;
+  if (diff <= 0) return <span className="text-red-500 font-bold">STARTED</span>;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return (
+    <span className="font-mono font-bold text-slate-700">
+      {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+    </span>
+  );
+}
 
 export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
   const [matches, setMatches] = useState<MatchDetail[]>([]);
@@ -39,15 +60,20 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
 
   useEffect(() => { setPage(1); }, [statusTab, search, tournamentFilter]);
 
-  const tournaments = [...new Set(matches.map(m => m.tournamentName).filter(Boolean))].sort();
+  const tournaments = useMemo(
+    () => [...new Set(matches.map(m => m.tournamentName).filter(Boolean))].sort(),
+    [matches]
+  );
+
+  const liveMatches = useMemo(() => matches.filter(m => m.status === 'LIVE'), [matches]);
 
   const filtered = matches.filter(m => {
     if (statusTab !== 'all' && m.status !== statusTab) return false;
     if (search) {
       const q = search.toLowerCase();
-      const sideATeams = m.sides.find(s => s.side === 'SIDE_A')?.teams.join(' ') || '';
-      const sideBTeams = m.sides.find(s => s.side === 'SIDE_B')?.teams.join(' ') || '';
-      if (!m.round.toLowerCase().includes(q) && !sideATeams.includes(q) && !sideBTeams.includes(q) && !m.tournamentName.toLowerCase().includes(q)) return false;
+      const sideA = m.sides.find(s => s.side === 'SIDE_A')?.teams.join(' ') || '';
+      const sideB = m.sides.find(s => s.side === 'SIDE_B')?.teams.join(' ') || '';
+      if (!m.round.toLowerCase().includes(q) && !sideA.includes(q) && !sideB.includes(q) && !m.tournamentName.toLowerCase().includes(q)) return false;
     }
     if (tournamentFilter !== 'all' && m.tournamentName !== tournamentFilter) return false;
     return true;
@@ -56,11 +82,8 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const counts: Record<string, number> = {};
-  for (const m of matches) {
-    counts[m.status] = (counts[m.status] || 0) + 1;
-  }
-  counts['all'] = matches.length;
+  const counts: Record<string, number> = { all: matches.length };
+  for (const m of matches) counts[m.status] = (counts[m.status] || 0) + 1;
 
   if (loading) {
     return (
@@ -85,14 +108,73 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6">
-        <h3 className="font-black text-lg text-slate-900 flex items-center gap-2">
+        <h3 className="font-black text-xl text-slate-900 flex items-center gap-2">
           <Gamepad2 className="w-5 h-5 text-brand-red" />
           Matches
         </h3>
-        <p className="text-xs text-slate-500 mt-1">Track all matches, scores, and results</p>
+        <p className="text-xs text-slate-500 mt-1">Track live scores, results, and upcoming matches</p>
       </div>
 
+      {/* Live matches highlight */}
+      {liveMatches.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-5 mb-6 text-white shadow-xl shadow-red-200"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+            <span className="text-xs font-black uppercase tracking-wider">
+              {liveMatches.length} Live Match{liveMatches.length > 1 ? 'es' : ''} Now
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {liveMatches.slice(0, 4).map(m => {
+              const sideA = m.sides.find(s => s.side === 'SIDE_A');
+              const sideB = m.sides.find(s => s.side === 'SIDE_B');
+              return (
+                <button key={m.id} onClick={() => onSelectMatch(m.id)}
+                  className="flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-xl px-4 py-3 transition-all text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold truncate">{m.tournamentName}</p>
+                    <p className="text-[10px] text-white/70">{m.round}</p>
+                  </div>
+                  <div className="text-center mx-3 shrink-0">
+                    <p className="text-sm font-black">{sideA?.score ?? 0} : {sideB?.score ?? 0}</p>
+                  </div>
+                  <div className="text-right min-w-0 flex-1">
+                    <p className="text-xs font-bold truncate">{sideA?.teams[0] || 'TBD'} vs {sideB?.teams[0] || 'TBD'}</p>
+                  </div>
+                  <Video className="w-4 h-4 ml-2 shrink-0 text-white/70" />
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search matches, rounds, teams..."
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all" />
+        </div>
+        {tournaments.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+            <select value={tournamentFilter} onChange={e => setTournamentFilter(e.target.value)}
+              className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-red">
+              <option value="all">All Tournaments</option>
+              {tournaments.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Status tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {STATUS_TABS.map(tab => {
           const Icon = tab.icon;
@@ -115,31 +197,7 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
         })}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search matches, rounds, teams..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all"
-          />
-        </div>
-        {tournaments.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-            <select
-              value={tournamentFilter}
-              onChange={e => setTournamentFilter(e.target.value)}
-              className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-red"
-            >
-              <option value="all">All Tournaments</option>
-              {tournaments.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        )}
-      </div>
-
+      {/* Match list */}
       {filtered.length === 0 ? (
         <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-dashed border-slate-200 p-14 flex flex-col items-center text-center">
           <Gamepad2 className="w-16 h-16 text-slate-300 mb-4" />
@@ -160,21 +218,13 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 text-xs font-bold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-4 py-2 text-xs font-bold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
                 Previous
               </button>
-              <span className="text-xs text-slate-500 font-medium">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 text-xs font-bold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <span className="text-xs text-slate-500 font-medium">Page {page} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-4 py-2 text-xs font-bold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
                 Next
               </button>
             </div>

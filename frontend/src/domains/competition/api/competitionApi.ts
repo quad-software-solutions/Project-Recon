@@ -364,11 +364,14 @@ export interface MatchDetail {
   id: string;
   tournamentId: string;
   tournamentName: string;
+  matchNumber?: number;
   round: string;
   status: 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
   scheduledAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  field?: string;
+  streamUrl?: string;
   winningSide: string | null;
   sides: {
     side: 'SIDE_A' | 'SIDE_B';

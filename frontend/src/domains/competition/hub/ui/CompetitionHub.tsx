@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   Trophy, MapPin, Users, Calendar, ChevronRight, Search, Loader2, AlertCircle,
-  Sparkles, Clock, DollarSign, Lock, User, ExternalLink, BookOpen, GraduationCap,
-  EyeOff, X, Shield, CheckCircle2, Activity,
+  Clock, DollarSign, Lock, User, ExternalLink, GraduationCap,
+  EyeOff, X, Shield, CheckCircle2, Activity, Zap, Gamepad2,
 } from 'lucide-react';
-import { UserProfile, type Tournament, type Workshop, type EventComputedState, type EventStoredStatus } from '@/src/shared/types';
+import { UserProfile, type Tournament, type Workshop } from '@/src/shared/types';
 import {
-  getTournaments, getWorkshops, getLiveEvents, getUpcomingEvents, getPastEvents,
+  getTournaments, getWorkshops,
   registerForEvent, getMyRegistrations, type PublicRegistrationData,
 } from '../../api/competitionApi';
 
@@ -128,12 +128,13 @@ export default function CompetitionHub({ currentUser, onViewTournament }: Compet
   const FILTERS: { id: TimeFilter; label: string; icon: typeof Calendar }[] = [
     { id: 'all', label: 'All', icon: Trophy },
     { id: 'upcoming', label: 'Upcoming', icon: Calendar },
-    { id: 'live', label: 'Live', icon: Activity },
+    { id: 'live', label: 'Live', icon: Zap },
     { id: 'past', label: 'Past', icon: CheckCircle2 },
   ];
 
   return (
     <div>
+      {/* Type tabs */}
       <div className="flex gap-1 mb-6 p-1 bg-slate-100 border border-slate-200 rounded-2xl w-fit">
         {([
           { id: 'tournaments' as ViewTab, label: 'Tournaments', icon: Trophy },
@@ -155,6 +156,7 @@ export default function CompetitionHub({ currentUser, onViewTournament }: Compet
         })}
       </div>
 
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -206,147 +208,158 @@ export default function CompetitionHub({ currentUser, onViewTournament }: Compet
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map(event => (
-            <motion.div key={event.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-brand-red/20 transition-all group"
-            >
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
+          {filtered.map(event => {
+            const isTournament = event.eventType === 'TOURNAMENT';
+            return (
+              <motion.div key={event.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-brand-red/20 transition-all group"
+              >
+                {/* Card header */}
+                <div className={`px-5 py-3 flex items-center justify-between ${
+                  event.computedState === 'LIVE' ? 'bg-red-50' : 'bg-slate-50'
+                }`}>
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      event.eventType === 'TOURNAMENT'
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                      isTournament
                         ? 'bg-gradient-to-br from-amber-500/20 to-amber-500/10'
                         : 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/10'
                     }`}>
-                      {event.eventType === 'TOURNAMENT'
+                      {isTournament
                         ? <Trophy className="w-5 h-5 text-amber-600" />
                         : <GraduationCap className="w-5 h-5 text-emerald-600" />
                       }
                     </div>
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{event.eventType}</span>
-                      {'category' in event && event.category && (
-                        <span className="text-[9px] font-bold text-slate-400 ml-2">· {event.category}</span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{event.eventType}</span>
+                      {isTournament && event.category && (
+                        <span className="ml-1 text-[9px] font-bold text-slate-400">· {event.category}</span>
                       )}
                     </div>
                   </div>
-                  {event.eventType === 'TOURNAMENT' && onViewTournament ? (
-                    <button onClick={(e) => { e.stopPropagation(); onViewTournament(event.id); }}
-                      className="p-1.5 rounded-lg hover:bg-brand-red/10 transition-colors">
-                      <ChevronRight className="w-4 h-4 text-slate-300 hover:text-brand-red transition-colors shrink-0" />
-                    </button>
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                  )}
-                </div>
-
-                <h3 className="font-black text-base text-slate-900 mb-1 leading-tight">{event.title}</h3>
-                <p className="text-xs text-slate-500 line-clamp-2 mb-3">{event.description}</p>
-
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[event.storedStatus] || 'bg-slate-100 text-slate-600'}`}>
-                    {event.storedStatus}
-                  </span>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${COMPUTED_STATE_STYLE[event.computedState] || 'bg-slate-100 text-slate-500'}`}>
-                    {event.computedState === 'LIVE' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block mr-1 animate-pulse" />}
-                    {event.computedState}
-                  </span>
-                  {event.visibility === 'PRIVATE' && (
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600">
-                      <EyeOff className="w-2.5 h-2.5 inline-block mr-0.5" />PRIVATE
+                  {event.computedState === 'LIVE' && (
+                    <span className="flex items-center gap-1 text-[9px] font-black text-red-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      LIVE
                     </span>
                   )}
                 </div>
 
-                {event.eventType === 'TOURNAMENT' && 'maxTeams' in event && event.maxTeams > 0 && (
-                  <div className="flex items-center gap-2 text-[10px] text-slate-500 mb-2">
-                    <Users className="w-3 h-3" />
-                    <span>{event.enrolledCount} / {event.maxTeams} teams</span>
-                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-red rounded-full" style={{ width: `${Math.min(100, (event.enrolledCount / event.maxTeams) * 100)}%` }} />
-                    </div>
-                  </div>
-                )}
+                {/* Card body */}
+                <div className="p-5">
+                  <h3 className="font-black text-base text-slate-900 mb-1 leading-tight">{event.title}</h3>
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-3">{event.description}</p>
 
-                <div className="space-y-1 text-[10px] text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(event.startDateTime).toLocaleDateString()} - {new Date(event.endDateTime).toLocaleDateString()}
+                  {/* Badge row */}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLE[event.storedStatus] || 'bg-slate-100 text-slate-600'}`}>
+                      {event.storedStatus}
+                    </span>
+                    {event.computedState === 'LIVE' && (
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 animate-pulse flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-red-500" />
+                        LIVE
+                      </span>
+                    )}
+                    {event.visibility === 'PRIVATE' && (
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600">
+                        <EyeOff className="w-2.5 h-2.5 inline-block mr-0.5" />PRIVATE
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" />
-                    {event.location}
-                  </div>
-                  {event.registrationMode !== 'NONE' && (
-                    <div className="flex items-center gap-1.5">
-                      <Shield className="w-3 h-3" />
-                      Registration: {event.registrationMode}
-                      {event.registrationDeadline && (
-                        <span className="text-slate-400">(until {new Date(event.registrationDeadline).toLocaleDateString()})</span>
-                      )}
+
+                  {/* Team capacity bar */}
+                  {isTournament && 'maxTeams' in event && event.maxTeams > 0 && (
+                    <div className="flex items-center gap-2 text-[10px] text-slate-500 mb-3">
+                      <Users className="w-3 h-3" />
+                      <span>{event.enrolledCount} / {event.maxTeams} teams</span>
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-brand-red rounded-full" style={{ width: `${Math.min(100, (event.enrolledCount / event.maxTeams) * 100)}%` }} />
+                      </div>
                     </div>
                   )}
-                  {event.paymentRequired && event.registrationFee && (
-                    <div className="flex items-center gap-1.5 text-amber-600">
-                      <DollarSign className="w-3 h-3" />
-                      Fee: {event.registrationFee} ETB
+
+                  {/* Info grid */}
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-500">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3 shrink-0" />
+                      {new Date(event.startDateTime).toLocaleDateString()}
                     </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{event.location}</span>
+                    </div>
+                    {event.registrationMode !== 'NONE' && (
+                      <div className="flex items-center gap-1.5">
+                        <Shield className="w-3 h-3 shrink-0" />
+                        Reg: {event.registrationMode}
+                        {event.registrationDeadline && (
+                          <span className="text-slate-400">(until {new Date(event.registrationDeadline).toLocaleDateString()})</span>
+                        )}
+                      </div>
+                    )}
+                    {event.paymentRequired && event.registrationFee && (
+                      <div className="flex items-center gap-1.5 text-amber-600">
+                        <DollarSign className="w-3 h-3 shrink-0" />
+                        Fee: {event.registrationFee} ETB
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="px-5 pb-5 flex gap-2">
+                  {isTournament && onViewTournament && (
+                    <button onClick={() => onViewTournament(event.id)}
+                      className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-200 transition-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />Details
+                    </button>
+                  )}
+                  {isRegistered(event.id) ? (
+                    <div className="flex-1 bg-emerald-50 text-emerald-600 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />Registered
+                    </div>
+                  ) : !event.registrationEnabled ? (
+                    <div className="flex-1 bg-slate-100 text-slate-400 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
+                      <Lock className="w-4 h-4" />Closed
+                    </div>
+                  ) : event.storedStatus !== 'PUBLISHED' ? (
+                    <div className="flex-1 bg-slate-100 text-slate-400 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
+                      <Lock className="w-4 h-4" />Not Available
+                    </div>
+                  ) : event.visibility === 'PRIVATE' && !currentUser ? (
+                    <a href="/login"
+                      className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-[0.98] transition-all"
+                    >
+                      <User className="w-4 h-4" />Sign In
+                    </a>
+                  ) : event.registrationMode === 'STUDENT' && !currentUser ? (
+                    <a href="/login"
+                      className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <User className="w-4 h-4" />Sign In
+                    </a>
+                  ) : event.registrationMode === 'STUDENT' && currentUser?.role !== 'Student' ? (
+                    <div className="flex-1 bg-amber-50 text-amber-600 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
+                      <Lock className="w-4 h-4" />Students Only
+                    </div>
+                  ) : event.registrationMode === 'NONE' ? (
+                    <div className="flex-1 bg-slate-100 text-slate-400 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
+                      <Lock className="w-4 h-4" />No Registration
+                    </div>
+                  ) : (
+                    <button onClick={() => openRegModal(event.id, event.title)}
+                      className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-[0.98] transition-all"
+                    >
+                      <Shield className="w-4 h-4" />
+                      {event.registrationMode === 'PUBLIC' ? 'Register Now' : 'Register'}
+                      {event.paymentRequired && event.registrationFee && ` · ${event.registrationFee} ETB`}
+                    </button>
                   )}
                 </div>
-              </div>
-
-              <div className="px-5 pb-5 flex gap-2">
-                {event.eventType === 'TOURNAMENT' && onViewTournament && (
-                  <button onClick={() => onViewTournament(event.id)}
-                    className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-200 transition-all"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />Details
-                  </button>
-                )}
-                {isRegistered(event.id) ? (
-                  <div className="flex-1 bg-emerald-50 text-emerald-600 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />Registered
-                  </div>
-                ) : !event.registrationEnabled ? (
-                  <div className="flex-1 bg-slate-100 text-slate-400 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Lock className="w-4 h-4" />Registration Closed
-                  </div>
-                ) : event.storedStatus !== 'PUBLISHED' ? (
-                  <div className="flex-1 bg-slate-100 text-slate-400 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Lock className="w-4 h-4" />Not Available
-                  </div>
-                ) : event.visibility === 'PRIVATE' && !currentUser ? (
-                  <a href="/login"
-                    className="group relative flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-[0.98] transition-all overflow-hidden"
-                  >
-                    <User className="w-4 h-4" />Sign In to Register
-                  </a>
-                ) : event.registrationMode === 'STUDENT' && !currentUser ? (
-                  <a href="/login"
-                    className="group relative flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2"
-                  >
-                    <User className="w-4 h-4" />Sign In to Register
-                  </a>
-                ) : event.registrationMode === 'STUDENT' && currentUser?.role !== 'Student' ? (
-                  <div className="flex-1 bg-amber-50 text-amber-600 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Lock className="w-4 h-4" />Students Only
-                  </div>
-                ) : event.registrationMode === 'NONE' ? (
-                  <div className="flex-1 bg-slate-100 text-slate-400 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Lock className="w-4 h-4" />No Registration
-                  </div>
-                ) : (
-                  <button onClick={() => openRegModal(event.id, event.title)}
-                    className="group relative flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-[0.98] transition-all overflow-hidden"
-                  >
-                    <Shield className="w-4 h-4" />
-                    {event.registrationMode === 'PUBLIC' ? 'Register Now' : 'Register'}
-                    {event.paymentRequired && event.registrationFee && ` · ${event.registrationFee} ETB`}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
@@ -365,20 +378,18 @@ export default function CompetitionHub({ currentUser, onViewTournament }: Compet
               </button>
             </div>
             <div className="p-6 space-y-4">
-              {regTarget && (
-                (() => {
-                  const ev = [...tournaments, ...workshops].find(e => e.id === regTarget.id);
-                  if (ev?.paymentRequired && ev.registrationFee) {
-                    return (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-amber-600 shrink-0" />
-                        <p className="text-[11px] font-bold text-amber-700">Fee: {ev.registrationFee} ETB</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()
-              )}
+              {regTarget && (() => {
+                const ev = [...tournaments, ...workshops].find(e => e.id === regTarget.id);
+                if (ev?.paymentRequired && ev.registrationFee) {
+                  return (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-amber-600 shrink-0" />
+                      <p className="text-[11px] font-bold text-amber-700">Fee: {ev.registrationFee} ETB</p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Full Name *</label>
                 <input value={regForm.public_full_name} onChange={e => setRegForm(p => ({ ...p, public_full_name: e.target.value }))}

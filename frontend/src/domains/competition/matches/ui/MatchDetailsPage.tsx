@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Clock, Calendar, Gamepad2, Loader2, AlertCircle, Users, CheckCircle } from 'lucide-react';
+import {
+  ArrowLeft, Clock, Calendar, Gamepad2, Loader2, AlertCircle, Users,
+  CheckCircle, Video, MapPin, Zap, Trophy,
+} from 'lucide-react';
 import { getPublicMatchById, type MatchDetail } from '../../api/competitionApi';
-import MatchScoreboard from './MatchScoreboard';
 
 interface MatchDetailsPageProps {
   matchId: string;
@@ -26,43 +28,35 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
       .finally(() => setLoading(false));
   }, [matchId]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
-          <p className="text-xs text-slate-400 font-medium">Loading match...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
+    </div>
+  );
 
-  if (error || !match) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-        <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-        <p className="text-sm font-bold text-red-700">{error || 'Match not found'}</p>
-        <button onClick={onBack} className="mt-3 text-xs font-bold text-red-600 underline">Go back</button>
-      </div>
-    );
-  }
+  if (error || !match) return (
+    <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+      <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+      <p className="text-sm font-bold text-red-700">{error || 'Match not found'}</p>
+      <button onClick={onBack} className="mt-3 text-xs font-bold text-red-600 underline">Go back</button>
+    </div>
+  );
 
   const sideA = match.sides.find(s => s.side === 'SIDE_A');
   const sideB = match.sides.find(s => s.side === 'SIDE_B');
+  const teamA = sideA?.teams[0] || 'TBD';
+  const teamB = sideB?.teams[0] || 'TBD';
+  const isLive = match.status === 'LIVE';
+  const isCompleted = match.status === 'COMPLETED';
 
   const statusBadgeClass = () => {
     switch (match.status) {
       case 'SCHEDULED': return 'bg-blue-100 text-blue-700';
-      case 'LIVE': return 'bg-red-100 text-red-700';
+      case 'LIVE': return 'bg-red-100 text-red-700 animate-pulse';
       case 'COMPLETED': return 'bg-emerald-100 text-emerald-700';
       case 'CANCELLED': return 'bg-slate-100 text-slate-500';
     }
   };
-
-  const teamNames = [...(sideA?.teams || []), ...(sideB?.teams || [])];
-  const title = teamNames.length >= 2
-    ? `${teamNames.slice(0, Math.ceil(teamNames.length / 2)).join(', ')} vs ${teamNames.slice(Math.ceil(teamNames.length / 2)).join(', ')}`
-    : match.round || 'Match Details';
 
   return (
     <div>
@@ -71,69 +65,125 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
       </button>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 mb-6">
+        {/* Hero scoreboard */}
+        <div className={`rounded-3xl border p-6 md:p-8 mb-6 ${
+          isLive
+            ? 'bg-gradient-to-br from-red-600 via-red-700 to-red-800 border-red-500 text-white shadow-xl shadow-red-200/30'
+            : isCompleted
+            ? 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 text-white'
+            : 'bg-white border-slate-200'
+        }`}>
+          {/* Top info */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Gamepad2 className="w-5 h-5 text-brand-red" />
-                <h2 className="font-black text-xl md:text-2xl text-slate-900">{title}</h2>
+                <Gamepad2 className={`w-5 h-5 ${isLive || isCompleted ? 'text-white/80' : 'text-brand-red'}`} />
+                <h2 className={`font-black text-lg md:text-xl ${isLive || isCompleted ? 'text-white' : 'text-slate-900'}`}>
+                  {match.round || 'Match'}
+                </h2>
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusBadgeClass()}`}>{match.status}</span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+              <div className={`flex items-center gap-3 text-xs mt-1 ${isLive || isCompleted ? 'text-white/70' : 'text-slate-500'}`}>
                 <span>{match.tournamentName}</span>
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                <span>{match.round}</span>
+                {match.matchNumber && <><span className="w-1 h-1 rounded-full bg-current opacity-40" /><span>Match #{match.matchNumber}</span></>}
               </div>
             </div>
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusBadgeClass()}`}>{match.status}</span>
+            {isLive && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 text-white text-[10px] font-black uppercase">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                LIVE
+              </span>
+            )}
           </div>
 
-          <div className="mb-6">
-            <MatchScoreboard
-              sideALabel="Side A"
-              sideBLabel="Side B"
-              sideAScore={sideA?.score ?? 0}
-              sideBScore={sideB?.score ?? 0}
-              winningSide={match.winningSide}
-              status={match.status}
-              sideATeams={sideA?.teams || []}
-              sideBTeams={sideB?.teams || []}
-            />
+          {/* Teams vs Score */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex-1 text-center">
+              <div className={`w-16 h-16 mx-auto mb-2 rounded-2xl flex items-center justify-center ${
+                isLive || isCompleted ? 'bg-white/10' : 'bg-gradient-to-br from-brand-red/20 to-brand-red/10'
+              }`}>
+                <Users className={`w-8 h-8 ${isLive || isCompleted ? 'text-white' : 'text-brand-red'}`} />
+              </div>
+              <h3 className={`font-black text-lg ${isLive || isCompleted ? 'text-white' : 'text-slate-900'}`}>{teamA}</h3>
+            </div>
+
+            <div className="mx-6 text-center">
+              <div className={`flex items-center gap-4 ${isLive || isCompleted ? 'text-white' : 'text-slate-900'}`}>
+                <span className="text-5xl md:text-6xl font-black tabular-nums">{sideA?.score ?? '-'}</span>
+                <span className="text-3xl font-black text-slate-400">:</span>
+                <span className="text-5xl md:text-6xl font-black tabular-nums">{sideB?.score ?? '-'}</span>
+              </div>
+              {isLive && (
+                <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-black text-red-300 uppercase tracking-widest">
+                  <Zap className="w-3.5 h-3.5" />
+                  Live
+                </span>
+              )}
+              {match.winningSide && (
+                <div className="mt-2 flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
+                  <Trophy className="w-4 h-4" />
+                  {match.winningSide === 'SIDE_A' ? `${teamA} Wins` : `${teamB} Wins`}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 text-center">
+              <div className={`w-16 h-16 mx-auto mb-2 rounded-2xl flex items-center justify-center ${
+                isLive || isCompleted ? 'bg-white/10' : 'bg-gradient-to-br from-blue-500/20 to-blue-500/10'
+              }`}>
+                <Users className={`w-8 h-8 ${isLive || isCompleted ? 'text-white' : 'text-blue-600'}`} />
+              </div>
+              <h3 className={`font-black text-lg ${isLive || isCompleted ? 'text-white' : 'text-slate-900'}`}>{teamB}</h3>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-              <Calendar className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Scheduled</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">
-                {match.scheduledAt ? new Date(match.scheduledAt).toLocaleString() : '—'}
-              </p>
+          {/* Meta info */}
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${isLive || isCompleted ? 'text-white/80' : ''}`}>
+            <div className={`rounded-xl p-3 ${isLive || isCompleted ? 'bg-white/5' : 'bg-slate-50'}`}>
+              <Calendar className={`w-4 h-4 mb-1 ${isLive || isCompleted ? 'text-white/60' : 'text-brand-red'}`} />
+              <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Scheduled</p>
+              <p className="text-xs font-bold mt-0.5">{match.scheduledAt ? new Date(match.scheduledAt).toLocaleString() : '—'}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-              <Clock className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Started</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">
-                {match.startedAt ? new Date(match.startedAt).toLocaleString() : '—'}
-              </p>
+            <div className={`rounded-xl p-3 ${isLive || isCompleted ? 'bg-white/5' : 'bg-slate-50'}`}>
+              <Clock className={`w-4 h-4 mb-1 ${isLive || isCompleted ? 'text-white/60' : 'text-brand-red'}`} />
+              <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Started</p>
+              <p className="text-xs font-bold mt-0.5">{match.startedAt ? new Date(match.startedAt).toLocaleString() : '—'}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-              <CheckCircle className="w-4 h-4 text-brand-red mb-1" />
-              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Completed</p>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">
-                {match.completedAt ? new Date(match.completedAt).toLocaleString() : '—'}
-              </p>
+            <div className={`rounded-xl p-3 ${isLive || isCompleted ? 'bg-white/5' : 'bg-slate-50'}`}>
+              <CheckCircle className={`w-4 h-4 mb-1 ${isLive || isCompleted ? 'text-white/60' : 'text-brand-red'}`} />
+              <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Completed</p>
+              <p className="text-xs font-bold mt-0.5">{match.completedAt ? new Date(match.completedAt).toLocaleString() : '—'}</p>
             </div>
+            {match.field && (
+              <div className={`rounded-xl p-3 ${isLive || isCompleted ? 'bg-white/5' : 'bg-slate-50'}`}>
+                <MapPin className={`w-4 h-4 mb-1 ${isLive || isCompleted ? 'text-white/60' : 'text-brand-red'}`} />
+                <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Field</p>
+                <p className="text-xs font-bold mt-0.5">{match.field}</p>
+              </div>
+            )}
           </div>
+
+          {/* Watch live button */}
+          {match.streamUrl && (
+            <a href={match.streamUrl} target="_blank" rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs uppercase tracking-wider transition-all"
+            >
+              <Video className="w-4 h-4" />
+              Watch Live Stream
+            </a>
+          )}
         </div>
 
+        {/* Side details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {([
-            { label: 'Side A', side: sideA, color: 'red', borderColor: 'border-red-200', bgColor: 'bg-red-50' },
-            { label: 'Side B', side: sideB, color: 'blue', borderColor: 'border-blue-200', bgColor: 'bg-blue-50' },
-          ] as const).map(({ label, side, color, borderColor, bgColor }) => (
-            <div key={label} className={`rounded-2xl p-5 border ${side ? borderColor : 'border-slate-200'} ${bgColor}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-black text-sm text-slate-800">{label}</h3>
-                <span className={`text-lg font-black ${color === 'red' ? 'text-red-600' : 'text-blue-600'}`}>
+          {[
+            { label: teamA || 'Side A', side: sideA, teamName: teamA, color: 'red', border: 'border-red-200', bg: 'bg-red-50', isWinner: match.winningSide === 'SIDE_A' },
+            { label: teamB || 'Side B', side: sideB, teamName: teamB, color: 'blue', border: 'border-blue-200', bg: 'bg-blue-50', isWinner: match.winningSide === 'SIDE_B' },
+          ].map(({ label, side, teamName, color, border, bg, isWinner }) => (
+            <div key={label} className={`rounded-2xl p-5 border ${isWinner ? 'border-emerald-300 bg-emerald-50' : `${border} ${bg}`}`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-black text-sm text-slate-800">{teamName || label}</h3>
+                <span className={`text-2xl font-black ${color === 'red' ? 'text-red-600' : 'text-blue-600'}`}>
                   {side?.score ?? '-'}
                 </span>
               </div>
@@ -149,10 +199,10 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
               ) : (
                 <p className="text-xs text-slate-400 italic">No teams assigned</p>
               )}
-              {match.winningSide === side?.side && (
+              {isWinner && (
                 <div className="mt-3 flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-100/50 rounded-lg px-2.5 py-1.5">
                   <Trophy className="w-3.5 h-3.5" />
-                  Winning Side
+                  Winner
                 </div>
               )}
             </div>
@@ -160,18 +210,5 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
         </div>
       </motion.div>
     </div>
-  );
-}
-
-function Trophy(props: { className?: string }) {
-  return (
-    <svg className={props.className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
   );
 }
