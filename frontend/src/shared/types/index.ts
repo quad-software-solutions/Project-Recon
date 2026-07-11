@@ -110,65 +110,79 @@ export interface AppNotification {
   icon?: string;
 }
 
-export interface Workshop {
-  id: string;
-  title: string;
-  description: string;
-  detailedDescription: string;
-  date: string;
-  time: string;
-  duration: string;
-  instructor: string;
-  instructorRole: string;
-  instructorImage: string;
-  location: string;
-  category: 'VEX IQ' | 'VEX V5' | 'Enjoy AI' | 'Arduino' | 'STEM' | 'Coding';
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
-  capacity: number;
-  enrolled: number;
-  price: number;
-  image: string;
-  topics: string[];
-  requirements: string[];
-  status: 'upcoming' | 'ongoing' | 'completed';
-  visibility: 'PUBLIC' | 'PRIVATE';
-  registrationEnabled: boolean;
-  registrationMode: 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
-  registrationDeadline: string | null;
-  paymentRequired: boolean;
-  registrationFee?: string | null;
+export type EventStoredStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED';
+export type EventComputedState = 'FUTURE' | 'LIVE' | 'PAST';
+export type EventVisibility = 'PUBLIC' | 'PRIVATE';
+export type RegistrationMode = 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
+export type EventType = 'TOURNAMENT' | 'WORKSHOP' | 'GENERAL';
+export type WorkshopLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
+export function computeEventState(start: string, end: string): EventComputedState {
+  const now = new Date();
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (now < startDate) return 'FUTURE';
+  if (now >= startDate && now <= endDate) return 'LIVE';
+  return 'PAST';
 }
 
 export interface Tournament {
   id: string;
-  name: string;
-  date: string;
-  location: string;
-  status: 'upcoming' | 'live' | 'completed';
-  category: 'VEX IQ' | 'VEX V5' | 'Enjoy AI';
-  teams: TournamentTeam[];
-  maxTeams: number;
-  registrationDeadline: string;
-  prizePool: string;
-  streamUrl?: string;
+  title: string;
   description: string;
-  visibility: 'PUBLIC' | 'PRIVATE';
+  startDateTime: string;
+  endDateTime: string;
+  location: string;
+  eventType: EventType;
+  storedStatus: EventStoredStatus;
+  computedState: EventComputedState;
+  visibility: EventVisibility;
   registrationEnabled: boolean;
-  registrationMode: 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
+  registrationMode: RegistrationMode;
+  registrationDeadline: string | null;
   paymentRequired: boolean;
-  registrationFee?: string | null;
+  registrationFee: string | null;
+  capacity: number;
+  enrolledCount: number;
+  category: string;
+  maxTeams: number;
+  prizePool: string;
+}
+
+export interface Workshop {
+  id: string;
+  title: string;
+  description: string;
+  startDateTime: string;
+  endDateTime: string;
+  location: string;
+  eventType: EventType;
+  storedStatus: EventStoredStatus;
+  computedState: EventComputedState;
+  visibility: EventVisibility;
+  registrationEnabled: boolean;
+  registrationMode: RegistrationMode;
+  registrationDeadline: string | null;
+  paymentRequired: boolean;
+  registrationFee: string | null;
+  capacity: number;
+  enrolledCount: number;
+  instructor: string;
+  level: WorkshopLevel;
+  duration: number;
+  price: number;
 }
 
 export interface TournamentTeam {
   id: string;
-  name: string;
-  school: string;
-  members: number;
+  teamName: string;
+  organization: string;
+  coachName: string;
   wins: number;
   losses: number;
-  score: number;
+  draws: number;
+  points: number;
   rank?: number;
-  avatar?: string;
 }
 
 export interface MatchResult {

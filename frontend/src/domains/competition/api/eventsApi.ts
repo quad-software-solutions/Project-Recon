@@ -43,6 +43,7 @@ export interface BackendEvent {
 export interface BackendTournament {
   id: string;
   event: string;
+  event_title?: string;
   category: string;
   category_name?: string;
   max_teams?: number | null;
@@ -150,14 +151,13 @@ export interface BackendEventRegistration {
 }
 
 export interface BackendStanding {
-  id: string;
+  rank?: number;
+  team_id: string;
   team_name: string;
-  organization?: string;
   wins: number;
   losses: number;
   draws: number;
   points: number;
-  rank?: number;
 }
 
 export interface BackendEventPayment {

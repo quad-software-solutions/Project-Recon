@@ -366,7 +366,7 @@ export default function TournamentManager() {
                         </tr></thead>
                         <tbody className="divide-y divide-brand-border">
                           {selectedTournament.standings.map((s: BackendStanding, i: number) => (
-                            <tr key={s.id} className={`hover:bg-slate-50/50 ${i === 0 ? 'bg-amber-50/50' : ''}`}>
+                            <tr key={s.team_id} className={`hover:bg-slate-50/50 ${i === 0 ? 'bg-amber-50/50' : ''}`}>
                               <td className="px-4 py-2.5">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-white' : i === 1 ? 'bg-slate-400 text-white' : i === 2 ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
                                   {i + 1}

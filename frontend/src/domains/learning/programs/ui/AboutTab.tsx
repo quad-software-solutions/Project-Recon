@@ -24,7 +24,7 @@ import imgUsa from '@/assets/0M6A6519.00_25_12_08.Still037.jpg';
 import imgCanada from '@/assets/photo_2026-06-15_14-39-23.jpg';
 import imgChina from '@/assets/photo_2026-06-15_14-39-40.jpg';
 
-import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse } from '../../../cms/public/api/cmsPublicApi';
+import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TeamMemberResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface MapNode {
   id: string;
@@ -48,87 +48,21 @@ export default function AboutTab() {
   const [aboutData, setAboutData] = useState<AboutUsResponse[]>([]);
   const [partners, setPartners] = useState<CmsPartnerResponse[]>([]);
 
+  const [mapNodes, setMapNodes] = useState<MapNode[]>([]);
+  const [team, setTeam] = useState<{ name: string; role: string; bio: string; image: string }[]>([]);
+
   useEffect(() => {
     cmsPublicApi.getAboutUs().then(data => setAboutData(data.filter(a => a.is_active))).catch(console.error);
     cmsPublicApi.getPartners().then(data => setPartners(data.filter(p => p.is_active))).catch(console.error);
+    cmsPublicApi.getMapNodes().then(data => setMapNodes((Array.isArray(data) ? data : []).filter(n => n.is_active).map(n => ({
+      id: n.id, city: n.city, country: n.country, title: n.title,
+      achievement: n.achievement, x: n.x, y: n.y, lat: n.lat, lng: n.lng,
+      image: n.image, category: n.category as MapNode['category'],
+    })))).catch(console.error);
+    cmsPublicApi.getTeamMembers().then(data => setTeam((Array.isArray(data) ? data : []).filter(m => m.is_active).map(m => ({
+      name: m.name, role: m.role, bio: m.bio, image: m.image,
+    })))).catch(console.error);
   }, []);
-
-  // Strategic Global Instances
-  const mapNodes: MapNode[] = [
-    {
-      id: 'addis-ababa',
-      city: 'Addis Ababa',
-      country: 'Ethiopia',
-      title: 'Ethio Robotics Master Hub',
-      achievement: 'Cybernetics, Automated Systems & Outreach HQ initiating 5M+ young minds.',
-      x: 58,
-      y: 58,
-      lat: '8.9806° N',
-      lng: '38.7578° E',
-      image: imgAddis,
-      category: 'Alliance'
-    },
-    {
-      id: 'usa',
-      city: 'Dallas',
-      country: 'USA',
-      title: 'VEX World Championship',
-      achievement: 'Clinched the legendary Gold Category overall precision robotics trophy.',
-      x: 18,
-      y: 45,
-      lat: '32.7767° N',
-      lng: '96.7970° W',
-      image: imgUsa,
-      category: 'Championship'
-    },
-    {
-      id: 'canada',
-      city: 'Toronto',
-      country: 'Canada',
-      title: 'North American Expansion',
-      achievement: 'Developing cross-border learning curriculums for global reach.',
-      x: 23,
-      y: 35,
-      lat: '43.6510° N',
-      lng: '79.3470° W',
-      image: imgCanada,
-      category: 'Academic'
-    },
-    {
-      id: 'china',
-      city: 'Beijing',
-      country: 'China',
-      title: 'Enjoy AI Global Summit',
-      achievement: 'Design strategy gold winner for extreme line-tracking cybernetic vehicles.',
-      x: 77,
-      y: 38,
-      lat: '39.9042° N',
-      lng: '116.4074° E',
-      image: imgChina,
-      category: 'Championship'
-    }
-  ];
-
-  const team = [
-    {
-      name: 'Dr. Kidus Gidey',
-      role: 'Founder & Chief Engineering Mentor',
-      bio: 'Ph.D. in Cybernetics from EPFL. Spent 10 years building automated flight control setups.',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
-    },
-    {
-      name: 'Selam Berhe',
-      role: 'Director of Curriculum & Pedagogy',
-      bio: 'Former school principal, specialized in early blockly teaching schemas and STEM equality.',
-      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
-    },
-    {
-      name: 'Nebil Mohammed',
-      role: 'Lead Hardware Systems Fabricator',
-      bio: 'Self-proclaimed micro-soldering wizard, VEX V5 system expert, and mentor for competitive matches.',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
-    },
-  ];
 
   // Dynamically calculate lat/lng depending on mouse coords relative to container
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -149,7 +83,7 @@ export default function AboutTab() {
     });
   };
 
-  const adbNode = mapNodes[0]; // Addis Ababa coordinates
+  const adbNode = mapNodes[0] ?? { x: 0, y: 0 } as MapNode; // Addis Ababa coordinates
   return (
     <div className="bg-[#faf8ff] text-[#191b23] relative border-y border-brand-border-light/80 py-16 overflow-hidden" id="about-mission">
       {/* Blueprint background grid overlay */}
@@ -178,74 +112,82 @@ export default function AboutTab() {
               className="w-full h-auto block select-none pointer-events-none opacity-80"
             />
 
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-              {mapNodes.map((node) => {
-                if (node.id === 'addis-ababa') return null;
-                const x1 = adbNode.x;
-                const y1 = adbNode.y;
-                const x2 = node.x;
-                const y2 = node.y;
-                const isHovered = hoveredNode?.id === node.id;
-                const cx = (x1 + x2) / 2;
-                const cy = Math.min(y1, y2) - Math.abs(x1 - x2) * 0.15;
-                return (
-                  <g key={`path-${node.id}`}>
-                    <path
-                      d={`M ${x1}% ${y1}% Q ${cx}% ${cy}% ${x2}% ${y2}%`}
-                      fill="none"
-                      stroke={isHovered ? '#25338d' : '#cbd2e1'}
-                      strokeWidth={isHovered ? 2.5 : 1.25}
-                      className="transition-all duration-300"
-                      opacity={isHovered ? 0.8 : 0.45}
-                    />
-                    {isHovered && (
+            {mapNodes.length > 1 && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                {mapNodes.map((node) => {
+                  if (node.id === 'addis-ababa') return null;
+                  const x1 = adbNode.x;
+                  const y1 = adbNode.y;
+                  const x2 = node.x;
+                  const y2 = node.y;
+                  const isHovered = hoveredNode?.id === node.id;
+                  const cx = (x1 + x2) / 2;
+                  const cy = Math.min(y1, y2) - Math.abs(x1 - x2) * 0.15;
+                  return (
+                    <g key={`path-${node.id}`}>
                       <path
                         d={`M ${x1}% ${y1}% Q ${cx}% ${cy}% ${x2}% ${y2}%`}
                         fill="none"
-                        stroke="#00687a"
-                        strokeWidth={2.5}
-                        strokeDasharray="12, 12"
-                        className="animate-[dash_2s_linear_infinite]"
-                        style={{
-                          animation: 'dash 1.2s linear infinite',
-                          strokeDashoffset: 100,
-                        }}
+                        stroke={isHovered ? '#25338d' : '#cbd2e1'}
+                        strokeWidth={isHovered ? 2.5 : 1.25}
+                        className="transition-all duration-300"
+                        opacity={isHovered ? 0.8 : 0.45}
                       />
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
+                      {isHovered && (
+                        <path
+                          d={`M ${x1}% ${y1}% Q ${cx}% ${cy}% ${x2}% ${y2}%`}
+                          fill="none"
+                          stroke="#00687a"
+                          strokeWidth={2.5}
+                          strokeDasharray="12, 12"
+                          className="animate-[dash_2s_linear_infinite]"
+                          style={{
+                            animation: 'dash 1.2s linear infinite',
+                            strokeDashoffset: 100,
+                          }}
+                        />
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
 
-            <div className="absolute inset-0 z-20 pointer-events-auto">
-              {mapNodes.map((node) => {
-                const isCenterNode = node.id === 'addis-ababa';
-                const isHovered = hoveredNode?.id === node.id;
-                return (
-                  <div
-                    key={node.id}
-                    className="absolute"
-                    style={{ left: `${node.x}%`, top: `${node.y}%` }}
-                    onMouseEnter={() => setHoveredNode(node)}
-                    onMouseLeave={() => setHoveredNode(null)}
-                  >
-                    <div className="relative -translate-x-1/2 -translate-y-1/2 group cursor-pointer">
-                      <span className={`absolute inset-0 rounded-full scale-[2.2] opacity-40 transition-all ${
-                        isCenterNode ? 'bg-amber-400 animate-ping' : isHovered ? 'bg-[#25338d] animate-pulse' : 'bg-slate-400 group-hover:bg-[#25338d]/45'
-                      }`} style={{ width: '12px', height: '12px' }} />
-                      <div className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-md transition-all duration-300 ${
-                        isCenterNode ? 'bg-amber-500 scale-125' : isHovered ? 'bg-[#25338d] scale-135' : 'bg-slate-500 group-hover:bg-[#25338d]'
-                      }`} />
-                      <div className={`absolute left-5 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur px-2 py-0.5 rounded border border-slate-200/50 shadow-xs whitespace-nowrap text-[9px] font-mono leading-none transition-all ${
-                        isHovered ? 'scale-110 font-bold border-[#25338d] text-[#25338d]' : 'text-slate-600'
-                      }`}>
-                        {node.city}
+            {mapNodes.length > 0 ? (
+              <div className="absolute inset-0 z-20 pointer-events-auto">
+                {mapNodes.map((node) => {
+                  const isCenterNode = node.id === 'addis-ababa';
+                  const isHovered = hoveredNode?.id === node.id;
+                  return (
+                    <div
+                      key={node.id}
+                      className="absolute"
+                      style={{ left: `${node.x}%`, top: `${node.y}%` }}
+                      onMouseEnter={() => setHoveredNode(node)}
+                      onMouseLeave={() => setHoveredNode(null)}
+                    >
+                      <div className="relative -translate-x-1/2 -translate-y-1/2 group cursor-pointer">
+                        <span className={`absolute inset-0 rounded-full scale-[2.2] opacity-40 transition-all ${
+                          isCenterNode ? 'bg-amber-400 animate-ping' : isHovered ? 'bg-[#25338d] animate-pulse' : 'bg-slate-400 group-hover:bg-[#25338d]/45'
+                        }`} style={{ width: '12px', height: '12px' }} />
+                        <div className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-md transition-all duration-300 ${
+                          isCenterNode ? 'bg-amber-500 scale-125' : isHovered ? 'bg-[#25338d] scale-135' : 'bg-slate-500 group-hover:bg-[#25338d]'
+                        }`} />
+                        <div className={`absolute left-5 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur px-2 py-0.5 rounded border border-slate-200/50 shadow-xs whitespace-nowrap text-[9px] font-mono leading-none transition-all ${
+                          isHovered ? 'scale-110 font-bold border-[#25338d] text-[#25338d]' : 'text-slate-600'
+                        }`}>
+                          {node.city}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <p className="text-xs text-slate-400 bg-white/80 px-4 py-2 rounded-lg border border-slate-200">No global locations mapped yet</p>
+              </div>
+            )}
 
             <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md rounded-xl border border-brand-border-light p-2.5 text-[#191b23] z-30 shadow-md text-left font-mono max-w-[240px] hidden sm:block">
               <span className="text-[8px] uppercase tracking-widest font-bold text-[#25338d] block mb-1 flex items-center gap-1">
@@ -362,16 +304,23 @@ export default function AboutTab() {
           <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Leadership Team</h2>
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Meet the visionary educators and engineers driving Ethio Robotics forward.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {team.map((member, idx) => (
-            <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-md transition-all">
-              <img src={member.image} alt={member.name} className="w-24 h-24 rounded-full object-cover mb-4 ring-4 ring-brand-blue/10" />
-              <h3 className="font-bold text-slate-900 text-lg">{member.name}</h3>
-              <span className="text-brand-blue text-sm font-semibold mb-3">{member.role}</span>
-              <p className="text-slate-600 text-sm leading-relaxed">{member.bio}</p>
-            </div>
-          ))}
-        </div>
+        {team.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {team.map((member, idx) => (
+              <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-md transition-all">
+                <img src={member.image} alt={member.name} className="w-24 h-24 rounded-full object-cover mb-4 ring-4 ring-brand-blue/10" />
+                <h3 className="font-bold text-slate-900 text-lg">{member.name}</h3>
+                <span className="text-brand-blue text-sm font-semibold mb-3">{member.role}</span>
+                <p className="text-slate-600 text-sm leading-relaxed">{member.bio}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <Users className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+            <p className="text-slate-500 text-sm font-medium">No team members listed yet</p>
+          </div>
+        )}
       </section>
 
       {/* Partners Section */}

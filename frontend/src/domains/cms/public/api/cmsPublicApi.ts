@@ -24,6 +24,30 @@ export interface FaqResponse {
   is_active: boolean;
 }
 
+export interface MapNodeResponse {
+  id: string;
+  city: string;
+  country: string;
+  title: string;
+  achievement: string;
+  x: number;
+  y: number;
+  lat: string;
+  lng: string;
+  image: string;
+  category: string;
+  is_active: boolean;
+}
+
+export interface TeamMemberResponse {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  image: string;
+  is_active: boolean;
+}
+
 export interface AboutUsResponse {
   id: string;
   title: string;
@@ -39,6 +63,8 @@ export const cmsPublicApi = {
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
   getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),
   getPartners: (signal?: AbortSignal) => http.get<CmsPartnerResponse[]>('/cms/partners/', { signal }),
+  getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
+  getTeamMembers: () => http.get<TeamMemberResponse[]>('/cms/team-members/'),
   getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
   getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
   getFaqs: async (signal?: AbortSignal) => {

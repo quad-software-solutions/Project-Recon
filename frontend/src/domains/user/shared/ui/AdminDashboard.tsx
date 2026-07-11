@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { fetchAuditLogsApi } from '../api/adminApi';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BarChart3, Users, Shield, Settings, FileText, Bell, Activity,
@@ -45,6 +46,7 @@ import {
   type AssignmentResponse,
 } from '../api/adminApi';
 import { getNotifications } from '@/src/domains/notification/model/notificationApi';
+import { getAnalytics } from '@/src/domains/analytics/model/analyticsApi';
 import UserManagementPanel from './UserManagementPanel';
 import AdminAccount from './AdminAccount';
 import SystemHealth from './SystemHealth';
@@ -128,45 +130,92 @@ const Modal = React.memo(({ children, onClose, title }: { children: React.ReactN
 
 /* ─── PAGE SECTIONS ─── */
 function Overview() {
-  const stats = [
-    { label: 'Total Users', value: '486', icon: Users, change: '+12 this week', color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
-    { label: 'Active Students', value: '342', icon: GraduationCap, change: '70% of total', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Instructors', value: '24', icon: Award, change: '3 pending', color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: 'Revenue (MTD)', value: '890K ETB', icon: DollarSign, change: '+23.6%', color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Platform Uptime', value: '99.97%', icon: Activity, change: 'Last 30 days', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Active Programs', value: '12', icon: BookOpen, change: '8 running', color: 'text-blue-600', bg: 'bg-blue-50' },
-  ];
-  const recentActivity = [
-    { text: 'New user registered: Hana M.', time: '12 min ago', type: 'create' },
-    { text: 'System backup completed', time: '3 hours ago', type: 'system' },
-    { text: 'Yonas D. account suspended', time: '5 hours ago', type: 'update' },
-    { text: 'Forum post flagged for review', time: '8 hours ago', type: 'alert' },
-    { text: 'Certificate #AWRD-00006 generated', time: '1 day ago', type: 'create' },
-  ];
+  const [stats, setStats] = useState<{ label: string; value: string; icon: React.ElementType; change: string; color: string; bg: string }[]>([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [recentActivity, setRecentActivity] = useState<{ text: string; time: string; type: string }[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchUsersApi().catch(() => null),
+      getAnalytics().catch(() => null),
+    ]).then(([users, analytics]) => {
+      const computed: typeof stats = [];
+      if (users) {
+        computed.push({ label: 'Total Users', value: String(users.count), icon: Users, change: 'registered accounts', color: 'text-brand-blue', bg: 'bg-brand-blue/5' });
+      }
+      if (analytics?.topMetrics) {
+        analytics.topMetrics.forEach(m => {
+          const icon = ['student', 'enrollment'].some(k => m.label.toLowerCase().includes(k)) ? GraduationCap
+            : ['program', 'course'].some(k => m.label.toLowerCase().includes(k)) ? BookOpen
+            : ['revenue', 'income', 'payment'].some(k => m.label.toLowerCase().includes(k)) ? DollarSign
+            : ['complete', 'rate', 'uptime'].some(k => m.label.toLowerCase().includes(k)) ? Activity
+            : Activity;
+          const isUp = m.trend === 'up';
+          computed.push({
+            label: m.label, value: m.value, icon,
+            change: m.change,
+            color: isUp ? 'text-emerald-600' : 'text-red-600',
+            bg: isUp ? 'bg-emerald-50' : 'bg-red-50',
+          });
+        });
+      }
+      setStats(computed);
+      setStatsLoading(false);
+    }).catch(() => { setStatsError('Failed to load stats'); setStatsLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    fetchAuditLogsApi()
+      .then(logs => {
+        const mapped = (Array.isArray(logs) ? logs : []).slice(0, 5).map(l => ({
+          text: `${l.actor?.full_name || 'System'} ${l.action} ${l.resource_type}`,
+          time: formatRelativeTime(l.created_at),
+          type: l.action === 'create' ? 'create' : l.action === 'update' ? 'update' : 'system',
+        }));
+        setRecentActivity(mapped.length ? mapped : []);
+        setActivityLoading(false);
+      })
+      .catch(() => setActivityLoading(false));
+  }, []);
+
   const activityIcons: Record<string, React.ElementType> = { create: Plus, system: RefreshCw, alert: AlertTriangle, update: Clock };
+
+  if (statsError) {
+    return <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="w-4 h-4" /> {statsError}</div>;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        {stats.map((s, i) => {
-          const SIcon = s.icon;
-          return (
-            <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-              className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 hover:shadow-sm transition-shadow"
-            >
-              <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2.5`}><SIcon className={`w-4 h-4 ${s.color}`} /></div>
-              <p className="text-lg sm:text-xl font-bold text-slate-900">{s.value}</p>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{s.label}</p>
-              <p className="text-[11px] font-medium text-slate-400 mt-0.5">{s.change}</p>
-            </motion.div>
-          );
-        })}
-      </div>
+      {statsLoading ? (
+        <div className="flex items-center justify-center py-12 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {stats.map((s, i) => {
+            const SIcon = s.icon;
+            return (
+              <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 hover:shadow-sm transition-shadow"
+              >
+                <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2.5`}><SIcon className={`w-4 h-4 ${s.color}`} /></div>
+                <p className="text-lg sm:text-xl font-bold text-slate-900">{s.value}</p>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{s.label}</p>
+                <p className="text-[11px] font-medium text-slate-400 mt-0.5">{s.change}</p>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5">
           <h3 className="font-bold text-sm sm:text-base text-slate-900 mb-4">Recent Activity</h3>
           <div className="space-y-2">
-            {recentActivity.map((a, i) => {
+            {activityLoading ? (
+              <div className="flex items-center justify-center py-8 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
+            ) : recentActivity.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">No recent activity.</p>
+            ) : recentActivity.map((a, i) => {
               const ActIcon = activityIcons[a.type] || Clock;
               return (
                 <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50">
@@ -1315,17 +1364,13 @@ function ContentModeration() {
   const [resolved, setResolved] = useState<string[]>([]);
   const [selectedFlag, setSelectedFlag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const initialFlags = [
-    { id: 'f1', title: 'Inappropriate language in thread', author: 'FlagBot', post: 'Re: How to tune PID', date: '2 hours ago', severity: 'high' as const, queue: 'Forum' as const, excerpt: 'This comment used language that may violate student safety rules.', reporter: 'Auto-flag', action: 'Pending' as const },
-    { id: 'f2', title: 'Spam promotional content', author: 'Coach Nebil', post: 'Cheap robots for sale!', date: '5 hours ago', severity: 'high' as const, queue: 'Community' as const, excerpt: 'External sales link detected in a student discussion thread.', reporter: 'Coach Nebil', action: 'Pending' as const },
-    { id: 'f3', title: 'Off-topic discussion', author: 'Student Kelby', post: 'General chat thread', date: '1 day ago', severity: 'low' as const, queue: 'Forum' as const, excerpt: 'Thread drifted away from the assigned robotics challenge.', reporter: 'Student Kelby', action: 'Pending' as const },
-    { id: 'f4', title: 'Unverified event photo', author: 'Media Review', post: 'Workshop gallery upload', date: '2 days ago', severity: 'medium' as const, queue: 'Media' as const, excerpt: 'Photo includes students and needs publishing confirmation.', reporter: 'Auto-flag', action: 'Pending' as const },
-    { id: 'f5', title: 'Duplicate user account', author: 'Admin System', post: 'Registration #9821', date: '3 days ago', severity: 'medium' as const, queue: 'Community' as const, excerpt: 'Multiple accounts detected from same IP address with different names.', reporter: 'Admin System', action: 'Pending' as const },
-    { id: 'f6', title: 'Copyrighted material', author: 'Coach Hanna', post: 'VEX CAD files', date: '4 days ago', severity: 'high' as const, queue: 'Media' as const, excerpt: 'Uploaded CAD files appear to be from a restricted source.', reporter: 'Coach Hanna', action: 'Pending' as const },
-  ];
+  const [flags, setFlags] = useState<{ id: string; title: string; author: string; post: string; date: string; severity: 'high' | 'medium' | 'low'; queue: 'Forum' | 'Community' | 'Media'; excerpt: string; reporter: string; action: 'Pending' | 'Approved' | 'Removed' | 'Warned' }[]>([]);
 
-  const [flags, setFlags] = useState(initialFlags);
+  useEffect(() => {
+    setLoading(false);
+  }, []);
 
   const severityColor: Record<string, string> = {
     high: 'text-red-600 bg-red-50 border-red-100',
@@ -1356,6 +1401,14 @@ function ContentModeration() {
     setFlags(prev => prev.map(f => f.id === id ? { ...f, action: action === 'approve' ? 'Approved' as const : action === 'remove' ? 'Removed' as const : 'Warned' as const } : f));
     setResolved(prev => [...prev, id]);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-slate-400">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1433,7 +1486,7 @@ function ContentModeration() {
         );
       })}
 
-      {visible.length === 0 && (
+      {!loading && visible.length === 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="rounded-xl border border-slate-200 bg-white p-10 text-center">
           <CheckCircle className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
@@ -1894,10 +1947,7 @@ const ROLE_OPTIONS = [
 ];
 
 function VexRolesAdmin() {
-  const [teams, setTeams] = useState([
-    { team: 'VEX-001', members: [{ name: 'Abebe K.', role: 'Driver' }, { name: 'Selam B.', role: 'Programmer' }, { name: 'Kidus G.', role: 'Builder' }] },
-    { team: 'VEX-002', members: [{ name: 'Hana M.', role: 'Driver' }, { name: 'Yonas D.', role: 'Programmer' }] },
-  ]);
+  const [teams, setTeams] = useState<{ team: string; members: { name: string; role: string }[] }[]>([]);
   const [showAdd, setShowAdd] = useState<{ team: string } | null>(null);
   const [newMember, setNewMember] = useState({ name: '', role: 'Driver' });
   const [editingRole, setEditingRole] = useState<{ team: string; member: string } | null>(null);
@@ -1927,10 +1977,17 @@ function VexRolesAdmin() {
           <h2 className="font-black text-lg text-slate-900">VEX Team Roles</h2>
           <p className="text-xs text-slate-500 mt-0.5">Manage team members and their roles across all VEX teams.</p>
         </div>
-        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">Demo Mode</span>
       </div>
 
       <div className="grid gap-5">
+        {teams.length === 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+            <Users className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="text-sm font-semibold text-slate-700">No teams configured</p>
+            <p className="text-xs text-slate-400 mt-1">Teams and members can be managed here once added.</p>
+          </motion.div>
+        )}
         {teams.map(t => (
           <div key={t.team} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-gradient-to-r from-brand-red/5 to-white px-5 py-3 flex items-center justify-between border-b border-slate-100">

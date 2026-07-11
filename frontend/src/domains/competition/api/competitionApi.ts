@@ -1,49 +1,66 @@
 import { http } from '@/src/shared/api/http';
-import type { Tournament, MatchResult, Workshop } from '@/src/shared/types';
+import { computeEventState, type Tournament, type Workshop, type MatchResult, type EventStoredStatus, type RegistrationMode } from '@/src/shared/types';
 import * as eventsApi from './eventsApi';
 
-const BASE = '/events';
+/* ═══ HELPERS ═══ */
 
-function mapEventToTournament(e: eventsApi.BackendEvent): Tournament {
-  const t = e.tournament;
-  const start = new Date(e.start_datetime);
-  const end = new Date(e.end_datetime);
-  const now = new Date();
-  const isLive = now >= start && now <= end;
-  const isPast = now > end;
-  const status: 'upcoming' | 'live' | 'completed' = isLive ? 'live' : isPast ? 'completed' : 'upcoming';
-  const category = (t?.category_name || e.title) as Tournament['category'];
+function mapBackendEventToTournament(e: eventsApi.BackendEvent): Tournament {
   return {
     id: e.id,
-    name: e.title,
-    date: e.start_datetime.slice(0, 10),
-    location: e.location,
-    status: e.status === 'PUBLISHED' ? status : 'upcoming',
-    category: category.includes('VEX IQ') ? 'VEX IQ' : category.includes('VEX V5') ? 'VEX V5' : 'Enjoy AI',
-    teams: [],
-    maxTeams: t?.max_teams || 0,
-    registrationDeadline: e.registration_deadline || e.start_datetime.slice(0, 10),
-    prizePool: t?.prize_pool || '0 ETB',
-    streamUrl: e.youtube_live_url || undefined,
+    title: e.title,
     description: e.description,
+    startDateTime: e.start_datetime,
+    endDateTime: e.end_datetime,
+    location: e.location,
+    eventType: 'TOURNAMENT',
+    storedStatus: e.status as EventStoredStatus,
+    computedState: computeEventState(e.start_datetime, e.end_datetime),
     visibility: e.visibility,
     registrationEnabled: e.registration_enabled,
-    registrationMode: e.registration_mode || 'NONE',
+    registrationMode: (e.registration_mode || 'NONE') as RegistrationMode,
+    registrationDeadline: e.registration_deadline || null,
     paymentRequired: e.payment_required,
-    registrationFee: e.registration_fee,
+    registrationFee: e.registration_fee || null,
+    capacity: e.capacity || 0,
+    enrolledCount: e.enrolled_count,
+    category: e.tournament?.category_name || e.title,
+    maxTeams: e.tournament?.max_teams || 0,
+    prizePool: e.tournament?.prize_pool || '0 ETB',
   };
 }
 
-function mapMatchToResult(m: eventsApi.BackendMatch): MatchResult {
+function mapBackendEventToWorkshop(e: eventsApi.BackendEvent): Workshop {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    startDateTime: e.start_datetime,
+    endDateTime: e.end_datetime,
+    location: e.location,
+    eventType: 'WORKSHOP',
+    storedStatus: e.status as EventStoredStatus,
+    computedState: computeEventState(e.start_datetime, e.end_datetime),
+    visibility: e.visibility,
+    registrationEnabled: e.registration_enabled,
+    registrationMode: (e.registration_mode || 'NONE') as RegistrationMode,
+    registrationDeadline: e.registration_deadline || null,
+    paymentRequired: e.payment_required,
+    registrationFee: e.registration_fee || null,
+    capacity: e.capacity || 0,
+    enrolledCount: e.enrolled_count,
+    instructor: e.workshop?.instructor_name || 'TBD',
+    level: (e.workshop?.level || 'BEGINNER') as Workshop['level'],
+    duration: e.workshop?.duration_minutes || 0,
+    price: parseFloat(e.workshop?.price || '0'),
+  };
+}
+
+function mapBackendMatchToResult(m: eventsApi.BackendMatch): MatchResult {
   const sideA = m.sides?.find(s => s.side === 'SIDE_A');
   const sideB = m.sides?.find(s => s.side === 'SIDE_B');
   const teamA = sideA?.participants?.[0]?.tournament_team_name || 'TBD';
   const teamB = sideB?.participants?.[0]?.tournament_team_name || 'TBD';
-  const now = new Date();
-  const sched = new Date(m.scheduled_at);
-  const isLive = m.status === 'LIVE';
-  const isPast = m.status === 'COMPLETED';
-  const status: 'scheduled' | 'live' | 'completed' = isLive ? 'live' : isPast ? 'completed' : 'scheduled';
+  const status: 'scheduled' | 'live' | 'completed' = m.status === 'LIVE' ? 'live' : m.status === 'COMPLETED' ? 'completed' : 'scheduled';
   return {
     id: m.id,
     tournamentId: m.tournament,
@@ -57,120 +74,113 @@ function mapMatchToResult(m: eventsApi.BackendMatch): MatchResult {
   };
 }
 
-function mapEventToWorkshop(e: eventsApi.BackendEvent): Workshop {
-  const w = e.workshop;
-  const levelMap: Record<string, Workshop['level']> = {
-    BEGINNER: 'Beginner', INTERMEDIATE: 'Intermediate', ADVANCED: 'Advanced',
-  };
-  const start = new Date(e.start_datetime);
-  const end = new Date(e.end_datetime);
-  const now = new Date();
-  const isLive = now >= start && now <= end;
-  const isPast = now > end;
-  const status: 'upcoming' | 'ongoing' | 'completed' = isLive ? 'ongoing' : isPast ? 'completed' : 'upcoming';
-  const catMap: Record<string, Workshop['category']> = {
-    'VEX IQ': 'VEX IQ', 'VEX V5': 'VEX V5', 'Enjoy AI': 'Enjoy AI',
-  };
-  return {
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    detailedDescription: e.description,
-    date: e.start_datetime.slice(0, 10),
-    time: e.start_datetime.slice(11, 16),
-    duration: w ? `${w.duration_minutes} min` : 'TBD',
-    instructor: w?.instructor_name || 'TBD',
-    instructorRole: 'Instructor',
-    instructorImage: '',
-    location: e.location,
-    category: catMap[e.title] || 'STEM',
-    level: levelMap[w?.level || 'BEGINNER'] || 'Beginner',
-    capacity: e.capacity || 0,
-    enrolled: e.enrolled_count || 0,
-    price: parseFloat(w?.price || '0'),
-    image: '',
-    topics: [],
-    requirements: [],
-    status,
-    visibility: e.visibility,
-    registrationEnabled: e.registration_enabled,
-    registrationMode: e.registration_mode || 'NONE',
-    registrationDeadline: e.registration_deadline || null,
-    paymentRequired: e.payment_required,
-    registrationFee: e.registration_fee,
-  };
+/* ═══ PUBLIC EVENTS ═══ */
+
+export async function getEvents(params?: Record<string, string>): Promise<(Tournament | Workshop)[]> {
+  try {
+    const events = await eventsApi.getPublicEvents(params);
+    return events.map(e => {
+      if (e.event_type === 'TOURNAMENT') return mapBackendEventToTournament(e);
+      if (e.event_type === 'WORKSHOP') return mapBackendEventToWorkshop(e);
+      return mapBackendEventToTournament(e);
+    });
+  } catch (err) {
+    console.error('getEvents failed:', err);
+    return [];
+  }
 }
 
 export async function getTournaments(params?: Record<string, string>): Promise<Tournament[]> {
   try {
     const events = await eventsApi.getPublicEvents({ ...params, event_type: 'TOURNAMENT' });
-    return events.map(mapEventToTournament);
+    return events.map(mapBackendEventToTournament);
   } catch (err) {
     console.error('getTournaments failed:', err);
     return [];
   }
 }
 
-export async function getTournamentById(id: string): Promise<Tournament | undefined> {
+export async function getTournamentById(id: string): Promise<Tournament | null> {
   try {
     const event = await eventsApi.getPublicEventDetail(id);
-    return mapEventToTournament(event);
+    return mapBackendEventToTournament(event);
   } catch (err) {
     console.error('getTournamentById failed:', err);
-    return undefined;
-  }
-}
-
-export async function getMatches(tournamentId?: string): Promise<MatchResult[]> {
-  if (!tournamentId) return [];
-  try {
-    const matches = await eventsApi.getPublicTournamentMatches(tournamentId);
-    return (Array.isArray(matches) ? matches : []).map(mapMatchToResult);
-  } catch (err) {
-    console.error('getMatches failed:', err);
-    return [];
+    return null;
   }
 }
 
 export async function getWorkshops(params?: Record<string, string>): Promise<Workshop[]> {
   try {
     const events = await eventsApi.getPublicEvents({ ...params, event_type: 'WORKSHOP' });
-    return events.map(mapEventToWorkshop);
+    return events.map(mapBackendEventToWorkshop);
   } catch (err) {
     console.error('getWorkshops failed:', err);
     return [];
   }
 }
 
-export async function getWorkshopById(id: string): Promise<Workshop | undefined> {
+export async function getWorkshopById(id: string): Promise<Workshop | null> {
   try {
     const event = await eventsApi.getPublicEventDetail(id);
-    return mapEventToWorkshop(event);
+    return mapBackendEventToWorkshop(event);
   } catch (err) {
     console.error('getWorkshopById failed:', err);
-    return undefined;
+    return null;
   }
 }
 
-export async function getPastTournaments(): Promise<Tournament[]> {
+export async function getMatches(tournamentId: string): Promise<MatchResult[]> {
+  if (!tournamentId) return [];
   try {
-    const events = await eventsApi.getPastEvents();
-    return events.filter(e => e.event_type === 'TOURNAMENT').map(mapEventToTournament);
+    const matches = await eventsApi.getPublicTournamentMatches(tournamentId);
+    return (Array.isArray(matches) ? matches : []).map(mapBackendMatchToResult);
   } catch (err) {
-    console.error('getPastTournaments failed:', err);
+    console.error('getMatches failed:', err);
     return [];
   }
 }
 
-export async function getPastWorkshops(): Promise<Workshop[]> {
+export async function getLiveEvents(): Promise<(Tournament | Workshop)[]> {
   try {
-    const events = await eventsApi.getPastEvents();
-    return events.filter(e => e.event_type === 'WORKSHOP').map(mapEventToWorkshop);
-  } catch (err) {
-    console.error('getPastWorkshops failed:', err);
+    const events = await eventsApi.getLiveEvents();
+    return events.map(e => {
+      if (e.event_type === 'TOURNAMENT') return mapBackendEventToTournament(e);
+      if (e.event_type === 'WORKSHOP') return mapBackendEventToWorkshop(e);
+      return mapBackendEventToTournament(e);
+    });
+  } catch {
     return [];
   }
 }
+
+export async function getUpcomingEvents(): Promise<(Tournament | Workshop)[]> {
+  try {
+    const events = await eventsApi.getUpcomingEvents();
+    return events.map(e => {
+      if (e.event_type === 'TOURNAMENT') return mapBackendEventToTournament(e);
+      if (e.event_type === 'WORKSHOP') return mapBackendEventToWorkshop(e);
+      return mapBackendEventToTournament(e);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getPastEvents(): Promise<(Tournament | Workshop)[]> {
+  try {
+    const events = await eventsApi.getPastEvents();
+    return events.map(e => {
+      if (e.event_type === 'TOURNAMENT') return mapBackendEventToTournament(e);
+      if (e.event_type === 'WORKSHOP') return mapBackendEventToWorkshop(e);
+      return mapBackendEventToTournament(e);
+    });
+  } catch {
+    return [];
+  }
+}
+
+/* ═══ REGISTRATION ═══ */
 
 export interface PublicRegistrationData {
   public_full_name: string;
@@ -179,21 +189,12 @@ export interface PublicRegistrationData {
   public_organization?: string;
 }
 
-export async function registerForTournament(tournamentId: string, data?: PublicRegistrationData): Promise<void> {
+export async function registerForEvent(eventId: string, data: PublicRegistrationData): Promise<void> {
   try {
-    await eventsApi.registerForEvent(tournamentId, data || {});
+    await eventsApi.registerForEvent(eventId, data);
   } catch (err) {
-    console.error('registerForTournament failed:', err);
+    console.error('registerForEvent failed:', err);
     throw new Error('Registration failed');
-  }
-}
-
-export async function enrollInWorkshop(workshopId: string, data?: PublicRegistrationData): Promise<void> {
-  try {
-    await eventsApi.registerForEvent(workshopId, data || {});
-  } catch (err) {
-    console.error('enrollInWorkshop failed:', err);
-    throw new Error('Enrollment failed');
   }
 }
 
@@ -203,5 +204,240 @@ export async function getMyRegistrations() {
   } catch (err) {
     console.error('getMyRegistrations failed:', err);
     return [];
+  }
+}
+
+/* ═══ ADMIN - REGISTRATIONS ═══ */
+
+export async function adminGetRegistrations(params?: Record<string, string>) {
+  try {
+    return await eventsApi.adminGetRegistrations(params);
+  } catch {
+    return [];
+  }
+}
+
+export async function adminApproveRegistration(id: string) {
+  return eventsApi.adminApproveRegistration(id);
+}
+
+export async function adminRejectRegistration(id: string) {
+  return eventsApi.adminRejectRegistration(id);
+}
+
+export async function adminCancelRegistration(id: string) {
+  return eventsApi.adminCancelRegistration(id);
+}
+
+/* ═══ STANDINGS ═══ */
+
+export interface StandingEntry {
+  rank: number;
+  teamName: string;
+  organization: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  points: number;
+}
+
+export async function getTournamentStandings(tournamentId: string): Promise<StandingEntry[]> {
+  try {
+    const standings = await eventsApi.getPublicTournamentStandings(tournamentId);
+    const list = Array.isArray(standings) ? standings : [];
+    return list.map(s => ({
+      rank: s.rank || 0,
+      teamName: s.team_name,
+      organization: '',
+      wins: s.wins,
+      losses: s.losses,
+      draws: s.draws,
+      points: s.points,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/* ═══ PUBLIC TEAMS ═══ */
+
+export interface PublicTeamEntry {
+  id: string;
+  teamName: string;
+  organization: string;
+  tournamentId: string;
+  tournamentName: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  points: number;
+  rank?: number;
+  coachName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}
+
+export async function getPublicTeams(): Promise<PublicTeamEntry[]> {
+  try {
+    const tournaments = await eventsApi.getPublicTournaments();
+    const allTeams: PublicTeamEntry[] = [];
+    for (const t of Array.isArray(tournaments) ? tournaments : []) {
+      const standings = await eventsApi.getPublicTournamentStandings(t.id).catch(() => [] as eventsApi.BackendStanding[]);
+      for (const s of Array.isArray(standings) ? standings : []) {
+        allTeams.push({
+          id: s.team_id,
+          teamName: s.team_name,
+          organization: '',
+          tournamentId: t.id,
+          tournamentName: t.event_title || '',
+          wins: s.wins,
+          losses: s.losses,
+          draws: s.draws,
+          points: s.points,
+          rank: s.rank,
+        });
+      }
+    }
+    return allTeams;
+  } catch (err) {
+    console.error('getPublicTeams failed:', err);
+    return [];
+  }
+}
+
+export async function getPublicTeamById(id: string): Promise<PublicTeamEntry | null> {
+  try {
+    const tournaments = await eventsApi.getPublicTournaments();
+    for (const t of Array.isArray(tournaments) ? tournaments : []) {
+      const standings = await eventsApi.getPublicTournamentStandings(t.id).catch(() => [] as eventsApi.BackendStanding[]);
+      const found = Array.isArray(standings) ? standings.find(s => s.team_id === id) : null;
+      if (found) {
+        return {
+          id: found.team_id,
+          teamName: found.team_name,
+          organization: '',
+          tournamentId: t.id,
+          tournamentName: t.event_title || '',
+          wins: found.wins,
+          losses: found.losses,
+          draws: found.draws,
+          points: found.points,
+          rank: found.rank,
+        };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getTeamMatches(teamId: string): Promise<MatchResult[]> {
+  try {
+    const tournaments = await eventsApi.getPublicTournaments();
+    const allMatches: MatchResult[] = [];
+    for (const t of Array.isArray(tournaments) ? tournaments : []) {
+      const matches = await eventsApi.getPublicTournamentMatches(t.id).catch(() => [] as eventsApi.BackendMatch[]);
+      const related = (Array.isArray(matches) ? matches : []).filter(m =>
+        m.sides?.some(s => s.participants?.some(p => p.tournament_team === teamId))
+      );
+      allMatches.push(...related.map(mapBackendMatchToResult));
+    }
+    return allMatches;
+  } catch {
+    return [];
+  }
+}
+
+export async function getTeamUpcomingMatches(teamId: string): Promise<MatchResult[]> {
+  try {
+    const all = await getTeamMatches(teamId);
+    return all.filter(m => m.status === 'scheduled');
+  } catch {
+    return [];
+  }
+}
+
+/* ═══ PUBLIC MATCHES ═══ */
+
+export interface MatchDetail {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  round: string;
+  status: 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
+  scheduledAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  winningSide: string | null;
+  sides: {
+    side: 'SIDE_A' | 'SIDE_B';
+    score: number;
+    teams: string[];
+  }[];
+}
+
+function mapBackendMatchToDetail(m: eventsApi.BackendMatch): MatchDetail {
+  return {
+    id: m.id,
+    tournamentId: m.tournament,
+    tournamentName: m.tournament_event_title || '',
+    round: m.round,
+    status: m.status,
+    scheduledAt: m.scheduled_at,
+    startedAt: m.started_at || null,
+    completedAt: m.completed_at || null,
+    winningSide: m.winning_side || null,
+    sides: (m.sides || []).map(s => ({
+      side: s.side,
+      score: s.score,
+      teams: s.participants?.map(p => p.tournament_team_name || '') || [],
+    })),
+  };
+}
+
+export async function getPublicMatchById(id: string): Promise<MatchDetail | null> {
+  try {
+    const tournaments = await eventsApi.getPublicTournaments();
+    for (const t of Array.isArray(tournaments) ? tournaments : []) {
+      const matches = await eventsApi.getPublicTournamentMatches(t.id).catch(() => [] as eventsApi.BackendMatch[]);
+      const found = Array.isArray(matches) ? matches.find(m => m.id === id) : null;
+      if (found) return mapBackendMatchToDetail(found);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAllPublicMatches(): Promise<MatchDetail[]> {
+  try {
+    const tournaments = await eventsApi.getPublicTournaments();
+    const all: MatchDetail[] = [];
+    for (const t of Array.isArray(tournaments) ? tournaments : []) {
+      const matches = await eventsApi.getPublicTournamentMatches(t.id).catch(() => [] as eventsApi.BackendMatch[]);
+      all.push(...(Array.isArray(matches) ? matches : []).map(mapBackendMatchToDetail));
+    }
+    return all;
+  } catch {
+    return [];
+  }
+}
+
+export async function getLiveMatchCount(): Promise<number> {
+  try {
+    const all = await getAllPublicMatches();
+    return all.filter(m => m.status === 'LIVE').length;
+  } catch {
+    return 0;
+  }
+}
+
+export async function getCompletedMatchCount(): Promise<number> {
+  try {
+    const all = await getAllPublicMatches();
+    return all.filter(m => m.status === 'COMPLETED').length;
+  } catch {
+    return 0;
   }
 }

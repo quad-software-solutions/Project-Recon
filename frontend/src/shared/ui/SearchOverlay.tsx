@@ -38,8 +38,8 @@ export default function SearchOverlay({ isOpen, onClose, onNavigate }: SearchOve
       import('@/src/domains/competition/api/competitionApi').then(async m => {
         const [ts, ws] = await Promise.all([m.getTournaments().catch(() => []), m.getWorkshops().catch(() => [])]);
         const results: SearchResult[] = [
-          ...ts.map(t => ({ id: t.id, title: t.name, description: t.description, category: 'Tournaments' as const, icon: Trophy, tab: 'competitions' as ActiveTab, badge: t.status })),
-          ...ws.map(w => ({ id: w.id, title: w.title, description: w.description, category: 'Workshops' as const, icon: Wrench, tab: 'competitions' as ActiveTab, badge: w.status })),
+          ...ts.map(t => ({ id: t.id, title: t.title, description: t.description, category: 'Tournaments' as const, icon: Trophy, tab: 'competitions' as ActiveTab, badge: t.storedStatus })),
+          ...ws.map(w => ({ id: w.id, title: w.title, description: w.description, category: 'Workshops' as const, icon: Wrench, tab: 'competitions' as ActiveTab, badge: w.storedStatus })),
         ];
         setSearchable(prev => [...prev.filter(r => r.category !== 'Tournaments' && r.category !== 'Workshops'), ...results]);
       }).catch(() => {});

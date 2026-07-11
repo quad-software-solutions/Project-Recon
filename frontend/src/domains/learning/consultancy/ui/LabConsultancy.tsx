@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Building2, Mail, Phone, User, Send, CheckCircle2, Cpu, Laptop, Zap, Layers, FileText, DollarSign, Users } from 'lucide-react';
+import { Building2, Mail, Phone, User, Send, CheckCircle2, FileText, DollarSign, Users } from 'lucide-react';
 import type { ConsultancyRequest } from '@/src/shared/types';
 import { getConsultancyRequests, submitConsultancyRequest } from '../../consultancy/api/consultancyApi';
 
-const LAB_TYPES = [
-  { id: 'robotics', label: 'Robotics Lab', icon: Cpu, desc: 'VEX IQ/V5 with competition field', price: 'From 200K ETB' },
-  { id: 'coding', label: 'Coding Lab', icon: Laptop, desc: 'Programming workstations & curriculum', price: 'From 150K ETB' },
-  { id: 'electronics', label: 'Electronics Lab', icon: Zap, desc: 'Arduino, soldering, circuit design', price: 'From 100K ETB' },
-  { id: 'full-stem', label: 'Full STEM Lab', icon: Layers, desc: 'Complete robotics + coding + 3D printing', price: 'From 500K ETB' },
-];
+const LAB_TYPES: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; desc: string; price: string }[] = [];
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-600' },
@@ -50,18 +45,25 @@ export default function LabConsultancy() {
             {/* Lab Types */}
             <div>
               <h3 className="font-display font-bold text-base text-slate-900 mb-4">Select Lab Type</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {LAB_TYPES.map((lab, i) => (
-                  <motion.button key={lab.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                    onClick={() => setSelectedLab(lab.id)}
-                    className={`text-left p-5 rounded-2xl border-2 transition-all ${selectedLab === lab.id ? 'border-[#25338d] bg-blue-50/30 shadow-md' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                    <lab.icon className={`w-6 h-6 mb-2 ${selectedLab === lab.id ? 'text-[#25338d]' : 'text-slate-400'}`} />
-                    <p className="font-bold text-sm text-slate-900">{lab.label}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">{lab.desc}</p>
-                    <p className="text-xs font-bold text-[#25338d] mt-2">{lab.price}</p>
-                  </motion.button>
-                ))}
-              </div>
+              {LAB_TYPES.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {LAB_TYPES.map((lab, i) => (
+                    <motion.button key={lab.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                      onClick={() => setSelectedLab(lab.id)}
+                      className={`text-left p-5 rounded-2xl border-2 transition-all ${selectedLab === lab.id ? 'border-[#25338d] bg-blue-50/30 shadow-md' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                      <lab.icon className={`w-6 h-6 mb-2 ${selectedLab === lab.id ? 'text-[#25338d]' : 'text-slate-400'}`} />
+                      <p className="font-bold text-sm text-slate-900">{lab.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{lab.desc}</p>
+                      <p className="text-xs font-bold text-[#25338d] mt-2">{lab.price}</p>
+                    </motion.button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                  <Building2 className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                  <p className="text-slate-500 text-sm font-medium">No lab types available</p>
+                </div>
+              )}
             </div>
 
             {/* Form */}
