@@ -9,13 +9,22 @@ from PIL import Image
 
 from apps.accounts.models import Branch
 from apps.accounts.services import user_service
-from apps.cms.models import HeroBanner, NewsArticle, Partner, AboutUs, FAQ
+from apps.cms.models import (
+    HeroBanner,
+    NewsArticle,
+    Partner,
+    AboutUs,
+    FAQ,
+    MapNode,
+)
 from apps.cms.services.hero_banner_service import create_hero_banner
 from apps.cms.services.news_service import create_news_article
 from apps.cms.services.partner_service import create_partner
 from apps.cms.services.about_service import create_about_us
 from apps.cms.services.faq_service import create_faq
 from apps.cms.services.contact_request_service import create_contact_request
+from apps.cms.services.map_node_service import create_map_node
+from apps.cms.constants import MapNodeCategory
 
 
 @override_settings(AUTH_REQUIRE_DEVICE_VERIFICATION=False)
@@ -66,6 +75,25 @@ class CMSApiTestCase(APITestCase):
             "email": "john@test.com",
             "subject": "Help needed",
             "description": "Please assist.",
+        })
+        self.map_node = create_map_node({
+            "city": "Addis Ababa",
+            "country": "Ethiopia",
+            "title": "Test Map Node",
+            "achievement": "A great achievement.",
+            "x": 50.0,
+            "y": 30.0,
+            "category": MapNodeCategory.CHAMPIONSHIP,
+        })
+        self.inactive_map_node = create_map_node({
+            "city": "Dire Dawa",
+            "country": "Ethiopia",
+            "title": "Inactive Map Node",
+            "achievement": "Inactive.",
+            "x": 20.0,
+            "y": 40.0,
+            "category": MapNodeCategory.ACADEMIC,
+            "is_active": False,
         })
         # DRF caches SimpleRateThrottle.THROTTLE_RATES at import time,
         # so override_settings(REST_FRAMEWORK=...) has no effect on it.
@@ -192,6 +220,28 @@ class PublicEndpointTest(CMSApiTestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_map_nodes_public(self):
+        response = self.client.get(f"{self.base_url}/map-nodes/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIsInstance(data, list)
+        titles = [n["title"] for n in data]
+        self.assertIn("Test Map Node", titles)
+        self.assertNotIn("Inactive Map Node", titles)
+
+    def test_list_map_nodes_public_returns_all_fields(self):
+        response = self.client.get(f"{self.base_url}/map-nodes/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for node in response.json():
+            self.assertIn("id", node)
+            self.assertIn("city", node)
+            self.assertIn("country", node)
+            self.assertIn("title", node)
+            self.assertIn("achievement", node)
+            self.assertIn("x", node)
+            self.assertIn("y", node)
+            self.assertIn("category", node)
 
 
 class AdminSuperAdminTest(CMSApiTestCase):
@@ -342,6 +392,85 @@ class AdminSuperAdminTest(CMSApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    # Map Node admin tests -------------------------------------------------
+
+    def test_list_map_nodes_admin(self):
+        response = self.client.get(f"{self.base_url}/admin/map-nodes/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIsInstance(data, list)
+        titles = [n["title"] for n in data]
+        self.assertIn("Test Map Node", titles)
+        self.assertIn("Inactive Map Node", titles)
+
+    def test_create_map_node_admin(self):
+        response = self.client.post(
+            f"{self.base_url}/admin/map-nodes/",
+            {
+                "city": "Hawassa",
+                "country": "Ethiopia",
+                "title": "New Map Node",
+                "achievement": "New achievement.",
+                "x": 75.0,
+                "y": 60.0,
+                "category": MapNodeCategory.RESEARCH,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertEqual(data["title"], "New Map Node")
+        self.assertEqual(data["city"], "Hawassa")
+        self.assertEqual(data["category"], MapNodeCategory.RESEARCH)
+        self.assertTrue(data["is_active"])
+
+    def test_retrieve_map_node_admin(self):
+        response = self.client.get(
+            f"{self.base_url}/admin/map-nodes/{self.map_node.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["title"], "Test Map Node")
+
+    def test_retrieve_map_node_not_found_admin(self):
+        response = self.client.get(
+            f"{self.base_url}/admin/map-nodes/{uuid.uuid4()}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_map_node_admin(self):
+        response = self.client.patch(
+            f"{self.base_url}/admin/map-nodes/{self.map_node.id}/",
+            {"title": "Updated Map Node", "x": 90.0},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["title"], "Updated Map Node")
+        self.assertEqual(response.json()["x"], 90.0)
+
+    def test_update_map_node_category_admin(self):
+        response = self.client.patch(
+            f"{self.base_url}/admin/map-nodes/{self.map_node.id}/",
+            {"category": MapNodeCategory.ALLIANCE},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["category"], MapNodeCategory.ALLIANCE)
+
+    def test_delete_map_node_soft_delete_admin(self):
+        response = self.client.delete(
+            f"{self.base_url}/admin/map-nodes/{self.map_node.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify soft delete - node should still exist but be inactive
+        self.map_node.refresh_from_db()
+        self.assertFalse(self.map_node.is_active)
+
+    def test_delete_map_node_then_list_excludes_it_from_public(self):
+        self.client.delete(f"{self.base_url}/admin/map-nodes/{self.map_node.id}/")
+        response = self.client.get(f"{self.base_url}/map-nodes/")
+        titles = [n["title"] for n in response.json()]
+        self.assertNotIn("Test Map Node", titles)
+
 
 class AdminUnauthorizedTest(CMSApiTestCase):
     """Non-admin users must be denied access to admin endpoints."""
@@ -409,6 +538,52 @@ class AdminUnauthorizedTest(CMSApiTestCase):
     def test_unauthenticated_cannot_list_contact_requests_admin(self):
         response = self.client.get(f"{self.base_url}/admin/contact-requests/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unauthenticated_cannot_list_map_nodes_admin(self):
+        response = self.client.get(f"{self.base_url}/admin/map-nodes/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_branch_manager_cannot_list_map_nodes_admin(self):
+        self.authenticate_as(self.branch_manager)
+        response = self.client.get(f"{self.base_url}/admin/map-nodes/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_student_cannot_list_map_nodes_admin(self):
+        self.authenticate_as(self.student)
+        response = self.client.get(f"{self.base_url}/admin/map-nodes/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_branch_manager_cannot_create_map_node(self):
+        self.authenticate_as(self.branch_manager)
+        response = self.client.post(
+            f"{self.base_url}/admin/map-nodes/",
+            {
+                "city": "Bad",
+                "country": "Bad",
+                "title": "Bad",
+                "achievement": "Bad",
+                "x": 1, "y": 1,
+                "category": MapNodeCategory.CHAMPIONSHIP,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_branch_manager_cannot_update_map_node(self):
+        self.authenticate_as(self.branch_manager)
+        response = self.client.patch(
+            f"{self.base_url}/admin/map-nodes/{self.map_node.id}/",
+            {"title": "Hack"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_branch_manager_cannot_delete_map_node(self):
+        self.authenticate_as(self.branch_manager)
+        response = self.client.delete(
+            f"{self.base_url}/admin/map-nodes/{self.map_node.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class ContactRequestFileUploadTest(CMSApiTestCase):

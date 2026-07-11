@@ -1,7 +1,15 @@
 from django.test import TestCase
 from rest_framework.exceptions import NotFound, ValidationError
 
-from apps.cms.models import HeroBanner, NewsArticle, Partner, AboutUs, FAQ, ContactRequest
+from apps.cms.models import (
+    HeroBanner,
+    NewsArticle,
+    Partner,
+    AboutUs,
+    FAQ,
+    ContactRequest,
+    MapNode,
+)
 from apps.cms.services.hero_banner_service import (
     create_hero_banner,
     update_hero_banner,
@@ -17,7 +25,15 @@ from apps.cms.services.contact_request_service import (
     delete_contact_request,
 )
 from apps.cms.services.faq_service import create_faq, get_faq_or_404
-from apps.cms.constants import ContactStatus, ContactPriority
+from apps.cms.services.map_node_service import (
+    create_map_node,
+    update_map_node,
+    delete_map_node,
+    get_map_node_or_404,
+    list_map_nodes,
+    list_active_map_nodes,
+)
+from apps.cms.constants import ContactStatus, ContactPriority, MapNodeCategory
 
 
 class HeroBannerServiceTest(TestCase):
@@ -249,3 +265,109 @@ class FAQServiceTest(TestCase):
     def test_get_or_404_not_found(self):
         with self.assertRaises(NotFound):
             get_faq_or_404("00000000-0000-0000-0000-000000000000")
+
+
+class MapNodeServiceTest(TestCase):
+    """Service-level tests for MapNode CRUD."""
+
+    def _data(self, **overrides):
+        defaults = {
+            "city": "Addis Ababa",
+            "country": "Ethiopia",
+            "title": "Test Node",
+            "achievement": "Great achievement.",
+            "x": 50.0,
+            "y": 25.0,
+            "category": MapNodeCategory.CHAMPIONSHIP,
+        }
+        defaults.update(overrides)
+        return defaults
+
+    def test_create_map_node(self):
+        node = create_map_node(self._data())
+        self.assertIsNotNone(node.id)
+        self.assertEqual(node.title, "Test Node")
+        self.assertEqual(node.category, MapNodeCategory.CHAMPIONSHIP)
+        self.assertTrue(node.is_active)
+
+    def test_create_map_node_with_all_fields(self):
+        node = create_map_node(self._data(
+            lat="8.9806\u00b0 N",
+            lng="38.7578\u00b0 E",
+        ))
+        self.assertEqual(node.lat, "8.9806\u00b0 N")
+        self.assertEqual(node.lng, "38.7578\u00b0 E")
+        self.assertEqual(node.x, 50.0)
+        self.assertEqual(node.y, 25.0)
+
+    def test_create_map_node_each_category(self):
+        for category in MapNodeCategory.values:
+            node = create_map_node(self._data(
+                title=f"Node {category}", category=category,
+            ))
+            self.assertEqual(node.category, category)
+
+    def test_list_map_nodes_includes_inactive(self):
+        create_map_node(self._data(title="Active"))
+        create_map_node(self._data(title="Inactive", is_active=False))
+        qs = list_map_nodes()
+        self.assertEqual(qs.count(), 2)
+
+    def test_list_active_map_nodes_excludes_inactive(self):
+        create_map_node(self._data(title="Active"))
+        create_map_node(self._data(title="Inactive", is_active=False))
+        qs = list_active_map_nodes()
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].title, "Active")
+
+    def test_get_map_node_or_404_found(self):
+        node = create_map_node(self._data())
+        found = get_map_node_or_404(node.id)
+        self.assertEqual(found.id, node.id)
+
+    def test_get_map_node_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_map_node_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_update_map_node(self):
+        node = create_map_node(self._data())
+        updated = update_map_node(node, {"title": "Updated Title"})
+        self.assertEqual(updated.title, "Updated Title")
+
+    def test_update_map_node_multiple_fields(self):
+        node = create_map_node(self._data())
+        updated = update_map_node(node, {
+            "city": "Dire Dawa",
+            "country": "Ethiopia",
+            "achievement": "New achievement.",
+        })
+        self.assertEqual(updated.city, "Dire Dawa")
+        self.assertEqual(updated.country, "Ethiopia")
+        self.assertEqual(updated.achievement, "New achievement.")
+
+    def test_update_map_node_category(self):
+        node = create_map_node(self._data())
+        updated = update_map_node(node, {"category": MapNodeCategory.RESEARCH})
+        self.assertEqual(updated.category, MapNodeCategory.RESEARCH)
+
+    def test_delete_map_node_soft_delete(self):
+        node = create_map_node(self._data())
+        self.assertTrue(node.is_active)
+        delete_map_node(node)
+        node.refresh_from_db()
+        self.assertFalse(node.is_active)
+
+    def test_delete_map_node_still_exists(self):
+        node = create_map_node(self._data())
+        delete_map_node(node)
+        # Should still be retrievable (not hard deleted)
+        found = get_map_node_or_404(node.id)
+        self.assertEqual(found.id, node.id)
+        self.assertFalse(found.is_active)
+
+    def test_ordering_by_title(self):
+        node_b = create_map_node(self._data(title="Beta", x=1, y=1))
+        node_a = create_map_node(self._data(title="Alpha", x=1, y=1))
+        qs = list_map_nodes()
+        self.assertEqual(qs[0].id, node_a.id)
+        self.assertEqual(qs[1].id, node_b.id)

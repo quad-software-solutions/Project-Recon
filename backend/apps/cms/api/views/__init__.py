@@ -30,6 +30,11 @@ from .faq import (
     AdminFAQListCreateView,
     AdminFAQRetrieveUpdateDestroyView,
 )
+from .map_node import (
+    PublicMapNodeListView,
+    AdminMapNodeListCreateView,
+    AdminMapNodeRetrieveUpdateDestroyView,
+)
 
 __all__ = [
     "PublicHeroBannerListView",
@@ -52,4 +57,7 @@ __all__ = [
     "PublicFAQListView",
     "AdminFAQListCreateView",
     "AdminFAQRetrieveUpdateDestroyView",
+    "PublicMapNodeListView",
+    "AdminMapNodeListCreateView",
+    "AdminMapNodeRetrieveUpdateDestroyView",
 ]

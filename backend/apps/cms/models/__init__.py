@@ -4,6 +4,7 @@ from .partner import Partner
 from .about import AboutUs
 from .contact_request import ContactRequest
 from .faq import FAQ
+from .map_node import MapNode
 
 __all__ = [
     "HeroBanner",
@@ -12,4 +13,5 @@ __all__ = [
     "AboutUs",
     "ContactRequest",
     "FAQ",
+    "MapNode",
 ]

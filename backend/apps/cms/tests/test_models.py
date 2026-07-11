@@ -8,8 +8,15 @@ from apps.cms.models import (
     AboutUs,
     ContactRequest,
     FAQ,
+    MapNode,
 )
-from apps.cms.constants import NewsType, PartnerType, ContactStatus, ContactPriority
+from apps.cms.constants import (
+    NewsType,
+    PartnerType,
+    ContactStatus,
+    ContactPriority,
+    MapNodeCategory,
+)
 
 
 class HeroBannerModelTest(TestCase):
@@ -176,3 +183,81 @@ class FAQModelTest(TestCase):
         )
         self.assertEqual(str(faq), "What is this?")
         self.assertTrue(faq.is_active)
+
+
+class MapNodeModelTest(TestCase):
+    """Model-level tests for MapNode."""
+
+    def test_create_map_node(self):
+        node = MapNode.objects.create(
+            city="Addis Ababa",
+            country="Ethiopia",
+            title="Robotics Championship 2025",
+            achievement="Won first place in national finals.",
+            x=45.5,
+            y=30.2,
+            lat="8.9806\u00b0 N",
+            lng="38.7578\u00b0 E",
+            category=MapNodeCategory.CHAMPIONSHIP,
+        )
+        self.assertEqual(str(node), "Robotics Championship 2025")
+        self.assertEqual(node.city, "Addis Ababa")
+        self.assertEqual(node.country, "Ethiopia")
+        self.assertEqual(node.category, MapNodeCategory.CHAMPIONSHIP)
+        self.assertEqual(node.x, 45.5)
+        self.assertEqual(node.y, 30.2)
+        self.assertTrue(node.is_active)
+        self.assertIsNotNone(node.id)
+        self.assertIsNotNone(node.created_at)
+        self.assertIsNotNone(node.updated_at)
+
+    def test_all_category_choices(self):
+        for category in MapNodeCategory.values:
+            node = MapNode.objects.create(
+                city="City",
+                country="Country",
+                title=f"Node {category}",
+                achievement="Achievement",
+                x=10.0,
+                y=20.0,
+                category=category,
+            )
+            self.assertEqual(node.category, category)
+
+    def test_default_is_active_true(self):
+        node = MapNode.objects.create(
+            city="City",
+            country="Country",
+            title="Default Active",
+            achievement="Achievement",
+            x=50.0,
+            y=50.0,
+            category=MapNodeCategory.STRATEGY,
+        )
+        self.assertTrue(node.is_active)
+
+    def test_default_lat_lng_blank(self):
+        node = MapNode.objects.create(
+            city="City",
+            country="Country",
+            title="No Coords",
+            achievement="Achievement",
+            x=50.0,
+            y=50.0,
+            category=MapNodeCategory.ALLIANCE,
+        )
+        self.assertEqual(node.lat, "")
+        self.assertEqual(node.lng, "")
+
+    def test_map_node_ordering_by_title(self):
+        node_b = MapNode.objects.create(
+            city="B City", country="B", title="Beta",
+            achievement="A", x=1, y=1, category=MapNodeCategory.ACADEMIC,
+        )
+        node_a = MapNode.objects.create(
+            city="A City", country="A", title="Alpha",
+            achievement="A", x=1, y=1, category=MapNodeCategory.ACADEMIC,
+        )
+        qs = MapNode.objects.all()
+        self.assertEqual(qs[0].id, node_a.id)
+        self.assertEqual(qs[1].id, node_b.id)

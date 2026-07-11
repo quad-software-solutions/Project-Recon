@@ -21,6 +21,9 @@ from apps.cms.api.views import (
     PublicFAQListView,
     AdminFAQListCreateView,
     AdminFAQRetrieveUpdateDestroyView,
+    PublicMapNodeListView,
+    AdminMapNodeListCreateView,
+    AdminMapNodeRetrieveUpdateDestroyView,
 )
 
 urlpatterns = [
@@ -73,5 +76,17 @@ urlpatterns = [
         "admin/contact-requests/<uuid:pk>/",
         AdminContactRequestRetrieveUpdateDestroyView.as_view(),
         name="cms-admin-contact-request-detail",
+    ),
+    # Map Nodes
+    path("map-nodes/", PublicMapNodeListView.as_view(), name="cms-map-node-list"),
+    path(
+        "admin/map-nodes/",
+        AdminMapNodeListCreateView.as_view(),
+        name="cms-admin-map-node-list",
+    ),
+    path(
+        "admin/map-nodes/<uuid:pk>/",
+        AdminMapNodeRetrieveUpdateDestroyView.as_view(),
+        name="cms-admin-map-node-detail",
     ),
 ]

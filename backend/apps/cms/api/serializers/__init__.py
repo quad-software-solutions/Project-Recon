@@ -8,6 +8,7 @@ from .contact_request import (
     ContactRequestAdminSerializer,
 )
 from .faq import FAQSerializer, FAQAdminSerializer
+from .map_node import MapNodeSerializer, MapNodeAdminSerializer
 
 __all__ = [
     "HeroBannerSerializer",
@@ -23,4 +24,6 @@ __all__ = [
     "ContactRequestAdminSerializer",
     "FAQSerializer",
     "FAQAdminSerializer",
+    "MapNodeSerializer",
+    "MapNodeAdminSerializer",
 ]
