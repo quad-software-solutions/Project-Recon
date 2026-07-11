@@ -281,27 +281,34 @@ export interface PublicTeamEntry {
 export async function getPublicTeams(): Promise<PublicTeamEntry[]> {
   try {
     const tournaments = await eventsApi.getPublicTournaments();
+    const list = Array.isArray(tournaments) ? tournaments : [];
+    const results = await Promise.allSettled(
+      list.map(t => eventsApi.getPublicTournamentStandings(t.id))
+    );
     const allTeams: PublicTeamEntry[] = [];
-    for (const t of Array.isArray(tournaments) ? tournaments : []) {
-      const standings = await eventsApi.getPublicTournamentStandings(t.id).catch(() => [] as eventsApi.BackendStanding[]);
-      for (const s of Array.isArray(standings) ? standings : []) {
-        allTeams.push({
-          id: s.team_id,
-          teamName: s.team_name,
-          organization: '',
-          tournamentId: t.id,
-          tournamentName: t.event_title || '',
-          wins: s.wins,
-          losses: s.losses,
-          draws: s.draws,
-          points: s.points,
-          rank: s.rank,
-        });
+    for (let i = 0; i < results.length; i++) {
+      const t = list[i];
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        const standings = Array.isArray(result.value) ? result.value : [];
+        for (const s of standings) {
+          allTeams.push({
+            id: s.team_id,
+            teamName: s.team_name,
+            organization: '',
+            tournamentId: t.id,
+            tournamentName: t.event_title || '',
+            wins: s.wins,
+            losses: s.losses,
+            draws: s.draws,
+            points: s.points,
+            rank: s.rank,
+          });
+        }
       }
     }
     return allTeams;
-  } catch (err) {
-    console.error('getPublicTeams failed:', err);
+  } catch {
     return [];
   }
 }
@@ -309,22 +316,30 @@ export async function getPublicTeams(): Promise<PublicTeamEntry[]> {
 export async function getPublicTeamById(id: string): Promise<PublicTeamEntry | null> {
   try {
     const tournaments = await eventsApi.getPublicTournaments();
-    for (const t of Array.isArray(tournaments) ? tournaments : []) {
-      const standings = await eventsApi.getPublicTournamentStandings(t.id).catch(() => [] as eventsApi.BackendStanding[]);
-      const found = Array.isArray(standings) ? standings.find(s => s.team_id === id) : null;
-      if (found) {
-        return {
-          id: found.team_id,
-          teamName: found.team_name,
-          organization: '',
-          tournamentId: t.id,
-          tournamentName: t.event_title || '',
-          wins: found.wins,
-          losses: found.losses,
-          draws: found.draws,
-          points: found.points,
-          rank: found.rank,
-        };
+    const list = Array.isArray(tournaments) ? tournaments : [];
+    const results = await Promise.allSettled(
+      list.map(t => eventsApi.getPublicTournamentStandings(t.id))
+    );
+    for (let i = 0; i < results.length; i++) {
+      const t = list[i];
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        const standings = Array.isArray(result.value) ? result.value : [];
+        const found = standings.find(s => s.team_id === id);
+        if (found) {
+          return {
+            id: found.team_id,
+            teamName: found.team_name,
+            organization: '',
+            tournamentId: t.id,
+            tournamentName: t.event_title || '',
+            wins: found.wins,
+            losses: found.losses,
+            draws: found.draws,
+            points: found.points,
+            rank: found.rank,
+          };
+        }
       }
     }
     return null;
@@ -336,13 +351,19 @@ export async function getPublicTeamById(id: string): Promise<PublicTeamEntry | n
 export async function getTeamMatches(teamId: string): Promise<MatchResult[]> {
   try {
     const tournaments = await eventsApi.getPublicTournaments();
+    const list = Array.isArray(tournaments) ? tournaments : [];
+    const results = await Promise.allSettled(
+      list.map(t => eventsApi.getPublicTournamentMatches(t.id))
+    );
     const allMatches: MatchResult[] = [];
-    for (const t of Array.isArray(tournaments) ? tournaments : []) {
-      const matches = await eventsApi.getPublicTournamentMatches(t.id).catch(() => [] as eventsApi.BackendMatch[]);
-      const related = (Array.isArray(matches) ? matches : []).filter(m =>
-        m.sides?.some(s => s.participants?.some(p => p.tournament_team === teamId))
-      );
-      allMatches.push(...related.map(mapBackendMatchToResult));
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const matches = Array.isArray(result.value) ? result.value : [];
+        const related = matches.filter(m =>
+          m.sides?.some(s => s.participants?.some(p => p.tournament_team === teamId))
+        );
+        allMatches.push(...related.map(mapBackendMatchToResult));
+      }
     }
     return allMatches;
   } catch {
@@ -365,14 +386,11 @@ export interface MatchDetail {
   id: string;
   tournamentId: string;
   tournamentName: string;
-  matchNumber?: number;
   round: string;
   status: 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
   scheduledAt: string;
   startedAt: string | null;
   completedAt: string | null;
-  field?: string;
-  streamUrl?: string;
   winningSide: string | null;
   sides: {
     side: 'SIDE_A' | 'SIDE_B';
@@ -403,10 +421,16 @@ function mapBackendMatchToDetail(m: eventsApi.BackendMatch): MatchDetail {
 export async function getPublicMatchById(id: string): Promise<MatchDetail | null> {
   try {
     const tournaments = await eventsApi.getPublicTournaments();
-    for (const t of Array.isArray(tournaments) ? tournaments : []) {
-      const matches = await eventsApi.getPublicTournamentMatches(t.id).catch(() => [] as eventsApi.BackendMatch[]);
-      const found = Array.isArray(matches) ? matches.find(m => m.id === id) : null;
-      if (found) return mapBackendMatchToDetail(found);
+    const list = Array.isArray(tournaments) ? tournaments : [];
+    const results = await Promise.allSettled(
+      list.map(t => eventsApi.getPublicTournamentMatches(t.id))
+    );
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const matches = Array.isArray(result.value) ? result.value : [];
+        const found = matches.find(m => m.id === id);
+        if (found) return mapBackendMatchToDetail(found);
+      }
     }
     return null;
   } catch {
@@ -417,10 +441,16 @@ export async function getPublicMatchById(id: string): Promise<MatchDetail | null
 export async function getAllPublicMatches(): Promise<MatchDetail[]> {
   try {
     const tournaments = await eventsApi.getPublicTournaments();
+    const list = Array.isArray(tournaments) ? tournaments : [];
+    const results = await Promise.allSettled(
+      list.map(t => eventsApi.getPublicTournamentMatches(t.id))
+    );
     const all: MatchDetail[] = [];
-    for (const t of Array.isArray(tournaments) ? tournaments : []) {
-      const matches = await eventsApi.getPublicTournamentMatches(t.id).catch(() => [] as eventsApi.BackendMatch[]);
-      all.push(...(Array.isArray(matches) ? matches : []).map(mapBackendMatchToDetail));
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const matches = Array.isArray(result.value) ? result.value : [];
+        all.push(...matches.map(mapBackendMatchToDetail));
+      }
     }
     return all;
   } catch {

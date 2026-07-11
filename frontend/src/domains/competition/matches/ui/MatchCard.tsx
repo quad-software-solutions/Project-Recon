@@ -1,9 +1,8 @@
 import { motion } from 'motion/react';
-import { Clock, Users, Gamepad2, MapPin, Video, ExternalLink } from 'lucide-react';
+import { Clock, Users, Gamepad2, ExternalLink } from 'lucide-react';
 import type { MatchDetail } from '../../api/competitionApi';
 
 interface MatchCardProps {
-  key?: string | number | null;
   match: MatchDetail;
   onClick?: () => void;
 }
@@ -11,14 +10,13 @@ interface MatchCardProps {
 export default function MatchCard({ match, onClick }: MatchCardProps) {
   const sideA = match.sides.find(s => s.side === 'SIDE_A');
   const sideB = match.sides.find(s => s.side === 'SIDE_B');
-  const teamA = sideA?.teams[0] || 'TBD';
-  const teamB = sideB?.teams[0] || 'TBD';
+  const teamA = sideA?.teams[0] || '—';
+  const teamB = sideB?.teams[0] || '—';
   const scoreA = sideA?.score ?? null;
   const scoreB = sideB?.score ?? null;
 
   const isLive = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
-  const isScheduled = match.status === 'SCHEDULED';
 
   const statusBadge = () => {
     if (isLive) return 'bg-red-500 text-white';
@@ -38,7 +36,6 @@ export default function MatchCard({ match, onClick }: MatchCardProps) {
           : 'border-slate-200 hover:shadow-lg hover:border-brand-red/20'
       }`}
     >
-      {/* Top bar */}
       <div className={`px-5 py-2.5 flex items-center justify-between ${
         isLive ? 'bg-red-50' : isCompleted ? 'bg-emerald-50' : 'bg-slate-50'
       }`}>
@@ -54,9 +51,6 @@ export default function MatchCard({ match, onClick }: MatchCardProps) {
               <span className="text-[8px] text-slate-300">·</span>
               <span className="text-[10px] font-semibold text-slate-600">{match.round}</span>
             </div>
-            {match.matchNumber && (
-              <span className="text-[9px] text-slate-400">Match #{match.matchNumber}</span>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -72,10 +66,8 @@ export default function MatchCard({ match, onClick }: MatchCardProps) {
         </div>
       </div>
 
-      {/* Main score area */}
       <div className="px-5 py-4">
         <div className="flex items-center justify-between gap-3">
-          {/* Team A */}
           <div className="flex-1 text-center min-w-0">
             <div className="w-10 h-10 mx-auto mb-1.5 rounded-full bg-gradient-to-br from-brand-red/20 to-brand-red/10 flex items-center justify-center">
               <Users className="w-5 h-5 text-brand-red" />
@@ -83,7 +75,6 @@ export default function MatchCard({ match, onClick }: MatchCardProps) {
             <span className="text-sm font-bold text-slate-900 block truncate">{teamA}</span>
           </div>
 
-          {/* Score */}
           <div className="text-center shrink-0">
             <div className="flex items-center gap-3">
               <span className={`text-3xl font-black ${scoreA !== null ? 'text-slate-900' : 'text-slate-300'}`}>
@@ -102,7 +93,6 @@ export default function MatchCard({ match, onClick }: MatchCardProps) {
             )}
           </div>
 
-          {/* Team B */}
           <div className="flex-1 text-center min-w-0">
             <div className="w-10 h-10 mx-auto mb-1.5 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center">
               <Users className="w-5 h-5 text-blue-600" />
@@ -112,32 +102,12 @@ export default function MatchCard({ match, onClick }: MatchCardProps) {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="px-5 py-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {match.scheduledAt ? new Date(match.scheduledAt).toLocaleString() : 'TBD'}
-          </span>
-          {match.field && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {match.field}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {match.streamUrl && (
-            <a href={match.streamUrl} target="_blank" rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-brand-red/10 text-brand-red font-bold hover:bg-brand-red/20 transition-colors"
-            >
-              <Video className="w-3 h-3" />
-              Watch
-            </a>
-          )}
-          <ExternalLink className="w-3 h-3 text-slate-300 group-hover:text-brand-red transition-colors" />
-        </div>
+        <span className="flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          {match.scheduledAt ? new Date(match.scheduledAt).toLocaleString() : '—'}
+        </span>
+        <ExternalLink className="w-3 h-3 text-slate-300 group-hover:text-brand-red transition-colors" />
       </div>
     </motion.div>
   );

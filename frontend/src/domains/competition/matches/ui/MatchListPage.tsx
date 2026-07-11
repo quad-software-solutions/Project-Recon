@@ -144,7 +144,7 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
                     <p className="text-sm font-black">{sideA?.score ?? 0} : {sideB?.score ?? 0}</p>
                   </div>
                   <div className="text-right min-w-0 flex-1">
-                    <p className="text-xs font-bold truncate">{sideA?.teams[0] || 'TBD'} vs {sideB?.teams[0] || 'TBD'}</p>
+                    <p className="text-xs font-bold truncate">{sideA?.teams[0] || '—'} vs {sideB?.teams[0] || '—'}</p>
                   </div>
                   <Video className="w-4 h-4 ml-2 shrink-0 text-white/70" />
                 </button>

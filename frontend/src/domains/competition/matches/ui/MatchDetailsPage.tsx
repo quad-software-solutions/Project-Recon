@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Clock, Calendar, Gamepad2, Loader2, AlertCircle, Users,
-  CheckCircle, Video, MapPin, Zap, Trophy,
+  CheckCircle, Trophy,
 } from 'lucide-react';
 import { getPublicMatchById, type MatchDetail } from '../../api/competitionApi';
 
@@ -44,8 +44,8 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
 
   const sideA = match.sides.find(s => s.side === 'SIDE_A');
   const sideB = match.sides.find(s => s.side === 'SIDE_B');
-  const teamA = sideA?.teams[0] || 'TBD';
-  const teamB = sideB?.teams[0] || 'TBD';
+  const teamA = sideA?.teams[0] || '—';
+  const teamB = sideB?.teams[0] || '—';
   const isLive = match.status === 'LIVE';
   const isCompleted = match.status === 'COMPLETED';
 
@@ -65,7 +65,6 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
       </button>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        {/* Hero scoreboard */}
         <div className={`rounded-3xl border p-6 md:p-8 mb-6 ${
           isLive
             ? 'bg-gradient-to-br from-red-600 via-red-700 to-red-800 border-red-500 text-white shadow-xl shadow-red-200/30'
@@ -73,7 +72,6 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
             ? 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 text-white'
             : 'bg-white border-slate-200'
         }`}>
-          {/* Top info */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -85,7 +83,6 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
               </div>
               <div className={`flex items-center gap-3 text-xs mt-1 ${isLive || isCompleted ? 'text-white/70' : 'text-slate-500'}`}>
                 <span>{match.tournamentName}</span>
-                {match.matchNumber && <><span className="w-1 h-1 rounded-full bg-current opacity-40" /><span>Match #{match.matchNumber}</span></>}
               </div>
             </div>
             {isLive && (
@@ -96,7 +93,6 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
             )}
           </div>
 
-          {/* Teams vs Score */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex-1 text-center">
               <div className={`w-16 h-16 mx-auto mb-2 rounded-2xl flex items-center justify-center ${
@@ -113,12 +109,6 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
                 <span className="text-3xl font-black text-slate-400">:</span>
                 <span className="text-5xl md:text-6xl font-black tabular-nums">{sideB?.score ?? '-'}</span>
               </div>
-              {isLive && (
-                <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-black text-red-300 uppercase tracking-widest">
-                  <Zap className="w-3.5 h-3.5" />
-                  Live
-                </span>
-              )}
               {match.winningSide && (
                 <div className="mt-2 flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
                   <Trophy className="w-4 h-4" />
@@ -137,8 +127,7 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
             </div>
           </div>
 
-          {/* Meta info */}
-          <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${isLive || isCompleted ? 'text-white/80' : ''}`}>
+          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${isLive || isCompleted ? 'text-white/80' : ''}`}>
             <div className={`rounded-xl p-3 ${isLive || isCompleted ? 'bg-white/5' : 'bg-slate-50'}`}>
               <Calendar className={`w-4 h-4 mb-1 ${isLive || isCompleted ? 'text-white/60' : 'text-brand-red'}`} />
               <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Scheduled</p>
@@ -154,27 +143,9 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
               <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Completed</p>
               <p className="text-xs font-bold mt-0.5">{match.completedAt ? new Date(match.completedAt).toLocaleString() : '—'}</p>
             </div>
-            {match.field && (
-              <div className={`rounded-xl p-3 ${isLive || isCompleted ? 'bg-white/5' : 'bg-slate-50'}`}>
-                <MapPin className={`w-4 h-4 mb-1 ${isLive || isCompleted ? 'text-white/60' : 'text-brand-red'}`} />
-                <p className="text-[9px] font-black uppercase tracking-wider opacity-60">Field</p>
-                <p className="text-xs font-bold mt-0.5">{match.field}</p>
-              </div>
-            )}
           </div>
-
-          {/* Watch live button */}
-          {match.streamUrl && (
-            <a href={match.streamUrl} target="_blank" rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs uppercase tracking-wider transition-all"
-            >
-              <Video className="w-4 h-4" />
-              Watch Live Stream
-            </a>
-          )}
         </div>
 
-        {/* Side details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { label: teamA || 'Side A', side: sideA, teamName: teamA, color: 'red', border: 'border-red-200', bg: 'bg-red-50', isWinner: match.winningSide === 'SIDE_A' },
