@@ -147,7 +147,7 @@ export default function App() {
 
       <main className={`flex-grow ${activeTab !== 'dashboard' && activeTab !== 'command-center' ? 'pt-[64px]' : ''}`}>
         <AnimatePresence mode="wait">
-          {activeTab === 'home' && !currentUser && (
+          {activeTab === 'home' && (
             <HomePage
               currentUser={currentUser}
               onEnrollInProgram={handleEnrollInProgram}

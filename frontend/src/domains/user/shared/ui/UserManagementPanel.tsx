@@ -368,7 +368,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                 <div className="grid grid-cols-2 gap-2">
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={editingUser.phone_number || ''} onChange={e => setEditingUser(p => p ? { ...p, phone_number: e.target.value } : p)} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Gender</label>
-                    <select value={editingUser.gender || ''} onChange={e => setEditingUser(p => p ? { ...p, gender: e.target.value } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={editingUser.gender || ''} onChange={e => setEditingUser(p => p ? { ...p, gender: e.target.value as AdminUserResponse['gender'] } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
                       <option value="">Prefer not to say</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
