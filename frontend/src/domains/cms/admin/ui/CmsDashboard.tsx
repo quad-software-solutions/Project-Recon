@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, Image, FileText, Handshake, Building,
-  MessageSquare, HelpCircle, X, CheckCircle, AlertCircle,
+  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle,
 } from 'lucide-react';
 import CMSBranding from '@/src/domains/user/manager/dashboard/ui/CMSBranding';
 import HeroBannerManager from './HeroBannerManager';
@@ -11,9 +11,10 @@ import CmsPartnerManager from './CmsPartnerManager';
 import AboutUsManager from './AboutUsManager';
 import ContactRequestManager from './ContactRequestManager';
 import FaqManager from './FaqManager';
+import MapNodeManager from './MapNodeManager';
 import { api } from '../api/cmsApi';
 
-type CmsSection = 'branding' | 'hero-banners' | 'news' | 'partners' | 'about' | 'contact-requests' | 'faqs';
+type CmsSection = 'branding' | 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests';
 
 export interface Toast {
   id: string;
@@ -33,6 +34,7 @@ interface SectionCounts {
   partners: number;
   faqs: number;
   'contact-requests': number;
+  'map-nodes': number;
 }
 
 const SUB_NAV: CmsSubNavItem[] = [
@@ -41,6 +43,7 @@ const SUB_NAV: CmsSubNavItem[] = [
   { id: 'news', label: 'News & Announcements', icon: FileText },
   { id: 'partners', label: 'Partners & Sponsors', icon: Handshake },
   { id: 'about', label: 'About Us', icon: Building },
+  { id: 'map-nodes', label: 'Map Nodes', icon: MapPin },
   { id: 'faqs', label: 'FAQs', icon: HelpCircle },
   { id: 'contact-requests', label: 'Contact Requests', icon: MessageSquare },
 ];
@@ -51,6 +54,7 @@ const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.Elem
   { key: 'partners', label: 'Partners', icon: Handshake, color: 'text-amber-500 bg-amber-50' },
   { key: 'faqs', label: 'FAQs', icon: HelpCircle, color: 'text-cyan-500 bg-cyan-50' },
   { key: 'contact-requests', label: 'Contacts', icon: MessageSquare, color: 'text-rose-500 bg-rose-50' },
+  { key: 'map-nodes', label: 'Map Nodes', icon: MapPin, color: 'text-orange-500 bg-orange-50' },
 ];
 
 let toastCounter = 0;
@@ -59,15 +63,15 @@ export default function CmsDashboard() {
   const [section, setSection] = useState<CmsSection>('branding');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
-    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1,
+    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1,
   });
 
   useEffect(() => {
     (async () => {
       try {
-        const [heroBanners, news, partners, faqs, contactRequests] = await Promise.all([
+        const [heroBanners, news, partners, faqs, contactRequests, mapNodes] = await Promise.all([
           api.getAll('hero-banners'), api.getAll('news'), api.getAll('partners'),
-          api.getAll('faqs'), api.getAll('contact-requests'),
+          api.getAll('faqs'), api.getAll('contact-requests'), api.getAll('map-nodes'),
         ]);
         setCounts({
           'hero-banners': heroBanners.length,
@@ -75,6 +79,7 @@ export default function CmsDashboard() {
           partners: partners.length,
           faqs: faqs.length,
           'contact-requests': contactRequests.length,
+          'map-nodes': mapNodes.length,
         });
       } catch {}
     })();
@@ -148,6 +153,7 @@ export default function CmsDashboard() {
             {section === 'about' && <AboutUsManager addToast={addToast} />}
             {section === 'faqs' && <FaqManager addToast={addToast} />}
             {section === 'contact-requests' && <ContactRequestManager addToast={addToast} />}
+            {section === 'map-nodes' && <MapNodeManager addToast={addToast} />}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -1,0 +1,143 @@
+Unused files (45)
+components/ui/button.tsx                                 
+lib/utils.ts                                             
+src/api/account.api.ts                                   
+src/api/auth.api.ts                                      
+src/api/client.ts                                        
+src/api/index.ts                                         
+src/api/types/account.types.ts                           
+src/api/types/auth.types.ts                              
+src/api/types/common.types.ts                            
+src/app/config/index.ts                                  
+src/app/providers/index.tsx                              
+src/app/router/index.ts                                  
+src/domains/auth/login/model/useLogin.ts                 
+src/domains/auth/model/useAuth.ts                        
+src/domains/auth/register/model/useRegister.ts           
+src/domains/cms/admin/api/index.ts                       
+src/domains/cms/api/cmsApi.ts                            
+src/domains/competition/admin/index.ts                   
+src/domains/competition/judging/model/scoring.ts         
+src/domains/competition/matches/model/matchEngine.ts     
+src/domains/competition/matches/ui/MatchScoreboard.tsx   
+src/domains/competition/tournaments/model/types.ts       
+src/domains/forum/comments/model/commentApi.ts           
+src/domains/learning/certificates/model/types.ts         
+src/domains/learning/courses/model/types.ts              
+src/domains/learning/programs/model/types.ts             
+src/domains/learning/simulator/model/engine.ts           
+src/domains/store/cart/model/useCart.ts                  
+src/domains/store/checkout/model/useCheckout.ts          
+src/domains/store/products/model/useProducts.ts          
+src/domains/user/manager/dashboard/ui/MediaContent.tsx   
+src/domains/user/manager/model/types.ts                  
+src/domains/user/secretary/model/types.ts                
+src/domains/user/shared/model/types.ts                   
+src/domains/user/student/dashboard/ui/ProfileOverview.tsx
+src/domains/user/student/model/types.ts                  
+src/domains/user/teacher/model/types.ts                  
+src/shared/constants/index.ts                            
+src/shared/hooks/useDebounce.ts                          
+src/shared/hooks/useLocalStorage.ts                      
+src/shared/ui/AccountSettings.tsx                        
+src/shared/ui/Card.tsx                                   
+src/shared/ui/FeaturePlaceholder.tsx                     
+src/shared/ui/Input.tsx                                  
+src/shared/utils/format.ts                               
+Unused dependencies (8)
+@base-ui/react            package.json:14:6
+@google/genai             package.json:16:6
+class-variance-authority  package.json:19:6
+clsx                      package.json:20:6
+dotenv                    package.json:21:6
+express                   package.json:22:6
+tailwind-merge            package.json:28:6
+tw-animate-css            package.json:29:6
+Unused devDependencies (4)
+@types/express  package.json:33:6
+autoprefixer    package.json:35:6
+esbuild         package.json:36:6
+vite            package.json:40:6
+Unused exports (31)
+getPublicTournamentDetail            eventsApi  function  src/domains/competition/api/eventsApi.ts:220:17         
+getPublicTournamentWinner            eventsApi  function  src/domains/competition/api/eventsApi.ts:228:17         
+getPublicWorkshops                   eventsApi  function  src/domains/competition/api/eventsApi.ts:236:17         
+getPublicWorkshopDetail              eventsApi  function  src/domains/competition/api/eventsApi.ts:240:17         
+cancelMyRegistration                 eventsApi  function  src/domains/competition/api/eventsApi.ts:254:17         
+adminGetEvent                        eventsApi  function  src/domains/competition/api/eventsApi.ts:268:17         
+adminPatchEvent                      eventsApi  function  src/domains/competition/api/eventsApi.ts:276:17         
+adminGetTournament                   eventsApi  function  src/domains/competition/api/eventsApi.ts:310:17         
+adminPatchTournament                 eventsApi  function  src/domains/competition/api/eventsApi.ts:318:17         
+adminGetTournamentCategory           eventsApi  function  src/domains/competition/api/eventsApi.ts:360:17         
+adminGetTeam                         eventsApi  function  src/domains/competition/api/eventsApi.ts:382:17         
+adminGetWorkshop                     eventsApi  function  src/domains/competition/api/eventsApi.ts:442:17         
+adminInitializeOnlinePayment         eventsApi  function  src/domains/competition/api/eventsApi.ts:486:17         
+onlineEnrollApi                                 function  src/domains/learning/academics/api/academicApi.ts:233:23
+verifyOnlinePaymentApi                          function  src/domains/learning/academics/api/academicApi.ts:237:23
+createStudentApi                                function  src/domains/learning/academics/api/academicApi.ts:258:23
+updateStudentApi                                function  src/domains/learning/academics/api/academicApi.ts:266:23
+setStudentActiveApi                             function  src/domains/learning/academics/api/academicApi.ts:270:23
+fetchAttendanceRecordsApi                       function  src/domains/learning/academics/api/academicApi.ts:288:23
+updateAttendanceRecordApi                       function  src/domains/learning/academics/api/academicApi.ts:300:23
+fetchEnrollmentAttendanceHistoryApi             function  src/domains/learning/academics/api/academicApi.ts:304:23
+updateStaffAttendanceRecordApi                  function  src/domains/learning/academics/api/academicApi.ts:337:23
+customizeMilestoneApi                           function  src/domains/learning/academics/api/academicApi.ts:358:23
+recordStudentProgressApi                        function  src/domains/learning/academics/api/academicApi.ts:370:23
+fetchStudentCertificateApi                      function  src/domains/learning/academics/api/academicApi.ts:437:23
+verifyCertificateApi                            function  src/domains/learning/academics/api/academicApi.ts:441:23
+getProgramById                                  function  src/domains/learning/programs/api/programApi.ts:44:23   
+Product                                                   src/domains/store/products/model/types.ts:11:10         
+STAFF_ROLES                                               src/shared/auth/permissions.ts:20:14                    
+normalizeRole                                   function  src/shared/auth/permissions.ts:105:17                   
+SearchInput                                     function  src/shared/ui/TopNavbar.tsx:87:17                       
+Unused exported types (50)
+RegisterData                        interface  src/domains/auth/model/types.ts:8:18                   
+NewsType                            type       src/domains/cms/admin/model/index.ts:1:13              
+PartnerType                         type       src/domains/cms/admin/model/index.ts:2:13              
+ContactStatus                       type       src/domains/cms/admin/model/index.ts:3:13              
+ContactPriority                     type       src/domains/cms/admin/model/index.ts:4:13              
+PaginatedResponse                   interface  src/domains/cms/admin/model/index.ts:109:18            
+PaginatedResponse                   interface  src/domains/cms/shared/api/cmsApi.ts:47:18             
+EventStatus              eventsApi  type       src/domains/competition/api/eventsApi.ts:5:13          
+MatchStatus              eventsApi  type       src/domains/competition/api/eventsApi.ts:9:13          
+PaymentStatus            eventsApi  type       src/domains/competition/api/eventsApi.ts:11:13         
+BackendMatchSide         eventsApi  interface  src/domains/competition/api/eventsApi.ts:100:18        
+BackendMatchParticipant  eventsApi  interface  src/domains/competition/api/eventsApi.ts:110:18        
+BackendEventPayment      eventsApi  interface  src/domains/competition/api/eventsApi.ts:164:18        
+PaginatedResponse        eventsApi  interface  src/domains/competition/api/eventsApi.ts:183:18        
+OnlineEnrollmentPayload             type       src/domains/learning/academics/api/academicApi.ts:40:13
+AppRole                             type       src/shared/auth/permissions.ts:3:13                    
+UpdatePost                          interface  src/shared/types/index.ts:44:18                        
+SubscriptionTier                    interface  src/shared/types/index.ts:77:18                        
+EventVisibility                     type       src/shared/types/index.ts:116:13                       
+EventType                           type       src/shared/types/index.ts:118:13                       
+WorkshopLevel                       type       src/shared/types/index.ts:119:13                       
+TournamentTeam                      interface  src/shared/types/index.ts:177:18                       
+ForumReply                          interface  src/shared/types/index.ts:216:18                       
+VideoCourse                         interface  src/shared/types/index.ts:225:18                       
+VideoLesson                         interface  src/shared/types/index.ts:240:18                       
+Referral                            interface  src/shared/types/index.ts:262:18                       
+LeaderboardEntry                    interface  src/shared/types/index.ts:272:18                       
+ChatMessage                         interface  src/shared/types/index.ts:284:18                       
+VexAward                            interface  src/shared/types/index.ts:320:18                       
+VexNotebookEntry                    interface  src/shared/types/index.ts:332:18                       
+ClassType                           type       src/shared/types/index.ts:355:13                       
+DurationUnit                        type       src/shared/types/index.ts:356:13                       
+EnrollmentStatus                    type       src/shared/types/index.ts:357:13                       
+PaymentMethod                       type       src/shared/types/index.ts:358:13                       
+PaymentProvider                     type       src/shared/types/index.ts:359:13                       
+PaymentStatus                       type       src/shared/types/index.ts:360:13                       
+AttendanceStatus                    type       src/shared/types/index.ts:361:13                       
+SessionStatus                       type       src/shared/types/index.ts:362:13                       
+ProgressStatus                      type       src/shared/types/index.ts:363:13                       
+MaterialType                        type       src/shared/types/index.ts:364:13                       
+PartnerTier                         type       src/shared/types/index.ts:575:13                       
+PartnerType                         type       src/shared/types/index.ts:576:13                       
+SponsorPartner                      interface  src/shared/types/index.ts:578:18                       
+VexCompetitionRole                  type       src/shared/types/index.ts:599:13                       
+VexRoleAssignment                   interface  src/shared/types/index.ts:604:18                       
+SchoolPartner                       interface  src/shared/types/index.ts:617:18                       
+RegistrationRecord                  interface  src/shared/types/index.ts:633:18                       
+StaffAttendanceSession              interface  src/shared/types/index.ts:657:18                       
+StaffAttendanceRecord               interface  src/shared/types/index.ts:672:18                       
+DashboardSignal                     interface  src/shared/ui/DashboardCommandCenter.tsx:5:18          

@@ -6,6 +6,7 @@ import type {
   AboutUs as ModelAboutUs,
   ContactRequest as ModelContactRequest,
   FAQ,
+  MapNodeModel,
 } from '../model';
 
 export type HeroBanner = ModelHeroBanner;
@@ -14,6 +15,7 @@ export type Partner = ModelPartner;
 export type AboutUs = ModelAboutUs;
 export type ContactRequest = ModelContactRequest;
 export type Faq = FAQ;
+export type MapNode = MapNodeModel;
 
 const PREFIX = '/cms/admin';
 
@@ -70,6 +72,10 @@ function withUiAliases<T>(endpoint: string, item: T): T {
     if (typeof record.status === 'string') {
       record.status = STATUS_TO_UI[record.status] ?? record.status.toLowerCase();
     }
+  }
+  if (endpoint === 'map-nodes') {
+    record.imageUrl = record.image;
+    record.isActive = record.is_active;
   }
   return item;
 }
@@ -144,6 +150,19 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
     'contact-requests': {
       status: 'status',
       priority: 'priority',
+    },
+    'map-nodes': {
+      city: 'city',
+      country: 'country',
+      title: 'title',
+      achievement: 'achievement',
+      x: 'x',
+      y: 'y',
+      lat: 'lat',
+      lng: 'lng',
+      image: ['imageUrl', 'image'],
+      category: 'category',
+      is_active: ['isActive', 'is_active'],
     },
   };
 

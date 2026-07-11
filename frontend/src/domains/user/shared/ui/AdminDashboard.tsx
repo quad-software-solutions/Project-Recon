@@ -49,7 +49,6 @@ import { getNotifications } from '@/src/domains/notification/model/notificationA
 import { getAnalytics } from '@/src/domains/analytics/model/analyticsApi';
 import UserManagementPanel from './UserManagementPanel';
 import AdminAccount from './AdminAccount';
-import SystemHealth from './SystemHealth';
 import SystemLogs from './SystemLogs';
 import AdminOverviewDashboard from './AdminOverviewDashboard';
 import RolesPermissionsPanel from './RolesPermissionsPanel';
