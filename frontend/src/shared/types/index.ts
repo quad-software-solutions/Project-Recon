@@ -333,6 +333,7 @@ export type PaymentMethod = 'CASH' | 'ONLINE';
 export type PaymentProvider = 'CHAPA' | 'STRIPE';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+export type SessionStatus = 'DRAFT' | 'PUBLISHED';
 export type ProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 export type MaterialType = 'PDF' | 'PPT' | 'PPTX' | 'DOC' | 'DOCX' | 'IMAGE' | 'ZIP' | 'OTHER';
 
@@ -625,4 +626,30 @@ export interface AnalyticsData {
   programDistribution: { program: string; count: number; color: string }[];
   topMetrics: { label: string; value: string; change: string; trend: 'up' | 'down' }[];
   recentTransactions: { id: string; student: string; amount: number; type: string; date: string; status: string }[];
+}
+
+export interface StaffAttendanceSession {
+  id: string;
+  branch: string;
+  branch_name?: string;
+  date: string;
+  status: SessionStatus;
+  notes: string;
+  created_by: string;
+  created_by_name?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  records?: StaffAttendanceRecord[];
+}
+
+export interface StaffAttendanceRecord {
+  id: string;
+  session: string;
+  staff_member: string;
+  staff_member_name?: string;
+  status: AttendanceStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }

@@ -7,7 +7,7 @@ import {
   Handshake, UserCog, Swords, Medal, Wrench, ClipboardList, Cpu, Star, Target,
   Edit3, Trash2, Eye, EyeOff, Search, Filter, Download, ChevronDown, Save, X,
   UserPlus, UserCheck, UserX, Lock, Globe, Zap, TrendingUp, TrendingDown,
-  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch, BellOff, CheckCircle2
+  Mail, Phone, MapPin, Camera, Sparkles, Send, Loader2, Archive, LayoutDashboard, GitBranch, BellOff, CheckCircle2, Calendar, UserCheck as UserCheckIcon, Trophy
 } from 'lucide-react';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
@@ -15,6 +15,15 @@ import CmsDashboard from '@/src/domains/cms/admin/ui/CmsDashboard';
 import { NavItem } from '@/src/shared/ui/Sidebar';
 import { BranchSectionShell } from '@/src/domains/branches/ui/BranchSectionShell';
 import AcademicCatalogManager from '@/src/domains/learning/academics/ui/AcademicCatalogManager';
+import ClassManagerPanel from './ClassManagerPanel';
+import StaffAttendanceManager from './StaffAttendanceManager';
+import EventManager from '@/src/domains/competition/admin/EventManager';
+import TournamentManager from '@/src/domains/competition/admin/TournamentManager';
+import TeamManager from '@/src/domains/competition/admin/TeamManager';
+import MatchManager from '@/src/domains/competition/admin/MatchManager';
+import WorkshopManager from '@/src/domains/competition/admin/WorkshopManager';
+import RegistrationManager from '@/src/domains/competition/admin/RegistrationManager';
+import CertificateManager from '@/src/domains/user/shared/ui/CertificateManager';
 import { ErrorModal } from '@/src/shared/ui/ErrorModal';
 import type { UserProfile, AppNotification, Enrollment, EnrollmentPayment } from '@/src/shared/types';
 import { fetchEnrollmentsApi, fetchPaymentsApi } from '@/src/domains/learning/academics/api/academicApi';
@@ -43,23 +52,37 @@ import SystemLogs from './SystemLogs';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'users' | 'roles' | 'academics' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms';
+type SectionId = 'users' | 'roles' | 'academics' | 'classes' | 'staff-attendance' | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events' | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops' | 'event-registrations' | 'certificates';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'users', label: 'Accounts & Users', icon: Users, group: 'main' },
   { id: 'roles', label: 'Roles & Permissions', icon: Shield, group: 'main' },
   { id: 'academics', label: 'Academic Catalog', icon: GraduationCap, group: 'main' },
+  { id: 'classes', label: 'Classes', icon: BookOpen, group: 'main' },
   { id: 'registrations', label: 'Enrollments', icon: ClipboardList, group: 'main' },
   { id: 'branches', label: 'Branches', icon: GitBranch, group: 'main' },
+  { id: 'staff-attendance', label: 'Staff Attendance', icon: Calendar, group: 'main' },
+  { id: 'events', label: 'Events', icon: Calendar, group: 'main' },
+  { id: 'tournaments', label: 'Tournaments', icon: Trophy, group: 'main' },
+  { id: 'tournament-teams', label: 'Teams', icon: Users, group: 'main' },
+  { id: 'matches', label: 'Matches', icon: Swords, group: 'main' },
+  { id: 'workshops', label: 'Workshops', icon: GraduationCap, group: 'main' },
+  { id: 'event-registrations', label: 'Event Registrations', icon: UserPlus, group: 'main' },
+  { id: 'certificates', label: 'Certificates', icon: Award, group: 'main' },
   { id: 'cms', label: 'Content Manager', icon: LayoutDashboard, group: 'main' },
   { id: 'audit', label: 'System Logs', icon: FileText, group: 'system' },
   { id: 'account', label: 'My Account', icon: Shield, group: 'system' },
 ];
 
-const pageTitle: Record<SectionId, string> = {
+const pageTitle: Record<string, string> = {
   users: 'User Management', roles: 'Roles & Permissions',
-  academics: 'Academic Catalog',
+  academics: 'Academic Catalog', classes: 'Class Management',
+  'staff-attendance': 'Staff Attendance',
   branches: 'Branch Management', registrations: 'Registration Management',
+  events: 'Events Management', tournaments: 'Tournament Management',
+  'tournament-teams': 'Team Management', matches: 'Match Management',
+  workshops: 'Workshop Management', 'event-registrations': 'Event Registrations',
+  certificates: 'Certificate Management',
   audit: 'Audit Logs',
   cms: 'Content Management', account: 'My Account',
 };
@@ -2093,10 +2116,19 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'users': return <UserManagementPanel title="User Management" />;
       case 'roles': return <RolesPermissions />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
+      case 'classes': return <ClassManagerPanel />;
+      case 'staff-attendance': return <StaffAttendanceManager />;
       case 'branches': return <BranchSectionShell />;
       case 'audit': return <SystemLogs />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
       case 'registrations': return <AdminRegistrations />;
+      case 'events': return <EventManager />;
+      case 'tournaments': return <TournamentManager />;
+      case 'tournament-teams': return <TeamManager />;
+      case 'matches': return <MatchManager />;
+      case 'workshops': return <WorkshopManager />;
+      case 'event-registrations': return <RegistrationManager />;
+      case 'certificates': return <CertificateManager currentUserRole={currentUser.role} />;
       case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;
       default: return <UserManagementPanel title="User Management" />;
     }

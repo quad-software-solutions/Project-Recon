@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, MapPin, Users, Calendar, ChevronRight, Shield, Medal, Target, Clock,
   SearchX, CheckCircle2, ExternalLink, Sparkles, Tv, Binary, GraduationCap,
-  BookOpen, User, Clock3, DollarSign, Wrench, Cpu
+  BookOpen, User, Clock3, DollarSign, Wrench, Cpu, AlertCircle, Loader2, Search
 } from 'lucide-react';
 
 import { UserProfile, type Tournament, type Workshop, type MatchResult } from '@/src/shared/types';
-import { getTournaments, getTournamentById, getMatches, getWorkshops, getWorkshopById, registerForTournament, enrollInWorkshop } from '../../api/competitionApi';
+import { getTournaments, getTournamentById, getMatches, getWorkshops, getWorkshopById, registerForTournament, enrollInWorkshop, getPastTournaments, getPastWorkshops } from '../../api/competitionApi';
 
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed';
 type HubTab = 'tournaments' | 'workshops' | 'myteam';
@@ -42,21 +42,64 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchAll = () => {
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      getTournaments(),
+      getWorkshops(),
+      getPastTournaments(),
+      getPastWorkshops(),
+    ]).then(([ts, ws, pastTs, pastWs]) => {
+      setTournaments([...ts, ...pastTs]);
+      setWorkshops([...ws, ...pastWs]);
+    }).catch(err => {
+      console.error(err);
+      setError('Failed to load events');
+    }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchAll(); }, []);
 
   useEffect(() => {
-    getTournaments().then(setTournaments).catch(console.error);
-    getMatches().then(setMatches).catch(console.error);
-    getWorkshops().then(setWorkshops).catch(console.error);
-  }, []);
+    if (selectedTournament) {
+      getMatches(selectedTournament).then(setMatches).catch(console.error);
+    } else {
+      setMatches([]);
+    }
+  }, [selectedTournament]);
 
   const filtered = statusFilter === 'all' ? tournaments : tournaments.filter(t => t.status === statusFilter);
+  const searched = searchQuery ? filtered.filter(t =>
+    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.location.toLowerCase().includes(searchQuery.toLowerCase())
+  ) : filtered;
   const selected = tournaments.find(t => t.id === selectedTournament);
   const selectedMatches = matches.filter(m => m.tournamentId === selectedTournament);
   const isRegistered = selected ? registeredIds.includes(selected.id) : false;
 
-  const filteredWorkshops = statusFilter === 'all' ? workshops : workshops.filter(w => w.status === statusFilter);
+  const filteredWorkshops = statusFilter === 'all' ? workshops : workshops.filter(w => {
+    if (statusFilter === 'live') return w.status === 'ongoing';
+    return w.status === statusFilter;
+  });
+  const searchedWorkshops = searchQuery ? filteredWorkshops.filter(w =>
+    w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.instructor.toLowerCase().includes(searchQuery.toLowerCase())
+  ) : filteredWorkshops;
   const selectedWorkshopData = workshops.find(w => w.id === selectedWorkshop);
   const isEnrolled = selectedWorkshopData ? enrolledIds.includes(selectedWorkshopData.id) : false;
+
+  const counts = {
+    all: tournaments.length + workshops.length,
+    upcoming: tournaments.filter(t => t.status === 'upcoming').length + workshops.filter(w => w.status === 'upcoming' || w.status === 'ongoing').length,
+    live: tournaments.filter(t => t.status === 'live').length,
+    completed: tournaments.filter(t => t.status === 'completed').length + workshops.filter(w => w.status === 'completed').length,
+  };
 
   const sc: Record<string, { bg: string; text: string; dot: string }> = {
     upcoming: { bg: 'bg-brand-blue/10', text: 'text-brand-blue', dot: 'bg-brand-blue' },
@@ -64,20 +107,28 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
     completed: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', dot: 'bg-emerald-500' },
   };
 
-  const FILTERS: { id: StatusFilter; icon: React.ElementType }[] = [
-    { id: 'all', icon: Binary },
-    { id: 'upcoming', icon: Calendar },
-    { id: 'live', icon: Tv },
-    { id: 'completed', icon: CheckCircle2 },
+  const FILTERS: { id: StatusFilter; icon: React.ElementType; label: string }[] = [
+    { id: 'all', icon: Binary, label: 'All' },
+    { id: 'upcoming', icon: Calendar, label: 'Upcoming' },
+    { id: 'live', icon: Tv, label: 'Live' },
+    { id: 'completed', icon: CheckCircle2, label: 'Completed' },
   ];
 
-  const handleRegister = (tournamentId: string) => {
-    registerForTournament(tournamentId);
-    setRegisteredIds(prev => [...prev, tournamentId]);
+  const handleRegister = async (tournamentId: string) => {
+    try {
+      await registerForTournament(tournamentId);
+      setRegisteredIds(prev => [...prev, tournamentId]);
+    } catch {
+      setError('Registration failed. Please try again.');
+    }
   };
-  const handleEnroll = (workshopId: string) => {
-    enrollInWorkshop(workshopId);
-    setEnrolledIds(prev => [...prev, workshopId]);
+  const handleEnroll = async (workshopId: string) => {
+    try {
+      await enrollInWorkshop(workshopId);
+      setEnrolledIds(prev => [...prev, workshopId]);
+    } catch {
+      setError('Enrollment failed. Please try again.');
+    }
   };
 
   const switchTab = (tab: HubTab) => {
@@ -85,6 +136,7 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
     setSelectedTournament(null);
     setSelectedWorkshop(null);
     setStatusFilter('all');
+    setSearchQuery('');
   };
 
   return (
@@ -100,20 +152,24 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-red/10 border border-brand-red/20 text-brand-red rounded-full mb-3">
             <Sparkles className="w-3 h-3" />
             <span className="font-black text-[9px] uppercase tracking-[0.2em]">
-              {hubTab === 'tournaments' ? 'Competition Hub' : 'Workshop Center'}
+              {hubTab === 'tournaments' ? 'Competition Hub' : hubTab === 'workshops' ? 'Workshop Center' : 'My Registrations'}
             </span>
           </div>
           <h1 className="font-black text-3xl md:text-4xl text-white tracking-tight">
             {hubTab === 'tournaments' ? (
               <>Tournaments & <span className="text-brand-red">Championships</span></>
-            ) : (
+            ) : hubTab === 'workshops' ? (
               <>Hands-On <span className="text-brand-red">Workshops</span></>
+            ) : (
+              <>My <span className="text-brand-red">Registrations</span></>
             )}
           </h1>
           <p className="text-slate-500 mt-2 max-w-2xl font-medium">
             {hubTab === 'tournaments'
               ? 'Register, track, and follow robotics competitions across Ethiopia and Africa. Live scores, standings & team registration.'
-              : 'Build skills with intensive hands-on training sessions led by expert instructors. For all levels and ages.'}
+              : hubTab === 'workshops'
+              ? 'Build skills with intensive hands-on training sessions led by expert instructors. For all levels and ages.'
+              : 'View and manage your tournament registrations and workshop enrollments.'}
           </p>
         </motion.div>
 
@@ -140,10 +196,18 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
           })}
         </div>
 
+        {/* Search */}
+        <div className="relative mb-4 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={`Search ${hubTab === 'tournaments' ? 'tournaments' : 'workshops'}...`}
+            className="w-full pl-10 pr-4 py-2.5 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 transition-all" />
+        </div>
+
         {/* Filters */}
         <div className="flex gap-2 mb-8 flex-wrap">
           {FILTERS.map(f => {
             const Icon = f.icon;
+            const count = counts[f.id];
             return (
               <button key={f.id} onClick={() => { setStatusFilter(f.id); setSelectedTournament(null); setSelectedWorkshop(null); }}
                 className={`text-xs font-black uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 ${
@@ -153,16 +217,32 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {f.id}
+                {f.label}
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusFilter === f.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                  {count}
+                </span>
               </button>
             );
           })}
         </div>
 
         {/* Content */}
-        {hubTab === 'tournaments' ? (
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
+              <p className="text-xs text-slate-400 font-medium">Loading events...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+            <p className="text-sm font-bold text-red-700">{error}</p>
+            <button onClick={() => window.location.reload()} className="mt-3 text-xs font-bold text-red-600 underline">Try again</button>
+          </div>
+        ) : hubTab === 'tournaments' ? (
           <TournamentsView
-            filtered={filtered}
+            filtered={searched}
             selected={selected}
             selectedMatches={selectedMatches}
             isRegistered={isRegistered}
@@ -174,7 +254,7 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
           />
         ) : hubTab === 'workshops' ? (
           <WorkshopsView
-            filteredWorkshops={filteredWorkshops}
+            filteredWorkshops={searchedWorkshops}
             selectedWorkshopData={selectedWorkshopData}
             isEnrolled={isEnrolled}
             statusFilter={statusFilter}
@@ -182,12 +262,13 @@ export default function CompetitionHub({ currentUser }: CompetitionHubProps) {
             onEnroll={handleEnroll}
           />
         ) : (
-          <div className="bg-white border border-slate-200 rounded-3xl p-12 flex flex-col items-center text-center">
-            <Cpu className="w-16 h-16 text-slate-300 mb-4" />
-            <h3 className="font-black text-xl text-slate-700 mb-2">VEX Team Management</h3>
-            <p className="text-sm text-slate-400 max-w-md mb-6">Full VEX team tools — robots, awards, matches, and engineering notebook — are now in the Manager Dashboard.</p>
-            <p className="text-xs text-slate-500">Log in with <strong className="text-brand-red">manager@gmail.com</strong> or <strong className="text-brand-red">event@gmail.com</strong> and navigate to the VEX sections.</p>
-          </div>
+          <MyRegistrationsView
+            currentUser={currentUser}
+            tournaments={tournaments}
+            workshops={workshops}
+            registeredIds={registeredIds}
+            enrolledIds={enrolledIds}
+          />
         )}
       </div>
     </div>
@@ -608,5 +689,101 @@ function WorkshopsView({
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// ── My Registrations ──
+function MyRegistrationsView({ currentUser, tournaments, workshops, registeredIds, enrolledIds }: {
+  currentUser?: UserProfile | null;
+  tournaments: Tournament[];
+  workshops: Workshop[];
+  registeredIds: string[];
+  enrolledIds: string[];
+}) {
+  const myTournaments = tournaments.filter(t => registeredIds.includes(t.id));
+  const myWorkshops = workshops.filter(w => enrolledIds.includes(w.id));
+  const hasRegistrations = myTournaments.length > 0 || myWorkshops.length > 0;
+
+  if (!currentUser) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-3xl p-14 flex flex-col items-center text-center max-w-lg mx-auto"
+      >
+        <Cpu className="w-16 h-16 text-slate-300 mb-4" />
+        <h3 className="font-black text-xl text-slate-700 mb-2">Sign In Required</h3>
+        <p className="text-sm text-slate-400 max-w-sm mb-6 leading-relaxed">
+          Sign in to register for tournaments, enroll in workshops, and manage your team profile — all in one place.
+        </p>
+        <a href="/login"
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-8 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider shadow-lg shadow-brand-red/25 hover:shadow-xl active:scale-95 transition-all"
+        >
+          <User className="w-4 h-4" /> Sign In
+        </a>
+      </motion.div>
+    );
+  }
+
+  if (!hasRegistrations) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-3xl p-14 flex flex-col items-center text-center max-w-lg mx-auto"
+      >
+        <Cpu className="w-16 h-16 text-slate-300 mb-4" />
+        <h3 className="font-black text-xl text-slate-700 mb-2">No Registrations Yet</h3>
+        <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
+          You haven&apos;t registered for any tournaments or workshops yet. Browse the tabs above to find competitions or training sessions to join.
+        </p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {myTournaments.length > 0 && (
+        <div>
+          <h3 className="font-black text-base text-slate-900 mb-4 flex items-center gap-2 uppercase tracking-tight">
+            <Trophy className="w-4 h-4 text-brand-red" />
+            Registered Tournaments ({myTournaments.length})
+          </h3>
+          <div className="flex flex-col gap-3">
+            {myTournaments.map(t => (
+              <div key={t.id} className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="font-black text-sm text-slate-900">{t.name}</h4>
+                  <span className="text-[9px] font-black text-white px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-500 to-emerald-600">Registered</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t.date}</span>
+                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{t.location}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {myWorkshops.length > 0 && (
+        <div>
+          <h3 className="font-black text-base text-slate-900 mb-4 flex items-center gap-2 uppercase tracking-tight">
+            <GraduationCap className="w-4 h-4 text-brand-red" />
+            Enrolled Workshops ({myWorkshops.length})
+          </h3>
+          <div className="flex flex-col gap-3">
+            {myWorkshops.map(w => (
+              <div key={w.id} className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="font-black text-sm text-slate-900">{w.title}</h4>
+                  <span className="text-[9px] font-black text-white px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-500 to-emerald-600">Enrolled</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{w.date}</span>
+                  <span className="flex items-center gap-1"><Clock3 className="w-3 h-3" />{w.duration}</span>
+                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{w.location?.split(',')[0]}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 }
