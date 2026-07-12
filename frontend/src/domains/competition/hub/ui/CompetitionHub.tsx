@@ -546,10 +546,14 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
                 const tEvent = event as Tournament;
                 return (
                   <motion.div key={event.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-brand-red/20 hover:-translate-y-0.5 transition-all duration-300"
+                    className={`group bg-white rounded-2xl border overflow-hidden transition-all duration-300 ${
+                      isTournament && tEvent.isClosed
+                        ? 'border-slate-200 opacity-70 hover:opacity-80'
+                        : 'border-slate-200 hover:shadow-xl hover:border-brand-red/20 hover:-translate-y-0.5'
+                    }`}
                   >
                     {/* Top accent */}
-                    <div className={`h-1.5 ${isLive ? 'bg-gradient-to-r from-red-500 to-red-400' : 'bg-gradient-to-r from-brand-red/60 to-brand-blue/60'}`} />
+                    <div className={`h-1.5 ${isTournament && tEvent.isClosed ? 'bg-slate-300' : isLive ? 'bg-gradient-to-r from-red-500 to-red-400' : 'bg-gradient-to-r from-brand-red/60 to-brand-blue/60'}`} />
 
                     {/* Header */}
                     <div className="px-5 pt-4 pb-2 flex items-center justify-between">
@@ -674,7 +678,11 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
                       >
                         <ExternalLink className="w-3 h-3" /> Details
                       </button>
-                      {isRegistered(event.id) ? (
+                      {isTournament && tEvent.isClosed ? (
+                        <div className="flex-1 bg-slate-200 text-slate-500 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5" /> Tournament Closed
+                        </div>
+                      ) : isRegistered(event.id) ? (
                         <div className="flex-1 bg-emerald-50 text-emerald-600 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Registered
                         </div>
@@ -769,8 +777,16 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
               </button>
             </div>
             <div className="p-6 space-y-4">
-              {regTarget && (() => {
+              {(() => {
                 const ev = allEvents.find(e => e.id === regTarget.id);
+                if (ev?.eventType === 'TOURNAMENT' && (ev as Tournament).isClosed) {
+                  return (
+                    <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+                      <p className="text-[11px] font-bold text-slate-600">This tournament is closed — registration unavailable</p>
+                    </div>
+                  );
+                }
                 if (ev?.paymentRequired && ev.registrationFee) {
                   return (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
@@ -808,10 +824,10 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
               )}
             </div>
             <div className="p-6 pt-0">
-              <button onClick={submitRegistration} disabled={regSubmitting}
+              <button onClick={submitRegistration} disabled={regSubmitting || (() => { const ev = allEvents.find(e => e.id === regTarget?.id); return ev?.eventType === 'TOURNAMENT' && (ev as Tournament).isClosed; })()}
                 className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 hover:shadow-xl disabled:opacity-50 transition-all"
               >
-                {regSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting...</> : <><Shield className="w-4 h-4" />Confirm Registration</>}
+                {(() => { const ev = allEvents.find(e => e.id === regTarget?.id); if (ev?.eventType === 'TOURNAMENT' && (ev as Tournament).isClosed) return <><Lock className="w-4 h-4" />Closed</>; })() || (regSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting...</> : <><Shield className="w-4 h-4" />Confirm Registration</>)}
               </button>
             </div>
           </div>
