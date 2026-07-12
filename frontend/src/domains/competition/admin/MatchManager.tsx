@@ -133,6 +133,13 @@ export default function MatchManager() {
   /* Confirm modal */
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
 
+  /* Countdown state */
+  const [countdown, setCountdown] = useState<{ matchId: string; matchName: string; count: number } | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* Bulk close state */
+  const [bulkClose, setBulkClose] = useState<{ show: boolean; type: 'matches' | 'tournaments' | 'all'; loading: boolean; progress: string }>({ show: false, type: 'matches', loading: false, progress: '' });
+
   /* Match timer state */
   const [elapsedMap, setElapsedMap] = useState<Record<string, string>>({});
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -271,26 +278,82 @@ export default function MatchManager() {
     });
   };
 
-  const handleStartMatch = async (id: string) => {
+  const doStartMatch = async (id: string) => {
+    const match = matches.find(m => m.id === id);
+    if (!match) return;
+    try {
+      await eventsApi.adminUpdateMatch(id, { status: 'LIVE' as any });
+      addToast('success', `"${match.round}" is LIVE! Timer started.`);
+      load();
+      if (selectedMatch?.id === id) {
+        const updated = await eventsApi.adminGetMatch(id);
+        setSelectedMatch(updated);
+      }
+    } catch (err: any) { addToast('error', `Start failed: ${err.message}`); }
+  };
+
+  const handleStartMatch = (id: string) => {
     const match = matches.find(m => m.id === id);
     if (!match) return;
     setConfirm({
       title: 'Start Alliance Match',
-      message: `Start "${match.round}"? The match timer will begin and the field will go LIVE.`,
-      confirmLabel: 'Start Match',
+      message: `Start "${match.round}"? A 5-second countdown will play before the match goes LIVE.`,
+      confirmLabel: 'Begin Countdown',
       variant: 'primary',
-      onConfirm: async () => {
-        try {
-          await eventsApi.adminUpdateMatch(id, { status: 'LIVE' as any });
-          addToast('success', `"${match.round}" is LIVE! Timer started.`);
-          load();
-          if (selectedMatch?.id === id) {
-            const updated = await eventsApi.adminGetMatch(id);
-            setSelectedMatch(updated);
-          }
-        } catch (err: any) { addToast('error', `Start failed: ${err.message}`); }
+      onConfirm: () => {
+        setCountdown({ matchId: id, matchName: match.round, count: 5 });
       },
     });
+  };
+
+  /* Countdown effect - runs once when countdown shows, ticks every second until 0 then fires match start */
+  useEffect(() => {
+    if (!countdown) return;
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (!prev) return null;
+        if (prev.count <= 1) {
+          if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+          doStartMatch(prev.matchId);
+          return null;
+        }
+        return { ...prev, count: prev.count - 1 };
+      });
+    }, 1000);
+    return () => { if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; } };
+  }, [!!countdown]);
+
+  /* ─── Bulk Close ─── */
+  const handleBulkClose = async () => {
+    setBulkClose(prev => ({ ...prev, loading: true, progress: 'Preparing...' }));
+    try {
+      if (bulkClose.type === 'matches' || bulkClose.type === 'all') {
+        const openMatches = matches.filter(m => m.status === 'SCHEDULED' || m.status === 'LIVE');
+        for (let i = 0; i < openMatches.length; i++) {
+          const m = openMatches[i];
+          setBulkClose(prev => ({ ...prev, progress: `Completing match ${i + 1}/${openMatches.length}: ${m.round}` }));
+          try {
+            if (m.status === 'LIVE') await eventsApi.adminRecordMatchScores(m.id, { side_a_score: m.sides?.find(s => s.side === 'SIDE_A')?.score ?? 0, side_b_score: m.sides?.find(s => s.side === 'SIDE_B')?.score ?? 0 });
+            await eventsApi.adminCompleteMatch(m.id);
+          } catch { /* skip individual failures */ }
+        }
+      }
+      if (bulkClose.type === 'tournaments' || bulkClose.type === 'all') {
+        const openTournaments = tournaments.filter((t: any) => !t.is_closed);
+        for (let i = 0; i < openTournaments.length; i++) {
+          const t = openTournaments[i];
+          setBulkClose(prev => ({ ...prev, progress: `Closing tournament ${i + 1}/${openTournaments.length}: ${t.event_title || t.event || t.id.slice(0, 8)}` }));
+          try { await eventsApi.adminCloseTournament(t.id); } catch { /* skip */ }
+        }
+      }
+      addToast('success', `Bulk close complete! Processed all ${bulkClose.type === 'all' ? 'matches and tournaments' : bulkClose.type}.`, 'Bulk Operation');
+      setBulkClose(prev => ({ ...prev, show: false, loading: false }));
+      load();
+    } catch (err: any) {
+      addToast('error', err.message || 'Bulk close failed');
+      setBulkClose(prev => ({ ...prev, loading: false }));
+    }
   };
 
   /* ─── Auto Generate ─── */
@@ -525,6 +588,7 @@ export default function MatchManager() {
           <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rounds..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
           <button onClick={() => { setStandingsTournament(tournamentFilter === 'all' ? '' : tournamentFilter); setShowStandings(true); }}
             className="px-3 py-2 bg-purple-50 text-purple-700 font-black text-xs rounded-xl hover:bg-purple-100 flex items-center gap-1.5 border border-purple-200"><Target className="w-4 h-4" /> Standings</button>
+          <button onClick={() => setBulkClose(prev => ({ ...prev, show: true }))} className="px-3 py-2 bg-red-50 text-red-700 font-black text-xs rounded-xl hover:bg-red-100 flex items-center gap-1.5 border border-red-200"><XCircle className="w-4 h-4" /> Close All</button>
           <button onClick={() => setShowAutoGen(true)} className="px-3 py-2 bg-emerald-50 text-emerald-700 font-black text-xs rounded-xl hover:bg-emerald-100 flex items-center gap-1.5 border border-emerald-200"><Wand2 className="w-4 h-4" /> Auto Alliance</button>
           <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25"><Plus className="w-4 h-4" /> New Match</button>
         </div>
@@ -1271,6 +1335,89 @@ export default function MatchManager() {
             </motion.div>
           </div>
         )}
+        {/* Countdown Overlay */}
+        {countdown && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
+            <motion.div
+              key={countdown.count}
+              initial={{ opacity: 0, scale: 2 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className="relative z-10 text-center"
+            >
+              <motion.span
+                key={countdown.count}
+                initial={{ opacity: 0, y: -40 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-[180px] font-black text-white drop-shadow-2xl"
+                style={{ textShadow: '0 0 60px rgba(255,255,255,0.3)' }}
+              >
+                {countdown.count === 0 ? 'GO!' : countdown.count}
+              </motion.span>
+              <p className="text-white/60 text-sm mt-4 font-bold tracking-widest uppercase">{countdown.matchName}</p>
+              <div className="flex items-center justify-center gap-1 mt-2">
+                {[5, 4, 3, 2, 1].map(n => (
+                  <div key={n} className={`w-2 h-2 rounded-full transition-all ${n <= countdown.count ? 'bg-white scale-100' : 'bg-white/20 scale-75'}`} />
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Bulk Close Modal */}
+        {bulkClose.show && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { if (!bulkClose.loading) setBulkClose(prev => ({ ...prev, show: false })); }} className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 z-10">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              {bulkClose.loading ? (
+                <div className="flex flex-col items-center gap-4 py-4">
+                  <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+                  <p className="text-sm font-medium text-slate-700 text-center">{bulkClose.progress}</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-black text-lg text-slate-900 mb-1">Bulk Close</h3>
+                  <p className="text-sm text-slate-600 mb-4">What would you like to close?</p>
+                  <div className="flex flex-col gap-2 mb-6">
+                    {([
+                      { id: 'matches' as const, label: 'All Open Matches', desc: `Complete ${matches.filter(m => m.status === 'SCHEDULED' || m.status === 'LIVE').length} scheduled/live matches` },
+                      { id: 'tournaments' as const, label: 'All Open Tournaments', desc: `Close ${tournaments.filter((t: any) => !t.is_closed).length} open tournaments` },
+                      { id: 'all' as const, label: 'Both (Everything)', desc: `Complete all matches and close all tournaments` },
+                    ]).map(opt => (
+                      <button key={opt.id} onClick={() => setBulkClose(prev => ({ ...prev, type: opt.id }))}
+                        className={`flex items-start gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                          bulkClose.type === opt.id ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                          bulkClose.type === opt.id ? 'border-red-500' : 'border-slate-300'
+                        }`}>
+                          {bulkClose.type === opt.id && <div className="w-2.5 h-2.5 rounded-full bg-red-500" />}
+                        </div>
+                        <div>
+                          <p className={`text-xs font-bold ${bulkClose.type === opt.id ? 'text-red-700' : 'text-slate-700'}`}>{opt.label}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{opt.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-end gap-3">
+                    <button onClick={() => setBulkClose(prev => ({ ...prev, show: false }))} className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button onClick={handleBulkClose} className="px-5 py-2.5 text-xs font-black text-white bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-lg shadow-red-500/25 flex items-center gap-1.5">
+                      <XCircle className="w-4 h-4" /> Execute Close
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+
         {/* Confirm Modal */}
         {confirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
