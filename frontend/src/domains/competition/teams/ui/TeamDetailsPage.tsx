@@ -81,14 +81,16 @@ export default function TeamDetailsPage({ teamId, onBack }: TeamDetailsPageProps
               <div>
                 <h2 className="font-black text-2xl text-slate-900">{team.teamName}</h2>
                 <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                  <span className="flex items-center gap-1"><Building className="w-3.5 h-3.5" />{team.organization || 'No organization'}</span>
+                  {team.organization && (
+                    <span className="flex items-center gap-1"><Building className="w-3.5 h-3.5" />{team.organization}</span>
+                  )}
                   <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5" />{team.tournamentName || <span className="inline-flex items-center gap-0.5 text-amber-500"><AlertTriangle className="w-3 h-3" /> Unknown tournament</span>}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {team.coachName && (
+          {(team.coachName || team.contactEmail || team.contactPhone) && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               {team.coachName && (
                 <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
