@@ -115,11 +115,11 @@ export default function StudentRegistration() {
         ? subs.map(s => ({
             id: s.slug || s.id,
             name: s.name,
-            priceClass: s.fee,
-            pricePrivate: s.fee * 2,
+            priceClass: Number(s.fee),
+            pricePrivate: Number(s.fee),
             desc: s.description || p.description || '',
           }))
-        : [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 7000, desc: p.description || '' }],
+        : [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 3500, desc: p.description || '' }],
     };
   });
 
@@ -366,40 +366,40 @@ export default function StudentRegistration() {
                   className="grid grid-cols-1 md:grid-cols-2 gap-5"
                 >
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Full Name</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Full Name <span className="text-brand-red">*</span></label>
                     <div className="relative group">
                       <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
                       <input type="text" placeholder="Abebe Kebede" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
                     </div>
                   </motion.div>
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Student Email</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Student Email <span className="text-brand-red">*</span></label>
                     <div className="relative group">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
-                      <input type="email" placeholder="student@email.com" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
+                      <input type="email" placeholder="student@email.com" required value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
                     </div>
                   </motion.div>
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Age</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Age <span className="text-brand-red">*</span></label>
                     <input type="text" placeholder="e.g. 15" required value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
                   </motion.div>
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Grade</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Grade <span className="text-brand-red">*</span></label>
                     <input type="text" placeholder="e.g. 10th Grade" required value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
                   </motion.div>
 
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Current School</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Current School <span className="text-brand-red">*</span></label>
                     <div className="relative group">
                       <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
-                      <input type="text" placeholder="School Name" value={formData.school} onChange={e => setFormData({...formData, school: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
+                      <input type="text" placeholder="School Name" required value={formData.school} onChange={e => setFormData({...formData, school: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
                     </div>
                   </motion.div>
 
                   <motion.div variants={staggerItem} className="col-span-1 md:col-span-2 my-1 border-t border-slate-100" />
 
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Parent / Guardian Name</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Parent / Guardian Name <span className="text-brand-red">*</span></label>
                     <div className="relative group">
                       <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
                       <input type="text" placeholder="Guardian Name" required value={formData.parentName} onChange={e => setFormData({...formData, parentName: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
@@ -407,7 +407,7 @@ export default function StudentRegistration() {
                   </motion.div>
 
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Phone Number</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Phone Number <span className="text-brand-red">*</span></label>
                     <div className="relative group">
                       <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
                       <input type="tel" placeholder="+251 911 00 00 00" required value={formData.parentPhone} onChange={e => setFormData({...formData, parentPhone: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
@@ -415,7 +415,7 @@ export default function StudentRegistration() {
                   </motion.div>
 
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Email Address</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Email Address <span className="text-brand-red">*</span></label>
                     <div className="relative group">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
                       <input type="email" placeholder="parent@email.com" required value={formData.parentEmail} onChange={e => setFormData({...formData, parentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />

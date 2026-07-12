@@ -232,13 +232,30 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
         </div>
       </div>
 
-      {/* Error */}
+      {/* Error Modal */}
       <AnimatePresence>
         {error && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
-          </motion.div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setError('')}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 mx-auto">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mb-2">Action Failed</h3>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6 bg-red-50 p-3 rounded-lg border border-red-100 font-mono text-left max-h-32 overflow-y-auto">
+                  {error}
+                </p>
+                <button onClick={() => setError('')}
+                  className="w-full bg-slate-900 text-white text-sm font-bold py-2.5 px-4 rounded-xl hover:bg-slate-800 transition-colors shadow-sm"
+                >
+                  Okay, understood
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
