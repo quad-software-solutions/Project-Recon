@@ -327,27 +327,38 @@ export default function MatchManager() {
   /* ─── Bulk Close ─── */
   const handleBulkClose = async () => {
     setBulkClose(prev => ({ ...prev, loading: true, progress: 'Preparing...' }));
+    let completed = 0; let skipped = 0; let failed = 0;
     try {
       if (bulkClose.type === 'matches' || bulkClose.type === 'all') {
-        const openMatches = matches.filter(m => m.status === 'SCHEDULED' || m.status === 'LIVE');
-        for (let i = 0; i < openMatches.length; i++) {
-          const m = openMatches[i];
-          setBulkClose(prev => ({ ...prev, progress: `Completing match ${i + 1}/${openMatches.length}: ${m.round}` }));
+        const liveMatches = matches.filter(m => m.status === 'LIVE');
+        for (let i = 0; i < liveMatches.length; i++) {
+          const m = liveMatches[i];
+          setBulkClose(prev => ({ ...prev, progress: `Completing live match ${i + 1}/${liveMatches.length}: ${m.round}` }));
           try {
-            if (m.status === 'LIVE') await eventsApi.adminRecordMatchScores(m.id, { side_a_score: m.sides?.find(s => s.side === 'SIDE_A')?.score ?? 0, side_b_score: m.sides?.find(s => s.side === 'SIDE_B')?.score ?? 0 });
+            const sideA = m.sides?.find(s => s.side === 'SIDE_A');
+            const sideB = m.sides?.find(s => s.side === 'SIDE_B');
+            const hasScores = (sideA?.score ?? 0) > 0 || (sideB?.score ?? 0) > 0;
+            if (!hasScores) {
+              await eventsApi.adminRecordMatchScores(m.id, { side_a_score: 0, side_b_score: 0 });
+            }
             await eventsApi.adminCompleteMatch(m.id);
-          } catch { /* skip individual failures */ }
+            completed++;
+          } catch { failed++; }
         }
+        const schMatches = matches.filter(m => m.status === 'SCHEDULED');
+        if (schMatches.length > 0) skipped += schMatches.length;
+        const skippedMsg = skipped > 0 ? ` (${skipped} scheduled skipped — must be LIVE first)` : '';
+        if (completed > 0 || failed > 0) addToast(completed > 0 ? 'success' : 'error', `Completed ${completed} live matches, ${failed} failed${skippedMsg}`);
       }
       if (bulkClose.type === 'tournaments' || bulkClose.type === 'all') {
         const openTournaments = tournaments.filter((t: any) => !t.is_closed);
         for (let i = 0; i < openTournaments.length; i++) {
           const t = openTournaments[i];
           setBulkClose(prev => ({ ...prev, progress: `Closing tournament ${i + 1}/${openTournaments.length}: ${t.event_title || t.event || t.id.slice(0, 8)}` }));
-          try { await eventsApi.adminCloseTournament(t.id); } catch { /* skip */ }
+          try { await eventsApi.adminCloseTournament(t.id); completed++; } catch { failed++; }
         }
       }
-      addToast('success', `Bulk close complete! Processed all ${bulkClose.type === 'all' ? 'matches and tournaments' : bulkClose.type}.`, 'Bulk Operation');
+      addToast('success', `Bulk operation done! ${completed} completed, ${skipped} skipped, ${failed} failed.`, 'Bulk Close');
       setBulkClose(prev => ({ ...prev, show: false, loading: false }));
       load();
     } catch (err: any) {
@@ -1385,9 +1396,9 @@ export default function MatchManager() {
                   <p className="text-sm text-slate-600 mb-4">What would you like to close?</p>
                   <div className="flex flex-col gap-2 mb-6">
                     {([
-                      { id: 'matches' as const, label: 'All Open Matches', desc: `Complete ${matches.filter(m => m.status === 'SCHEDULED' || m.status === 'LIVE').length} scheduled/live matches` },
+                      { id: 'matches' as const, label: 'All Live Matches', desc: `Complete ${matches.filter(m => m.status === 'LIVE').length} live matches (scheduled matches skipped — start them first)` },
                       { id: 'tournaments' as const, label: 'All Open Tournaments', desc: `Close ${tournaments.filter((t: any) => !t.is_closed).length} open tournaments` },
-                      { id: 'all' as const, label: 'Both (Everything)', desc: `Complete all matches and close all tournaments` },
+                      { id: 'all' as const, label: 'Both (Everything)', desc: `Complete all live matches and close all tournaments` },
                     ]).map(opt => (
                       <button key={opt.id} onClick={() => setBulkClose(prev => ({ ...prev, type: opt.id }))}
                         className={`flex items-start gap-3 p-3 rounded-xl border-2 transition-all text-left ${
