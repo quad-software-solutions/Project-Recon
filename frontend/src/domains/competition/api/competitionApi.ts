@@ -26,6 +26,7 @@ function mapBackendEventToTournament(e: eventsApi.BackendEvent): Tournament {
     category: e.tournament?.category_name || e.title,
     maxTeams: e.tournament?.max_teams || 0,
     prizePool: e.tournament?.prize_pool || '0 Birr',
+    isClosed: e.tournament?.is_closed ?? false,
     youtubeLiveUrl: e.youtube_live_url || null,
   };
 }

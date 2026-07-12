@@ -148,6 +148,7 @@ export interface Tournament {
   category: string;
   maxTeams: number;
   prizePool: string;
+  isClosed: boolean;
   youtubeLiveUrl?: string | null;
 }
 

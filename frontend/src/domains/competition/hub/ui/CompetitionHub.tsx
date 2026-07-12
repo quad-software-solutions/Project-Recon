@@ -91,6 +91,7 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
   const [regError, setRegError] = useState<string | null>(null);
   const [detailEvent, setDetailEvent] = useState<Tournament | Workshop | null>(null);
   const [showMatchView, setShowMatchView] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
@@ -603,13 +604,18 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
                             {tEvent.enrolledCount}/{tEvent.maxTeams}
                           </span>
                         )}
-                        {event.computedState === 'LIVE' && (
+                        {isTournament && tEvent.isClosed && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                            <Lock className="w-3 h-3" /> Closed
+                          </span>
+                        )}
+                        {event.computedState === 'LIVE' && !(isTournament && tEvent.isClosed) && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-lg border border-red-100 animate-pulse">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                             LIVE
                           </span>
                         )}
-                        {daysUntil(event.startDateTime) && event.computedState !== 'PAST' && (
+                        {daysUntil(event.startDateTime) && event.computedState !== 'PAST' && !(isTournament && tEvent.isClosed) && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100">
                             <Calendar className="w-3 h-3" />
                             {daysUntil(event.startDateTime)}
@@ -716,10 +722,34 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
       </>
 
       {/* ════════════════════════════════════════ */}
-      {/* VEX RULES */}
+      {/* VEX RULES — hidden by default, toggleable */}
       {/* ════════════════════════════════════════ */}
-      <div id="rules" className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 scroll-mt-24">
-        <VexRulesPanel />
+      <div id="rules" className="scroll-mt-24">
+        <button onClick={() => setShowRules(p => !p)}
+          className="w-full flex items-center justify-between bg-white border border-slate-200 rounded-2xl px-5 py-4 hover:bg-slate-50 transition-all text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Trophy className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-slate-900">VEX Robotics Competition Rules</p>
+              <p className="text-[10px] text-slate-500">Alliance format, scoring, and match regulations</p>
+            </div>
+          </div>
+          <motion.div animate={{ rotate: showRules ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronRight className="w-5 h-5 text-slate-400" />
+          </motion.div>
+        </button>
+        <AnimatePresence>
+          {showRules && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="bg-white border border-t-0 border-slate-200 rounded-b-2xl p-6 md:p-8">
+                <VexRulesPanel />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ════════════════════════════════════════ */}
@@ -895,7 +925,13 @@ function EventDetailModal({ event, onClose, currentUser, isRegistered, onRegiste
               <p className="text-[9px] font-black uppercase text-slate-500">Registration</p>
               <p className="text-xs font-bold text-slate-800">{event.registrationMode}</p>
             </div>
-            {event.computedState === 'LIVE' && (
+            {isTournament && (event as Tournament).isClosed && (
+              <div className="bg-slate-100 rounded-xl p-3 col-span-2 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-500" />
+                <span className="text-xs font-black text-slate-600 uppercase">This tournament is closed</span>
+              </div>
+            )}
+            {event.computedState === 'LIVE' && !(isTournament && (event as Tournament).isClosed) && (
               <div className="bg-red-50 rounded-xl p-3 col-span-2 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-xs font-black text-red-700 uppercase">This event is currently live</span>
