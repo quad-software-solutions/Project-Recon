@@ -411,6 +411,15 @@ export default function MatchManager() {
     return map[s] || 'bg-slate-100 text-slate-600';
   };
 
+  const getTournamentName = useCallback((matchOrId: BackendMatch | string): string => {
+    const id = typeof matchOrId === 'string' ? matchOrId : matchOrId.tournament;
+    if (!id) return '—';
+    const found = tournaments.find((t: any) => t.id === id);
+    if (found) return found.event_title || found.event || found.id;
+    if (typeof matchOrId !== 'string') return matchOrId.tournament_title || `Tournament #${id.slice(0, 6)}`;
+    return `Tournament #${id.slice(0, 6)}`;
+  }, [tournaments]);
+
   const filtered = matches.filter(m => {
     const matchesSearch = m.round?.toLowerCase().includes(search.toLowerCase());
     const matchesTournament = tournamentFilter === 'all' || m.tournament === tournamentFilter;
@@ -503,7 +512,7 @@ export default function MatchManager() {
           <select value={tournamentFilter} onChange={e => setTournamentFilter(e.target.value)}
             className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
             <option value="all">All Tournaments</option>
-            {tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event}</option>)}
+            {tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}</option>)}
           </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
@@ -610,7 +619,7 @@ export default function MatchManager() {
               <div className="flex flex-col gap-4">
                 <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Tournament *</label>
                   <select value={form.tournament} onChange={e => setForm(p => ({ ...p, tournament: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
-                    <option value="">Select...</option>{tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event}</option>)}
+                    <option value="">Select tournament...</option>{tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}</option>)}
                   </select></div>
                 <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Round *</label>
                   <input value={form.round} onChange={e => setForm(p => ({ ...p, round: e.target.value }))} placeholder="e.g. Quarter Final" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
@@ -661,7 +670,14 @@ export default function MatchManager() {
                       </motion.span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500">{selectedMatch.tournament_title}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                    {getTournamentName(selectedMatch)}
+                    {!tournaments.find((t: any) => t.id === selectedMatch.tournament) && selectedMatch.tournament && (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                        <AlertTriangle className="w-2.5 h-2.5" /> Not in current list
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedMatch.status === 'SCHEDULED' && (
@@ -1045,7 +1061,7 @@ export default function MatchManager() {
                       <option value="">Select tournament...</option>
                       {tournaments.map((t: any) => (
                         <option key={t.id} value={t.id}>
-                          {t.event_title || t.event} ({teams.filter(te => te.tournament === t.id).length} teams)
+                          {t.event_title || t.event || t.id.slice(0, 8)} ({teams.filter(te => te.tournament === t.id).length} teams)
                         </option>
                       ))}
                     </select>
@@ -1179,7 +1195,7 @@ export default function MatchManager() {
                     className="px-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs focus:outline-none focus:border-brand-red">
                     <option value="">All tournaments</option>
                     {tournaments.map((t: any) => (
-                      <option key={t.id} value={t.id}>{t.event_title || t.event}</option>
+                      <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}</option>
                     ))}
                   </select>
                   <button onClick={() => setShowStandings(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>

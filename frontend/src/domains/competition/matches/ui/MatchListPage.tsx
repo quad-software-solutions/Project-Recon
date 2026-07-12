@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   Search, Gamepad2, Filter, Loader2, AlertCircle, Activity, CheckCircle,
-  Calendar, XCircle, Video, Zap,
+  Calendar, XCircle, Video, Zap, AlertTriangle,
 } from 'lucide-react';
 import { getAllPublicMatches, type MatchDetail } from '../../api/competitionApi';
 import MatchCard from './MatchCard';
@@ -152,7 +152,7 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
                   className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-all text-left border border-white/10"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-bold text-white/70 truncate">{m.tournamentName}</p>
+                    <p className="text-[10px] font-bold text-white/70 truncate">{m.tournamentName || <span className="inline-flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Unknown tournament</span>}</p>
                     <Video className="w-4 h-4 shrink-0 text-white/70" />
                   </div>
                   <p className="text-[9px] font-black uppercase tracking-wider text-white/50 mb-2">{m.round}</p>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Medal, Trophy, RefreshCw, Zap, TrendingUp } from 'lucide-react';
+import { Medal, Trophy, RefreshCw, Zap, TrendingUp, AlertTriangle } from 'lucide-react';
 import { getPublicTeams, type PublicTeamEntry } from '../api/competitionApi';
 import { VEX_SCORING_RULES } from './vexConstants';
 
@@ -132,8 +132,10 @@ export default function LiveLeaderboardWidget({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">{t.teamName}</p>
-                {!compact && (
-                  <p className="text-[9px] text-slate-400 truncate">{t.tournamentName}</p>
+                  {!compact && (
+                  <p className="text-[9px] text-slate-400 truncate">
+                    {t.tournamentName ? t.tournamentName : <span className="inline-flex items-center gap-0.5"><AlertTriangle className="w-2.5 h-2.5 text-amber-400" /> Unknown</span>}
+                  </p>
                 )}
               </div>
               <div className="text-right shrink-0">

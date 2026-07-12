@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Users, Trophy, Swords, Medal, ChevronRight, Target } from 'lucide-react';
+import { Users, Trophy, Swords, Medal, ChevronRight, Target, AlertTriangle } from 'lucide-react';
 import type { PublicTeamEntry } from '../../api/competitionApi';
 
 interface TeamCardProps {
@@ -35,7 +35,7 @@ export default function TeamCard({ team, rank, onClick }: TeamCardProps) {
             )}
             <div>
               <h4 className="font-black text-sm text-slate-900 group-hover:text-brand-red transition-colors">{team.teamName}</h4>
-              <span className="text-[10px] text-slate-500">{team.tournamentName}</span>
+              <span className="text-[10px] text-slate-500">{team.tournamentName || <span className="inline-flex items-center gap-0.5"><AlertTriangle className="w-2.5 h-2.5 text-amber-400" /> Unknown tournament</span>}</span>
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-red transition-colors shrink-0" />

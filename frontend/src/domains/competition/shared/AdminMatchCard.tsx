@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Clock, Users, Gamepad2, Play, CheckCircle } from 'lucide-react';
+import { Clock, Users, Gamepad2, Play, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { BackendMatch } from '../api/eventsApi';
 import VexAllianceDisplay, { sidesFromMatch } from './VexAllianceDisplay';
 import { getSideTeamNames } from './vexAllianceUtils';
@@ -49,7 +49,9 @@ export default function AdminMatchCard({ match, onClick, onStart, compact = fals
           <Gamepad2 className={`w-4 h-4 ${isLive ? 'text-white' : 'text-amber-600'}`} />
           <div>
             <p className={`text-xs font-black ${isLive ? 'text-white' : 'text-slate-900'}`}>{match.round}</p>
-            <p className={`text-[10px] ${isLive ? 'text-white/70' : 'text-slate-500'}`}>{match.tournament_title}</p>
+            <p className={`text-[10px] ${isLive ? 'text-white/70' : 'text-slate-500'}`}>
+              {match.tournament_title || (match.tournament ? <span className="inline-flex items-center gap-1"><AlertTriangle className="w-2.5 h-2.5 text-amber-400" /> Tournament #{match.tournament.slice(0, 6)}</span> : '—')}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

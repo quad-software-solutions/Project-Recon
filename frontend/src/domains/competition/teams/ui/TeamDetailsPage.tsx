@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Users, Trophy, Swords, Medal, Building, Phone, Mail, User, Calendar, Gamepad2, Loader2, AlertCircle, Clock, Target } from 'lucide-react';
+import { ArrowLeft, Users, Trophy, Swords, Medal, Building, Phone, Mail, User, Calendar, Gamepad2, Loader2, AlertCircle, Clock, Target, AlertTriangle } from 'lucide-react';
 import { getPublicTeamById, getTeamMatches, type PublicTeamEntry } from '../../api/competitionApi';
 import type { MatchResult } from '@/src/shared/types';
 
@@ -82,7 +82,7 @@ export default function TeamDetailsPage({ teamId, onBack }: TeamDetailsPageProps
                 <h2 className="font-black text-2xl text-slate-900">{team.teamName}</h2>
                 <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                   <span className="flex items-center gap-1"><Building className="w-3.5 h-3.5" />{team.organization || 'No organization'}</span>
-                  <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5" />{team.tournamentName}</span>
+                  <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5" />{team.tournamentName || <span className="inline-flex items-center gap-0.5 text-amber-500"><AlertTriangle className="w-3 h-3" /> Unknown tournament</span>}</span>
                 </div>
               </div>
             </div>
