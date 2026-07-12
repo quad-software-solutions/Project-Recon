@@ -29,8 +29,13 @@ interface SidebarProps {
 
 const groupLabels: Record<string, string> = {
   main: 'Main',
+  core: 'Core System',
+  users: 'User Administration',
+  academic: 'Academics & Learning',
+  competition: 'Competitions & Events',
+  content: 'Content & Branches',
   vex: 'VEX',
-  system: 'System',
+  system: 'System Configuration',
 };
 
 export function Sidebar({
