@@ -881,3 +881,56 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.branch_manager)
         resp = self.client.get(f"{self.base_url}/orders/{order.pk}/")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- Inventory Deduction (cross-cutting) ---
+
+    def test_payment_verify_deducts_inventory(self):
+        from unittest.mock import patch
+
+        from apps.store.models import BranchInventory
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 3)
+
+        with patch(
+            "apps.store.services.payment_service.shared_initialize_payment"
+        ) as mock_init:
+            mock_init.return_value = {
+                "provider": "chapa",
+                "reference": "STORE-deduct-ref",
+                "status": "success",
+                "checkout_url": "https://checkout.test/",
+            }
+            resp = self.client.post(
+                f"{self.base_url}/cart/checkout/",
+                {"branch": str(self.branch.pk)},
+                format="json",
+            )
+            pending_id = resp.data["id"]
+
+        from apps.store.models.pending_order import PendingOrder
+        pending = PendingOrder.objects.get(pk=pending_id)
+        payment = pending.payment
+
+        with patch(
+            "apps.store.services.payment_service.shared_verify_payment"
+        ) as mock_verify:
+            mock_verify.return_value = {
+                "status": "success",
+                "reference": payment.transaction_reference,
+                "provider": "chapa",
+                "amount": 299.97,
+                "currency": "ETB",
+            }
+            self.client.post(
+                f"{self.base_url}/payments/verify/",
+                {"reference": payment.transaction_reference},
+                format="json",
+            )
+
+        inv = BranchInventory.objects.get(branch=self.branch, product=self.product)
+        self.assertEqual(inv.quantity, 7)

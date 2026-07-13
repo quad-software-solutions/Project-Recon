@@ -13,6 +13,7 @@ from apps.store.models.order import (
     OrderStatusHistory,
 )
 from apps.store.models.pending_order import PendingOrder
+from apps.store.services.branch_inventory_service import reduce_inventory
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,11 @@ def create_order_from_pending_order(
             changed_by=actor,
             notes="Order created after successful payment",
         )
+
+        for poi in pending_order.items.select_related("product"):
+            reduce_inventory(
+                pending_order.branch, poi.product, poi.quantity, actor=actor
+            )
 
     return Order.objects.prefetch_related(
         "items", "status_history"

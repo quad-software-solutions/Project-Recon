@@ -865,9 +865,45 @@ class OrderServiceTest(TestCase):
             unit_price=20.00,
             subtotal=40.00,
         )
+        add_inventory(self.branch, product, 10)
+        add_inventory(self.branch, product2, 5)
         order = create_order_from_pending_order(self.pending_order, actor=self.user)
         items = order.items.all()
         self.assertEqual(len(items), 2)
+
+    def test_create_order_deducts_inventory(self):
+        category = ProductCategory.objects.create(name="Category")
+        product = Product.objects.create(
+            category=category, name="Widget", slug="widget", sku="WDG", price=10
+        )
+        PendingOrderItem.objects.create(
+            pending_order=self.pending_order,
+            product=product,
+            quantity=3,
+            unit_price=10.00,
+            subtotal=30.00,
+        )
+        add_inventory(self.branch, product, 10)
+        create_order_from_pending_order(self.pending_order, actor=self.user)
+        from apps.store.models import BranchInventory
+        inv = BranchInventory.objects.get(branch=self.branch, product=product)
+        self.assertEqual(inv.quantity, 7)
+
+    def test_create_order_insufficient_stock_raises_error(self):
+        category = ProductCategory.objects.create(name="Category")
+        product = Product.objects.create(
+            category=category, name="Widget", slug="widget", sku="WDG", price=10
+        )
+        PendingOrderItem.objects.create(
+            pending_order=self.pending_order,
+            product=product,
+            quantity=10,
+            unit_price=10.00,
+            subtotal=100.00,
+        )
+        add_inventory(self.branch, product, 3)
+        with self.assertRaises(ValidationError):
+            create_order_from_pending_order(self.pending_order, actor=self.user)
 
     def test_get_order_or_404(self):
         order = create_order_from_pending_order(self.pending_order)
