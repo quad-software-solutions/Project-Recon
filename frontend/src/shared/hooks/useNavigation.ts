@@ -4,6 +4,8 @@ import { canAccessTab, getDefaultAuthenticatedTab } from '../auth/permissions';
 import { getUserProfile } from '@/src/shared/utils/storage';
 
 function tabFromPath(path: string): ActiveTab {
+  if (path.startsWith('/store/orders/')) return 'store-order-detail';
+  if (path.startsWith('/store/orders')) return 'store-orders';
   if (path.startsWith('/about')) return 'about';
   if (path.startsWith('/store')) return 'store';
   if (path.startsWith('/simulator')) return 'simulator';
@@ -19,6 +21,8 @@ function tabFromPath(path: string): ActiveTab {
 }
 
 function pathFromTab(tab: ActiveTab, currentUser: UserProfile | null): string {
+  if (tab === 'store-order-detail') return '/store/orders'; // Default path for the tab, we'll handle param separately
+  if (tab === 'store-orders') return '/store/orders';
   if (tab === 'dashboard' && (currentUser?.role === 'Manager' || currentUser?.role === 'EventManager')) return '/manager';
   return tab === 'home' ? '/' : `/${tab}`;
 }
@@ -72,8 +76,8 @@ export function useNavigation(currentUser: UserProfile | null) {
   /** Bypass all auth guards — used exclusively by logout to avoid stale-closure issues. */
   const forceNavigate = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
-    window.history.pushState(null, '', tab === 'home' ? '/' : `/${tab}`);
-  }, []);
+    window.history.pushState(null, '', pathFromTab(tab, currentUser));
+  }, [currentUser]);
 
   return { activeTab, handleTabChange, triggerAuthFlow, forceNavigate };
 }

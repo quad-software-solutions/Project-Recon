@@ -20,13 +20,15 @@ import StorePage from '../pages/store/StorePage';
 import CompetitionPage from '../pages/competition/CompetitionPage';
 
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import OrderHistoryPage from '../domains/store/orders/ui/OrderHistoryPage';
+import OrderDetailPage from '../domains/store/orders/ui/OrderDetailPage';
 
 import { useAuth } from '../shared/hooks/useAuth';
 import { useCart } from '../shared/hooks/useCart';
 import { useNavigation } from '../shared/hooks/useNavigation';
 import { hasPermission } from '../shared/auth/permissions';
 
-import { ActiveTab, CartItem, UserProfile } from '../shared/types';
+import { ActiveTab, UserProfile } from '../shared/types';
 
 const LoginView = React.lazy(() => import('../domains/auth/login/ui/LoginView'));
 const AuthModal = React.lazy(() => import('../domains/auth/modal/ui/AuthModal'));
@@ -39,10 +41,15 @@ export default function App() {
   } = useAuth();
 
   const {
-    cart, setCart, cartOpen, checkoutStep, setCheckoutStep,
-    handleAddToCart, handleUpdateCartQuantity, handleRemoveFromCart,
-    getCartTotal, getCartItemsCount, openCart, closeCart,
+    cart, cartOpen,
+    fetchCart, handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, clearCart,
+    openCart, closeCart,
   } = useCart();
+
+  const handleCheckoutSuccess = (_pendingOrder: any) => {
+    closeCart();
+    fetchCart();
+  };
 
   const { activeTab, handleTabChange, forceNavigate } = useNavigation(currentUser);
 
@@ -67,25 +74,6 @@ export default function App() {
     };
     setCurrentUser(updatedUser);
     handleTabChange('dashboard');
-  };
-
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCheckoutStep('submitting');
-    setTimeout(() => {
-      setCheckoutStep('success');
-      setCart([]);
-      if (currentUser) {
-        const updated = {
-          ...currentUser,
-          xpPoints: currentUser.xpPoints + 40,
-          badges: currentUser.badges.includes('Tech Sponsor')
-            ? currentUser.badges
-            : [...currentUser.badges, 'Tech Sponsor']
-        };
-        setCurrentUser(updated);
-      }
-    }, 1500);
   };
 
   const onAuthSuccess = (userProfile: UserProfile) => {
@@ -141,7 +129,7 @@ export default function App() {
           onOpenAuth={(mode) => {
             handleTabChange(mode === 'register' ? 'registration' : 'login');
           }}
-          cartCount={getCartItemsCount()}
+          cartCount={cart?.items?.length || 0}
           onOpenCart={openCart}
         />
       )}
@@ -164,14 +152,19 @@ export default function App() {
           )}
 
           {activeTab === 'store' && (
-            <StorePage
-              cart={cart}
-              onAddToCart={handleAddToCart}
-              onUpdateQuantity={handleUpdateCartQuantity}
-              onRemoveFromCart={handleRemoveFromCart}
-              cartTotal={getCartTotal()}
-              onCheckout={() => setCart([])}
-            />
+            <StorePage />
+          )}
+
+          {activeTab === 'store-orders' && (
+            <motion.div key="store-orders-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <OrderHistoryPage />
+            </motion.div>
+          )}
+
+          {activeTab === 'store-order-detail' && (
+            <motion.div key="store-order-detail-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <OrderDetailPage />
+            </motion.div>
           )}
 
           {activeTab === 'simulator' && (
@@ -210,15 +203,11 @@ export default function App() {
       <CartDrawer
         cartOpen={cartOpen}
         cart={cart}
-        checkoutStep={checkoutStep}
-        currentUser={currentUser}
-        getCartTotal={getCartTotal}
         onClose={closeCart}
-        onUpdateQuantity={handleUpdateCartQuantity}
+        currentUser={currentUser}
+        onUpdateQuantity={handleUpdateQuantity}
         onRemoveFromCart={handleRemoveFromCart}
-        onCheckoutSubmit={handleCheckoutSubmit}
-        onSetCheckoutStep={setCheckoutStep}
-        onSetCart={setCart}
+        onCheckoutSuccess={handleCheckoutSuccess}
       />
 
       <ProgramDetailModal

@@ -75,6 +75,8 @@ const PUBLIC_TABS: ActiveTab[] = [
   'home',
   'about',
   'store',
+  'store-orders',
+  'store-order-detail',
   'login',
   'register',
   'registration',

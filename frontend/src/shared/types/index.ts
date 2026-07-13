@@ -1,4 +1,7 @@
 export * from '../../domains/store/model/types';
+export * from '../../domains/forum/model/types';
+export * from '../../domains/learning/model/types';
+export * from '../../domains/competition/model/types';
 
 export interface UpdatePost {
   id: string;
@@ -31,7 +34,7 @@ export interface UserProfile {
   studentId?: string;
 }
 
-export type ActiveTab = 'home' | 'about' | 'store' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center' | 'forgot-password' | 'reset-password';
+export type ActiveTab = 'home' | 'about' | 'store' | 'store-orders' | 'store-order-detail' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center' | 'forgot-password' | 'reset-password';
 
 export interface SubscriptionTier {
   id: 'free' | 'explorer' | 'pro' | 'school';
@@ -55,10 +58,6 @@ export interface AppNotification {
   actionUrl?: string;
   icon?: string;
 }
-
-export * from '../../domains/forum/model/types';
-export * from '../../domains/learning/model/types';
-export * from '../../domains/competition/model/types';
 
 export interface Referral {
   id: string;

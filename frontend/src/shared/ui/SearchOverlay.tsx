@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, ShoppingBag, GraduationCap, Trophy, Users, Wrench, ArrowRight } from 'lucide-react';
 import type { ActiveTab } from '../types';
+import type { Product } from '@/src/domains/store/model/types';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -27,11 +28,11 @@ export default function SearchOverlay({ isOpen, onClose, onNavigate }: SearchOve
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
-      import('@/src/domains/store/products/api/productApi').then(m => m.getProducts()).then(products => {
-        const results: SearchResult[] = (products || []).map(p => ({
+      import('@/src/domains/store/products/api/productApi').then(m => m.listProducts()).then(products => {
+        const results: SearchResult[] = (products || []).map((p: Product) => ({
           id: p.id, title: p.name, description: p.description,
           category: 'Store', icon: ShoppingBag, tab: 'store' as ActiveTab,
-          badge: p.category
+          badge: p.category_name
         }));
         setSearchable(prev => [...prev.filter(r => r.category !== 'Store'), ...results]);
       }).catch(() => {});
