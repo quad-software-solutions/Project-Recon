@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+import { getToken, setTokens, clearTokens, getRefreshToken } from '@/src/shared/utils/auth';
 
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
@@ -47,7 +48,7 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
   const url = urlStr.startsWith('http') ? new URL(urlStr) : new URL(urlStr, window.location.origin);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  let token = localStorage.getItem('access_token');
+  const token = getToken();
   const headers: Record<string, string> = { ...init.headers as Record<string, string> };
   
   if (!(init.body instanceof FormData)) {
@@ -64,7 +65,7 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
   });
 
   if (res.status === 401 && !_isRetry && token) {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = getRefreshToken();
     if (refreshToken) {
       if (!isRefreshing) {
         isRefreshing = true;
@@ -78,21 +79,15 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
 
           if (refreshRes.ok) {
             const data = await refreshRes.json();
-            localStorage.setItem('access_token', data.access);
-            if (data.refresh) {
-              localStorage.setItem('refresh_token', data.refresh);
-            }
+            setTokens(data.access, data.refresh);
             onRefreshed(data.access);
           } else {
-            // Refresh failed, user needs to login again
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
+            clearTokens();
             localStorage.removeItem('ethio_robotics_user');
             window.dispatchEvent(new CustomEvent('auth:logout'));
           }
         } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
+          clearTokens();
         } finally {
           isRefreshing = false;
         }
@@ -127,7 +122,7 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
   const url = urlStr.startsWith('http') ? new URL(urlStr) : new URL(urlStr, window.location.origin);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  let token = localStorage.getItem('access_token');
+  const token = getToken();
   const headers: Record<string, string> = { ...init.headers as Record<string, string> };
 
   if (token) {
@@ -140,7 +135,7 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
   });
 
   if (res.status === 401 && !_isRetry && token) {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = getRefreshToken();
     if (refreshToken) {
       if (!isRefreshing) {
         isRefreshing = true;
@@ -154,20 +149,15 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
 
           if (refreshRes.ok) {
             const data = await refreshRes.json();
-            localStorage.setItem('access_token', data.access);
-            if (data.refresh) {
-              localStorage.setItem('refresh_token', data.refresh);
-            }
+            setTokens(data.access, data.refresh);
             onRefreshed(data.access);
           } else {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
+            clearTokens();
             localStorage.removeItem('ethio_robotics_user');
             window.dispatchEvent(new CustomEvent('auth:logout'));
           }
         } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
+          clearTokens();
         } finally {
           isRefreshing = false;
         }

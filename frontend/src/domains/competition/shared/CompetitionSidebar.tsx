@@ -12,7 +12,7 @@ type NavId = 'live' | 'events' | 'rules' | 'leaderboard';
 interface CompetitionSidebarProps {
   activeSection?: NavId;
   onNavigate?: (section: NavId) => void;
-  onSelectMatch?: (id: string) => void;
+  onSelectMatch?: (id: string, tournamentId?: string) => void;
   onViewTournament?: (id: string) => void;
 }
 
@@ -87,7 +87,7 @@ export default function CompetitionSidebar({
               return (
                 <button
                   key={m.id}
-                  onClick={() => onSelectMatch?.(m.id)}
+                  onClick={() => onSelectMatch?.(m.id, m.tournamentId)}
                   className="w-full bg-white/10 hover:bg-white/20 rounded-xl p-2.5 text-left transition-all"
                 >
                   <p className="text-[9px] font-bold text-white/70 mb-1.5">{m.round}</p>

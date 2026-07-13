@@ -26,6 +26,8 @@ export default function ParentFeedback() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState<TicketCategory>('general');
   const [formSubject, setFormSubject] = useState('');
@@ -34,6 +36,7 @@ export default function ParentFeedback() {
   const submitTicket = async () => {
     if (!formName.trim() || !formSubject.trim() || !formMessage.trim()) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await cmsPublicApi.submitContactRequest({
         name: formName.trim(),
@@ -52,8 +55,10 @@ export default function ParentFeedback() {
       setTickets(prev => [newTicket, ...prev]);
       setFormName(''); setFormCategory('general'); setFormSubject(''); setFormMessage('');
       setShowForm(false);
-    } catch {
-      // silently fail - feedback is best-effort
+      setSubmitSuccess(true);
+      setTimeout(() => setSubmitSuccess(false), 4000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Could not submit feedback. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -73,6 +78,19 @@ export default function ParentFeedback() {
           <Send className="w-4 h-4" /> Submit Feedback
         </button>
       </div>
+
+      {submitSuccess && (
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          Feedback submitted successfully. Our team will review it shortly.
+        </div>
+      )}
+      {submitError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {submitError}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {[

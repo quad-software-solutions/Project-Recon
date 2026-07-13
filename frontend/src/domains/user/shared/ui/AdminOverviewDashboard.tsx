@@ -6,7 +6,7 @@ import {
   Phone, MapPin, Clock, CheckCircle, XCircle, Plus, Star, UserCheck, Activity,
   Medal, Trophy, Zap, Target,
 } from 'lucide-react';
-import { fetchUsersApi, branchesApi, resolveRole, type AdminUserResponse, type BranchResponse } from '../api/adminApi';
+import { fetchAllUsersApi, branchesApi, resolveRole, type AdminUserResponse, type BranchResponse } from '../api/adminApi';
 import {
   fetchProgramsApi, fetchClassesApi, fetchEnrollmentsApi, fetchPaymentsApi,
 } from '@/src/domains/learning/academics/api/academicApi';
@@ -143,7 +143,7 @@ export default function AdminOverviewDashboard() {
   const fetchAll = () => {
     setLoading(true);
     Promise.all([
-      fetchUsersApi(),
+      fetchAllUsersApi(),
       branchesApi.list(),
       fetchProgramsApi(),
       fetchClassesApi(),
@@ -151,7 +151,7 @@ export default function AdminOverviewDashboard() {
       fetchPaymentsApi(),
     ])
       .then(([u, b, p, c, e, pay]) => {
-        setUsers(Array.isArray(u) ? u : u?.results ?? []);
+        setUsers(Array.isArray(u) ? u : []);
         setBranches(Array.isArray(b) ? b : []);
         setPrograms(Array.isArray(p) ? p : []);
         setClasses(Array.isArray(c) ? c : []);

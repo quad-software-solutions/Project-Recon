@@ -210,7 +210,10 @@ export default function TournamentManager() {
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center"><Trophy className="w-4 h-4 text-purple-600" /></div>
                     <div>
                       <h4 className="font-bold text-sm text-slate-900">{t.event_title || t.event}</h4>
-                      <span className="text-[10px] text-slate-500">{t.category_name || t.category}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600">TOURNAMENT</span>
+                        <span className="text-[10px] text-slate-500">{t.category_name || t.category}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -292,7 +295,10 @@ export default function TournamentManager() {
               className="relative bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-6 md:p-8 z-10 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="font-black text-lg text-slate-900">{selectedTournament.event_title}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-lg text-slate-900">{selectedTournament.event_title}</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600">TOURNAMENT</span>
+                  </div>
                   <p className="text-xs text-slate-500">{selectedTournament.category_name} · {selectedTournament.is_closed ? <span className="text-red-500 font-bold">Closed</span> : 'Open'}</p>
                 </div>
                 <button onClick={() => setSelectedTournament(null)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>

@@ -128,7 +128,10 @@ export function computeEventState(start: string, end: string): EventComputedStat
 }
 
 export interface Tournament {
+  /** Event UUID — used for registration and event detail routes */
   id: string;
+  /** Tournament UUID — required for matches, standings, and teams API */
+  tournamentId?: string;
   title: string;
   description: string;
   startDateTime: string;

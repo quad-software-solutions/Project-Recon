@@ -1,6 +1,7 @@
 import { http } from '../../../../shared/api/http';
 import type { UserProfile } from '../../../../shared/types';
 import type { LoginCredentials, AuthResponse } from '../../model/types';
+import { setTokens, getRefreshToken, clearTokens } from '@/src/shared/utils/auth';
 
 /**
  * Custom error thrown when login fails because the user's email is not verified.
@@ -119,8 +120,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
   const tokenData = loginBody as { access: string; refresh: string };
 
   // Step 2: Persist tokens
-  localStorage.setItem('access_token', tokenData.access);
-  localStorage.setItem('refresh_token', tokenData.refresh);
+  setTokens(tokenData.access, tokenData.refresh);
 
   // Step 3: Decode token for user_id, then fetch user profile
   const payload = parseJwt(tokenData.access);
@@ -172,8 +172,8 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
         date_of_birth: userData.date_of_birth || '',
         gender: userData.gender || '',
         role,
-        xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
-        badges: role === 'Admin' ? ['System Admin', 'Root Access'] : role === 'Manager' ? ['System Admin'] : role === 'Instructor' ? ['Master Instructor'] : ['Starter Badge'],
+        xpPoints: 0,
+        badges: [],
       };
     } catch (err) {
       // If user detail fetch fails (e.g. permission), use token claims
@@ -216,7 +216,7 @@ export async function socialLoginApi(_provider: 'google' | 'github'): Promise<Au
  * Call the backend logout endpoint to blacklist the refresh token.
  */
 export async function logoutApi(): Promise<void> {
-  const refresh = localStorage.getItem('refresh_token');
+  const refresh = getRefreshToken();
   if (refresh) {
     try {
       await http.post('/accounts/logout/', { refresh });
@@ -225,8 +225,7 @@ export async function logoutApi(): Promise<void> {
       console.warn('Backend logout failed, clearing local tokens anyway.');
     }
   }
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
+  clearTokens();
 }
 
 /**
@@ -273,8 +272,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
   );
 
   // Persist tokens
-  localStorage.setItem('access_token', tokenData.access);
-  localStorage.setItem('refresh_token', tokenData.refresh);
+  setTokens(tokenData.access, tokenData.refresh);
 
   // Decode token for user_id, then fetch user profile
   const payload = parseJwt(tokenData.access);
@@ -316,8 +314,8 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
         email: userData.email,
         name: userData.full_name || `${userData.first_name} ${userData.last_name}`.trim() || userData.email.split('@')[0],
         role,
-        xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
-        badges: role === 'Admin' ? ['System Admin', 'Root Access'] : role === 'Manager' ? ['System Admin'] : role === 'Instructor' ? ['Master Instructor'] : ['Starter Badge'],
+        xpPoints: 0,
+        badges: [],
       };
     } catch (err) {
       console.warn('Could not fetch user profile after verification:', err);

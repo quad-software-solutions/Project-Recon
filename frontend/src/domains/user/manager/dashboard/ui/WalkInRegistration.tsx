@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck, Loader2 } from 'lucide-react';
+import { registerApi } from '@/src/domains/auth/register/api/registerApi';
 import { fetchProgramsApi, fetchSubProgramsApi } from '../../../../learning/academics/api/academicApi';
 import type { Program, SubProgram } from '@/src/shared/types';
-
-
 
 export default function WalkInRegistration() {
   const [step, setStep] = useState<1 | 2>(1);
@@ -80,16 +79,42 @@ export default function WalkInRegistration() {
     setStep(2);
   };
 
-  const handleSubmit = () => {
+  const [submitError, setSubmitError] = useState('');
+
+  const handleSubmit = async () => {
     if (subtotal === 0) {
-      alert("Please select at least one course.");
+      alert('Please select at least one course.');
       return;
     }
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setSubmitError('');
+    try {
+      const selectedCoursesList = Object.entries(selectedCourses)
+        .filter(([, format]) => format)
+        .map(([id, format]) => {
+          const course = allCourses.find(c => c.id === id);
+          const price = format === 'private' ? (course?.pricePrivate ?? 0) : (course?.priceClass ?? 0);
+          return { name: course?.name || id, format: format as 'class' | 'private', price: Number(price) || 0 };
+        });
+      await registerApi({
+        name: formData.name,
+        studentEmail: formData.studentEmail,
+        age: formData.age,
+        grade: formData.grade,
+        school: formData.school,
+        parentName: formData.parentName,
+        parentPhone: formData.parentPhone,
+        parentEmail: formData.parentEmail,
+        selectedCourses: selectedCoursesList,
+        paymentMethod: 'chapa',
+        total: grandTotal,
+      });
       setIsSuccess(true);
-    }, 1500);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Registration submission failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -340,6 +365,9 @@ export default function WalkInRegistration() {
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-slate-200">
+                      {submitError && (
+                        <p className="mb-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{submitError}</p>
+                      )}
                       <button
                         onClick={handleSubmit}
                         disabled={subtotal === 0 || isSubmitting}

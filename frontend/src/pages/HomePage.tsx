@@ -21,11 +21,10 @@ import galleryImg5 from '../../assets/photo_2026-06-15_14-40-10.jpg';
 import galleryImg6 from '../../assets/0M6A6595.00_00_03_09.Still001.jpg';
 import galleryImg7 from '../../assets/0M6A6595.00_07_19_06.Still027.jpg';
 import galleryImg8 from '../../assets/0M6A6595.00_13_52_12.Still006.jpg';
-import demoVideoMp4 from '../../assets/video_2026-06-15_14-39-09.mp4';
-import demoVideo2Mp4 from '../../assets/demo.mp4';
 
-const demoVideo = demoVideoMp4 || null;
-const demoVideo2 = demoVideo2Mp4 || null;
+// Placeholder mp4 files in /assets are 0 bytes and cause HTTP 416 — use poster images instead.
+const demoVideo = null;
+const demoVideo2 = null;
 
 interface HomePageProps {
   currentUser: UserProfile | null;
@@ -343,6 +342,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               quote: '"Encouraging creativity through Competition."',
               body: 'Experience the innovation and teamwork that drive Ethio Robotics. From our advanced robotics labs to national championship arenas, see how we empower students to transform ideas into working mechatronic reality.',
               video: demoVideo,
+              poster: galleryImg1,
             },
             {
               tag: 'Ethio Robotics Demo',
@@ -350,6 +350,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               quote: '"5 Million Engineers Starts Here."',
               body: 'Watch our students compete, collaborate, and create at the highest levels. From autonomous driving challenges to VEX championship arenas — this is where future engineers are forged.',
               video: demoVideo2,
+              poster: galleryImg6,
             },
           ];
           return <DemoSlider slides={DEMO_SLIDES} onCta={() => onEnrollInProgram('prog-vex-v5')} />;

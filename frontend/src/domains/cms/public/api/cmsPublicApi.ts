@@ -28,9 +28,10 @@ export interface AboutUsResponse {
   id: string;
   title: string;
   slug: string;
-  content: string;
-  image: string | null;
-  order: number;
+  /** Backend field name */
+  description: string;
+  /** Alias for UI components that expect `content` */
+  content?: string;
   is_active: boolean;
 }
 
@@ -72,10 +73,20 @@ export const cmsPublicApi = {
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
   getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),
   getPartners: (signal?: AbortSignal) => http.get<CmsPartnerResponse[]>('/cms/partners/', { signal }),
-  getAboutUs: () => http.get<AboutUsResponse[]>('/cms/about/'),
-  getAboutUsDetail: (slug: string) => http.get<AboutUsResponse>(`/cms/about/${slug}/`),
+  getAboutUs: async () => {
+    const rows = await http.get<AboutUsResponse[]>('/cms/about/');
+    return (Array.isArray(rows) ? rows : []).map(row => ({
+      ...row,
+      content: row.description,
+    }));
+  },
+  getAboutUsDetail: async (slug: string) => {
+    const row = await http.get<AboutUsResponse>(`/cms/about/${slug}/`);
+    return { ...row, content: row.description };
+  },
   getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
-  getTeamMembers: () => http.get<TeamMemberResponse[]>('/cms/team-members/'),
+  /** No backend endpoint — returns empty list for compatibility */
+  getTeamMembers: async () => [] as TeamMemberResponse[],
   getFaqs: async (signal?: AbortSignal) => {
     const res = await http.get<FaqResponse[] | { results: FaqResponse[] }>('/cms/faqs/', { signal });
     return Array.isArray(res) ? res : (res.results ?? []);

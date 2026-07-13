@@ -6,6 +6,7 @@ function tabFromPath(path: string): ActiveTab {
   if (path.startsWith('/about')) return 'about';
   if (path.startsWith('/store')) return 'store';
   if (path.startsWith('/simulator')) return 'simulator';
+  if (path.startsWith('/command-center')) return 'command-center';
   if (path.startsWith('/dashboard') || path.startsWith('/manager')) return 'dashboard';
   if (path.startsWith('/event')) return 'dashboard';
   if (path.startsWith('/login')) return 'login';

@@ -5,7 +5,7 @@ import {
   ChevronDown, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar
 } from 'lucide-react';
 import {
-  fetchUsersApi, toggleUserStatusApi, archiveUserApi,
+  fetchUsersApi, fetchAllUsersApi, toggleUserStatusApi, archiveUserApi,
   createStaffApi, createBranchManagerApi, updateUserApi, branchesApi,
   type AdminUserResponse, type BranchResponse, type PaginatedResponse,
 } from '../api/adminApi';
@@ -55,11 +55,11 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
     setLoading(true);
     setError(null);
     try {
-      const [userRes, branchRes] = await Promise.all([
-        fetchUsersApi(),
+      const [userList, branchRes] = await Promise.all([
+        fetchAllUsersApi(),
         branchesApi.list().catch(() => []),
       ]);
-      setData(userRes);
+      setData({ count: userList.length, next: null, previous: null, results: userList });
       setBranches(Array.isArray(branchRes) ? branchRes : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load users');

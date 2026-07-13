@@ -262,7 +262,7 @@ export default function AboutTab() {
                 </h2>
                 <div 
                   className="font-sans text-sm md:text-base text-brand-muted-dark leading-relaxed mb-5 about-content"
-                  dangerouslySetInnerHTML={{ __html: section.content }} 
+                  dangerouslySetInnerHTML={{ __html: section.content || section.description || '' }}
                 />
               </div>
             ))

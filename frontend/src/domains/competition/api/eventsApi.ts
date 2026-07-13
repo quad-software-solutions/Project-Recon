@@ -1,4 +1,5 @@
 import { http } from '@/src/shared/api/http';
+import { fetchAllPages, type PaginatedResponse } from '@/src/shared/api/pagination';
 
 /* ─── Backend-Matching Types ─── */
 
@@ -190,11 +191,18 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+async function fetchAllPublicEvents(params?: Record<string, string>): Promise<BackendEvent[]> {
+  return fetchAllPages(page =>
+    http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/`, {
+      params: { ...params, page: String(page), page_size: '100' },
+    }),
+  );
+}
+
 /* ═══ PUBLIC ═══ */
 
 export async function getPublicEvents(params?: Record<string, string>): Promise<BackendEvent[]> {
-  const res = await http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/`, { params });
-  return res.results ?? [];
+  return fetchAllPublicEvents(params);
 }
 
 export function getPublicEventDetail(id: string) {
@@ -202,18 +210,27 @@ export function getPublicEventDetail(id: string) {
 }
 
 export async function getLiveEvents(): Promise<BackendEvent[]> {
-  const res = await http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/live/`);
-  return res.results ?? [];
+  return fetchAllPages(page =>
+    http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/live/`, {
+      params: { page: String(page), page_size: '100' },
+    }),
+  );
 }
 
 export async function getUpcomingEvents(): Promise<BackendEvent[]> {
-  const res = await http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/upcoming/`);
-  return res.results ?? [];
+  return fetchAllPages(page =>
+    http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/upcoming/`, {
+      params: { page: String(page), page_size: '100' },
+    }),
+  );
 }
 
 export async function getPastEvents(): Promise<BackendEvent[]> {
-  const res = await http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/past/`);
-  return res.results ?? [];
+  return fetchAllPages(page =>
+    http.get<PaginatedResponse<BackendEvent>>(`${BASE}/events/past/`, {
+      params: { page: String(page), page_size: '100' },
+    }),
+  );
 }
 
 export function getPublicTournaments(params?: Record<string, string>) {
@@ -258,13 +275,17 @@ export function cancelMyRegistration(id: string) {
   return http.post<BackendEventRegistration>(`${BASE}/my-registrations/${id}/cancel/`, {});
 }
 
+export function verifyEventPayment(reference: string) {
+  return http.post<BackendEventPayment>(`${BASE}/payments/online/verify/`, { reference });
+}
+
 /* ═══ ADMIN - EVENTS ═══ */
 
 export function adminGetEvents(params?: Record<string, string>) {
   return http.get<BackendEvent[]>(`${BASE}/admin/events/`, { params });
 }
 
-export function adminCreateEvent(data: Partial<BackendEvent>) {
+export function adminCreateEvent(data: Partial<BackendEvent> | FormData) {
   return http.post<BackendEvent>(`${BASE}/admin/events/`, data);
 }
 
@@ -272,7 +293,7 @@ export function adminGetEvent(id: string) {
   return http.get<BackendEvent>(`${BASE}/admin/events/${id}/`);
 }
 
-export function adminUpdateEvent(id: string, data: Partial<BackendEvent>) {
+export function adminUpdateEvent(id: string, data: Partial<BackendEvent> | FormData) {
   return http.put<BackendEvent>(`${BASE}/admin/events/${id}/`, data);
 }
 
@@ -410,6 +431,10 @@ export function adminGetMatch(id: string) {
 
 export function adminUpdateMatch(id: string, data: Partial<BackendMatch>) {
   return http.put<BackendMatch>(`${BASE}/admin/matches/${id}/`, data);
+}
+
+export function adminPatchMatch(id: string, data: Partial<BackendMatch>) {
+  return http.patch<BackendMatch>(`${BASE}/admin/matches/${id}/`, data);
 }
 
 export function adminDeleteMatch(id: string) {

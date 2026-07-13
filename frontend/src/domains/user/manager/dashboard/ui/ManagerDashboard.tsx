@@ -177,6 +177,7 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
     { id: 'payments', label: 'Payment Reports', desc: 'Track transactions', icon: DollarSign, color: 'from-cyan-500 to-cyan-600' },
     { id: 'reports', label: 'Download Reports', desc: 'PDF reports & data', icon: FileText, color: 'from-rose-500 to-rose-600' },
     { id: 'events', label: 'Events Calendar', desc: 'Manage all events', icon: Calendar, color: 'from-purple-500 to-purple-600' },
+    { id: 'command-center' as SectionId, label: 'Event Command Center', desc: 'Live match & tournament control', icon: Trophy, color: 'from-rose-600 to-red-700' },
     { id: 'tournaments', label: 'Tournaments', desc: 'Manage competitions', icon: Trophy, color: 'from-rose-500 to-rose-600' },
     { id: 'workshops', label: 'Workshops', desc: 'Schedule workshops', icon: Building, color: 'from-emerald-500 to-emerald-600' },
     { id: 'store', label: 'Store Inventory', desc: 'Manage products & stock', icon: ShoppingBag, color: 'from-amber-500 to-amber-600' },
@@ -225,10 +226,10 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { label: 'System', value: 'Online', icon: Monitor, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-          { label: 'Uptime', value: '99.97%', icon: Activity, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'API', value: '12ms', icon: Globe, color: 'text-purple-500', bg: 'bg-purple-50' },
-          { label: 'Backup', value: 'Today 3AM', icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: 'Pending Payments', value: String(enrollments.filter(e => e.status === 'PENDING_PAYMENT').length), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: 'Paid Today', value: String(payments.filter(p => p.payment_date?.startsWith(new Date().toISOString().slice(0, 10)) && p.status === 'PAID').length), icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+          { label: 'Programs', value: String(programs.length), icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-50' },
+          { label: 'Notifications', value: String(unreadNotifications.length), icon: Bell, color: 'text-blue-500', bg: 'bg-blue-50' },
         ].map((s, i) => {
           const SIcon = s.icon;
           return (
@@ -258,7 +259,15 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
               {quickActions.map((action, i) => {
                 const ActionIcon = action.icon;
                 return (
-                  <motion.button key={action.id} onClick={() => onNavigate(action.id)}
+                  <motion.button key={action.id}
+                    onClick={() => {
+                      if (action.id === ('command-center' as SectionId)) {
+                        window.history.pushState(null, '', '/command-center');
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                        return;
+                      }
+                      onNavigate(action.id);
+                    }}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.1 + i * 0.04 }}

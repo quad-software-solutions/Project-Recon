@@ -6,7 +6,7 @@ import VexMatchArena from './VexMatchArena';
 import { sidesFromMatch } from './VexAllianceDisplay';
 
 interface CompetitionLeaderboardPanelProps {
-  onSelectMatch?: (id: string) => void;
+  onSelectMatch?: (id: string, tournamentId?: string) => void;
   onViewTournament?: (id: string) => void;
 }
 
@@ -53,7 +53,7 @@ export default function CompetitionLeaderboardPanel({
               return (
                 <button
                   key={m.id}
-                  onClick={() => onSelectMatch?.(m.id)}
+                  onClick={() => onSelectMatch?.(m.id, m.tournamentId)}
                   className="w-full text-left rounded-xl overflow-hidden hover:ring-2 hover:ring-red-300 transition-all"
                 >
                   <VexMatchArena

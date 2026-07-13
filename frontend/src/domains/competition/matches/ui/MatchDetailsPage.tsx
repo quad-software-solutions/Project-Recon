@@ -4,25 +4,34 @@ import {
   ArrowLeft, Clock, Calendar, Loader2, AlertCircle,
   CheckCircle, Trophy, RefreshCw,
 } from 'lucide-react';
-import { getPublicMatchById } from '../../api/competitionApi';
+import { getMatchDetail } from '../../api/matchApi';
+import type { MatchDetail } from '../../api/matchMappers';
 import { sidesFromMatch } from '../../shared/VexAllianceDisplay';
 import VexMatchArena from '../../shared/VexMatchArena';
 import { VEX_ALLIANCE_CONFIG } from '../../shared/vexConstants';
 
 interface MatchDetailsPageProps {
   matchId: string;
+  tournamentId?: string | null;
   onBack: () => void;
 }
 
-export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPageProps) {
-  const [match, setMatch] = useState<Awaited<ReturnType<typeof getPublicMatchById>>>(null);
+export default function MatchDetailsPage({ matchId, tournamentId, onBack }: MatchDetailsPageProps) {
+  const [match, setMatch] = useState<MatchDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchMatch = () => {
-    getPublicMatchById(matchId)
+    getMatchDetail(matchId, tournamentId || undefined)
       .then(m => {
-        if (!m) { setError('Match not found'); return; }
+        if (!m) {
+          setError(
+            tournamentId
+              ? 'Match not found'
+              : 'Match not found. Open this match from a tournament or live list so we can load it from the server.',
+          );
+          return;
+        }
         setMatch(m);
         setError(null);
       })
@@ -33,7 +42,7 @@ export default function MatchDetailsPage({ matchId, onBack }: MatchDetailsPagePr
   useEffect(() => {
     setLoading(true);
     fetchMatch();
-  }, [matchId]);
+  }, [matchId, tournamentId]);
 
   useEffect(() => {
     if (!match || match.status !== 'LIVE') return;

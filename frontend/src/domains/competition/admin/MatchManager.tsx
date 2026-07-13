@@ -8,7 +8,7 @@ import VexAllianceDisplay, { sidesFromMatch } from '../shared/VexAllianceDisplay
 import { getSideTeamNames, sideLabel, canAddTeamToSide, TEAMS_PER_ALLIANCE } from '../shared/vexAllianceUtils';
 import { VEX_ALLIANCE_CONFIG, VEX_SCORING_RULES } from '../shared/vexConstants';
 
-const defaultForm = { tournament: '', round: '', scheduled_at: '' };
+const defaultForm = { tournament: '', round: '', scheduled_at: '', side_a_teams: [] as string[], side_b_teams: [] as string[], roundCount: 1 };
 const defaultScoreForm = { side_a_score: 0, side_b_score: 0 };
 
 /* ─── Standings computation (client-side) ─── */
@@ -145,14 +145,45 @@ export default function MatchManager() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditingId(null); setForm(defaultForm); setShowForm(true); };
-  const openEdit = (m: BackendMatch) => { setEditingId(m.id); setForm({ tournament: m.tournament, round: m.round, scheduled_at: m.scheduled_at?.slice(0, 16) || '' }); setShowForm(true); };
+  const openEdit = (m: BackendMatch) => {
+    const sideA = m.sides?.find(s => s.side === 'SIDE_A')?.participants?.map(p => p.tournament_team) || [];
+    const sideB = m.sides?.find(s => s.side === 'SIDE_B')?.participants?.map(p => p.tournament_team) || [];
+    setEditingId(m.id);
+    setForm({ tournament: m.tournament, round: m.round, scheduled_at: m.scheduled_at?.slice(0, 16) || '', side_a_teams: sideA, side_b_teams: sideB, roundCount: 1 });
+    setShowForm(true);
+  };
+
+  const assignTeams = async (matchId: string, a: string[], b: string[]) => {
+    for (const tid of a) await eventsApi.adminAssignTeamToMatch(matchId, { side: 'SIDE_A', tournament_team: tid });
+    for (const tid of b) await eventsApi.adminAssignTeamToMatch(matchId, { side: 'SIDE_B', tournament_team: tid });
+  };
 
   const handleSave = async () => {
-    if (!form.tournament || !form.round || !form.scheduled_at) { addToast('error', 'All fields are required to create a match'); return; }
+    if (!form.tournament || !form.round || !form.scheduled_at) { addToast('error', 'Tournament, round and date are required'); return; }
     setSaving(true);
     try {
-      if (editingId) { await eventsApi.adminUpdateMatch(editingId, form as any); addToast('success', `Match "${form.round}" updated`); }
-      else { await eventsApi.adminCreateMatch(form as any); addToast('success', `Match "${form.round}" created successfully`); }
+      if (editingId) {
+        await eventsApi.adminUpdateMatch(editingId, { tournament: form.tournament, round: form.round, scheduled_at: form.scheduled_at });
+        const mt = await eventsApi.adminGetMatch(editingId);
+        const existingA = new Set(mt.sides?.find(s => s.side === 'SIDE_A')?.participants?.map(p => p.tournament_team) || []);
+        const existingB = new Set(mt.sides?.find(s => s.side === 'SIDE_B')?.participants?.map(p => p.tournament_team) || []);
+        const newA = form.side_a_teams.filter(t => !existingA.has(t));
+        const newB = form.side_b_teams.filter(t => !existingB.has(t));
+        const removeA = [...existingA].filter(t => !form.side_a_teams.includes(t));
+        const removeB = [...existingB].filter(t => !form.side_b_teams.includes(t));
+        for (const tid of removeA) await eventsApi.adminRemoveTeamFromMatch(editingId, { side: 'SIDE_A', tournament_team: tid });
+        for (const tid of removeB) await eventsApi.adminRemoveTeamFromMatch(editingId, { side: 'SIDE_B', tournament_team: tid });
+        for (const tid of newA) await eventsApi.adminAssignTeamToMatch(editingId, { side: 'SIDE_A', tournament_team: tid });
+        for (const tid of newB) await eventsApi.adminAssignTeamToMatch(editingId, { side: 'SIDE_B', tournament_team: tid });
+        addToast('success', `Match "${form.round}" updated`);
+      } else {
+        for (let i = 0; i < form.roundCount; i++) {
+          const roundName = form.roundCount > 1 ? `${form.round} ${i + 1}` : form.round;
+          const created = await eventsApi.adminCreateMatch({ tournament: form.tournament, round: roundName, scheduled_at: form.scheduled_at } as any);
+          await assignTeams(created.id, form.side_a_teams, form.side_b_teams);
+        }
+        addToast('success', `${form.roundCount} match${form.roundCount > 1 ? 'es' : ''} created`);
+      }
       setShowForm(false); load();
     } catch (err: any) { addToast('error', err.message || 'Failed to save match'); } finally { setSaving(false); }
   };
@@ -444,6 +475,7 @@ export default function MatchManager() {
             }`}>
             <Lock className="w-3 h-3" />{showClosed ? 'Hide Closed' : 'Show Closed'}
           </button>
+          <span className="text-[9px] font-bold px-2 py-1.5 rounded-full bg-purple-100 text-purple-600 flex items-center gap-1"><Trophy className="w-3 h-3" />TOURNAMENT</span>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
             <option value="all">All Status</option>
@@ -550,10 +582,64 @@ export default function MatchManager() {
                   <select value={form.tournament} onChange={e => setForm(p => ({ ...p, tournament: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
                     <option value="">Select tournament...</option>{tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}</option>)}
                   </select></div>
-                <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Round *</label>
-                  <input value={form.round} onChange={e => setForm(p => ({ ...p, round: e.target.value }))} placeholder="e.g. Quarter Final" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Round *</label>
+                    <input value={form.round} onChange={e => setForm(p => ({ ...p, round: e.target.value }))} placeholder="e.g. Final" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Rounds to create</label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <button key={n} type="button" onClick={() => setForm(p => ({ ...p, roundCount: n }))}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${form.roundCount === n ? 'bg-brand-red text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
                 <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Scheduled At *</label>
                   <input type="datetime-local" value={form.scheduled_at} onChange={e => setForm(p => ({ ...p, scheduled_at: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1.5 block flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500" />{VEX_ALLIANCE_CONFIG.redLabel} Teams ({form.side_a_teams.length})
+                    </label>
+                    <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl bg-slate-50/70 border border-brand-border p-1.5">
+                      {teams.filter(t => !form.tournament || t.tournament === form.tournament).length === 0 && (
+                        <p className="text-[11px] text-slate-400 text-center py-3">No teams for this tournament</p>
+                      )}
+                      {teams.filter(t => !form.tournament || t.tournament === form.tournament).map(t => {
+                        const checked = form.side_a_teams.includes(t.id);
+                        const onB = form.side_b_teams.includes(t.id);
+                        return (
+                          <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${checked ? 'bg-red-50 text-red-700 ring-1 ring-red-200' : onB ? 'bg-slate-100 text-slate-400 line-through' : 'hover:bg-slate-100 text-slate-600'}`}>
+                            <input type="checkbox" checked={checked} disabled={onB}
+                              onChange={() => setForm(p => ({ ...p, side_a_teams: checked ? p.side_a_teams.filter(x => x !== t.id) : [...p.side_a_teams, t.id] }))} />
+                            {t.team_name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1.5 block flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />{VEX_ALLIANCE_CONFIG.blueLabel} Teams ({form.side_b_teams.length})
+                    </label>
+                    <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl bg-slate-50/70 border border-brand-border p-1.5">
+                      {teams.filter(t => !form.tournament || t.tournament === form.tournament).length === 0 && (
+                        <p className="text-[11px] text-slate-400 text-center py-3">No teams for this tournament</p>
+                      )}
+                      {teams.filter(t => !form.tournament || t.tournament === form.tournament).map(t => {
+                        const checked = form.side_b_teams.includes(t.id);
+                        const onA = form.side_a_teams.includes(t.id);
+                        return (
+                          <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${checked ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : onA ? 'bg-slate-100 text-slate-400 line-through' : 'hover:bg-slate-100 text-slate-600'}`}>
+                            <input type="checkbox" checked={checked} disabled={onA}
+                              onChange={() => setForm(p => ({ ...p, side_b_teams: checked ? p.side_b_teams.filter(x => x !== t.id) : [...p.side_b_teams, t.id] }))} />
+                            {t.team_name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-brand-border">
                 <button onClick={() => setShowForm(false)} className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl">Cancel</button>

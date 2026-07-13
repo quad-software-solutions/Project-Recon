@@ -49,8 +49,9 @@ export default function AdminMatchCard({ match, onClick, onStart, compact = fals
           <Gamepad2 className={`w-4 h-4 ${isLive ? 'text-white' : 'text-amber-600'}`} />
           <div>
             <p className={`text-xs font-black ${isLive ? 'text-white' : 'text-slate-900'}`}>{match.round}</p>
-            <p className={`text-[10px] ${isLive ? 'text-white/70' : 'text-slate-500'}`}>
+            <p className={`text-[10px] ${isLive ? 'text-white/70' : 'text-slate-500'} flex items-center gap-1`}>
               {match.tournament_title || (match.tournament ? <span className="inline-flex items-center gap-1"><AlertTriangle className="w-2.5 h-2.5 text-amber-400" /> Tournament #{match.tournament.slice(0, 6)}</span> : '—')}
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600">TOURNAMENT</span>
             </p>
           </div>
         </div>

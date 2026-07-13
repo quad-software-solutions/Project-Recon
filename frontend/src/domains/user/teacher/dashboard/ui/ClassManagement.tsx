@@ -6,9 +6,20 @@ import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSes
 interface Props {
   students: any[];
   enrollments: any[];
+  classes?: { id: string; name: string }[];
+  selectedClassId?: string;
+  onClassChange?: (id: string) => void;
+  mode?: 'staff' | 'instructor';
 }
 
-export default function ClassManagement({ students, enrollments }: Props) {
+export default function ClassManagement({
+  students,
+  enrollments,
+  classes = [],
+  selectedClassId = '',
+  onClassChange,
+  mode = 'staff',
+}: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [attended, setAttended] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -43,18 +54,18 @@ export default function ClassManagement({ students, enrollments }: Props) {
 
   const recordAttendance = async () => {
     const enrolledStudents = students.filter(s => enrollments.some(e => e.student === s.id));
-    if (enrolledStudents.length === 0) return;
+    if (enrolledStudents.length === 0 || !selectedClassId) return;
     setSaving(true);
     try {
       const session = await createAttendanceSessionApi({
-        enrolled_class: enrollments[0]?.enrolled_class || '',
+        enrolled_class: selectedClassId,
         session_date: todayStr,
         topic: 'Daily Attendance',
       });
       const records = Array.from(attended).map(studentId => {
         const enrollment = enrollments.find(e => e.student === studentId);
         return { enrollment: enrollment?.id || '', status: 'PRESENT' };
-      });
+      }).filter(r => r.enrollment);
       if (records.length > 0) {
         await recordBulkAttendanceApi(session.id, records);
       }
@@ -68,9 +79,10 @@ export default function ClassManagement({ students, enrollments }: Props) {
   };
 
   const loadHistory = async () => {
+    if (!selectedClassId) return;
     setHistoryLoading(true);
     try {
-      const sessions = await fetchAttendanceSessionsApi(enrollments[0]?.enrolled_class || '');
+      const sessions = await fetchAttendanceSessionsApi(selectedClassId);
       const arr = Array.isArray(sessions) ? sessions : [];
       setHistoryData(arr.filter(s => s.session_date?.startsWith(historyDate.slice(0, 7))));
     } catch {
@@ -140,6 +152,20 @@ export default function ClassManagement({ students, enrollments }: Props) {
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span className="font-sans text-xs text-slate-500">{selectedDate}</span>
             </div>
+            {classes.length > 0 && onClassChange && (
+              <select
+                value={selectedClassId}
+                onChange={e => onClassChange(e.target.value)}
+                className="mt-2 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50"
+              >
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            {mode === 'instructor' && enrollments.length === 0 && selectedClassId && (
+              <p className="text-[10px] text-amber-600 mt-1">No roster yet — record a first attendance session for this class.</p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Bulk Actions */}

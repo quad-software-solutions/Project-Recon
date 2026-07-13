@@ -28,7 +28,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
     setLoading(true);
     Promise.all(enrollments.map(e => fetchStudentProgressApi(e.id))).then(results => {
       const map: Record<string, any[]> = {};
-      enrollments.forEach((e, i) => { map[e.student] = Array.isArray(results[i]) ? results[i] : []; });
+      enrollments.forEach((e, i) => { map[e.id] = Array.isArray(results[i]) ? results[i] : []; });
       setProgressMap(map);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [enrollments]);
@@ -74,24 +74,29 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
     };
   }, [allProgressEntries]);
 
-  const filtered = students.filter(s => {
+  const enrollmentRows = enrollments.map(e => {
+    const student = students.find(s => s.id === e.student);
+    const name = e.student_name || `${student?.first_name || ''} ${student?.last_name || ''}`.trim() || student?.email || 'Student';
+    return { enrollmentId: e.id, studentId: e.student, name, email: student?.email || '' };
+  });
+
+  const filtered = enrollmentRows.filter(row => {
     if (progressSearch.trim()) {
       const q = progressSearch.toLowerCase();
-      const name = `${s.first_name || ''} ${s.last_name || ''} ${s.email || ''}`.toLowerCase();
-      if (!name.includes(q)) return false;
+      if (!row.name.toLowerCase().includes(q) && !row.email.toLowerCase().includes(q)) return false;
     }
     if (statusFilter !== 'all') {
-      const prog = progressMap[s.id] || [];
+      const prog = progressMap[row.enrollmentId] || [];
       const hasWithStatus = prog.some(p => p.status === statusFilter);
       if (!hasWithStatus) return false;
     }
     return true;
   });
 
-  const getProgress = (studentId: string) => progressMap[studentId] || [];
-  const completedCount = (studentId: string) => getProgress(studentId).filter(p => p.status === 'COMPLETED').length;
-  const inProgressCount = (studentId: string) => getProgress(studentId).filter(p => p.status === 'IN_PROGRESS').length;
-  const totalCount = (studentId: string) => getProgress(studentId).length;
+  const getProgress = (enrollmentId: string) => progressMap[enrollmentId] || [];
+  const completedCount = (enrollmentId: string) => getProgress(enrollmentId).filter(p => p.status === 'COMPLETED').length;
+  const inProgressCount = (enrollmentId: string) => getProgress(enrollmentId).filter(p => p.status === 'IN_PROGRESS').length;
+  const totalCount = (enrollmentId: string) => getProgress(enrollmentId).length;
 
   const nextStatus = (current: string) => {
     if (current === 'NOT_STARTED') return 'IN_PROGRESS';
@@ -184,19 +189,19 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                 <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-400">No students found.</td></tr>
-              ) : filtered.map((s, idx) => {
-                const total = totalCount(s.id);
-                const completed = completedCount(s.id);
-                const inProg = inProgressCount(s.id);
+              ) : filtered.map((row, idx) => {
+                const total = totalCount(row.enrollmentId);
+                const completed = completedCount(row.enrollmentId);
+                const inProg = inProgressCount(row.enrollmentId);
                 const pending = total - completed - inProg;
-                const isExpanded = expandedStudent === s.id;
+                const isExpanded = expandedStudent === row.enrollmentId;
                 const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-                const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
+                const name = row.name;
                 return (
-                  <React.Fragment key={s.id}>
+                  <React.Fragment key={row.enrollmentId}>
                     <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.04 }}
                       className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                      onClick={() => setExpandedStudent(isExpanded ? null : s.id)}
+                      onClick={() => setExpandedStudent(isExpanded ? null : row.enrollmentId)}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -233,9 +238,9 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                         <motion.tr initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                           <td colSpan={6} className="px-6 py-4 bg-slate-50/50">
                             <div className="space-y-2">
-                              {getProgress(s.id).length === 0 ? (
+                              {getProgress(row.enrollmentId).length === 0 ? (
                                 <p className="text-xs text-slate-400 text-center py-4">No progress records yet</p>
-                              ) : getProgress(s.id).map((p, pi) => (
+                              ) : getProgress(row.enrollmentId).map((p, pi) => (
                                 <div key={p.id} className="flex items-center justify-between bg-white rounded-xl p-3 border border-slate-200">
                                   <div className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full ${p.status === 'COMPLETED' ? 'bg-emerald-500' : p.status === 'IN_PROGRESS' ? 'bg-blue-500' : 'bg-slate-300'}`} />
@@ -269,9 +274,9 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
           </table>
         </div>
 
-        {students.length > 0 && (
+        {enrollmentRows.length > 0 && (
           <div className="px-6 py-3 border-t border-brand-border-light/40 flex items-center justify-between text-[10px] text-slate-400">
-            <span>{filtered.length} student{filtered.length !== 1 ? 's' : ''} shown</span>
+            <span>{filtered.length} enrollment{filtered.length !== 1 ? 's' : ''} shown</span>
             <span>Class progress: {stats.completionRate}% complete</span>
           </div>
         )}

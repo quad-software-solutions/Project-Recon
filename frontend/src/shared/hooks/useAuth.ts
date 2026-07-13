@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import { clearTokens } from '@/src/shared/utils/auth';
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -29,8 +30,7 @@ export function useAuth() {
     } catch {
       // Even if backend call fails, still clear local state
     }
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    clearTokens();
     setCurrentUser(null);
   };
 

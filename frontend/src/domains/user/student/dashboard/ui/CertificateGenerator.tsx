@@ -5,7 +5,7 @@ import { fetchStudentCertificatesApi, downloadCertificateReportPdf } from '@/src
 import type { StudentCertificate } from '@/src/shared/types';
 import BrandLogo from '@/src/shared/ui/BrandLogo';
 
-interface Props { studentId: string }
+interface Props { studentId?: string | null }
 
 export default function CertificateGenerator({ studentId }: Props) {
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
@@ -14,7 +14,7 @@ export default function CertificateGenerator({ studentId }: Props) {
   const selected = certificates.find(c => c.id === selectedCert);
 
   useEffect(() => {
-    fetchStudentCertificatesApi(studentId).then(setCertificates).catch(() => {}).finally(() => setLoading(false));
+    fetchStudentCertificatesApi(studentId ?? undefined).then(setCertificates).catch(() => {}).finally(() => setLoading(false));
   }, [studentId]);
 
   return (

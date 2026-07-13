@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, GraduationCap, Edit3, Trash2, Clock, DollarSign, User } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendWorkshop, BackendEvent, WorkshopLevel } from '../api/eventsApi';
+import { http } from '@/src/shared/api/http';
+
+interface UserOption { id: string; full_name: string; email: string; }
 
 const defaultForm = { event: '', instructor: '', duration_minutes: 60, level: 'BEGINNER' as WorkshopLevel, price: '' };
 
 export default function WorkshopManager() {
   const [workshops, setWorkshops] = useState<any[]>([]);
   const [events, setEvents] = useState<BackendEvent[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,12 +23,35 @@ export default function WorkshopManager() {
 
   const load = () => {
     setLoading(true);
+    const currentUser: UserOption | null = (() => {
+      try {
+        const saved = localStorage.getItem('ethio_robotics_user');
+        if (!saved) return null;
+        const u = JSON.parse(saved);
+        return u?.id ? { id: u.id, full_name: u.full_name || u.email || '', email: u.email || '' } : null;
+      } catch { return null; }
+    })();
     Promise.all([
       eventsApi.adminGetWorkshops(),
       eventsApi.adminGetEvents({ event_type: 'WORKSHOP' }),
-    ]).then(([ws, evts]) => {
+      http.get<any>('/accounts/users/', { params: { page_size: '100', search: '' } })
+        .then(r => (Array.isArray(r) ? r : r.results ?? []).map((u: any) => ({ id: u.id, full_name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), email: u.email })))
+        .catch(e => { console.warn('User list fetch failed, extracting from workshops:', e); return [] as UserOption[]; }),
+    ]).then(([ws, evts, usrs]) => {
       setWorkshops(Array.isArray(ws) ? ws : []);
       setEvents(Array.isArray(evts) ? evts : []);
+      const fromApi = usrs as UserOption[];
+      const fromExisting: UserOption[] = (Array.isArray(ws) ? ws : [])
+        .filter((w: any) => w.instructor && w.instructor_name)
+        .map((w: any) => ({ id: w.instructor, full_name: w.instructor_name, email: w.instructor_email || '' }));
+      const seen = new Set<string>();
+      const merged = [currentUser, ...fromApi, ...fromExisting].filter((u): u is UserOption => {
+        if (!u) return false;
+        if (seen.has(u.id)) return false;
+        seen.add(u.id);
+        return true;
+      });
+      setUsers(merged);
     }).catch(err => setError(err.message)).finally(() => setLoading(false));
   };
 
@@ -116,7 +143,18 @@ export default function WorkshopManager() {
                     <option value="">Select...</option>{events.map((e: any) => <option key={e.id} value={e.id}>{e.title}</option>)}
                   </select></div>
                 <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Instructor *</label>
-                  <input value={form.instructor} onChange={e => setForm(p => ({ ...p, instructor: e.target.value }))} placeholder="User ID" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <select value={form.instructor} onChange={e => setForm(p => ({ ...p, instructor: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
+                    <option value="">Select instructor...</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+                    <option value="__paste__">── Paste UUID manually ──</option>
+                  </select>
+                  {form.instructor === '__paste__' && (
+                    <input onChange={e => setForm(p => ({ ...p, instructor: e.target.value }))}
+                      placeholder="Paste the instructor UUID here" className="w-full px-4 py-2.5 bg-slate-50 border border-amber-300 rounded-xl text-sm focus:outline-none focus:border-amber-500 mt-1.5" autoFocus />
+                  )}
+                  {users.length === 0 && <p className="text-[10px] text-slate-400 mt-1">No instructors found — select "Paste UUID manually" to add one</p>}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Duration (min)</label>
                     <input type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: parseInt(e.target.value) || 0 }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>

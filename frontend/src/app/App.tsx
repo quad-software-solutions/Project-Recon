@@ -12,6 +12,7 @@ import AnimatedParticles from '../shared/ui/AnimatedParticles';
 import CartDrawer from '../domains/store/cart/ui/CartDrawer';
 import ProgramDetailModal from '../domains/learning/programs/ui/ProgramDetailModal';
 import Footer from '../shared/ui/Footer';
+import PaymentReturnBanner from '../shared/ui/PaymentReturnBanner';
 
 import HomePage from '../pages/HomePage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
@@ -180,7 +181,10 @@ export default function App() {
           )}
 
           {activeTab === 'competitions' && (
-            <CompetitionPage currentUser={currentUser} />
+            <CompetitionPage
+              currentUser={currentUser}
+              onNavigateLogin={() => handleTabChange('login')}
+            />
           )}
 
           {activeTab === 'consultancy' && (
@@ -198,6 +202,12 @@ export default function App() {
           {activeTab === 'dashboard' && currentUser && (
             <motion.div key="dashboard-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
               <DashboardPage currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
+            </motion.div>
+          )}
+
+          {activeTab === 'command-center' && currentUser && hasPermission(currentUser, 'command-center:view') && (
+            <motion.div key="command-center-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <EventCommandCenter currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -232,6 +242,7 @@ export default function App() {
 
       {!currentUser && <Footer onNavigate={handleTabChange} />}
 
+      <PaymentReturnBanner />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Building, ClipboardList, GraduationCap, Users, Search, Plus, Star, X, CheckCircle2, Trash2, ChevronDown, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  fetchUsersApi,
+  fetchAllUsersApi,
   branchesApi,
   assignmentsApi,
   type AdminUserResponse,
@@ -84,11 +84,11 @@ export default function RolesPermissionsPanel() {
     setError(null);
     try {
       const [userRes, branchArr, assignArr] = await Promise.all([
-        fetchUsersApi(),
+        fetchAllUsersApi(),
         branchesApi.list().catch(() => [] as BranchResponse[]),
         assignmentsApi.list().catch(() => [] as AssignmentResponse[]),
       ]);
-      setUsers(userRes.results ?? []);
+      setUsers(userRes);
       setBranches(branchArr);
       setAssignments(assignArr);
     } catch (e) {

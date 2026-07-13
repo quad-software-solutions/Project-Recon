@@ -45,7 +45,7 @@ export type AcademicSubProgramPayload = {
 
 export type OnlineEnrollmentPayload = {
   enrolled_class: string;
-  callback_url?: string;
+  callback_url: string;
   return_url?: string;
   email?: string;
   first_name?: string;
@@ -55,6 +55,11 @@ export type OnlineEnrollmentPayload = {
   guardian_name?: string;
   guardian_phone?: string;
   guardian_email?: string;
+};
+
+export type OnlineEnrollmentResponse = {
+  enrollment: Enrollment;
+  checkout_url: string;
 };
 
 export type CashPaymentPayload = {
@@ -240,8 +245,8 @@ export async function enrollStudentApi(payload: StaffEnrollmentPayload): Promise
   return http.post<Enrollment>(`${BASE}/enrollments/`, payload);
 }
 
-export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<Enrollment> {
-  return http.post<Enrollment>(`${BASE}/enrollments/online/`, payload);
+export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<OnlineEnrollmentResponse> {
+  return http.post<OnlineEnrollmentResponse>(`${BASE}/enrollments/online/`, payload);
 }
 
 export async function verifyOnlinePaymentApi(payload: { reference: string }): Promise<EnrollmentPayment> {
@@ -291,7 +296,7 @@ export async function fetchPaymentsApi(): Promise<EnrollmentPayment[]> {
 }
 
 // ─── Attendance ───
-export async function fetchAttendanceSessionsApi(classId: string): Promise<AttendanceSession[]> {
+export async function fetchAttendanceSessionsApi(classId?: string): Promise<AttendanceSession[]> {
   return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/${queryString({ enrolled_class: classId })}`));
 }
 
@@ -319,21 +324,62 @@ export async function fetchEnrollmentAttendanceSummaryApi(enrollmentId: string):
   return http.get<Record<string, unknown>>(`${BASE}/attendance/enrollments/${enrollmentId}/summary/`);
 }
 
-// ─── Staff Attendance ───
+// ─── Staff Attendance (backend field: `date`, not `session_date`) ───
+
 export async function fetchAvailableStaffApi(params?: { branch?: string; role?: string }): Promise<any[]> {
   return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/available-staff/${queryString(params)}`));
 }
 
-export async function fetchStaffAttendanceSessionsApi(params?: { branch?: string; session_date?: string }): Promise<any[]> {
-  return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/${queryString(params)}`));
+function mapStaffSessionFromApi(row: Record<string, unknown>) {
+  return {
+    ...row,
+    session_date: row.date ?? row.session_date,
+  };
 }
 
-export async function createStaffAttendanceSessionApi(payload: { branch: string; session_date: string; notes?: string }): Promise<any> {
-  return http.post(`${BASE}/staff-attendance/sessions/`, payload);
+export async function fetchStaffAttendanceSessionsApi(params?: {
+  branch?: string;
+  session_date?: string;
+  date_from?: string;
+  date_to?: string;
+  status?: string;
+}): Promise<any[]> {
+  const query: Record<string, string> = {};
+  if (params?.branch) query.branch = params.branch;
+  if (params?.status) query.status = params.status;
+  if (params?.date_from) query.date_from = params.date_from;
+  if (params?.date_to) query.date_to = params.date_to;
+  if (params?.session_date) {
+    query.date_from = params.session_date;
+    query.date_to = params.session_date;
+  }
+  const rows = unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/${queryString(query)}`));
+  return rows.map(r => mapStaffSessionFromApi(r as Record<string, unknown>));
 }
 
-export async function updateStaffAttendanceSessionApi(id: string, payload: Partial<{ branch: string; session_date: string; notes: string }>): Promise<any> {
-  return http.patch(`${BASE}/staff-attendance/sessions/${id}/`, payload);
+export async function createStaffAttendanceSessionApi(payload: {
+  branch: string;
+  session_date: string;
+  notes?: string;
+}): Promise<any> {
+  const res = await http.post(`${BASE}/staff-attendance/sessions/`, {
+    branch: payload.branch,
+    date: payload.session_date,
+    notes: payload.notes,
+  });
+  return mapStaffSessionFromApi(res as Record<string, unknown>);
+}
+
+export async function updateStaffAttendanceSessionApi(
+  id: string,
+  payload: Partial<{ branch: string; session_date: string; notes: string }>,
+): Promise<any> {
+  const body: Record<string, string> = {};
+  if (payload.branch) body.branch = payload.branch;
+  if (payload.session_date) body.date = payload.session_date;
+  if (payload.notes !== undefined) body.notes = payload.notes;
+  const res = await http.patch(`${BASE}/staff-attendance/sessions/${id}/`, body);
+  return mapStaffSessionFromApi(res as Record<string, unknown>);
 }
 
 export async function publishStaffAttendanceSessionApi(id: string): Promise<any> {

@@ -1,114 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { Check, Loader2, ShieldOff, Download } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/src/domains/learning/academics/api/academicApi';
-import type { AttendanceSession } from '@/src/shared/types';
+import React, { useState } from 'react';
+import { Download, CalendarDays, Loader2, FileText } from 'lucide-react';
+import { downloadAttendanceReportPdf } from '@/src/domains/learning/academics/api/academicApi';
 
-interface Props { studentId: string }
+interface Props { studentId: string | null }
 
 export default function AttendanceTracker({ studentId }: Props) {
-  const [sessions, setSessions] = useState<AttendanceSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [permissionDenied, setPermissionDenied] = useState(false);
-  const [month, setMonth] = useState(new Date().getMonth());
-  const [year] = useState(new Date().getFullYear());
+  const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(async enr => {
-      const all: AttendanceSession[] = [];
-      for (const e of enr) {
-        try {
-          const s = await fetchAttendanceSessionsApi(e.enrolled_class);
-          all.push(...s);
-        } catch {}
-      }
-      setSessions(all);
-    }).catch(() => {
-      setPermissionDenied(true);
-    }).finally(() => setLoading(false));
-  }, [studentId]);
-
-  const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const firstDay = new Date(year, month, 1).getDay();
-
-  const attendedDates = new Set(
-    sessions.map(s => new Date(s.session_date).getDate())
-  );
-  const presentCount = sessions.filter(s => s.session_date).length;
-  const totalHours = sessions.length * 2;
-  const attendedHours = presentCount * 2;
-  const pct = totalHours > 0 ? Math.round((attendedHours / totalHours) * 100) : 0;
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-3xl p-5 shadow-sm border border-brand-border-light/60 w-full">
-        <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
-      </div>
-    );
-  }
-
-  if (permissionDenied) {
-    return (
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-border-light/60 w-full text-center">
-        <ShieldOff className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-        <h3 className="font-bold text-lg text-slate-900 mb-2">Attendance Unavailable</h3>
-        <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-          Attendance data requires staff-level access. Please contact your instructor or download the PDF report.
-        </p>
-        <button
-          onClick={() => downloadAttendanceReportPdf(studentId)}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red px-4 py-2 rounded-lg hover:bg-brand-red-dark transition-colors"
-        >
-          <Download className="w-3.5 h-3.5" /> Download PDF Report
-        </button>
-      </div>
-    );
-  }
+  const handleDownload = async () => {
+    if (!studentId) return;
+    setDownloading(true);
+    try {
+      await downloadAttendanceReportPdf(studentId);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
-    <div className="bg-white rounded-3xl p-5 shadow-sm border border-brand-border-light/60 w-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display font-bold text-slate-900 text-lg">Attendance Tracker</h3>
+    <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-border-light/60">
+      <div className="flex items-start gap-4 mb-6">
+        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+          <CalendarDays className="w-6 h-6 text-emerald-600" />
+        </div>
+        <div>
+          <h3 className="font-display font-bold text-slate-900 text-xl">Attendance</h3>
+          <p className="text-sm text-slate-500 mt-1">
+            View your attendance summary via the official PDF report from the academic system.
+          </p>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4 text-brand-muted-dark">
-        <button onClick={() => setMonth(m => m - 1)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors text-xs">←</button>
-        <span className="font-sans font-semibold text-sm">{monthNames[month]} {year}</span>
-        <button onClick={() => setMonth(m => m + 1)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors text-xs">→</button>
-      </div>
-
-      <>
-        <div className="grid grid-cols-7 gap-1 text-center mb-2">
-          {days.map(d => <span key={d} className="text-[10px] text-brand-muted font-mono">{d}</span>)}
+      {!studentId ? (
+        <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl">
+          <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p className="text-sm font-medium">Academic profile not linked yet.</p>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center">
-          {Array.from({ length: firstDay }).map((_, i) => <span key={`e${i}`} />)}
-          {dates.map(d => (
-            <div key={d} className="flex items-center justify-center aspect-square">
-              {attendedDates.has(d) ? (
-                <div className="w-6 h-6 rounded-full bg-emerald-500 text-slate-900 flex items-center justify-center shadow-sm">
-                  <Check className="w-3.5 h-3.5" />
-                </div>
-              ) : (
-                <span className="text-xs text-slate-600 font-medium">{d}</span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-brand-border-light/50">
-          <div className="flex items-center justify-between mb-6">
-            <span className="font-sans text-xs font-semibold text-slate-800">{pct}%</span>
-            <span className="font-sans text-xs font-semibold text-slate-800">{attendedHours}h / {totalHours}h</span>
+      ) : (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="font-bold text-slate-900">Attendance Report (PDF)</p>
+            <p className="text-xs text-slate-500 mt-1">Session-by-session attendance for your enrollments.</p>
           </div>
-          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-          </div>
+          <button onClick={handleDownload} disabled={downloading}
+            className="inline-flex items-center justify-center gap-2 text-sm font-bold bg-brand-red text-white px-5 py-2.5 rounded-xl hover:bg-brand-red-dark disabled:opacity-50">
+            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Download PDF
+          </button>
         </div>
-      </>
+      )}
     </div>
   );
 }

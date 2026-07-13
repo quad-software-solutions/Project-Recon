@@ -4,17 +4,21 @@ import {
   ArrowLeft, Trophy, MapPin, Calendar, Users, DollarSign, Shield, Loader2, AlertCircle,
   Gamepad2, CheckCircle, Clock, Swords, Medal, Target, Flame, Award, ScrollText, Sparkles,
 } from 'lucide-react';
-import { getTournamentById, getMatches, getTournamentStandings, getTournamentMatchDetails, type StandingEntry, type MatchDetail } from '../../api/competitionApi';
+import { getTournamentById, getMatches, getTournamentStandings, getTournamentMatchDetails, getMyRegistrations, type StandingEntry, type MatchDetail } from '../../api/competitionApi';
 import { type Tournament, type MatchResult } from '@/src/shared/types';
 import TournamentCertificateManager from './TournamentCertificateManager';
 import MatchCard from '../../matches/ui/MatchCard';
 import VexRulesPanel from '../../shared/VexRulesPanel';
+import EventRegistrationModal from '../../shared/EventRegistrationModal';
+import EventRegisterButton from '../../shared/EventRegisterButton';
+import { REGISTRATION_MODE_LABELS } from '../../shared/eventRegistrationUtils';
 import type { UserProfile } from '@/src/shared/types';
 
 interface TournamentDetailPageProps {
   tournamentId: string;
   onBack: () => void;
   currentUser?: UserProfile | null;
+  onNavigateLogin?: () => void;
 }
 
 type DetailTab = 'overview' | 'teams' | 'matches' | 'rankings' | 'results' | 'certificates';
@@ -33,7 +37,7 @@ const MATCH_STATUS_STYLE: Record<string, string> = {
   CANCELLED: 'bg-slate-100 text-slate-500',
 };
 
-export default function TournamentDetailPage({ tournamentId, onBack, currentUser }: TournamentDetailPageProps) {
+export default function TournamentDetailPage({ tournamentId, onBack, currentUser, onNavigateLogin }: TournamentDetailPageProps) {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [matchDetails, setMatchDetails] = useState<MatchDetail[]>([]);
@@ -41,6 +45,8 @@ export default function TournamentDetailPage({ tournamentId, onBack, currentUser
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>('overview');
+  const [showRegModal, setShowRegModal] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -59,6 +65,19 @@ export default function TournamentDetailPage({ tournamentId, onBack, currentUser
     }).catch(err => setError(err.message))
     .finally(() => setLoading(false));
   }, [tournamentId]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    getMyRegistrations()
+      .then(regs => {
+        const active = regs.some(r =>
+          r.event === tournamentId &&
+          (r.registration_status === 'PENDING' || r.registration_status === 'APPROVED'),
+        );
+        setIsRegistered(active);
+      })
+      .catch(() => {});
+  }, [currentUser, tournamentId]);
 
   const liveMatches = useMemo(() => matches.filter(m => m.status === 'live'), [matches]);
   const completedMatches = useMemo(() => matches.filter(m => m.status === 'completed'), [matches]);
@@ -162,6 +181,16 @@ export default function TournamentDetailPage({ tournamentId, onBack, currentUser
                 Watch Live Stream
               </a>
             )}
+            <div className="mt-4 max-w-xs">
+              <EventRegisterButton
+                event={tournament}
+                currentUser={currentUser}
+                isRegistered={isRegistered}
+                onRegister={() => setShowRegModal(true)}
+                onNavigateLogin={onNavigateLogin}
+                className="!py-3 !text-xs w-full"
+              />
+            </div>
           </div>
         </div>
 
@@ -228,7 +257,7 @@ export default function TournamentDetailPage({ tournamentId, onBack, currentUser
                   <Shield className="w-3.5 h-3.5 text-brand-red" />Registration
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div><span className="text-slate-500">Mode:</span> <span className="font-bold text-slate-800">{tournament.registrationMode}</span></div>
+                  <div><span className="text-slate-500">Mode:</span> <span className="font-bold text-slate-800">{REGISTRATION_MODE_LABELS[tournament.registrationMode]}</span></div>
                   <div><span className="text-slate-500">Enabled:</span>
                     <span className={`font-bold ml-1 ${tournament.registrationEnabled ? 'text-emerald-600' : 'text-red-600'}`}>
                       {tournament.registrationEnabled ? 'Yes' : 'No'}
@@ -405,6 +434,20 @@ export default function TournamentDetailPage({ tournamentId, onBack, currentUser
           />
         )}
       </motion.div>
+
+      {showRegModal && tournament && (
+        <EventRegistrationModal
+          event={tournament}
+          currentUser={currentUser}
+          isRegistered={isRegistered}
+          onClose={() => setShowRegModal(false)}
+          onSuccess={() => {
+            setIsRegistered(true);
+            setShowRegModal(false);
+          }}
+          onNavigateLogin={onNavigateLogin}
+        />
+      )}
     </div>
   );
 }

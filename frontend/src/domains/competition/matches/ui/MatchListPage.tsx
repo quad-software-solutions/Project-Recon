@@ -4,13 +4,14 @@ import {
   Search, Gamepad2, Filter, Loader2, AlertCircle, Activity, CheckCircle,
   Calendar, XCircle, Video, Zap, AlertTriangle,
 } from 'lucide-react';
-import { getAllPublicMatches, type MatchDetail } from '../../api/competitionApi';
+import { fetchAllMatches } from '../../api/matchApi';
+import type { MatchDetail } from '../../api/matchMappers';
 import MatchCard from './MatchCard';
 import VexMatchArena from '../../shared/VexMatchArena';
 import { sidesFromMatch } from '../../shared/VexAllianceDisplay';
 
 interface MatchListPageProps {
-  onSelectMatch: (matchId: string) => void;
+  onSelectMatch: (matchId: string, tournamentId?: string) => void;
 }
 
 type StatusTab = 'all' | 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
@@ -55,7 +56,7 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
   const fetchMatches = (isInitial = false) => {
     if (isInitial) setLoading(true);
     setError(null);
-    getAllPublicMatches()
+    fetchAllMatches()
       .then(data => {
         setMatches(data);
         setLastRefresh(new Date());
@@ -97,6 +98,17 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
 
   const counts: Record<string, number> = { all: matches.length };
   for (const m of matches) counts[m.status] = (counts[m.status] || 0) + 1;
+
+  const stats = useMemo(
+    () => ({
+      total: matches.length,
+      live: counts.LIVE || 0,
+      scheduled: counts.SCHEDULED || 0,
+      completed: counts.COMPLETED || 0,
+      cancelled: counts.CANCELLED || 0,
+    }),
+    [matches, counts.LIVE, counts.SCHEDULED, counts.COMPLETED, counts.CANCELLED],
+  );
 
   if (loading) {
     return (
@@ -148,7 +160,7 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
             {liveMatches.slice(0, 4).map(m => {
               const { sideA, sideB } = sidesFromMatch(m.sides);
               return (
-                <button key={m.id} onClick={() => onSelectMatch(m.id)}
+                <button key={m.id} onClick={() => onSelectMatch(m.id, m.tournamentId)}
                   className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-all text-left border border-white/10"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -172,6 +184,22 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
           </div>
         </motion.div>
       )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+        {[
+          { label: 'Total', value: stats.total },
+          { label: 'Live', value: stats.live },
+          { label: 'Scheduled', value: stats.scheduled },
+          { label: 'Completed', value: stats.completed },
+          { label: 'Cancelled', value: stats.cancelled },
+        ].map(s => (
+          <div key={s.label} className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-center">
+            <p className="text-lg font-black text-slate-900">{s.value}</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase">{s.label}</p>
+          </div>
+        ))}
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -231,7 +259,7 @@ export default function MatchListPage({ onSelectMatch }: MatchListPageProps) {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {paged.map(m => (
-              <MatchCard key={m.id} match={m} onClick={() => onSelectMatch(m.id)} />
+              <MatchCard key={m.id} match={m} onClick={() => onSelectMatch(m.id, m.tournamentId)} />
             ))}
           </div>
 
