@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile } from '@/src/shared/types';
 import * as eventsApi from '@/src/domains/competition/api/eventsApi';
+import { cmsPublicApi, type MapNodeResponse } from '@/src/domains/cms/public/api/cmsPublicApi';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -146,6 +147,13 @@ export default function PublicEventsHomePage({
   const [upcoming, setUpcoming] = useState<eventsApi.BackendEvent[]>([]);
   const [live, setLive] = useState<eventsApi.BackendEvent[]>([]);
   const [recent, setRecent] = useState<eventsApi.BackendEvent[]>([]);
+  const [mapNodes, setMapNodes] = useState<MapNodeResponse[]>([]);
+
+  useEffect(() => {
+    cmsPublicApi.getMapNodes().then(data => setMapNodes(
+      (Array.isArray(data) ? data : []).filter(n => n.is_active)
+    )).catch(() => {});
+  }, []);
 
   const load = () => {
     const abort = new AbortController();
@@ -312,7 +320,7 @@ export default function PublicEventsHomePage({
           )}
 
           {/* Upcoming */}
-          <section className="space-y-4">
+          <section id="events" className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-brand-red" />
@@ -337,7 +345,7 @@ export default function PublicEventsHomePage({
           </section>
 
           {/* Live */}
-          <section className="space-y-4">
+          <section id="live-matches" className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-red-500" />
@@ -382,6 +390,36 @@ export default function PublicEventsHomePage({
                 {recent.map(e => (
                   <EventCard key={e.id} e={e} onOpen={() => onOpenEvent(e.id)} />
                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* Venues */}
+          <section id="venues" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-brand-red" />
+              <h2 className="font-black text-base text-slate-900 uppercase tracking-wider">Our Venues</h2>
+            </div>
+            {mapNodes.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mapNodes.map(node => (
+                  <div key={node.id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+                    <div className="w-10 h-10 rounded-xl bg-brand-red/10 flex items-center justify-center mb-3">
+                      <MapPin className="w-5 h-5 text-brand-red" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-900">{node.title}</p>
+                    <p className="text-xs text-slate-500">{node.city}, {node.country}</p>
+                    {node.achievement && (
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-red mt-2">{node.achievement}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+                <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-500">Venue information coming soon</p>
+                <p className="text-xs text-slate-400 mt-1">Lab locations will appear here once published</p>
               </div>
             )}
           </section>

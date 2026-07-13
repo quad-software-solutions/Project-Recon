@@ -63,10 +63,10 @@ const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> 
   events: {
     viewAllTab: 'competitions',
     items: [
-      { label: 'Competitions', desc: 'VEX & Enjoy AI tournaments', icon: Trophy, tab: 'competitions' },
-      { label: 'Workshops', desc: 'Hands-on training sessions', icon: GraduationCap, tab: 'competitions' },
-      { label: 'Event Calendar', desc: 'Upcoming dates & deadlines', icon: Calendar, tab: 'competitions' },
-      { label: 'Venues', desc: 'Lab locations & maps', icon: MapPin, tab: 'competitions' },
+      { label: 'Competitions', desc: 'VEX & Enjoy AI tournaments', icon: Trophy, tab: 'competitions', section: 'live-matches' },
+      { label: 'Workshops', desc: 'Hands-on training sessions', icon: GraduationCap, tab: 'competitions', section: 'events' },
+      { label: 'Event Calendar', desc: 'Upcoming dates & deadlines', icon: Calendar, tab: 'competitions', section: 'events' },
+      { label: 'Venues', desc: 'Lab locations & maps', icon: MapPin, tab: 'competitions', section: 'venues' },
     ],
   },
 };
