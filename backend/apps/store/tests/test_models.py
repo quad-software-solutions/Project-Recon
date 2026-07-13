@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from apps.store.models import (
     BranchInventory,
+    PendingOrder,
+    PendingOrderItem,
     Product,
     ProductCategory,
     ProductImage,
@@ -304,3 +306,77 @@ class ShoppingCartItemModelTest(TestCase):
                 branch=self.branch,
                 quantity=0,
             )
+
+
+class PendingOrderModelTest(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="pending@test.com", password="testpass123"
+        )
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+
+    def test_create_pending_order_for_user(self):
+        order = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=100.00,
+            total=100.00,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.assertEqual(order.user, self.user)
+        self.assertEqual(order.branch, self.branch)
+        self.assertEqual(float(order.subtotal), 100.00)
+        self.assertIsNotNone(order.id)
+        self.assertIsNotNone(order.created_at)
+        self.assertIn("pending@test.com", str(order))
+
+    def test_create_pending_order_for_guest(self):
+        order = PendingOrder.objects.create(
+            branch=self.branch,
+            subtotal=50.00,
+            total=50.00,
+            guest_name="Guest User",
+            guest_email="guest@test.com",
+            guest_phone="+251911111111",
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.assertIsNone(order.user)
+        self.assertEqual(order.guest_name, "Guest User")
+        self.assertEqual(order.guest_email, "guest@test.com")
+        self.assertIn("Guest", str(order))
+
+
+class PendingOrderItemModelTest(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(email="poi@test.com", password="testpass123")
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+        self.order = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=30.00,
+            total=30.00,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        category = ProductCategory.objects.create(name="Category")
+        self.product = Product.objects.create(
+            category=category, name="Item", slug="item", sku="ITEM", price=15
+        )
+
+    def test_create_pending_order_item(self):
+        item = PendingOrderItem.objects.create(
+            pending_order=self.order,
+            product=self.product,
+            quantity=2,
+            unit_price=15.00,
+            subtotal=30.00,
+        )
+        self.assertEqual(item.pending_order, self.order)
+        self.assertEqual(item.product, self.product)
+        self.assertEqual(item.quantity, 2)
+        self.assertEqual(float(item.unit_price), 15.00)
+        self.assertEqual(float(item.subtotal), 30.00)
+        self.assertIsNotNone(item.id)

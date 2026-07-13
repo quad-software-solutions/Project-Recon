@@ -45,6 +45,12 @@ from apps.store.services.branch_inventory_service import (
     transfer_inventory,
     validate_stock,
 )
+from apps.store.models.pending_order import PendingOrder, PendingOrderItem
+from apps.store.services.checkout_service import checkout
+from apps.store.services.pending_order_service import (
+    expire_expired_pending_orders,
+    get_pending_order_or_404,
+)
 from apps.store.services.shopping_cart_service import (
     add_to_cart,
     clear_cart,
@@ -479,3 +485,160 @@ class ShoppingCartServiceTest(TestCase):
         count = delete_expired_carts()
         self.assertEqual(count, 1)
         self.assertFalse(ShoppingCart.objects.filter(pk=expired.pk).exists())
+
+
+class CheckoutServiceTest(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="checkout@test.com",
+            password="testpass123",
+            first_name="Check",
+            last_name="Out",
+        )
+        self.session_key = "checkout-session"
+        self.category = create_category({"name": "Category"})
+        self.product = create_product({
+            "category": self.category.pk,
+            "name": "Widget",
+            "slug": "widget",
+            "sku": "WDG",
+            "price": 25.00,
+        })
+        self.product2 = create_product({
+            "category": self.category.pk,
+            "name": "Gadget",
+            "slug": "gadget",
+            "sku": "GDG",
+            "price": 15.00,
+        })
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+        add_inventory(self.branch, self.product, 50)
+        add_inventory(self.branch, self.product2, 20)
+        self.cart = get_or_create_cart(user=self.user)
+        add_to_cart(self.cart, self.product, self.branch, 3)
+        add_to_cart(self.cart, self.product2, self.branch, 2)
+
+    def test_checkout_success(self):
+        order = checkout(self.cart, self.branch)
+        self.assertEqual(order.branch, self.branch)
+        self.assertEqual(order.user, self.user)
+        items = order.items.all()
+        self.assertEqual(len(items), 2)
+        self.assertEqual(float(order.subtotal), 105.00)
+        self.assertEqual(float(order.total), 105.00)
+        self.assertIsNone(order.payment_reference)
+
+    def test_checkout_empty_cart(self):
+        from apps.store.services.shopping_cart_service import clear_cart
+
+        clear_cart(self.cart)
+        with self.assertRaises(ValidationError):
+            checkout(self.cart, self.branch)
+
+    def test_checkout_insufficient_stock(self):
+        from apps.store.models import BranchInventory
+
+        inv = BranchInventory.objects.get(branch=self.branch, product=self.product)
+        inv.quantity = 1
+        inv.save(update_fields=["quantity"])
+        with self.assertRaises(ValidationError) as ctx:
+            checkout(self.cart, self.branch)
+        self.assertIn("Insufficient stock", str(ctx.exception))
+
+    def test_checkout_inactive_product(self):
+        from apps.store.services.product_service import deactivate_product
+
+        deactivate_product(self.product)
+        with self.assertRaises(ValidationError):
+            checkout(self.cart, self.branch)
+
+    def test_checkout_clears_cart(self):
+        checkout(self.cart, self.branch)
+        self.assertEqual(self.cart.items.count(), 0)
+
+    def test_checkout_snapshots_prices(self):
+        order = checkout(self.cart, self.branch)
+        for item in order.items.all():
+            self.assertEqual(
+                float(item.unit_price), float(item.product.price)
+            )
+
+    def test_checkout_guest_with_guest_info(self):
+        guest_cart = get_or_create_cart(session_key="guest-checkout")
+        add_to_cart(guest_cart, self.product, self.branch, 1)
+        order = checkout(
+            guest_cart,
+            self.branch,
+            guest_info={
+                "name": "Guest",
+                "email": "guest@test.com",
+                "phone": "+251911111111",
+            },
+        )
+        self.assertIsNone(order.user)
+        self.assertEqual(order.guest_name, "Guest")
+        self.assertEqual(order.guest_email, "guest@test.com")
+
+
+class PendingOrderServiceTest(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="pos@test.com",
+            password="testpass123",
+        )
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+
+    def test_get_pending_order_or_404(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        order = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=50,
+            total=50,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        fetched = get_pending_order_or_404(order.pk)
+        self.assertEqual(fetched.pk, order.pk)
+
+    def test_get_pending_order_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_pending_order_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_expire_expired_pending_orders(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        expired = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=50,
+            total=50,
+            expires_at=timezone.now() - timedelta(minutes=5),
+        )
+        active = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=30,
+            total=30,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        count = expire_expired_pending_orders()
+        self.assertEqual(count, 1)
+        self.assertFalse(PendingOrder.objects.filter(pk=expired.pk).exists())
+        self.assertTrue(PendingOrder.objects.filter(pk=active.pk).exists())

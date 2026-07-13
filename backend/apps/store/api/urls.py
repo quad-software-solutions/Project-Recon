@@ -27,6 +27,8 @@ from apps.store.api.views import (
     CartDetailView,
     CartItemRemoveView,
     CartItemUpdateView,
+    CheckoutView,
+    PendingOrderDetailView,
     PublicBranchInventoryListView,
     PublicCategoryDetailView,
     PublicCategoryListView,
@@ -73,6 +75,16 @@ urlpatterns = [
         name="store-cart-item-remove",
     ),
     path("cart/clear/", CartClearView.as_view(), name="store-cart-clear"),
+    path(
+        "cart/checkout/",
+        CheckoutView.as_view(),
+        name="store-cart-checkout",
+    ),
+    path(
+        "pending-orders/<uuid:pk>/",
+        PendingOrderDetailView.as_view(),
+        name="store-pending-order-detail",
+    ),
     # Admin - Categories
     path(
         "admin/categories/",
