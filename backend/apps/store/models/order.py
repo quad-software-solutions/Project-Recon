@@ -62,6 +62,7 @@ class Order(models.Model):
         indexes = [
             models.Index(fields=["branch"], name="order_branch_idx"),
             models.Index(fields=["created_at"], name="order_created_at_idx"),
+            models.Index(fields=["status", "created_at"], name="order_status_created_idx"),
         ]
 
     def __str__(self):

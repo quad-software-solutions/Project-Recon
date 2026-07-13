@@ -22,6 +22,9 @@ class ProductImage(models.Model):
         db_table = "store_product_image"
         ordering = ["display_order"]
         unique_together = [["product", "display_order"]]
+        indexes = [
+            models.Index(fields=["product"], name="pi_product_idx"),
+        ]
 
     def __str__(self):
         return f"{self.product.name} - Image {self.display_order}"

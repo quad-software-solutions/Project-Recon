@@ -54,6 +54,10 @@ class PendingOrderItem(models.Model):
 
     class Meta:
         db_table = "store_pending_order_item"
+        indexes = [
+            models.Index(fields=["pending_order"], name="poi_pending_order_idx"),
+            models.Index(fields=["product"], name="poi_product_idx"),
+        ]
 
     def __str__(self):
         return f"{self.product.name} x{self.quantity}"

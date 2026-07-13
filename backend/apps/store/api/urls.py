@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.store.api.views import (
+    AdminBranchSalesReportView,
     AdminCategoryActivateView,
     AdminCategoryDeactivateView,
     AdminCategoryListCreateView,
@@ -10,9 +11,12 @@ from apps.store.api.views import (
     AdminInventoryListCreateView,
     AdminInventoryReduceView,
     AdminInventoryRetrieveUpdateView,
+    AdminInventoryReportView,
     AdminInventoryTransferView,
+    AdminLowStockReportView,
     AdminOrderDetailView,
     AdminOrderListView,
+    AdminOrderReportView,
     AdminOrderStatusView,
     AdminProductActivateView,
     AdminProductArchiveView,
@@ -25,6 +29,8 @@ from apps.store.api.views import (
     AdminProductListCreateView,
     AdminProductRestoreView,
     AdminProductRetrieveUpdateView,
+    AdminProductStatisticsView,
+    AdminSalesReportView,
     CartAddItemView,
     CartClearView,
     CartDetailView,
@@ -226,6 +232,37 @@ urlpatterns = [
         "admin/orders/<uuid:pk>/status/",
         AdminOrderStatusView.as_view(),
         name="store-admin-order-status",
+    ),
+    # Admin - Reports
+    path(
+        "admin/reports/products/",
+        AdminProductStatisticsView.as_view(),
+        name="store-admin-report-products",
+    ),
+    path(
+        "admin/reports/inventory/",
+        AdminInventoryReportView.as_view(),
+        name="store-admin-report-inventory",
+    ),
+    path(
+        "admin/reports/low-stock/",
+        AdminLowStockReportView.as_view(),
+        name="store-admin-report-low-stock",
+    ),
+    path(
+        "admin/reports/sales/",
+        AdminSalesReportView.as_view(),
+        name="store-admin-report-sales",
+    ),
+    path(
+        "admin/reports/orders/",
+        AdminOrderReportView.as_view(),
+        name="store-admin-report-orders",
+    ),
+    path(
+        "admin/reports/branch-sales/",
+        AdminBranchSalesReportView.as_view(),
+        name="store-admin-report-branch-sales",
     ),
     # User - Orders
     path(

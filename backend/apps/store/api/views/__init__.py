@@ -55,6 +55,14 @@ from .shopping_cart import (
     CartItemRemoveView,
     CartItemUpdateView,
 )
+from .report import (
+    AdminBranchSalesReportView,
+    AdminInventoryReportView,
+    AdminLowStockReportView,
+    AdminOrderReportView,
+    AdminProductStatisticsView,
+    AdminSalesReportView,
+)
 
 __all__ = [
     "PublicCategoryListView",
@@ -98,4 +106,10 @@ __all__ = [
     "AdminOrderStatusView",
     "UserOrderListView",
     "UserOrderDetailView",
+    "AdminProductStatisticsView",
+    "AdminInventoryReportView",
+    "AdminLowStockReportView",
+    "AdminSalesReportView",
+    "AdminOrderReportView",
+    "AdminBranchSalesReportView",
 ]
