@@ -33,6 +33,10 @@ from .product_image import (
     AdminProductImageSetPrimaryView,
     AdminProductImageUploadView,
 )
+from .checkout import (
+    CheckoutView,
+    PendingOrderDetailView,
+)
 from .shopping_cart import (
     CartAddItemView,
     CartClearView,
@@ -74,4 +78,6 @@ __all__ = [
     "CartItemUpdateView",
     "CartItemRemoveView",
     "CartClearView",
+    "CheckoutView",
+    "PendingOrderDetailView",
 ]

@@ -2,6 +2,8 @@ from django.contrib import admin
 
 from apps.store.models import (
     BranchInventory,
+    PendingOrder,
+    PendingOrderItem,
     Product,
     ProductCategory,
     ProductImage,
@@ -48,3 +50,15 @@ class ShoppingCartAdmin(admin.ModelAdmin):
 class ShoppingCartItemAdmin(admin.ModelAdmin):
     list_display = ("cart", "product", "branch", "quantity", "created_at")
     search_fields = ("product__name", "branch__name")
+
+
+@admin.register(PendingOrder)
+class PendingOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "branch", "total", "payment_reference", "expires_at", "created_at")
+    search_fields = ("user__email", "payment_reference")
+    list_filter = ("branch",)
+
+
+@admin.register(PendingOrderItem)
+class PendingOrderItemAdmin(admin.ModelAdmin):
+    list_display = ("pending_order", "product", "quantity", "unit_price", "subtotal")

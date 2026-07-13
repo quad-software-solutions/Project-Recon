@@ -531,3 +531,121 @@ class StoreApiTestCase(APITestCase):
         )
         resp = self.client.delete(f"{self.base_url}/cart/clear/")
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    # --- Checkout Endpoints ---
+
+    def test_checkout_authenticated(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", resp.data)
+        self.assertEqual(float(resp.data["subtotal"]), 199.98)
+        self.assertEqual(float(resp.data["total"]), 199.98)
+        self.assertIn("items", resp.data)
+
+    def test_checkout_guest(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        cart = get_or_create_cart(session_key="checkout-guest")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Guest User",
+                "guest_email": "guest@test.com",
+            },
+            format="json",
+            **{"HTTP_X_SESSION_KEY": "checkout-guest"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["guest_name"], "Guest User")
+        self.assertEqual(resp.data["guest_email"], "guest@test.com")
+
+    def test_checkout_without_session_or_auth(self):
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_checkout_empty_cart(self):
+        self._auth(self.student)
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_checkout_guest_missing_name(self):
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_email": "guest@test.com",
+            },
+            format="json",
+            **{"HTTP_X_SESSION_KEY": "nosession"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_checkout_insufficient_stock(self):
+        from apps.store.models import BranchInventory
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 5)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 3)
+
+        inv = BranchInventory.objects.get(branch=self.branch, product=self.product)
+        inv.quantity = 1
+        inv.save(update_fields=["quantity"])
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_pending_order_detail(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        checkout_resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        order_id = checkout_resp.data["id"]
+
+        resp = self.client.get(
+            f"{self.base_url}/pending-orders/{order_id}/"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["id"], order_id)
