@@ -4,7 +4,7 @@ import {
   Search, Filter, Calendar, BookOpen, Target, TrendingUp,
   X, Edit3, Save, Loader2, ChevronDown, ChevronUp, Copy,
   Flag, AlertTriangle, MessageSquare,
-  Download, LayoutGrid, List, CalendarDays,
+  Download, LayoutGrid, List, GripVertical, CalendarDays,
   BarChart3, Eye, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,7 +40,12 @@ const TRACK_BG: Record<string, string> = {
   'Enjoy AI': 'bg-purple-500',
 };
 
-
+const INITIAL_LESSONS: LessonItem[] = [
+  { id: 1, title: 'Introduction to PID Controllers', description: 'Cover fundamental PID control theory with practical robot arm exercises.', track: 'VEX V5', date: 'Mon, Jun 16', duration: '2h', status: 'completed', topics: ['Proportional Control', 'Integral Tuning', 'Derivative Dampening'], priority: 'high', subTasks: [{ id: 101, title: 'Watch intro video', done: true }, { id: 102, title: 'Build test rig', done: true }, { id: 103, title: 'Run calibration', done: true }] },
+  { id: 2, title: 'Sensor Calibration Lab', description: 'Hands-on calibration of gyroscope, ultrasonic, and color sensors.', track: 'VEX IQ', date: 'Tue, Jun 17', duration: '1.5h', status: 'in-progress', topics: ['Gyroscope Calibration', 'Ultrasonic Ranging', 'Color Sensor Thresholds'], priority: 'high', subTasks: [{ id: 201, title: 'Review sensor docs', done: true }, { id: 202, title: 'Calibrate gyro', done: false }, { id: 203, title: 'Test range finder', done: false }] },
+  { id: 3, title: 'Autonomous Navigation Basics', description: 'Introduce line following, obstacle detection, and path planning.', track: 'Enjoy AI', date: 'Wed, Jun 18', duration: '2h', status: 'planned', topics: ['Line Following', 'Obstacle Detection', 'Path Planning'], priority: 'medium', subTasks: [{ id: 301, title: 'Prepare maze', done: false }, { id: 302, title: 'Write path algorithm', done: false }] },
+  { id: 4, title: 'Mechanical Design Review', description: 'Review gear ratios, structural integrity, and weight distribution principles.', track: 'VEX V5', date: 'Thu, Jun 19', duration: '1h', status: 'planned', topics: ['Gear Ratios', 'Structural Integrity', 'Weight Distribution'], priority: 'low', subTasks: [] },
+];
 
 const statusStyles = {
   'completed': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', icon: CheckCircle2, label: 'Completed', dot: 'bg-emerald-500', bar: 'bg-emerald-400' },
@@ -55,7 +60,7 @@ const PRIORITY_STYLES = {
 };
 
 export default function LessonPlanner() {
-  const [lessons, setLessons] = useState<LessonItem[]>([]);
+  const [lessons, setLessons] = useState(INITIAL_LESSONS);
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -286,7 +291,7 @@ export default function LessonPlanner() {
             <Download className="w-3.5 h-3.5" /> Export
           </button>
           <button onClick={() => setShowAdd(!showAdd)}
-            className="bg-blue-600 text-white font-black text-xs px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-lg shadow-blue-600/20 active:scale-95">
+            className="bg-brand-red text-white font-black text-xs px-5 py-2.5 rounded-xl hover:bg-brand-red-dark transition-colors flex items-center gap-1.5 shadow-lg shadow-brand-red/20 active:scale-95">
             <Plus className="w-4 h-4" /> New Lesson
           </button>
         </div>
@@ -298,34 +303,34 @@ export default function LessonPlanner() {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center">
-                  <Plus className="w-4 h-4 text-blue-600" />
+                <div className="w-8 h-8 rounded-lg bg-brand-red/10 flex items-center justify-center">
+                  <Plus className="w-4 h-4 text-brand-red" />
                 </div>
                 <h4 className="font-bold text-sm text-slate-900">New Lesson</h4>
               </div>
               <div className="flex flex-col gap-3">
                 <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
                   placeholder="Lesson title..." autoFocus
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600/40 focus:bg-white transition-all" />
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-red/40 focus:bg-white transition-all" />
                 <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)}
                   placeholder="Lesson description (optional)..."
-                  rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs resize-none focus:outline-none focus:border-blue-600/40" />
+                  rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs resize-none focus:outline-none focus:border-brand-red/40" />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <select value={newTrack} onChange={e => setNewTrack(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-blue-600/40">
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-brand-red/40">
                     {TRACKS.map(t => <option key={t}>{t}</option>)}
                   </select>
                   <select value={newPriority} onChange={e => setNewPriority(e.target.value as typeof newPriority)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-blue-600/40">
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-brand-red/40">
                     <option value="low">Low Priority</option>
                     <option value="medium">Medium Priority</option>
                     <option value="high">High Priority</option>
                   </select>
                   <input type="text" value={newDate} onChange={e => setNewDate(e.target.value)}
                     placeholder="Date (e.g. Fri, Jun 20)"
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-blue-600/40" />
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-brand-red/40" />
                   <select value={newDuration} onChange={e => setNewDuration(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-blue-600/40">
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-brand-red/40">
                     {['30m', '1h', '1.5h', '2h', '2.5h', '3h'].map(d => <option key={d}>{d}</option>)}
                   </select>
                 </div>
@@ -334,7 +339,7 @@ export default function LessonPlanner() {
                   <div className="flex gap-2">
                     <input value={newTopicInput} onChange={e => setNewTopicInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTopic(); } }}
-                      placeholder="Add a topic..." className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-600/40" />
+                      placeholder="Add a topic..." className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-red/40" />
                     <button onClick={addTopic} className="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">Add</button>
                   </div>
                   {newTopics.length > 0 && (
@@ -349,7 +354,7 @@ export default function LessonPlanner() {
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button onClick={addLesson} disabled={!newTitle.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-all">Save Lesson</button>
+                    className="px-4 py-2 bg-brand-red text-white rounded-lg text-xs font-bold hover:bg-brand-red-dark disabled:opacity-50 transition-all">Save Lesson</button>
                   <button onClick={cancelAdd} className="px-4 py-2 text-xs text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
                 </div>
               </div>
@@ -364,24 +369,24 @@ export default function LessonPlanner() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search lessons, topics..."
-            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600/40 transition-colors" />
+            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-brand-red/40 transition-colors" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3 h-3" /></button>}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filterTrack} onChange={e => setFilterTrack(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-blue-600/40">
+            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-brand-red/40">
             <option value="all">All Tracks</option>
             {TRACKS.map(t => <option key={t}>{t}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-blue-600/40">
+            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-brand-red/40">
             <option value="all">All Status</option>
             <option value="planned">Planned</option>
             <option value="in-progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
           <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-blue-600/40">
+            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-brand-red/40">
             <option value="all">All Priority</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
@@ -410,7 +415,7 @@ export default function LessonPlanner() {
           {sorted.length === 0 ? (
             <div className="py-12 text-center text-slate-400">
               <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">{lessons.length === 0 ? 'No lessons yet — click "New Lesson" to create your first one' : 'No lessons match your filters'}</p>
+              <p className="text-sm font-medium">No lessons match your filters</p>
             </div>
           ) : sorted.map((lesson, i) => {
             const s = statusStyles[lesson.status];
@@ -436,7 +441,7 @@ export default function LessonPlanner() {
                     {isEditing ? (
                       <div className="flex items-center gap-2">
                         <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                          autoFocus className="flex-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-sm font-semibold focus:outline-none focus:border-blue-600/40" />
+                          autoFocus className="flex-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-sm font-semibold focus:outline-none focus:border-brand-red/40" />
                         <button onClick={(e) => { e.stopPropagation(); saveEdit(lesson.id); }} className="p-1 text-emerald-500 hover:bg-emerald-50 rounded"><Save className="w-3.5 h-3.5" /></button>
                         <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="p-1 text-slate-400 hover:bg-slate-100 rounded"><X className="w-3.5 h-3.5" /></button>
                       </div>
@@ -692,7 +697,7 @@ export default function LessonPlanner() {
                         <div className="flex gap-2 pt-1">
                           <input value={newSubTaskInput} onChange={e => setNewSubTaskInput(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubTask(lesson.id); setNewSubTaskInput(''); } }}
-                            placeholder="Add sub-task..." className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-600/40" />
+                            placeholder="Add sub-task..." className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-red/40" />
                           <button onClick={() => { addSubTask(lesson.id); setNewSubTaskInput(''); }}
                             className="px-3 py-1.5 bg-brand-blue text-white rounded-lg text-[10px] font-bold hover:bg-brand-blue-bright">Add</button>
                         </div>

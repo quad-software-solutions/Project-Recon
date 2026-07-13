@@ -311,7 +311,7 @@ export default function StudentNotes() {
           <Download className="w-3.5 h-3.5" /> Export
         </button>
         <button onClick={() => { setShowAdd(!showAdd); setEditingId(null); setSelectMode(false); }}
-          className="bg-blue-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
+          className="bg-brand-red text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-brand-red-dark transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
           <Plus className="w-4 h-4" /> Add Note
         </button>
       </div>
@@ -382,7 +382,7 @@ export default function StudentNotes() {
                 <div className="flex gap-2">
                   <button onClick={() => setShowAdd(false)} className="text-xs text-slate-500 hover:bg-slate-100 px-4 py-2 rounded-lg">Cancel</button>
                   <button onClick={addNote} disabled={!newStudent.trim() || !newContent.trim()}
-                    className="bg-blue-600 text-white font-bold text-xs px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">Save Note</button>
+                    className="bg-brand-red text-white font-bold text-xs px-5 py-2 rounded-lg hover:bg-brand-red-dark disabled:opacity-50">Save Note</button>
                 </div>
               </div>
             </div>
@@ -494,7 +494,7 @@ export default function StudentNotes() {
                     <div className="flex justify-end gap-2">
                       <button onClick={() => setEditingId(null)} className="text-[10px] text-slate-500 hover:bg-slate-100 px-3 py-1.5 rounded-lg">Cancel</button>
                       <button onClick={() => saveEdit(note.id)} disabled={!editContent.trim()}
-                        className="bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                        className="bg-brand-red text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1">
                         <Save className="w-3 h-3" /> Save
                       </button>
                     </div>
