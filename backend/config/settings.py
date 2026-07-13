@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'apps.cms',
     'apps.academic',
     'apps.events',
+    'apps.store',
 
 ]
 
