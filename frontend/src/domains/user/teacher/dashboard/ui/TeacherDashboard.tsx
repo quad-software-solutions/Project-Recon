@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock, MapPin, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock } from 'lucide-react';
 import { UserProfile, Enrollment, StudentProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
@@ -17,8 +17,8 @@ import PerformanceMetrics from './PerformanceMetrics';
 import ActivityFeed from './ActivityFeed';
 import AttendanceHistory from './AttendanceHistory';
 import Reports from './Reports';
-import { adminGetWorkshops, adminGetRegistrations, adminGetEvent } from '@/src/domains/competition/api/eventsApi';
-import type { BackendWorkshop, BackendEventRegistration, BackendEvent } from '@/src/domains/competition/api/eventsApi';
+import { adminGetWorkshops } from '@/src/domains/competition/api/eventsApi';
+import type { BackendWorkshop } from '@/src/domains/competition/api/eventsApi';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
 
@@ -48,11 +48,6 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
   const [classStudents, setClassStudents] = useState<StudentProfile[]>([]);
   const [myWorkshops, setMyWorkshops] = useState<BackendWorkshop[]>([]);
   const [workshopsLoading, setWorkshopsLoading] = useState(false);
-  const [workshopRegs, setWorkshopRegs] = useState<Record<string, BackendEventRegistration[]>>({});
-  const [workshopEvents, setWorkshopEvents] = useState<Record<string, BackendEvent>>({});
-  const [expandedWorkshop, setExpandedWorkshop] = useState<string | null>(null);
-  const [workshopFilter, setWorkshopFilter] = useState<'all' | 'upcoming' | 'past'>('all');
-  const [workshopSearch, setWorkshopSearch] = useState('');
 
   const refreshData = useCallback(async () => {
     setLoading(true);
@@ -79,33 +74,9 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
 
   const fetchMyWorkshops = useCallback(async () => {
     setWorkshopsLoading(true);
-    setWorkshopSearch('');
-    setWorkshopFilter('all');
     try {
       const data = await adminGetWorkshops();
-      const workshops = Array.isArray(data) ? data : [];
-      setMyWorkshops(workshops);
-
-      const eventIds = workshops.map(w => w.event).filter(Boolean);
-      if (eventIds.length > 0) {
-        const [regs, events] = await Promise.all([
-          adminGetRegistrations({ event_type: 'WORKSHOP' }).catch(() => [] as BackendEventRegistration[]),
-          Promise.allSettled(eventIds.map(id => adminGetEvent(id).catch(() => null))),
-        ]);
-        const regMap: Record<string, BackendEventRegistration[]> = {};
-        if (Array.isArray(regs)) {
-          regs.forEach(r => {
-            if (!regMap[r.event]) regMap[r.event] = [];
-            regMap[r.event].push(r);
-          });
-        }
-        setWorkshopRegs(regMap);
-        const eventMap: Record<string, BackendEvent> = {};
-        events.forEach(r => {
-          if (r.status === 'fulfilled' && r.value) eventMap[r.value.id] = r.value;
-        });
-        setWorkshopEvents(eventMap);
-      }
+      setMyWorkshops(Array.isArray(data) ? data : []);
     } catch {
       setMyWorkshops([]);
     } finally {
@@ -158,7 +129,7 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-lg text-slate-900">My Workshops</h3>
-              <button onClick={fetchMyWorkshops} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+              <button onClick={fetchMyWorkshops} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100" title="Refresh">
                 <RefreshCw className={`w-4 h-4 ${workshopsLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
@@ -174,12 +145,12 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {myWorkshops.map(w => (
                   <div key={w.id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-all">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/10 flex items-center justify-center">
-                        <GraduationCap className="w-4 h-4 text-cyan-600" />
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/10 flex items-center justify-center shrink-0">
+                        <GraduationCap className="w-5 h-5 text-cyan-600" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900">{w.event_title || w.event}</h4>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-sm text-slate-900 truncate">{w.event_title || w.event}</h4>
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                           w.level === 'BEGINNER' ? 'bg-emerald-100 text-emerald-700' :
                           w.level === 'INTERMEDIATE' ? 'bg-amber-100 text-amber-700' :
@@ -188,13 +159,13 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>{w.duration_minutes} minutes</span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>{w.duration_minutes} min</span>
                       </div>
                       {w.price && (
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                          <DollarSign className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                          <DollarSign className="w-3.5 h-3.5 shrink-0" />
                           <span>{w.price} Birr</span>
                         </div>
                       )}
