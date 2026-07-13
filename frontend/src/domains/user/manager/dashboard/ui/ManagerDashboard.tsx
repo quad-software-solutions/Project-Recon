@@ -437,8 +437,8 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
 
           <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-2xl p-3 text-white">
             <p className="text-[10px] font-medium text-white/70 mb-0.5">All tools are connected</p>
-            <p className="text-sm font-bold">Backend-ready sections are live</p>
-            <p className="text-[11px] text-white/70 mt-1">Other sections will be enabled when APIs are ready.</p>
+            <p className="text-sm font-bold">System-ready sections are live</p>
+            <p className="text-[11px] text-white/70 mt-1">Other sections will be enabled when system APIs are ready.</p>
           </div>
         </div>
       </div>
