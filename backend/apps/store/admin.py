@@ -9,6 +9,7 @@ from apps.store.models import (
     ProductImage,
     ShoppingCart,
     ShoppingCartItem,
+    StorePayment,
 )
 
 
@@ -62,3 +63,10 @@ class PendingOrderAdmin(admin.ModelAdmin):
 @admin.register(PendingOrderItem)
 class PendingOrderItemAdmin(admin.ModelAdmin):
     list_display = ("pending_order", "product", "quantity", "unit_price", "subtotal")
+
+
+@admin.register(StorePayment)
+class StorePaymentAdmin(admin.ModelAdmin):
+    list_display = ("transaction_reference", "pending_order", "amount", "status", "payment_provider", "payment_date")
+    search_fields = ("transaction_reference",)
+    list_filter = ("status",)

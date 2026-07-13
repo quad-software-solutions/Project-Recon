@@ -24,3 +24,13 @@ CHAPA_BASE_URL: str = env("CHAPA_BASE_URL", default="https://api.chapa.co/v1")
 CHAPA_TIMEOUT_SECONDS: int = env.int("CHAPA_TIMEOUT_SECONDS", default=30)
 CHAPA_RETRY_TOTAL: int = env.int("CHAPA_RETRY_TOTAL", default=3)
 CHAPA_RETRY_BACKOFF_FACTOR: float = env.float("CHAPA_RETRY_BACKOFF_FACTOR", default=0.5)
+
+# ─── Store payment URLs (configured server-side for security) ─────────
+STORE_PAYMENT_CALLBACK_URL: str = env(
+    "STORE_PAYMENT_CALLBACK_URL",
+    default="",
+)
+STORE_PAYMENT_RETURN_URL: str = env(
+    "STORE_PAYMENT_RETURN_URL",
+    default="",
+)

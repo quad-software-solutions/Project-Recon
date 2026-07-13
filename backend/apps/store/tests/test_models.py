@@ -16,6 +16,7 @@ from apps.store.models import (
     ProductImage,
     ShoppingCart,
     ShoppingCartItem,
+    StorePayment,
 )
 
 
@@ -380,3 +381,38 @@ class PendingOrderItemModelTest(TestCase):
         self.assertEqual(float(item.unit_price), 15.00)
         self.assertEqual(float(item.subtotal), 30.00)
         self.assertIsNotNone(item.id)
+
+
+class StorePaymentModelTest(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="pay@test.com", password="testpass123"
+        )
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+        self.order = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=100.00,
+            total=100.00,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+
+    def test_create_payment(self):
+        payment = StorePayment.objects.create(
+            pending_order=self.order,
+            amount=100.00,
+            transaction_reference="STORE-abc12345-def123456789",
+        )
+        self.assertEqual(payment.pending_order, self.order)
+        self.assertEqual(float(payment.amount), 100.00)
+        self.assertEqual(payment.status, "PENDING")
+        self.assertEqual(payment.payment_method, "ONLINE")
+        self.assertIsNotNone(payment.id)
+        self.assertIsNotNone(payment.created_at)
+        self.assertIn("STORE-abc12345-def123456789", str(payment))
