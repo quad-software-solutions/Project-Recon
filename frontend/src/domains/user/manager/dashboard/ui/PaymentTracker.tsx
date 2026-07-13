@@ -9,8 +9,8 @@ export default function PaymentTracker() {
 
   useEffect(() => {
     Promise.all([
-      fetchPaymentsApi(),
-      fetchEnrollmentsApi(),
+      fetchPaymentsApi().catch(() => []),
+      fetchEnrollmentsApi().catch(() => []),
     ]).then(([pay, enr]) => {
       setPayments(Array.isArray(pay) ? pay : []);
       setEnrollments(Array.isArray(enr) ? enr : []);

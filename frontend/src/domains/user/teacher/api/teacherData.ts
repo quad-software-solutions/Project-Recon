@@ -26,7 +26,7 @@ function uniqueClassesFromEnrollments(enrollments: Enrollment[]): TeacherClassOp
 }
 
 async function buildInstructorRoster(classId: string): Promise<Enrollment[]> {
-  const sessions = await fetchAttendanceSessionsApi(classId);
+  const sessions = await fetchAttendanceSessionsApi(classId).catch(() => []);
   const sorted = [...sessions].sort((a, b) =>
     String(b.session_date || '').localeCompare(String(a.session_date || ''))
   );
@@ -58,7 +58,7 @@ async function buildInstructorRoster(classId: string): Promise<Enrollment[]> {
 }
 
 async function discoverInstructorClasses(): Promise<TeacherClassOption[]> {
-  const sessions = await fetchAttendanceSessionsApi();
+  const sessions = await fetchAttendanceSessionsApi().catch(() => []);
   const map = new Map<string, string>();
   sessions.forEach(s => {
     if (s.enrolled_class) map.set(s.enrolled_class, s.class_name || 'Class');
@@ -67,12 +67,13 @@ async function discoverInstructorClasses(): Promise<TeacherClassOption[]> {
 }
 
 export async function loadTeacherDashboardData(): Promise<TeacherDashboardData> {
-  try {
-    const [enrollments, students, classesRaw] = await Promise.all([
-      fetchEnrollmentsApi(),
-      fetchStudentsApi(),
-      fetchClassesApi(),
-    ]);
+  const [enrollments, students, classesRaw] = await Promise.all([
+    fetchEnrollmentsApi().catch(() => [] as Enrollment[]),
+    fetchStudentsApi().catch(() => [] as StudentProfile[]),
+    fetchClassesApi().catch(() => [] as AcademicClass[]),
+  ]);
+
+  if (classesRaw.length > 0 || enrollments.length > 0) {
     const classes: TeacherClassOption[] = (classesRaw as AcademicClass[]).map(c => ({
       id: c.id,
       name: c.name,
@@ -93,27 +94,27 @@ export async function loadTeacherDashboardData(): Promise<TeacherDashboardData> 
       classes,
       selectedClassId,
     };
-  } catch {
-    const classes = await discoverInstructorClasses();
-    const selectedClassId = classes[0]?.id || '';
-    const enrollments = selectedClassId
-      ? await buildInstructorRoster(selectedClassId).catch(() => [])
-      : [];
-
-    return {
-      mode: 'instructor',
-      enrollments,
-      students: enrollments.map(e => ({
-        id: e.student,
-        first_name: (e.student_name || '').split(' ')[0] || e.student_name || 'Student',
-        last_name: (e.student_name || '').split(' ').slice(1).join(' '),
-        email: '',
-        is_active: true,
-      })) as StudentProfile[],
-      classes,
-      selectedClassId,
-    };
   }
+
+  const classes = await discoverInstructorClasses();
+  const selectedClassId = classes[0]?.id || '';
+  const rosterEnrollments = selectedClassId
+    ? await buildInstructorRoster(selectedClassId).catch(() => [])
+    : [];
+
+  return {
+    mode: 'instructor',
+    enrollments: rosterEnrollments,
+    students: rosterEnrollments.map(e => ({
+      id: e.student,
+      first_name: (e.student_name || '').split(' ')[0] || e.student_name || 'Student',
+      last_name: (e.student_name || '').split(' ').slice(1).join(' '),
+      email: '',
+      is_active: true,
+    })) as StudentProfile[],
+    classes,
+    selectedClassId,
+  };
 }
 
 export async function loadClassRoster(

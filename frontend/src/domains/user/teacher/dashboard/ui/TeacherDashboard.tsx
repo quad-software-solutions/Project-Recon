@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User } from 'lucide-react';
+import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock, MapPin } from 'lucide-react';
 import { UserProfile, Enrollment, StudentProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
@@ -17,13 +17,16 @@ import PerformanceMetrics from './PerformanceMetrics';
 import ActivityFeed from './ActivityFeed';
 import AttendanceHistory from './AttendanceHistory';
 import Reports from './Reports';
+import { adminGetWorkshops } from '@/src/domains/competition/api/eventsApi';
+import type { BackendWorkshop } from '@/src/domains/competition/api/eventsApi';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
 
-type SectionId = 'class' | 'progress' | 'metrics' | 'attendance' | 'activity' | 'reports' | 'account';
+type SectionId = 'class' | 'workshops' | 'progress' | 'metrics' | 'attendance' | 'activity' | 'reports' | 'account';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'class', label: 'Class Management', icon: Users, group: 'main' },
+  { id: 'workshops', label: 'My Workshops', icon: GraduationCap, group: 'main' },
   { id: 'attendance', label: 'Attendance', icon: Calendar, group: 'main' },
   { id: 'progress', label: 'Progress', icon: Edit3, group: 'main' },
   { id: 'metrics', label: 'Performance', icon: BarChart3, group: 'main' },
@@ -43,6 +46,8 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
   const [selectedClassId, setSelectedClassId] = useState('');
   const [classEnrollments, setClassEnrollments] = useState<Enrollment[]>([]);
   const [classStudents, setClassStudents] = useState<StudentProfile[]>([]);
+  const [myWorkshops, setMyWorkshops] = useState<BackendWorkshop[]>([]);
+  const [workshopsLoading, setWorkshopsLoading] = useState(false);
 
   const refreshData = useCallback(async () => {
     setLoading(true);
@@ -66,6 +71,22 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
   }, []);
 
   useEffect(() => { refreshData(); }, []);
+
+  const fetchMyWorkshops = useCallback(async () => {
+    setWorkshopsLoading(true);
+    try {
+      const data = await adminGetWorkshops();
+      setMyWorkshops(Array.isArray(data) ? data : []);
+    } catch {
+      setMyWorkshops([]);
+    } finally {
+      setWorkshopsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === 'workshops') fetchMyWorkshops();
+  }, [activeSection, fetchMyWorkshops]);
 
   useEffect(() => {
     if (!selectedClassId || loading) return;
@@ -102,6 +123,58 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
             onClassChange={setSelectedClassId}
             mode={mode}
           />
+        );
+      case 'workshops':
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-lg text-slate-900">My Workshops</h3>
+              <button onClick={fetchMyWorkshops} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+                <RefreshCw className={`w-4 h-4 ${workshopsLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            {workshopsLoading ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-brand-red" /></div>
+            ) : myWorkshops.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center">
+                <GraduationCap className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-500">No workshops assigned yet</p>
+                <p className="text-xs text-slate-400 mt-1">When an admin or manager assigns you as instructor, your workshops will appear here.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myWorkshops.map(w => (
+                  <div key={w.id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-all">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/10 flex items-center justify-center">
+                        <GraduationCap className="w-4 h-4 text-cyan-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">{w.event_title || w.event}</h4>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                          w.level === 'BEGINNER' ? 'bg-emerald-100 text-emerald-700' :
+                          w.level === 'INTERMEDIATE' ? 'bg-amber-100 text-amber-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>{w.level}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{w.duration_minutes} minutes</span>
+                      </div>
+                      {w.price && (
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                          <DollarSign className="w-3.5 h-3.5" />
+                          <span>{w.price} Birr</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         );
       case 'progress':
         return <ProgressSubmissions students={classStudents} enrollments={classEnrollments} />;

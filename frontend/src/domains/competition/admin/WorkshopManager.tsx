@@ -39,7 +39,7 @@ export default function WorkshopManager() {
         .catch(e => { console.warn('Instructor list fetch failed, extracting from workshops:', e); return [] as UserOption[]; }),
     ]).then(([ws, evts, usrs]) => {
       setWorkshops(Array.isArray(ws) ? ws : []);
-      setEvents(Array.isArray(evts) ? evts : []);
+      setEvents((Array.isArray(evts) ? evts : []).filter(e => e.event_type === 'WORKSHOP'));
       const fromApi = usrs as UserOption[];
       const fromExisting: UserOption[] = (Array.isArray(ws) ? ws : [])
         .filter((w: any) => w.instructor && w.instructor_name)
@@ -141,7 +141,10 @@ export default function WorkshopManager() {
                 <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Event *</label>
                   <select value={form.event} onChange={e => setForm(p => ({ ...p, event: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">
                     <option value="">Select...</option>{events.map((e: any) => <option key={e.id} value={e.id}>{e.title}</option>)}
-                  </select></div>
+                  </select>
+                  {events.length === 0 && (
+                    <p className="text-[10px] text-amber-600 mt-1">No Workshop events found. Go to <strong>Events</strong> and create one with event type <strong>Workshop</strong> first.</p>
+                  )}</div>
                 <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Instructor *</label>
                   <select value={form.instructor} onChange={e => setForm(p => ({ ...p, instructor: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red">

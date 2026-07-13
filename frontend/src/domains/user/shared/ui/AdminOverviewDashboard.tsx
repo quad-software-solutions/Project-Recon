@@ -143,12 +143,12 @@ export default function AdminOverviewDashboard() {
   const fetchAll = () => {
     setLoading(true);
     Promise.all([
-      fetchAllUsersApi(),
-      branchesApi.list(),
-      fetchProgramsApi(),
-      fetchClassesApi(),
-      fetchEnrollmentsApi(),
-      fetchPaymentsApi(),
+      fetchAllUsersApi().catch(() => [] as AdminUserResponse[]),
+      branchesApi.list().catch(() => [] as BranchResponse[]),
+      fetchProgramsApi().catch(() => []),
+      fetchClassesApi().catch(() => []),
+      fetchEnrollmentsApi().catch(() => []),
+      fetchPaymentsApi().catch(() => []),
     ])
       .then(([u, b, p, c, e, pay]) => {
         setUsers(Array.isArray(u) ? u : []);
@@ -158,7 +158,6 @@ export default function AdminOverviewDashboard() {
         setEnrollments(Array.isArray(e) ? e : []);
         setPayments(Array.isArray(pay) ? pay : []);
       })
-      .catch(() => {})
       .finally(() => setLoading(false));
   };
 

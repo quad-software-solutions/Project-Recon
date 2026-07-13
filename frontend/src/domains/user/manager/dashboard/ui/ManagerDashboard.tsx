@@ -75,10 +75,10 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
   const refreshData = () => {
     setLoading(true);
     Promise.all([
-      fetchStudentsApi(),
-      fetchEnrollmentsApi(),
-      fetchPaymentsApi(),
-      fetchProgramsApi(),
+      fetchStudentsApi().catch(() => []),
+      fetchEnrollmentsApi().catch(() => []),
+      fetchPaymentsApi().catch(() => []),
+      fetchProgramsApi().catch(() => []),
     ]).then(([stu, enr, pay, pro]) => {
       setStudents(Array.isArray(stu) ? stu : []);
       setEnrollments(Array.isArray(enr) ? enr : []);
@@ -422,16 +422,16 @@ function ReportsSection() {
 
   useEffect(() => {
     Promise.all([
-      fetchStudentsApi(),
-      fetchClassesApi(),
-      fetchProgramsApi(),
-      fetchEnrollmentsApi(),
+      fetchStudentsApi().catch(() => []),
+      fetchClassesApi().catch(() => []),
+      fetchProgramsApi().catch(() => []),
+      fetchEnrollmentsApi().catch(() => []),
     ]).then(([stu, cls, pro, enr]) => {
       setStudents(Array.isArray(stu) ? stu : []);
       setClasses(Array.isArray(cls) ? cls : []);
       setPrograms(Array.isArray(pro) ? pro : []);
       setEnrollments(Array.isArray(enr) ? enr : []);
-    }).catch(() => {});
+    });
   }, []);
 
   const doDownload = async (key: string, fn: () => Promise<void>) => {
