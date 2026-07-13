@@ -3,7 +3,18 @@ import uuid
 from django.db import IntegrityError
 from django.test import TestCase
 
-from apps.store.models import BranchInventory, Product, ProductCategory, ProductImage
+from datetime import timedelta
+
+from django.utils import timezone
+
+from apps.store.models import (
+    BranchInventory,
+    Product,
+    ProductCategory,
+    ProductImage,
+    ShoppingCart,
+    ShoppingCartItem,
+)
 
 
 class ProductCategoryModelTest(TestCase):
@@ -203,4 +214,93 @@ class BranchInventoryModelTest(TestCase):
         with self.assertRaises(IntegrityError):
             BranchInventory.objects.create(
                 branch=self.branch, product=self.product, quantity=-1
+            )
+
+
+class ShoppingCartModelTest(TestCase):
+    def setUp(self):
+        from apps.accounts.models import User
+
+        self.user = User.objects.create_user(
+            email="cart@test.com",
+            password="testpass123",
+            first_name="Cart",
+            last_name="User",
+        )
+
+    def test_create_cart_for_user(self):
+        cart = ShoppingCart.objects.create(
+            user=self.user,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        self.assertEqual(cart.user, self.user)
+        self.assertIsNone(cart.session_key)
+        self.assertIsNotNone(cart.id)
+        self.assertIsNotNone(cart.created_at)
+        self.assertIsNotNone(cart.updated_at)
+        self.assertIn("cart@test.com", str(cart))
+
+    def test_create_cart_for_session(self):
+        cart = ShoppingCart.objects.create(
+            session_key="test-session-abc",
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        self.assertIsNone(cart.user)
+        self.assertEqual(cart.session_key, "test-session-abc")
+        self.assertIn("test-session-abc", str(cart))
+
+
+class ShoppingCartItemModelTest(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="item@test.com", password="testpass123"
+        )
+        self.cart = ShoppingCart.objects.create(
+            user=self.user,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        category = ProductCategory.objects.create(name="Category")
+        self.product = Product.objects.create(
+            category=category, name="Item", slug="item", sku="ITEM", price=10
+        )
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+
+    def test_create_cart_item(self):
+        item = ShoppingCartItem.objects.create(
+            cart=self.cart,
+            product=self.product,
+            branch=self.branch,
+            quantity=2,
+        )
+        self.assertEqual(item.cart, self.cart)
+        self.assertEqual(item.product, self.product)
+        self.assertEqual(item.branch, self.branch)
+        self.assertEqual(item.quantity, 2)
+        self.assertIsNotNone(item.id)
+        self.assertIsNotNone(item.created_at)
+
+    def test_unique_cart_product_branch(self):
+        ShoppingCartItem.objects.create(
+            cart=self.cart,
+            product=self.product,
+            branch=self.branch,
+            quantity=1,
+        )
+        with self.assertRaises(IntegrityError):
+            ShoppingCartItem.objects.create(
+                cart=self.cart,
+                product=self.product,
+                branch=self.branch,
+                quantity=2,
+            )
+
+    def test_quantity_gt_zero(self):
+        with self.assertRaises(IntegrityError):
+            ShoppingCartItem.objects.create(
+                cart=self.cart,
+                product=self.product,
+                branch=self.branch,
+                quantity=0,
             )

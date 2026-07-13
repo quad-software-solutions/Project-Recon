@@ -22,6 +22,11 @@ from apps.store.api.views import (
     AdminProductListCreateView,
     AdminProductRestoreView,
     AdminProductRetrieveUpdateView,
+    CartAddItemView,
+    CartClearView,
+    CartDetailView,
+    CartItemRemoveView,
+    CartItemUpdateView,
     PublicBranchInventoryListView,
     PublicCategoryDetailView,
     PublicCategoryListView,
@@ -54,6 +59,20 @@ urlpatterns = [
         PublicProductAvailabilityView.as_view(),
         name="store-inventory-availability",
     ),
+    # Cart
+    path("cart/", CartDetailView.as_view(), name="store-cart-detail"),
+    path("cart/items/", CartAddItemView.as_view(), name="store-cart-add-item"),
+    path(
+        "cart/items/<uuid:pk>/",
+        CartItemUpdateView.as_view(),
+        name="store-cart-item-update",
+    ),
+    path(
+        "cart/items/<uuid:pk>/remove/",
+        CartItemRemoveView.as_view(),
+        name="store-cart-item-remove",
+    ),
+    path("cart/clear/", CartClearView.as_view(), name="store-cart-clear"),
     # Admin - Categories
     path(
         "admin/categories/",
