@@ -3,7 +3,7 @@ import uuid
 from django.db import IntegrityError
 from django.test import TestCase
 
-from apps.store.models import Product, ProductCategory, ProductImage
+from apps.store.models import BranchInventory, Product, ProductCategory, ProductImage
 
 
 class ProductCategoryModelTest(TestCase):
@@ -168,4 +168,39 @@ class ProductImageModelTest(TestCase):
                 product=self.product,
                 image="store/products/b.jpg",
                 display_order=0,
+            )
+
+
+class BranchInventoryModelTest(TestCase):
+    def setUp(self):
+        category = ProductCategory.objects.create(name="Category")
+        self.product = Product.objects.create(
+            category=category, name="Product", slug="product", sku="PRD", price=10
+        )
+        from apps.accounts.models import Branch
+        self.branch = Branch.objects.create(name="Test Branch", code="TB01")
+
+    def test_create_inventory(self):
+        inv = BranchInventory.objects.create(
+            branch=self.branch, product=self.product, quantity=10
+        )
+        self.assertEqual(inv.quantity, 10)
+        self.assertIsNone(inv.minimum_quantity)
+        self.assertIsNotNone(inv.id)
+        self.assertIsNotNone(inv.created_at)
+        self.assertIsNotNone(inv.updated_at)
+
+    def test_unique_branch_product(self):
+        BranchInventory.objects.create(
+            branch=self.branch, product=self.product, quantity=5
+        )
+        with self.assertRaises(IntegrityError):
+            BranchInventory.objects.create(
+                branch=self.branch, product=self.product, quantity=3
+            )
+
+    def test_quantity_gte_zero(self):
+        with self.assertRaises(IntegrityError):
+            BranchInventory.objects.create(
+                branch=self.branch, product=self.product, quantity=-1
             )

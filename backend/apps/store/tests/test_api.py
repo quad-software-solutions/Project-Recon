@@ -284,3 +284,127 @@ class StoreApiTestCase(APITestCase):
         resp = self.client.get(f"{self.base_url}/products/")
         names = [p["name"] for p in resp.data]
         self.assertNotIn("Old Kit", names)
+
+    # --- Public Inventory Endpoints ---
+
+    def test_public_list_inventory_by_branch(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        resp = self.client.get(
+            f"{self.base_url}/inventory/?branch={self.branch.pk}"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["quantity"], 10)
+
+    def test_public_list_inventory_missing_branch(self):
+        resp = self.client.get(f"{self.base_url}/inventory/")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_public_product_availability(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 5)
+        resp = self.client.get(
+            f"{self.base_url}/inventory/availability/{self.product.pk}/"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data), 1)
+
+    # --- Admin Inventory Endpoints ---
+
+    def test_admin_create_inventory(self):
+        self._auth(self.super_admin)
+        resp = self.client.post(
+            f"{self.base_url}/admin/inventory/",
+            {
+                "branch": str(self.branch.pk),
+                "product": str(self.product.pk),
+                "quantity": 20,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["quantity"], 20)
+
+    def test_admin_list_inventory(self):
+        self._auth(self.super_admin)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 15)
+        resp = self.client.get(f"{self.base_url}/admin/inventory/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(resp.data), 1)
+
+    def test_admin_inventory_branch_manager_can_access(self):
+        self._auth(self.branch_manager)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 7)
+        resp = self.client.get(f"{self.base_url}/admin/inventory/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_admin_inventory_student_forbidden(self):
+        self._auth(self.student)
+        resp = self.client.get(f"{self.base_url}/admin/inventory/")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_inventory_add(self):
+        self._auth(self.super_admin)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        inv = add_inventory(self.branch, self.product, 5)
+        resp = self.client.post(
+            f"{self.base_url}/admin/inventory/{inv.pk}/add/",
+            {"quantity": 10},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["quantity"], 15)
+
+    def test_admin_inventory_reduce(self):
+        self._auth(self.super_admin)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        inv = add_inventory(self.branch, self.product, 20)
+        resp = self.client.post(
+            f"{self.base_url}/admin/inventory/{inv.pk}/reduce/",
+            {"quantity": 5},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["quantity"], 15)
+
+    def test_admin_inventory_correct(self):
+        self._auth(self.super_admin)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        inv = add_inventory(self.branch, self.product, 10)
+        resp = self.client.post(
+            f"{self.base_url}/admin/inventory/{inv.pk}/correct/",
+            {"quantity": 50},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["quantity"], 50)
+
+    def test_admin_inventory_transfer(self):
+        self._auth(self.super_admin)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        other_branch = Branch.objects.create(name="Other Branch", code="OB")
+        inv = add_inventory(self.branch, self.product, 30)
+        resp = self.client.post(
+            f"{self.base_url}/admin/inventory/transfer/",
+            {
+                "from_branch": str(self.branch.pk),
+                "to_branch": str(other_branch.pk),
+                "product": str(self.product.pk),
+                "quantity": 12,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["source"]["quantity"], 18)
+        self.assertEqual(resp.data["destination"]["quantity"], 12)
