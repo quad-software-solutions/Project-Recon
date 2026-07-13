@@ -253,7 +253,7 @@ export default function MapNodeManager({ addToast }: Props) {
           <h2 className="font-bold text-slate-800">Map Nodes</h2>
           {!loading && <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{filtered.length} / {items.length}</span>}
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-brand-red hover:bg-red-700">
+        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-red-700">
           <Plus className="w-3.5 h-3.5" /> Add Node
         </button>
       </div>
@@ -262,7 +262,7 @@ export default function MapNodeManager({ addToast }: Props) {
         <div className="relative max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search nodes..."
-            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30" />
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600/30" />
         </div>
       </div>
 
@@ -330,14 +330,14 @@ export default function MapNodeManager({ addToast }: Props) {
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">X Position <span className="text-red-400 ml-0.5">*</span></label>
                   <input type="number" min={0} max={100} step={0.01} value={editing.x ?? 50}
                     onChange={e => { const v = parseFloat(e.target.value) || 0; setEditing({ ...editing, x: v }); clearError('x'); }}
-                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.x ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`} />
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.x ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
                   {formErrors.x && <p className="text-xs text-red-500 mt-1">{formErrors.x}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Y Position <span className="text-red-400 ml-0.5">*</span></label>
                   <input type="number" min={0} max={100} step={0.01} value={editing.y ?? 50}
                     onChange={e => { const v = parseFloat(e.target.value) || 0; setEditing({ ...editing, y: v }); clearError('y'); }}
-                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.y ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`} />
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.y ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
                   {formErrors.y && <p className="text-xs text-red-500 mt-1">{formErrors.y}</p>}
                 </div>
               </div>
@@ -352,7 +352,7 @@ export default function MapNodeManager({ addToast }: Props) {
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Category <span className="text-red-400 ml-0.5">*</span></label>
                 <select value={editing.category ?? 'CHAMPIONSHIP'} onChange={e => { setEditing({ ...editing, category: e.target.value }); clearError('category'); }}
-                  className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.category ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`}>
+                  className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.category ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`}>
                   {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 {formErrors.category && <p className="text-xs text-red-500 mt-1">{formErrors.category}</p>}
@@ -365,7 +365,7 @@ export default function MapNodeManager({ addToast }: Props) {
                 </div>
                 <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
                 <button type="button" onClick={() => imageInputRef.current?.click()}
-                  className="mt-5 p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-red transition-colors" title="Upload image">
+                  className="mt-5 p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors" title="Upload image">
                   <Upload className="w-4 h-4" />
                 </button>
               </div>
@@ -382,7 +382,7 @@ export default function MapNodeManager({ addToast }: Props) {
             <div className="flex gap-2 justify-end p-4 border-t border-slate-200 sticky bottom-0 bg-white">
               <button onClick={closeForm} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
               <button onClick={save} disabled={saving}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-red hover:bg-red-700 disabled:opacity-50">
+                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-red-700 disabled:opacity-50">
                 {saving ? 'Saving...' : editing.id ? 'Update' : 'Create'}
               </button>
             </div>
@@ -401,7 +401,7 @@ function Field({ label, value, onChange, error, required, placeholder }: { label
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${error ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`} />
+        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${error ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -415,7 +415,7 @@ function Textarea({ label, value, onChange, error, required, placeholder }: { la
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={3} placeholder={placeholder}
-        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all resize-none ${error ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`} />
+        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all resize-none ${error ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );

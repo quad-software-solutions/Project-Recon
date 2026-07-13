@@ -66,7 +66,7 @@ export default function Overview() {
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-5">
             <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-brand-red" /> Recent Enrollments
+              <Users className="w-4 h-4 text-blue-600" /> Recent Enrollments
             </h3>
             {loading ? (
               <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
@@ -80,7 +80,7 @@ export default function Overview() {
                 {enrollments.slice(0, 6).map(e => (
                   <div key={e.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center text-white font-black text-xs">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-black text-xs">
                         {(e.student_name || '?').charAt(0)}
                       </div>
                       <div>
@@ -98,7 +98,7 @@ export default function Overview() {
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-5">
             <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-brand-red" /> Recent Payments
+              <DollarSign className="w-4 h-4 text-blue-600" /> Recent Payments
             </h3>
             {loading ? (
               <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
@@ -123,14 +123,14 @@ export default function Overview() {
           </div>
         </div>
         <div className="flex flex-col gap-4">
-          <div className="bg-gradient-to-br from-brand-red to-brand-red-dark rounded-2xl p-5 text-white">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white">
             <Shield className="w-6 h-6 text-white/70 mb-2" />
             <p className="text-xs text-white/70">Your Role</p>
             <p className="font-bold text-lg">Secretary</p>
             <p className="text-[10px] text-white/60 mt-1">Academic Operations</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4">
-            <h4 className="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-3 h-3 text-brand-red" />Today's Summary</h4>
+            <h4 className="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-3 h-3 text-blue-600" />Today's Summary</h4>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between"><span className="text-slate-500">New Admissions</span><span className="font-semibold">{students.filter(s => (s.created_at || '')?.startsWith(new Date().toISOString().slice(0, 10))).length}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Payments Today</span><span className="font-semibold">{payments.filter(p => p.payment_date?.startsWith(new Date().toISOString().slice(0, 10))).length}</span></div>
@@ -139,10 +139,10 @@ export default function Overview() {
             </div>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4">
-            <h4 className="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-3 h-3 text-brand-red" />Quick Actions</h4>
+            <h4 className="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-3 h-3 text-blue-600" />Quick Actions</h4>
             <div className="space-y-1.5">
               {[
-                { label: 'New Admission', icon: UserPlus, color: 'text-brand-red' },
+                { label: 'New Admission', icon: UserPlus, color: 'text-blue-600' },
                 { label: 'Record Payment', icon: DollarSign, color: 'text-emerald-600' },
                 { label: 'Issue Certificate', icon: Award, color: 'text-amber-600' },
               ].map((a, i) => {

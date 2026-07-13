@@ -374,7 +374,7 @@ export default function WalkInRegistration() {
                         className="w-full bg-[#2563EB] disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white px-4 py-4 rounded-xl font-bold text-sm shadow-md shadow-[#2563EB]/20 flex items-center justify-center gap-2 hover:bg-[#004ac6] transition-all active:scale-[0.98]"
                       >
                         {isSubmitting ? (
-                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-5 h-5 border-2 border-slate-300 border-t-brand-red rounded-full" />
+                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full" />
                         ) : (
                           <>
                             <ShieldCheck className="w-5 h-5" /> 

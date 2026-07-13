@@ -101,7 +101,7 @@ function EnrollmentByProgram({ data }: { data: { name: string; count: number; to
                 initial={{ width: 0 }}
                 animate={{ width: `${pct}%` }}
                 transition={{ duration: 0.5 }}
-                className="h-full rounded-full bg-brand-red"
+                className="h-full rounded-full bg-blue-600"
               />
             </div>
             <span className="text-xs font-semibold text-slate-600 w-10 text-right">{p.count}</span>
@@ -349,7 +349,7 @@ export default function AdminOverviewDashboard() {
             <div className="space-y-1.5">
               {recentUsers.map((u) => (
                 <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center text-white font-bold text-xs shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
                     {u.first_name?.[0]}{u.last_name?.[0]}
                   </div>
                   <div className="min-w-0 flex-1">

@@ -131,7 +131,7 @@ export default function CertificateTemplateManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-lg text-slate-900">Certificate Templates</h2>
-        <button onClick={openCreate} className="flex items-center gap-1.5 bg-brand-red text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-red-dark transition-colors">
+        <button onClick={openCreate} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
           <Plus className="w-3.5 h-3.5" /> New Template
         </button>
       </div>
@@ -161,7 +161,7 @@ export default function CertificateTemplateManager() {
 
       <div className="relative max-w-xs">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search templates..." className="w-full pl-8 pr-3 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-brand-red" />
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search templates..." className="w-full pl-8 pr-3 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600" />
       </div>
 
       <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
@@ -229,19 +229,19 @@ export default function CertificateTemplateManager() {
                 </div>
                 <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Title</label>
-                    <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="e.g. VEX V5 Completion Certificate" /></div>
+                    <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="e.g. VEX V5 Completion Certificate" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Sub-Program</label>
-                    <select value={form.sub_program} onChange={e => setForm(p => ({ ...p, sub_program: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={form.sub_program} onChange={e => setForm(p => ({ ...p, sub_program: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
                       <option value="">Select sub-program...</option>
                       {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
                     </select></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Body Text</label>
-                    <textarea value={form.body_text} onChange={e => setForm(p => ({ ...p, body_text: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="Certificate body text..." /></div>
+                    <textarea value={form.body_text} onChange={e => setForm(p => ({ ...p, body_text: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="Certificate body text..." /></div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Name</label>
-                      <input value={form.signatory_name} onChange={e => setForm(p => ({ ...p, signatory_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="e.g. Dr. John Smith" /></div>
+                      <input value={form.signatory_name} onChange={e => setForm(p => ({ ...p, signatory_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="e.g. Dr. John Smith" /></div>
                     <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Title</label>
-                      <input value={form.signatory_title} onChange={e => setForm(p => ({ ...p, signatory_title: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-brand-red" placeholder="e.g. Principal, Director" /></div>
+                      <input value={form.signatory_title} onChange={e => setForm(p => ({ ...p, signatory_title: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="e.g. Principal, Director" /></div>
                   </div>
                   {/* Background Image */}
                   <div>
@@ -310,7 +310,7 @@ export default function CertificateTemplateManager() {
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
                   <button onClick={() => { setShowForm(false); resetFileState(); }} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">Cancel</button>
                   <button onClick={handleSave} disabled={saving || !form.title || !form.sub_program}
-                    className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {saving ? 'Saving...' : editing ? 'Update Template' : 'Create Template'}
                   </button>

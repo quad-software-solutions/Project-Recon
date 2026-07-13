@@ -145,7 +145,7 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
                 <button onClick={cancelEdit} disabled={saving}
                   className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -233,7 +233,7 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-brand-red" />
+              <BookOpen className="w-5 h-5 text-blue-600" />
               <h3 className="font-black text-lg text-slate-900">Learning Portfolio</h3>
             </div>
             <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">{enrollments.length} total</span>

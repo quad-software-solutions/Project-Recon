@@ -169,10 +169,10 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
 
           <div className="hidden md:block overflow-hidden py-4 marquee-container">
             <div className="flex gap-16 items-center animate-marquee" style={{ width: 'max-content' }}>
-              {[...Array(2)].map((_, groupIdx) => (
+              {[...Array(partners.length > 4 ? 2 : 1)].map((_, groupIdx) => (
                 <React.Fragment key={groupIdx}>
                   {partners.length > 0 ? partners.map((partner, idx) => (
-                    <div key={partner.id} className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: `${(idx % 4) * 0.4}s` }}>
+                    <div key={`${groupIdx}-${partner.id}`} className="flex items-center gap-16 animate-logo-float" style={{ animationDelay: `${(idx % 4) * 0.4}s` }}>
                       {partner.image ? <img src={partner.image} alt={partner.title} className="h-10 md:h-14 object-contain brightness-90 hover:brightness-110 transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(37,51,141,0.5)]" /> : <span className="text-sm font-bold text-slate-400">{partner.title}</span>}
                     </div>
                   )) : (

@@ -99,14 +99,14 @@ export default function CmsDashboard() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {STAT_SECTIONS.map(({ key, label, icon: Icon, color }) => {
           const c = counts[key];
           return (
             <button key={key} onClick={() => setSection(key)}
               className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
                 section === key
-                  ? 'border-brand-red/30 bg-brand-red/5 shadow-sm'
+                  ? 'border-blue-500/30 bg-blue-50 shadow-sm'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
               }`}
             >
@@ -132,7 +132,7 @@ export default function CmsDashboard() {
             <button key={item.id} onClick={() => setSection(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                 isActive
-                  ? 'bg-brand-red text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
               }`}
             >

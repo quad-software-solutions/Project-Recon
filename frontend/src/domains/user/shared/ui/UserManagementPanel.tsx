@@ -50,6 +50,23 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState({ email: '', first_name: '', last_name: '', password: '', branch_id: '', role: 'instructor', phone_number: '', gender: '', date_of_birth: '' });
   const [addUserRole, setAddUserRole] = useState<'staff' | 'branch_manager'>('staff');
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+
+  const toggleAll = () => {
+    const filterIds = filtered.map(u => u.id);
+    if (selectedUserIds.size === filterIds.length && filterIds.length > 0) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(filterIds));
+    }
+  };
+
+  const toggleUser = (id: string) => {
+    const newSet = new Set(selectedUserIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedUserIds(newSet);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -150,27 +167,32 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
     return true;
   });
 
+  const activeCount = users.filter(u => u.status === 'Active').length;
+  const pendingCount = users.filter(u => u.status === 'Pending').length;
+  const suspendedCount = users.filter(u => u.status === 'Suspended').length;
+  const archivedCount = users.filter(u => u.status === 'Archived').length;
+
   const stats = [
-    { label: 'Active', count: users.filter(u => u.status === 'Active').length, color: 'text-emerald-600' },
-    { label: 'Pending', count: users.filter(u => u.status === 'Pending').length, color: 'text-amber-600' },
-    { label: 'Suspended', count: users.filter(u => u.status === 'Suspended').length, color: 'text-red-600' },
-    { label: 'Archived', count: users.filter(u => u.status === 'Archived').length, color: 'text-slate-500' },
+    { label: 'Active', count: activeCount, color: activeCount > 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200' },
+    { label: 'Pending', count: pendingCount, color: pendingCount > 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-600 bg-white border-slate-200' },
+    { label: 'Suspended', count: suspendedCount, color: suspendedCount > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-slate-600 bg-white border-slate-200' },
+    { label: 'Archived', count: archivedCount, color: archivedCount > 0 ? 'text-slate-700 bg-slate-100 border-slate-300' : 'text-slate-600 bg-white border-slate-200' },
   ];
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="font-bold text-lg text-slate-900">{title}</h2>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-brand-red text-white text-sm font-extrabold px-5 py-2.5 rounded-xl hover:bg-red-700 transition-all shadow-md hover:shadow-lg self-start">
+        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-blue-600 text-white text-sm font-extrabold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg self-start">
           <Plus className="w-4 h-4" /> Add Staff
         </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {stats.map(s => (
-          <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-3 text-center">
-            <p className={`text-lg font-bold ${s.color}`}>{s.count}</p>
-            <p className="text-[10px] text-slate-500">{s.label}</p>
+          <div key={s.label} className={`border rounded-xl p-3 text-center ${s.color}`}>
+            <p className="text-lg font-bold">{s.count}</p>
+            <p className="text-[10px] font-medium opacity-80">{s.label}</p>
           </div>
         ))}
       </div>
@@ -180,9 +202,9 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
         </div>
-        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
           <option value="all">All Roles</option>
           <option value="admin">Admin</option>
           <option value="manager">Manager</option>
@@ -192,11 +214,24 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
         </select>
       </div>
 
+      {selectedUserIds.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
+          <span className="text-sm font-semibold text-blue-800">{selectedUserIds.size} users selected</span>
+          <div className="flex gap-2">
+            <button className="px-3 py-1.5 text-xs font-bold bg-white text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 shadow-sm">Approve Pending</button>
+            <button className="px-3 py-1.5 text-xs font-bold bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm">Archive</button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="w-10 px-4 py-2.5 text-center">
+                  <input type="checkbox" checked={filtered.length > 0 && selectedUserIds.size === filtered.length} onChange={toggleAll} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                </th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">User</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase hidden md:table-cell">Contact</th>
                 <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Role</th>
@@ -206,14 +241,17 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-xs text-slate-400">No users found</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-xs text-slate-400">No users found</td></tr>
               ) : filtered.map(u => {
                 const role = resolveRole(u);
                 const st = STATUS_STYLE(u.status);
                 return (
-                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={u.id} className="even:bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
+                    <td className="px-4 py-3 text-center">
+                      <input type="checkbox" checked={selectedUserIds.has(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-bold text-slate-600">
@@ -227,7 +265,10 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex flex-col gap-0.5">
-                        {u.phone_number && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{u.phone_number}</span>}
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {u.phone_number || <span className="text-slate-300 italic">No phone</span>}
+                        </span>
                         <span className="text-[10px] text-slate-400">{u.assignments?.filter(a => a.is_active).map(a => a.branch_name).filter(Boolean).join(', ') || '—'}</span>
                       </div>
                     </td>
@@ -297,15 +338,15 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
               </div>
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name <span className="text-red-500">*</span></label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} placeholder="e.g. Yonas" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name <span className="text-red-500">*</span></label><input value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} placeholder="e.g. Tadesse" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name <span className="text-red-500">*</span></label><input value={formData.first_name} onChange={e => setFormData(p => ({ ...p, first_name: e.target.value }))} placeholder="e.g. Yonas" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name <span className="text-red-500">*</span></label><input value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} placeholder="e.g. Tadesse" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                 </div>
-                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email <span className="text-red-500">*</span></label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="e.g. yonas.tadesse@email.com" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Password <span className="text-red-500">*</span></label><input type="password" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} placeholder="e.g. ••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email <span className="text-red-500">*</span></label><input value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="e.g. yonas.tadesse@email.com" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
+                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Password <span className="text-red-500">*</span></label><input type="password" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} placeholder="e.g. ••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone <span className="text-slate-400 text-[10px]">(optional)</span></label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone <span className="text-slate-400 text-[10px]">(optional)</span></label><input value={formData.phone_number} onChange={e => setFormData(p => ({ ...p, phone_number: e.target.value }))} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Gender <span className="text-slate-400 text-[10px]">(optional)</span></label>
-                    <select value={formData.gender} onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={formData.gender} onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
                       <option value="">Prefer not to say</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -313,9 +354,9 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date of Birth <span className="text-slate-400 text-[10px]">(optional)</span></label><input type="date" value={formData.date_of_birth} onChange={e => setFormData(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date of Birth <span className="text-slate-400 text-[10px]">(optional)</span></label><input type="date" value={formData.date_of_birth} onChange={e => setFormData(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch <span className="text-red-500">*</span></label>
-                    <select value={formData.branch_id} onChange={e => setFormData(p => ({ ...p, branch_id: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={formData.branch_id} onChange={e => setFormData(p => ({ ...p, branch_id: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
                       <option value="">Select branch...</option>
                       {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
@@ -331,7 +372,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                 </div>
                 {addUserRole === 'staff' && (
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Role <span className="text-slate-400 text-[10px]">(optional)</span></label>
-                    <select value={formData.role} onChange={e => setFormData(p => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={formData.role} onChange={e => setFormData(p => ({ ...p, role: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
                       <option value="instructor">Instructor</option>
                       <option value="secretary">Secretary</option>
                       <option value="student">Student</option>
@@ -342,7 +383,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
               <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
                 <button onClick={() => setShowAddModal(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                 <button onClick={handleCreate} disabled={!formData.email || !formData.first_name || !formData.last_name || !formData.password || !formData.branch_id}
-                  className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50">Create User</button>
+                  className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50">Create User</button>
               </div>
             </motion.div>
           </div>
@@ -361,7 +402,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                   {viewingUser.profile_picture ? (
                     <img src={viewingUser.profile_picture} alt={viewingUser.full_name} className="w-14 h-14 rounded-xl object-cover shrink-0" />
                   ) : (
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-red to-brand-red-dark flex items-center justify-center text-white font-bold text-xl shrink-0">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-bold text-xl shrink-0">
                       {viewingUser.first_name?.[0] || viewingUser.email?.[0] || '?'}{viewingUser.last_name?.[0] || ''}
                     </div>
                   )}
@@ -511,25 +552,25 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
               </div>
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name</label><input value={editingUser.first_name} onChange={e => setEditingUser(p => ({ ...p, first_name: e.target.value }))} placeholder="e.g. Yonas" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name</label><input value={editingUser.last_name} onChange={e => setEditingUser(p => ({ ...p, last_name: e.target.value }))} placeholder="e.g. Tadesse" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name</label><input value={editingUser.first_name} onChange={e => setEditingUser(p => ({ ...p, first_name: e.target.value }))} placeholder="e.g. Yonas" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name</label><input value={editingUser.last_name} onChange={e => setEditingUser(p => ({ ...p, last_name: e.target.value }))} placeholder="e.g. Tadesse" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                 </div>
-                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email</label><input value={editingUser.email} onChange={e => setEditingUser(p => ({ ...p, email: e.target.value }))} placeholder="e.g. yonas.tadesse@email.com" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email</label><input value={editingUser.email} onChange={e => setEditingUser(p => ({ ...p, email: e.target.value }))} placeholder="e.g. yonas.tadesse@email.com" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={editingUser.phone_number || ''} onChange={e => setEditingUser(p => p ? { ...p, phone_number: e.target.value } : p)} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={editingUser.phone_number || ''} onChange={e => setEditingUser(p => p ? { ...p, phone_number: e.target.value } : p)} placeholder="e.g. +251-911-000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Gender</label>
-                    <select value={editingUser.gender || ''} onChange={e => setEditingUser(p => p ? { ...p, gender: e.target.value as AdminUserResponse['gender'] } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                    <select value={editingUser.gender || ''} onChange={e => setEditingUser(p => p ? { ...p, gender: e.target.value as AdminUserResponse['gender'] } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
                       <option value="">Prefer not to say</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
                   </div>
                 </div>
-                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date of Birth</label><input type="date" value={editingUser.date_of_birth || ''} onChange={e => setEditingUser(p => p ? { ...p, date_of_birth: e.target.value } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" /></div>
+                <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date of Birth</label><input type="date" value={editingUser.date_of_birth || ''} onChange={e => setEditingUser(p => p ? { ...p, date_of_birth: e.target.value } : p)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" /></div>
               </div>
               <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
                 <button onClick={() => setEditingUser(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                <button onClick={handleUpdate} className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-red-700">Save Changes</button>
+                <button onClick={handleUpdate} className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700">Save Changes</button>
               </div>
             </motion.div>
           </div>

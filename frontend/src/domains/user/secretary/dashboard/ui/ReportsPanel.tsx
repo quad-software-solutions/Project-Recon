@@ -161,8 +161,8 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
               className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-red/5 flex items-center justify-center">
-                  <RIcon className="w-5 h-5 text-brand-red" />
+                <div className="w-10 h-10 rounded-lg bg-blue-600/5 flex items-center justify-center">
+                  <RIcon className="w-5 h-5 text-blue-600" />
                 </div>
               </div>
               <h3 className="font-bold text-base text-slate-900">{r.label}</h3>
@@ -181,7 +181,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
 
       <div className="bg-white border border-slate-200 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <FileText className="w-4 h-4 text-brand-red" />
+          <FileText className="w-4 h-4 text-blue-600" />
           <h3 className="font-bold text-sm text-slate-900">Download Reports</h3>
         </div>
 
@@ -200,7 +200,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Student</label>
                 <select value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose student...</option>
                   {students.map(s => {
                     const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
@@ -213,7 +213,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Class</label>
                 <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose class...</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} — {c.branch_name || 'Branch'}</option>)}
                 </select>
@@ -223,7 +223,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Sub-Program</label>
                 <select value={selectedSubProgram} onChange={e => setSelectedSubProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose sub-program...</option>
                   {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name} — {sp.program_name || 'Program'}</option>)}
                 </select>
@@ -233,7 +233,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Program</label>
                 <select value={selectedProgram} onChange={e => setSelectedProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose program...</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -246,7 +246,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
             (reportType === 'subprogram' && !selectedSubProgram) ||
             (reportType === 'program' && !selectedProgram) ||
             !!downloading
-          } className="flex items-center gap-1.5 text-xs font-bold bg-brand-red text-white px-4 py-2 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 transition-colors shrink-0">
+          } className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shrink-0">
             <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-bounce' : ''}`} />
             {downloading ? 'Downloading...' : 'Download Report'}
           </button>

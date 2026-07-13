@@ -357,10 +357,10 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search templates..."
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-brand-red" />
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600" />
         </div>
         {canManage && (
-          <button onClick={openCreate} className="flex items-center gap-1.5 bg-brand-red text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-red-dark transition-colors">
+          <button onClick={openCreate} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
             <Plus className="w-3.5 h-3.5" /> New Template
           </button>
         )}
@@ -457,13 +457,13 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1 block">Template Title *</label>
                     <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
                       placeholder="e.g. VEX V5 Completion Certificate" />
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1 block">Sub-Program *</label>
                     <select value={form.sub_program} onChange={e => setForm(p => ({ ...p, sub_program: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
                       <option value="">Select sub-program...</option>
                       {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
                     </select>
@@ -471,7 +471,7 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1 block">Body Text</label>
                     <textarea value={form.body_text} onChange={e => setForm(p => ({ ...p, body_text: e.target.value }))} rows={3}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red resize-none"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 resize-none"
                       placeholder="e.g. This certifies that {{participant_name}} has completed {{workshop_name}}" />
                     <p className="text-[10px] text-slate-400 mt-1">Use placeholders: {'{{participant_name}}'}, {'{{event_name}}'}, {'{{workshop_name}}'}, {'{{issue_date}}'}</p>
                   </div>
@@ -479,13 +479,13 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                     <div>
                       <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Name</label>
                       <input value={form.signatory_name} onChange={e => setForm(p => ({ ...p, signatory_name: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
                         placeholder="e.g. Dr. John Smith" />
                     </div>
                     <div>
                       <label className="text-[11px] font-bold text-slate-600 mb-1 block">Signatory Title</label>
                       <input value={form.signatory_title} onChange={e => setForm(p => ({ ...p, signatory_title: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
                         placeholder="e.g. Principal, Director" />
                     </div>
                   </div>
@@ -556,7 +556,7 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
                   <button onClick={() => { setShowForm(false); resetFileState(); }} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">Cancel</button>
                   <button onClick={handleSave} disabled={saving || !form.title || !form.sub_program}
-                    className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {saving ? 'Saving...' : editing ? 'Update Template' : 'Create Template'}
                   </button>
@@ -584,13 +584,13 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                       <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
                         {/* Ornamental top border */}
                         <div className="flex items-center justify-center gap-1 pt-6 px-8">
-                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
                           <div className="flex items-center gap-0.5">
-                            <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                            <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
                             <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
-                            <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                            <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
                           </div>
-                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
                         </div>
                         <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
                           <div className="w-28 h-auto">
@@ -601,15 +601,15 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                             <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
                             <div className="w-1 h-1 bg-brand-cyan rounded-full" />
                           </div>
-                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent" />
+                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent" />
                           <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
                           <p className="font-black text-2xl text-white tracking-tight">[Student Name]</p>
                           <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
-                          <p className="font-bold text-base text-brand-red">{preview.title}</p>
+                          <p className="font-bold text-base text-blue-600">{preview.title}</p>
                           {decoded.body && (
                             <p className="text-slate-400 text-[10px] max-w-xs leading-relaxed">{decoded.body}</p>
                           )}
-                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent mt-1" />
+                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent mt-1" />
                           <div className="flex items-center gap-3 mt-1">
                             <div className="flex items-center gap-1.5 text-slate-400">
                               <Shield className="w-2.5 h-2.5 text-brand-cyan" />
@@ -634,7 +634,7 @@ function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }:
                             </div>
                           )}
                         </div>
-                        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-red via-brand-cyan to-brand-red opacity-60" />
+                        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-600 via-brand-cyan to-blue-600 opacity-60" />
                       </div>
                       <div className="p-3 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
                         <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
@@ -753,11 +753,11 @@ function IssueTab({ templates, students, onRefresh, canManage, onError }: {
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <div className="flex gap-2 mb-4">
             <button onClick={() => setMode('individual')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${mode === 'individual' ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-600'}`}>
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${mode === 'individual' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
               Single Issue
             </button>
             <button onClick={() => setMode('bulk')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${mode === 'bulk' ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-600'}`}>
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${mode === 'bulk' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
               Bulk Issue
             </button>
           </div>
@@ -770,7 +770,7 @@ function IssueTab({ templates, students, onRefresh, canManage, onError }: {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <input type="text" placeholder="Search student by name or email..." value={studentSearch}
                     onChange={e => { setStudentSearch(e.target.value); setForm(p => ({ ...p, student: '' })); }}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" />
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600" />
                   {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-slate-400" />}
                 </div>
                 {studentResults.length > 0 && (
@@ -780,7 +780,7 @@ function IssueTab({ templates, students, onRefresh, canManage, onError }: {
                       return (
                         <button key={s.id} type="button" onClick={() => handleSelectStudent(s.id, name)}
                           className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between ${
-                            form.student === s.id ? 'bg-brand-red/5 text-brand-red font-semibold' : 'text-slate-700'
+                            form.student === s.id ? 'bg-blue-600/5 text-blue-600 font-semibold' : 'text-slate-700'
                           }`}>
                           <span>{name}</span>
                           <span className="text-[10px] text-slate-400">{s.email}</span>
@@ -793,14 +793,14 @@ function IssueTab({ templates, students, onRefresh, canManage, onError }: {
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Certificate Template</label>
                 <select value={form.certificate} onChange={e => setForm(p => ({ ...p, certificate: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
                   <option value="">Select template...</option>
                   {activeTemplates.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                 </select>
               </div>
               <div className="flex justify-end">
                 <button onClick={handleIssueIndividual} disabled={submitting || !form.student || !form.certificate}
-                  className="bg-brand-red text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                  className="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                   {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
                   {submitting ? 'Issuing...' : 'Issue Certificate'}
                 </button>
@@ -819,10 +819,10 @@ function IssueTab({ templates, students, onRefresh, canManage, onError }: {
                     const selected = selectedStudents.includes(s.id);
                     return (
                       <label key={s.id} className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-slate-50 transition-colors ${
-                        selected ? 'bg-brand-red/5 text-brand-red font-semibold' : 'text-slate-700'
+                        selected ? 'bg-blue-600/5 text-blue-600 font-semibold' : 'text-slate-700'
                       }`}>
                         <input type="checkbox" checked={selected} onChange={() => toggleBulkStudent(s.id)}
-                          className="w-3.5 h-3.5 rounded border-slate-300 text-brand-red focus:ring-brand-red" />
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
                         <span>{name}</span>
                         <span className="text-[10px] text-slate-400 ml-auto">{s.email}</span>
                       </label>
@@ -834,14 +834,14 @@ function IssueTab({ templates, students, onRefresh, canManage, onError }: {
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Certificate Template</label>
                 <select value={bulkTemplate} onChange={e => setBulkTemplate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
                   <option value="">Select template...</option>
                   {activeTemplates.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                 </select>
               </div>
               <div className="flex justify-end">
                 <button onClick={handleBulkIssue} disabled={bulkRunning || selectedStudents.length === 0 || !bulkTemplate}
-                  className="bg-brand-red text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                  className="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                   {bulkRunning && <Loader2 className="w-3 h-3 animate-spin" />}
                   {bulkRunning ? `Issuing (0/${selectedStudents.length})...` : `Issue to ${selectedStudents.length} Students`}
                 </button>
@@ -953,14 +953,14 @@ function EventIssuePanel({ mode, templates, onRefresh, onError }: {
           <div>
             <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Certificate Template</label>
             <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red">
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
               <option value="">Select template...</option>
               {templates.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select>
           </div>
 
           <button onClick={handleIssueAll} disabled={issuing || !selectedTemplate}
-            className="bg-brand-red text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+            className="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
             {issuing && <Loader2 className="w-3 h-3 animate-spin" />}
             {issuing ? 'Issuing...' : `Issue Certificates to ${pendingRegs.length} Participants`}
           </button>
@@ -1022,7 +1022,7 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total Issued', value: issuedCerts.length, icon: Award, color: 'text-brand-red', bg: 'bg-brand-red/5' },
+          { label: 'Total Issued', value: issuedCerts.length, icon: Award, color: 'text-blue-600', bg: 'bg-blue-600/5' },
           { label: 'Students', value: uniqueStudents.size, icon: Users, color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
           { label: 'Last 30 Days', value: recentCount, icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         ].map((s, i) => (
@@ -1040,7 +1040,7 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
         <input type="text" placeholder="Search by student, certificate, or number..." value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-brand-red" />
+          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600" />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -1066,8 +1066,8 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
                 <tr key={c.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setShowDetail(c)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-brand-red/5 flex items-center justify-center">
-                        <Award className="w-3.5 h-3.5 text-brand-red" />
+                      <div className="w-7 h-7 rounded-full bg-blue-600/5 flex items-center justify-center">
+                        <Award className="w-3.5 h-3.5 text-blue-600" />
                       </div>
                       <span className="text-xs font-semibold text-slate-900">{c.student_name || c.student?.slice(0, 8) || 'Student'}</span>
                     </div>
@@ -1112,13 +1112,13 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
                 <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
                   {/* Ornamental top border */}
                   <div className="flex items-center justify-center gap-1 pt-6 px-8">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
                     <div className="flex items-center gap-0.5">
-                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                      <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
                       <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
-                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-red" />
+                      <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
                     </div>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-red/40 to-transparent" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
                   </div>
                   <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
                     <div className="w-28 h-auto">
@@ -1129,12 +1129,12 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
                       <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
                       <div className="w-1 h-1 bg-brand-cyan rounded-full" />
                     </div>
-                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent" />
+                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent" />
                     <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
                     <p className="font-black text-2xl text-white tracking-tight">{showDetail.student_name || 'Student'}</p>
                     <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
-                    <p className="font-bold text-base text-brand-red">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
-                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-brand-red to-transparent mt-1" />
+                    <p className="font-bold text-base text-blue-600">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
+                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent mt-1" />
                     <div className="flex items-center gap-3 mt-1">
                       <div className="flex items-center gap-1.5 text-slate-400">
                         <Shield className="w-2.5 h-2.5 text-brand-cyan" />
@@ -1144,7 +1144,7 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
                       <p className="font-mono text-[9px] text-slate-400">{showDetail.issued_at?.slice(0, 10) || ''}</p>
                     </div>
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-red via-brand-cyan to-brand-red opacity-60" />
+                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-600 via-brand-cyan to-blue-600 opacity-60" />
                 </div>
                 <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
                   <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
@@ -1154,7 +1154,7 @@ function IssuedTab({ issuedCerts, loading, onRefresh }: {
                     <button onClick={() => setShowDetail(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">Close</button>
                     {showDetail.pdf && (
                       <a href={showDetail.pdf} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-bold text-white bg-brand-red px-3 py-1 rounded-lg hover:bg-brand-red-dark transition-colors">
+                        className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors">
                         <Download className="w-2.5 h-2.5" /> Download PDF
                       </a>
                     )}

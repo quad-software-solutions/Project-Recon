@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Loader2, Clock, MapPin } from 'lucide-react';
 import { getUpcomingEvents } from '@/src/domains/competition/api/eventsApi';
 
-const DOT_COLORS = ['bg-brand-blue', 'bg-brand-red', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-cyan-500'];
+const DOT_COLORS = ['bg-brand-blue', 'bg-blue-600', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-cyan-500'];
 
 export default function UpcomingEvents() {
   const [events, setEvents] = useState<{ title: string; date: string; location: string; description: string }[]>([]);

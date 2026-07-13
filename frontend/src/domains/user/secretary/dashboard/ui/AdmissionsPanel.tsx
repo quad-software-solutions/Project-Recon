@@ -90,7 +90,7 @@ export default function AdmissionsPanel({ currentUser }: { currentUser?: UserPro
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="font-bold text-lg text-slate-900">Student Admissions</h2>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-brand-red text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-red-dark transition-colors self-start">
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors self-start">
           <Plus className="w-3.5 h-3.5" /> New Admission
         </button>
       </div>
@@ -137,7 +137,7 @@ export default function AdmissionsPanel({ currentUser }: { currentUser?: UserPro
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
         <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search students by name or email..."
-          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -238,34 +238,34 @@ export default function AdmissionsPanel({ currentUser }: { currentUser?: UserPro
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name</label><input value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="Kidus" /></div>
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name</label><input value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="G." /></div>
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">First Name</label><input value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="Kidus" /></div>
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Last Name</label><input value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="G." /></div>
                   </div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email</label><input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="kidus@email.com" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="+251-911-000001" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Temporary Password</label><input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="Set login password" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Email</label><input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="kidus@email.com" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Phone</label><input value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="+251-911-000001" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Temporary Password</label><input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="Set login password" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch</label>
                     {branchesError ? (
                       <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs font-bold text-amber-700 flex items-center gap-1.5">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {branchesError}
                       </div>
                     ) : (
-                      <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                      <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                         <option value="">Select branch...</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
                     )}
                   </div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Guardian Name</label><input value={form.guardian_name} onChange={e => setForm(p => ({ ...p, guardian_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="Parent or guardian" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Guardian Name</label><input value={form.guardian_name} onChange={e => setForm(p => ({ ...p, guardian_name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="Parent or guardian" /></div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Guardian Phone</label><input value={form.guardian_phone} onChange={e => setForm(p => ({ ...p, guardian_phone: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="+251..." /></div>
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Guardian Email</label><input value={form.guardian_email} onChange={e => setForm(p => ({ ...p, guardian_email: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="parent@email.com" /></div>
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Guardian Phone</label><input value={form.guardian_phone} onChange={e => setForm(p => ({ ...p, guardian_phone: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="+251..." /></div>
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Guardian Email</label><input value={form.guardian_email} onChange={e => setForm(p => ({ ...p, guardian_email: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="parent@email.com" /></div>
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
                   <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                   <button onClick={handleSubmit} disabled={!form.first_name || !form.last_name || !form.email || !form.password || !form.branch || submitting}
-                    className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                     {submitting ? 'Creating...' : 'Create Student'}
                   </button>

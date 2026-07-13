@@ -74,7 +74,7 @@ export default function ParentFeedback() {
           </p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          className="bg-brand-red text-white font-bold text-xs px-5 py-2.5 rounded-xl hover:bg-brand-red-dark transition-colors flex items-center gap-1.5 self-start sm:self-auto">
+          className="bg-blue-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5 self-start sm:self-auto">
           <Send className="w-4 h-4" /> Submit Feedback
         </button>
       </div>
@@ -122,12 +122,12 @@ export default function ParentFeedback() {
                 <div>
                   <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Parent / Guardian Name</label>
                   <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Mrs. Tigist A."
-                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Category</label>
                   <select value={formCategory} onChange={e => setFormCategory(e.target.value as TicketCategory)}
-                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                     {Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => (
                       <option key={key} value={key}>{cfg.label}</option>
                     ))}
@@ -137,18 +137,18 @@ export default function ParentFeedback() {
               <div className="mb-4">
                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Subject</label>
                 <input value={formSubject} onChange={e => setFormSubject(e.target.value)} placeholder="Brief summary of your feedback..."
-                  className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+                  className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
               </div>
               <div className="mb-5">
                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Message</label>
                 <textarea value={formMessage} onChange={e => setFormMessage(e.target.value)} rows={4}
                   placeholder="Describe your concern, suggestion, or comment in detail..."
-                  className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+                  className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
               </div>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowForm(false)} className="text-xs font-semibold text-slate-500 hover:bg-slate-100 px-5 py-2.5 rounded-lg transition-colors">Cancel</button>
                 <button onClick={submitTicket} disabled={submitting || !formName.trim() || !formSubject.trim() || !formMessage.trim()}
-                  className="bg-brand-red text-white font-bold text-xs px-6 py-2.5 rounded-xl hover:bg-brand-red-dark transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                  className="bg-blue-600 text-white font-bold text-xs px-6 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-50">
                   {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   {submitting ? 'Submitting...' : 'Submit'}
                 </button>

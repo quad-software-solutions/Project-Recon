@@ -253,7 +253,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                                     {p.status !== 'COMPLETED' && (
                                       <button onClick={() => updateStatus(p.id, nextStatus(p.status))}
                                         disabled={updating === p.id}
-                                        className="text-[10px] font-bold bg-brand-red text-white px-2 py-1 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1"
+                                        className="text-[10px] font-bold bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                                       >
                                         {updating === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
                                         {p.status === 'NOT_STARTED' ? 'Start' : 'Complete'}

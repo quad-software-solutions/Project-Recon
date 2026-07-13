@@ -177,7 +177,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
           {classes.length > 0 && (
-            <button onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-brand-red text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-red-dark transition-colors">
+            <button onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
               <Plus className="w-3.5 h-3.5" /> Enroll Student
             </button>
           )}
@@ -194,9 +194,9 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search enrollments..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search enrollments..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
           <option value="all">All Status</option>
           <option value="ACTIVE">Active</option>
           <option value="PENDING_PAYMENT">Pending Payment</option>
@@ -312,13 +312,13 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Amount (Birr)</label>
                 <input type="number" step="0.01" min="0" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
                   placeholder="e.g. 5000" />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Payment Date</label>
                 <input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
@@ -353,7 +353,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                     <div className="relative">
                       <input value={studentSearch} onChange={e => { setStudentSearch(e.target.value); setForm(p => ({ ...p, student: '' })); }}
                         placeholder="Search student by name or email..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                       {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-slate-400" />}
                     </div>
                     {studentResults.length > 0 && !form.student && (
@@ -381,18 +381,18 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                     {classes.length === 0 ? (
                       <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-400">Classes unavailable — check your permissions</div>
                     ) : (
-                      <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                      <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                         <option value="">Select class...</option>
                         {classes.map(c => <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>)}
                       </select>
                     )}
                   </div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Remarks</label><input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="Optional note" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Remarks</label><input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="Optional note" /></div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
                   <button onClick={() => setShowEnroll(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                   <button onClick={handleEnroll} disabled={submitting || !form.student || !form.enrolled_class}
-                    className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
                     {submitting ? 'Enrolling...' : 'Enroll'}
                   </button>

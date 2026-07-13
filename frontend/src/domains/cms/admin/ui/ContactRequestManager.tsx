@@ -94,7 +94,7 @@ export default function ContactRequestManager({ addToast }: Props) {
             </div>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="pl-7 pr-2 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30 w-44" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="pl-7 pr-2 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600/30 w-44" />
             </div>
           </div>
 
@@ -127,7 +127,7 @@ export default function ContactRequestManager({ addToast }: Props) {
               ] as const).map(([value, label]) => (
                 <button key={value} onClick={() => setTypeFilter(value)}
                   className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${
-                    typeFilter === value ? 'bg-white text-brand-red shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    typeFilter === value ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {label}
@@ -143,7 +143,7 @@ export default function ContactRequestManager({ addToast }: Props) {
               ] as const).map(([s, label]) => (
                 <button key={s} onClick={() => setFilter(s)}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                    filter === s ? 'bg-brand-red text-white' : 'text-slate-500 hover:bg-slate-100'
+                    filter === s ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'
                   }`}
                 >
                   {label}
@@ -169,7 +169,7 @@ export default function ContactRequestManager({ addToast }: Props) {
               return (
                 <div key={item.id} onClick={() => setSelected(item)}
                   className={`flex items-start gap-3 p-3 transition-colors cursor-pointer ${
-                    selected?.id === item.id ? 'bg-brand-red/5' : 'hover:bg-slate-50'
+                    selected?.id === item.id ? 'bg-blue-600/5' : 'hover:bg-slate-50'
                   }`}
                 >
                   <div className={`p-1.5 rounded-lg shrink-0 ${

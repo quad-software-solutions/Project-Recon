@@ -259,7 +259,7 @@ export default function ClassManagement({
                       className={`text-[11px] font-bold px-4 py-2 rounded-lg transition-all active:scale-95 ${
                         st.attended
                           ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 border border-slate-200'
-                          : 'bg-brand-red text-white hover:bg-brand-red-dark shadow-sm'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                       }`}
                     >
                       {st.attended ? 'Undo' : 'Mark Present'}

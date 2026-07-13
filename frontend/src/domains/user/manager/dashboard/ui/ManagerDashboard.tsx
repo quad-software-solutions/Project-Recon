@@ -293,21 +293,21 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
                 Notifications
               </h4>
               {unreadNotifications.length > 0 && (
-                <span className="text-[10px] font-black bg-brand-red text-white px-1.5 py-0.5 rounded-full">{unreadNotifications.length} new</span>
+                <span className="text-[10px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded-full">{unreadNotifications.length} new</span>
               )}
             </div>
             <div className="flex flex-col gap-1.5">
               {notifications.slice(0, 4).map((n, i) => (
                 <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                  className={`flex items-start gap-2 p-2 rounded-lg text-sm transition-all ${n.read ? 'text-slate-500' : 'bg-brand-red/5 border border-brand-red/10 text-slate-900'}`}
+                  className={`flex items-start gap-2 p-2 rounded-lg text-sm transition-all ${n.read ? 'text-slate-500' : 'bg-blue-600/5 border border-blue-600/10 text-slate-900'}`}
                 >
-                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${n.read ? 'bg-slate-100' : 'bg-brand-red/10'}`}>
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${n.read ? 'bg-slate-100' : 'bg-blue-600/10'}`}>
                     <span className="text-sm">{n.icon || '🔔'}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <p className={`font-bold text-sm ${n.read ? 'text-slate-500' : 'text-slate-900'}`}>{n.title}</p>
-                      {!n.read && <div className="w-1 h-1 rounded-full bg-brand-red shrink-0" />}
+                      {!n.read && <div className="w-1 h-1 rounded-full bg-blue-600 shrink-0" />}
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{n.message}</p>
                   </div>
@@ -341,7 +341,7 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4">
           <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5 mb-3">
-            <Activity className="w-3.5 h-3.5 text-brand-red" />
+            <Activity className="w-3.5 h-3.5 text-blue-600" />
             Management Tools
           </h4>
           <div className="grid grid-cols-2 gap-2">
@@ -374,7 +374,7 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
         <div className="lg:col-span-5 flex flex-col gap-2">
           <div className="bg-white border border-slate-200 rounded-2xl p-3">
             <h4 className="font-black text-sm text-slate-900 mb-2 flex items-center gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5 text-brand-red" />
+              <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
               Platform Summary
             </h4>
             <div className="grid grid-cols-2 gap-2">
@@ -450,7 +450,7 @@ function ReportsSection() {
     { key: 'certificate-report', title: 'Certificate Report', desc: 'All issued certificates with numbers and dates', icon: Trophy, color: 'text-rose-500', bg: 'bg-rose-50', requires: 'student' as const, download: () => selectedStudentId && doDownload('certificate-report', () => downloadCertificateReportPdf(selectedStudentId)) },
     { key: 'class-report', title: 'Class Report', desc: 'Class details with enrolled students and attendance sessions', icon: Users, color: 'text-cyan-500', bg: 'bg-cyan-50', requires: 'class' as const, download: () => selectedClassId && doDownload('class-report', () => downloadClassReportPdf(selectedClassId)) },
     { key: 'subprogram-report', title: 'Sub-Program Report', desc: 'Sub-program info with class list and enrollment counts', icon: Building, color: 'text-indigo-500', bg: 'bg-indigo-50', requires: 'subprogram' as const, download: () => selectedSubProgramId && doDownload('subprogram-report', () => downloadSubProgramReportPdf(selectedSubProgramId)) },
-    { key: 'program-report', title: 'Program Report', desc: 'Complete program overview with sub-programs and totals', icon: Activity, color: 'text-brand-red', bg: 'bg-brand-red/5', requires: 'program' as const, download: () => selectedProgramId && doDownload('program-report', () => downloadProgramReportPdf(selectedProgramId)) },
+    { key: 'program-report', title: 'Program Report', desc: 'Complete program overview with sub-programs and totals', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-600/5', requires: 'program' as const, download: () => selectedProgramId && doDownload('program-report', () => downloadProgramReportPdf(selectedProgramId)) },
   ];
 
   return (
@@ -547,7 +547,7 @@ function ReportsSection() {
                 </div>
               </div>
               <button onClick={r.download} disabled={isDl || !hasRequired}
-                className="w-full text-[11px] font-bold text-brand-red bg-brand-red/10 px-2 py-1.5 rounded-lg hover:bg-brand-red/20 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+                className="w-full text-[11px] font-bold text-blue-600 bg-blue-600/10 px-2 py-1.5 rounded-lg hover:bg-blue-600/20 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
               >
                 <Download className={`w-3 h-3 ${isDl ? 'animate-bounce' : ''}`} />
                 {isDl ? 'Generating PDF...' : !hasRequired ? 'Select required field above' : 'Download PDF'}
@@ -625,7 +625,7 @@ function RegistrationSection() {
           </div>
           <div className="flex items-center gap-2">
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-brand-red"
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
             >
               <option value="all">All Status</option>
               <option value="ACTIVE">Active</option>
@@ -634,7 +634,7 @@ function RegistrationSection() {
               <option value="CANCELLED">Cancelled</option>
             </select>
             <select value={paymentFilter} onChange={e => setPaymentFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-brand-red"
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
             >
               <option value="all">All Payments</option>
               <option value="PAID">Paid</option>
