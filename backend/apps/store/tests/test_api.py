@@ -408,3 +408,126 @@ class StoreApiTestCase(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["source"]["quantity"], 18)
         self.assertEqual(resp.data["destination"]["quantity"], 12)
+
+    # --- Cart Endpoints ---
+
+    def test_cart_detail_authenticated(self):
+        self._auth(self.student)
+        resp = self.client.get(f"{self.base_url}/cart/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("items", resp.data)
+        self.assertEqual(resp.data["item_count"], 0)
+
+    def test_cart_detail_guest_with_session_key(self):
+        resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "test-session"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("items", resp.data)
+
+    def test_cart_detail_guest_without_session_key(self):
+        resp = self.client.get(f"{self.base_url}/cart/")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cart_add_item(self):
+        self._auth(self.student)
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["quantity"], 2)
+
+    def test_cart_add_item_insufficient_stock(self):
+        self._auth(self.student)
+        resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 999,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cart_add_item_unauthenticated(self):
+        resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cart_update_item_quantity(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        add_resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 2,
+            },
+            format="json",
+        )
+        item_id = add_resp.data["id"]
+        resp = self.client.patch(
+            f"{self.base_url}/cart/items/{item_id}/",
+            {"quantity": 5},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["quantity"], 5)
+
+    def test_cart_remove_item(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        add_resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 2,
+            },
+            format="json",
+        )
+        item_id = add_resp.data["id"]
+        resp = self.client.delete(
+            f"{self.base_url}/cart/items/{item_id}/remove/",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_cart_clear(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 2,
+            },
+            format="json",
+        )
+        resp = self.client.delete(f"{self.base_url}/cart/clear/")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)

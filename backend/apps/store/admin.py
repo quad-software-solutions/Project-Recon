@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from apps.store.models import BranchInventory, Product, ProductCategory, ProductImage
+from apps.store.models import (
+    BranchInventory,
+    Product,
+    ProductCategory,
+    ProductImage,
+    ShoppingCart,
+    ShoppingCartItem,
+)
 
 
 @admin.register(ProductCategory)
@@ -29,3 +36,15 @@ class BranchInventoryAdmin(admin.ModelAdmin):
     list_display = ("product", "branch", "quantity", "minimum_quantity")
     search_fields = ("product__name", "branch__name")
     list_filter = ("branch",)
+
+
+@admin.register(ShoppingCart)
+class ShoppingCartAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "session_key", "expires_at", "created_at")
+    search_fields = ("user__email", "session_key")
+
+
+@admin.register(ShoppingCartItem)
+class ShoppingCartItemAdmin(admin.ModelAdmin):
+    list_display = ("cart", "product", "branch", "quantity", "created_at")
+    search_fields = ("product__name", "branch__name")

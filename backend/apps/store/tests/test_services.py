@@ -1,7 +1,13 @@
 from django.test import TestCase
 from rest_framework.exceptions import NotFound, ValidationError
 
-from apps.store.models import Product, ProductCategory, ProductImage
+from apps.store.models import (
+    Product,
+    ProductCategory,
+    ProductImage,
+    ShoppingCart,
+    ShoppingCartItem,
+)
 from apps.store.services.category_service import (
     activate_category,
     create_category,
@@ -38,6 +44,14 @@ from apps.store.services.branch_inventory_service import (
     reduce_inventory,
     transfer_inventory,
     validate_stock,
+)
+from apps.store.services.shopping_cart_service import (
+    add_to_cart,
+    clear_cart,
+    delete_expired_carts,
+    get_or_create_cart,
+    remove_from_cart,
+    update_cart_item_quantity,
 )
 
 
@@ -354,3 +368,114 @@ class BranchInventoryServiceTest(TestCase):
         self.assertTrue(validate_stock(self.branch_a, self.product, 5))
         self.assertFalse(validate_stock(self.branch_a, self.product, 15))
         self.assertFalse(validate_stock(self.branch_b, self.product, 1))
+
+
+class ShoppingCartServiceTest(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="cart@test.com",
+            password="testpass123",
+            first_name="Cart",
+            last_name="User",
+        )
+        self.session_key = "test-session-xyz"
+        self.category = create_category({"name": "Category"})
+        self.product = create_product({
+            "category": self.category.pk,
+            "name": "Widget",
+            "slug": "widget",
+            "sku": "WDG",
+            "price": 10,
+        })
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+        add_inventory(self.branch, self.product, 50)
+
+    def test_get_or_create_cart_for_user(self):
+        cart = get_or_create_cart(user=self.user)
+        self.assertEqual(cart.user, self.user)
+        self.assertIsNotNone(cart.expires_at)
+
+    def test_get_or_create_cart_returns_existing(self):
+        cart1 = get_or_create_cart(user=self.user)
+        cart2 = get_or_create_cart(user=self.user)
+        self.assertEqual(cart1.pk, cart2.pk)
+
+    def test_get_or_create_cart_for_session(self):
+        cart = get_or_create_cart(session_key=self.session_key)
+        self.assertEqual(cart.session_key, self.session_key)
+        self.assertIsNotNone(cart.expires_at)
+
+    def test_get_or_create_cart_requires_user_or_session(self):
+        with self.assertRaises(ValidationError):
+            get_or_create_cart()
+
+    def test_add_to_cart(self):
+        cart = get_or_create_cart(user=self.user)
+        item = add_to_cart(cart, self.product, self.branch, 3)
+        self.assertEqual(item.quantity, 3)
+        self.assertEqual(item.product, self.product)
+        self.assertEqual(item.branch, self.branch)
+
+    def test_add_to_cart_accumulates_quantity(self):
+        cart = get_or_create_cart(user=self.user)
+        add_to_cart(cart, self.product, self.branch, 2)
+        item = add_to_cart(cart, self.product, self.branch, 3)
+        self.assertEqual(item.quantity, 5)
+
+    def test_add_to_cart_invalid_quantity(self):
+        cart = get_or_create_cart(user=self.user)
+        with self.assertRaises(ValidationError):
+            add_to_cart(cart, self.product, self.branch, 0)
+
+    def test_add_to_cart_insufficient_stock(self):
+        cart = get_or_create_cart(user=self.user)
+        with self.assertRaises(ValidationError):
+            add_to_cart(cart, self.product, self.branch, 999)
+
+    def test_remove_from_cart(self):
+        cart = get_or_create_cart(user=self.user)
+        item = add_to_cart(cart, self.product, self.branch, 2)
+        self.assertEqual(ShoppingCartItem.objects.count(), 1)
+        remove_from_cart(cart, item.pk)
+        self.assertEqual(ShoppingCartItem.objects.count(), 0)
+
+    def test_remove_nonexistent_item(self):
+        cart = get_or_create_cart(user=self.user)
+        with self.assertRaises(NotFound):
+            remove_from_cart(cart, "00000000-0000-0000-0000-000000000000")
+
+    def test_update_cart_item_quantity(self):
+        cart = get_or_create_cart(user=self.user)
+        item = add_to_cart(cart, self.product, self.branch, 2)
+        updated = update_cart_item_quantity(cart, item.pk, 5)
+        self.assertEqual(updated.quantity, 5)
+
+    def test_update_cart_item_invalid_quantity(self):
+        cart = get_or_create_cart(user=self.user)
+        item = add_to_cart(cart, self.product, self.branch, 2)
+        with self.assertRaises(ValidationError):
+            update_cart_item_quantity(cart, item.pk, 0)
+
+    def test_clear_cart(self):
+        cart = get_or_create_cart(user=self.user)
+        add_to_cart(cart, self.product, self.branch, 2)
+        add_to_cart(cart, self.product, self.branch, 3)  # accumulates, not duplicate
+        clear_cart(cart)
+        self.assertEqual(ShoppingCartItem.objects.count(), 0)
+
+    def test_delete_expired_carts(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        expired = ShoppingCart.objects.create(
+            user=self.user,
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        count = delete_expired_carts()
+        self.assertEqual(count, 1)
+        self.assertFalse(ShoppingCart.objects.filter(pk=expired.pk).exists())
