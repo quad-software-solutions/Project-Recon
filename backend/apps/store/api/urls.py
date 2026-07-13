@@ -5,6 +5,12 @@ from apps.store.api.views import (
     AdminCategoryDeactivateView,
     AdminCategoryListCreateView,
     AdminCategoryRetrieveUpdateView,
+    AdminInventoryAddView,
+    AdminInventoryCorrectView,
+    AdminInventoryListCreateView,
+    AdminInventoryReduceView,
+    AdminInventoryRetrieveUpdateView,
+    AdminInventoryTransferView,
     AdminProductActivateView,
     AdminProductArchiveView,
     AdminProductDeactivateView,
@@ -16,8 +22,10 @@ from apps.store.api.views import (
     AdminProductListCreateView,
     AdminProductRestoreView,
     AdminProductRetrieveUpdateView,
+    PublicBranchInventoryListView,
     PublicCategoryDetailView,
     PublicCategoryListView,
+    PublicProductAvailabilityView,
     PublicProductDetailView,
     PublicProductListView,
 )
@@ -35,6 +43,16 @@ urlpatterns = [
         "products/<uuid:pk>/",
         PublicProductDetailView.as_view(),
         name="store-product-detail",
+    ),
+    path(
+        "inventory/",
+        PublicBranchInventoryListView.as_view(),
+        name="store-inventory-list",
+    ),
+    path(
+        "inventory/availability/<uuid:product_pk>/",
+        PublicProductAvailabilityView.as_view(),
+        name="store-inventory-availability",
     ),
     # Admin - Categories
     path(
@@ -113,5 +131,36 @@ urlpatterns = [
         "admin/product-images/<uuid:pk>/set-primary/",
         AdminProductImageSetPrimaryView.as_view(),
         name="store-admin-product-image-set-primary",
+    ),
+    # Admin - Inventory
+    path(
+        "admin/inventory/",
+        AdminInventoryListCreateView.as_view(),
+        name="store-admin-inventory-list",
+    ),
+    path(
+        "admin/inventory/<uuid:pk>/",
+        AdminInventoryRetrieveUpdateView.as_view(),
+        name="store-admin-inventory-detail",
+    ),
+    path(
+        "admin/inventory/<uuid:pk>/add/",
+        AdminInventoryAddView.as_view(),
+        name="store-admin-inventory-add",
+    ),
+    path(
+        "admin/inventory/<uuid:pk>/reduce/",
+        AdminInventoryReduceView.as_view(),
+        name="store-admin-inventory-reduce",
+    ),
+    path(
+        "admin/inventory/<uuid:pk>/correct/",
+        AdminInventoryCorrectView.as_view(),
+        name="store-admin-inventory-correct",
+    ),
+    path(
+        "admin/inventory/transfer/",
+        AdminInventoryTransferView.as_view(),
+        name="store-admin-inventory-transfer",
     ),
 ]

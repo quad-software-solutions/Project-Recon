@@ -30,6 +30,15 @@ from apps.store.services.product_image_service import (
     set_primary_image,
     upload_image,
 )
+from apps.store.services.branch_inventory_service import (
+    add_inventory,
+    correct_inventory,
+    get_branch_inventory,
+    get_product_availability,
+    reduce_inventory,
+    transfer_inventory,
+    validate_stock,
+)
 
 
 class CategoryServiceTest(TestCase):
@@ -254,3 +263,94 @@ class ProductImageServiceTest(TestCase):
         upload_image(self.product, "store/products/a.jpg")
         upload_image(self.product, "store/products/b.jpg")
         self.assertEqual(list_product_images(self.product).count(), 2)
+
+
+class BranchInventoryServiceTest(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Branch
+
+        category = create_category({"name": "Category"})
+        self.product = create_product({
+            "category": category.pk,
+            "name": "Widget",
+            "slug": "widget",
+            "sku": "WDG",
+            "price": 10,
+        })
+        self.branch_a = Branch.objects.create(name="Branch A", code="BA")
+        self.branch_b = Branch.objects.create(name="Branch B", code="BB")
+
+    def test_add_inventory_creates_record(self):
+        inv = add_inventory(self.branch_a, self.product, 5)
+        self.assertEqual(inv.quantity, 5)
+
+    def test_add_inventory_accumulates(self):
+        add_inventory(self.branch_a, self.product, 3)
+        inv = add_inventory(self.branch_a, self.product, 7)
+        self.assertEqual(inv.quantity, 10)
+
+    def test_add_inventory_zero_raises_error(self):
+        with self.assertRaises(ValidationError):
+            add_inventory(self.branch_a, self.product, 0)
+
+    def test_reduce_inventory(self):
+        add_inventory(self.branch_a, self.product, 10)
+        inv = reduce_inventory(self.branch_a, self.product, 3)
+        self.assertEqual(inv.quantity, 7)
+
+    def test_reduce_insufficient_stock_raises_error(self):
+        add_inventory(self.branch_a, self.product, 2)
+        with self.assertRaises(ValidationError):
+            reduce_inventory(self.branch_a, self.product, 5)
+
+    def test_reduce_nonexistent_raises_error(self):
+        with self.assertRaises(ValidationError):
+            reduce_inventory(self.branch_a, self.product, 1)
+
+    def test_correct_inventory(self):
+        add_inventory(self.branch_a, self.product, 10)
+        inv = correct_inventory(self.branch_a, self.product, 25)
+        self.assertEqual(inv.quantity, 25)
+
+    def test_correct_inventory_to_zero(self):
+        add_inventory(self.branch_a, self.product, 10)
+        inv = correct_inventory(self.branch_a, self.product, 0)
+        self.assertEqual(inv.quantity, 0)
+
+    def test_correct_negative_raises_error(self):
+        with self.assertRaises(ValidationError):
+            correct_inventory(self.branch_a, self.product, -5)
+
+    def test_transfer_inventory(self):
+        add_inventory(self.branch_a, self.product, 10)
+        result = transfer_inventory(self.branch_a, self.branch_b, self.product, 4)
+        self.assertEqual(result["source"].quantity, 6)
+        self.assertEqual(result["destination"].quantity, 4)
+
+    def test_transfer_insufficient_stock_raises_error(self):
+        add_inventory(self.branch_a, self.product, 1)
+        with self.assertRaises(ValidationError):
+            transfer_inventory(self.branch_a, self.branch_b, self.product, 5)
+
+    def test_transfer_same_branch_raises_error(self):
+        add_inventory(self.branch_a, self.product, 5)
+        with self.assertRaises(ValidationError):
+            transfer_inventory(self.branch_a, self.branch_a, self.product, 2)
+
+    def test_get_branch_inventory(self):
+        add_inventory(self.branch_a, self.product, 3)
+        qs = get_branch_inventory(self.branch_a)
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().quantity, 3)
+
+    def test_get_product_availability(self):
+        add_inventory(self.branch_a, self.product, 5)
+        add_inventory(self.branch_b, self.product, 8)
+        qs = get_product_availability(self.product)
+        self.assertEqual(qs.count(), 2)
+
+    def test_validate_stock(self):
+        add_inventory(self.branch_a, self.product, 10)
+        self.assertTrue(validate_stock(self.branch_a, self.product, 5))
+        self.assertFalse(validate_stock(self.branch_a, self.product, 15))
+        self.assertFalse(validate_stock(self.branch_b, self.product, 1))

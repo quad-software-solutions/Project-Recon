@@ -1,3 +1,13 @@
+from .branch_inventory import (
+    AdminInventoryAddView,
+    AdminInventoryCorrectView,
+    AdminInventoryListCreateView,
+    AdminInventoryReduceView,
+    AdminInventoryRetrieveUpdateView,
+    AdminInventoryTransferView,
+    PublicBranchInventoryListView,
+    PublicProductAvailabilityView,
+)
 from .category import (
     AdminCategoryActivateView,
     AdminCategoryDeactivateView,
@@ -44,4 +54,12 @@ __all__ = [
     "AdminProductImageRetrieveDestroyView",
     "AdminProductImageSetPrimaryView",
     "AdminProductImageReorderView",
+    "PublicBranchInventoryListView",
+    "PublicProductAvailabilityView",
+    "AdminInventoryListCreateView",
+    "AdminInventoryRetrieveUpdateView",
+    "AdminInventoryAddView",
+    "AdminInventoryReduceView",
+    "AdminInventoryCorrectView",
+    "AdminInventoryTransferView",
 ]
