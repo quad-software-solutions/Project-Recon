@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock, MapPin, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { UserProfile, Enrollment, StudentProfile } from '@/src/shared/types';
 import { AppLayout } from '@/src/shared/ui/AppLayout';
 import { NavItem } from '@/src/shared/ui/Sidebar';
@@ -17,8 +17,8 @@ import PerformanceMetrics from './PerformanceMetrics';
 import ActivityFeed from './ActivityFeed';
 import AttendanceHistory from './AttendanceHistory';
 import Reports from './Reports';
-import { adminGetWorkshops } from '@/src/domains/competition/api/eventsApi';
-import type { BackendWorkshop } from '@/src/domains/competition/api/eventsApi';
+import { adminGetWorkshops, adminGetRegistrations, adminGetEvent } from '@/src/domains/competition/api/eventsApi';
+import type { BackendWorkshop, BackendEventRegistration, BackendEvent } from '@/src/domains/competition/api/eventsApi';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
 
@@ -48,12 +48,17 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
   const [classStudents, setClassStudents] = useState<StudentProfile[]>([]);
   const [myWorkshops, setMyWorkshops] = useState<BackendWorkshop[]>([]);
   const [workshopsLoading, setWorkshopsLoading] = useState(false);
+  const [workshopRegs, setWorkshopRegs] = useState<Record<string, BackendEventRegistration[]>>({});
+  const [workshopEvents, setWorkshopEvents] = useState<Record<string, BackendEvent>>({});
+  const [expandedWorkshop, setExpandedWorkshop] = useState<string | null>(null);
+  const [workshopFilter, setWorkshopFilter] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [workshopSearch, setWorkshopSearch] = useState('');
 
   const refreshData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await loadTeacherDashboardData();
+      const data = await loadTeacherDashboardData(currentUser.role);
       setMode(data.mode);
       setAllEnrollments(data.enrollments);
       setAllStudents(data.students);
@@ -74,9 +79,33 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
 
   const fetchMyWorkshops = useCallback(async () => {
     setWorkshopsLoading(true);
+    setWorkshopSearch('');
+    setWorkshopFilter('all');
     try {
       const data = await adminGetWorkshops();
-      setMyWorkshops(Array.isArray(data) ? data : []);
+      const workshops = Array.isArray(data) ? data : [];
+      setMyWorkshops(workshops);
+
+      const eventIds = workshops.map(w => w.event).filter(Boolean);
+      if (eventIds.length > 0) {
+        const [regs, events] = await Promise.all([
+          adminGetRegistrations({ event_type: 'WORKSHOP' }).catch(() => [] as BackendEventRegistration[]),
+          Promise.allSettled(eventIds.map(id => adminGetEvent(id).catch(() => null))),
+        ]);
+        const regMap: Record<string, BackendEventRegistration[]> = {};
+        if (Array.isArray(regs)) {
+          regs.forEach(r => {
+            if (!regMap[r.event]) regMap[r.event] = [];
+            regMap[r.event].push(r);
+          });
+        }
+        setWorkshopRegs(regMap);
+        const eventMap: Record<string, BackendEvent> = {};
+        events.forEach(r => {
+          if (r.status === 'fulfilled' && r.value) eventMap[r.value.id] = r.value;
+        });
+        setWorkshopEvents(eventMap);
+      }
     } catch {
       setMyWorkshops([]);
     } finally {

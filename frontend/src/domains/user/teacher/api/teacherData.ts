@@ -66,11 +66,12 @@ async function discoverInstructorClasses(): Promise<TeacherClassOption[]> {
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 }
 
-export async function loadTeacherDashboardData(): Promise<TeacherDashboardData> {
+export async function loadTeacherDashboardData(role?: string): Promise<TeacherDashboardData> {
+  const isAdminOrStaff = role === 'Admin' || role === 'Manager' || role === 'Secretary';
   const [enrollments, students, classesRaw] = await Promise.all([
-    fetchEnrollmentsApi().catch(() => [] as Enrollment[]),
-    fetchStudentsApi().catch(() => [] as StudentProfile[]),
-    fetchClassesApi().catch(() => [] as AcademicClass[]),
+    isAdminOrStaff ? fetchEnrollmentsApi().catch(() => [] as Enrollment[]) : Promise.resolve([] as Enrollment[]),
+    isAdminOrStaff ? fetchStudentsApi().catch(() => [] as StudentProfile[]) : Promise.resolve([] as StudentProfile[]),
+    isAdminOrStaff ? fetchClassesApi().catch(() => [] as AcademicClass[]) : Promise.resolve([] as AcademicClass[]),
   ]);
 
   if (classesRaw.length > 0 || enrollments.length > 0) {
