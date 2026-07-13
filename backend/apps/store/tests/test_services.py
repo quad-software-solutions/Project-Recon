@@ -47,6 +47,10 @@ from apps.store.services.branch_inventory_service import (
 )
 from apps.store.models.pending_order import PendingOrder, PendingOrderItem
 from apps.store.services.checkout_service import checkout
+from apps.store.services.payment_service import (
+    initialize_store_payment,
+    verify_store_payment,
+)
 from apps.store.services.pending_order_service import (
     expire_expired_pending_orders,
     get_pending_order_or_404,
@@ -642,3 +646,115 @@ class PendingOrderServiceTest(TestCase):
         self.assertEqual(count, 1)
         self.assertFalse(PendingOrder.objects.filter(pk=expired.pk).exists())
         self.assertTrue(PendingOrder.objects.filter(pk=active.pk).exists())
+
+
+class StorePaymentServiceTest(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.accounts.models import Branch, User
+
+        self.user = User.objects.create_user(
+            email="paytest@test.com",
+            password="testpass123",
+        )
+        self.branch = Branch.objects.create(name="Branch", code="BR")
+        self.order = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=100,
+            total=100,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+
+    def test_initialize_payment_creates_record(self):
+        from unittest.mock import patch
+
+        with patch(
+            "apps.store.services.payment_service.shared_initialize_payment"
+        ) as mock_init:
+            mock_init.return_value = {
+                "provider": "chapa",
+                "reference": "STORE-test-ref-123",
+                "status": "success",
+                "checkout_url": "https://checkout.test/",
+            }
+            payment = initialize_store_payment(
+                self.order,
+                callback_url="https://example.com/webhook/",
+            )
+        self.assertEqual(payment.pending_order, self.order)
+        self.assertEqual(float(payment.amount), 100.00)
+        self.assertTrue(payment.transaction_reference.startswith("STORE-"))
+        self.assertIsNotNone(payment.id)
+
+    def test_initialize_payment_raises_if_already_exists(self):
+        from unittest.mock import patch
+
+        with patch(
+            "apps.store.services.payment_service.shared_initialize_payment"
+        ) as mock_init:
+            mock_init.return_value = {
+                "provider": "chapa",
+                "reference": "STORE-test-ref-456",
+                "status": "success",
+                "checkout_url": "https://checkout.test/",
+            }
+            initialize_store_payment(
+                self.order,
+                callback_url="https://example.com/webhook/",
+            )
+        from rest_framework.exceptions import ValidationError
+
+        with self.assertRaises(ValidationError):
+            initialize_store_payment(
+                self.order,
+                callback_url="https://example.com/webhook/",
+            )
+
+    def test_verify_store_payment_allows_retry_on_pending(self):
+        from unittest.mock import patch
+
+        with patch(
+            "apps.store.services.payment_service.shared_initialize_payment"
+        ) as mock_init:
+            mock_init.return_value = {
+                "provider": "chapa",
+                "reference": "STORE-test-ref-789",
+                "status": "success",
+                "checkout_url": "https://checkout.test/",
+            }
+            initialize_store_payment(
+                self.order,
+                callback_url="https://example.com/webhook/",
+            )
+        payment = self.order.payment
+        payment.status = "PENDING"
+        payment.save(update_fields=["status"])
+
+        with patch(
+            "apps.store.services.payment_service.shared_verify_payment"
+        ) as mock_verify:
+            mock_verify.return_value = {
+                "status": "pending",
+                "reference": payment.transaction_reference,
+                "provider": "chapa",
+                "amount": 100.00,
+                "currency": "ETB",
+            }
+            result = verify_store_payment(payment.transaction_reference)
+        self.assertEqual(result.status, "PENDING")
+
+    def test_verify_store_payment_invalid_reference(self):
+        from rest_framework.exceptions import ValidationError
+
+        with self.assertRaises(ValidationError):
+            verify_store_payment("invalid-ref")
+
+    def test_verify_store_payment_not_found(self):
+        from rest_framework.exceptions import ValidationError
+
+        with self.assertRaises(ValidationError):
+            verify_store_payment("STORE-abc12345-def123456789")

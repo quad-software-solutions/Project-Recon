@@ -37,6 +37,10 @@ from .checkout import (
     CheckoutView,
     PendingOrderDetailView,
 )
+from .payment import (
+    PaymentVerifyView,
+    PaymentWebhookView,
+)
 from .shopping_cart import (
     CartAddItemView,
     CartClearView,
@@ -80,4 +84,6 @@ __all__ = [
     "CartClearView",
     "CheckoutView",
     "PendingOrderDetailView",
+    "PaymentVerifyView",
+    "PaymentWebhookView",
 ]

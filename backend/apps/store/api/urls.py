@@ -28,6 +28,8 @@ from apps.store.api.views import (
     CartItemRemoveView,
     CartItemUpdateView,
     CheckoutView,
+    PaymentVerifyView,
+    PaymentWebhookView,
     PendingOrderDetailView,
     PublicBranchInventoryListView,
     PublicCategoryDetailView,
@@ -84,6 +86,16 @@ urlpatterns = [
         "pending-orders/<uuid:pk>/",
         PendingOrderDetailView.as_view(),
         name="store-pending-order-detail",
+    ),
+    path(
+        "payments/verify/",
+        PaymentVerifyView.as_view(),
+        name="store-payments-verify",
+    ),
+    path(
+        "payments/webhook/",
+        PaymentWebhookView.as_view(),
+        name="store-payments-webhook",
     ),
     # Admin - Categories
     path(

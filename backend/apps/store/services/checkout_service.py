@@ -1,7 +1,7 @@
 import logging
-import re
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -12,14 +12,6 @@ from apps.store.models.pending_order import PendingOrder, PendingOrderItem
 from apps.store.services.branch_inventory_service import validate_stock
 
 logger = logging.getLogger(__name__)
-
-REFERENCE_PREFIX = "STORE-"
-REFERENCE_PATTERN = re.compile(rf"^{REFERENCE_PREFIX}[a-f0-9]{{8}}-[a-f0-9]{{12}}$")
-
-
-def _generate_reference() -> str:
-    import uuid
-    return f"{REFERENCE_PREFIX}{uuid.uuid4().hex[:8]}-{uuid.uuid4().hex[:12]}"
 
 
 def checkout(cart, branch_input, actor=None, guest_info: dict = None) -> PendingOrder:
@@ -56,8 +48,6 @@ def checkout(cart, branch_input, actor=None, guest_info: dict = None) -> Pending
     total = subtotal
     expires_at = timezone.now() + timedelta(minutes=30)
 
-    payment_ref = _generate_reference()
-
     with transaction.atomic():
         order = PendingOrder.objects.create(
             user=cart.user if cart.user_id else None,
@@ -80,24 +70,20 @@ def checkout(cart, branch_input, actor=None, guest_info: dict = None) -> Pending
                 subtotal=float(cart_item.product.price) * cart_item.quantity,
             )
 
-        try:
-            from apps.shared.payment.payment_service import (
-                initialize_payment as shared_initialize_payment,
-            )
-            from apps.shared.payment.exceptions import PaymentError
+        callback_url = getattr(settings, "STORE_PAYMENT_CALLBACK_URL", "")
+        return_url = getattr(settings, "STORE_PAYMENT_RETURN_URL", "")
 
-            customer = _build_customer(cart, guest_info)
-            result = shared_initialize_payment(
-                amount=order.total,
-                currency="ETB",
-                reference=payment_ref,
-                callback_url="",  # Set via settings in Phase 5
-                customer=customer,
+        from apps.store.services.payment_service import initialize_store_payment
+
+        try:
+            initialize_store_payment(
+                pending_order=order,
+                callback_url=callback_url,
+                return_url=return_url,
+                actor=actor,
             )
-            order.payment_reference = result.get("reference") or payment_ref
-            order.save(update_fields=["payment_reference"])
-        except (ImportError, PaymentError) as e:
-            logger.warning("Payment initialization skipped/failed: %s", e)
+        except ValidationError as e:
+            logger.warning("Payment initialization failed: %s", e)
 
         cart.items.all().delete()
 
@@ -113,21 +99,3 @@ def _resolve_branch(branch_input) -> Branch:
         return Branch.objects.get(pk=branch_input)
     except Branch.DoesNotExist:
         raise ValidationError("Branch not found.")
-
-
-def _build_customer(cart, guest_info: dict = None) -> dict:
-    if cart.user:
-        return {
-            "email": cart.user.email,
-            "first_name": cart.user.first_name or "",
-            "last_name": cart.user.last_name or "",
-            "phone_number": "",
-        }
-    info = guest_info or {}
-    name_parts = (info.get("name") or "").split(" ", 1)
-    return {
-        "email": info.get("email", ""),
-        "first_name": name_parts[0] if name_parts else "",
-        "last_name": name_parts[1] if len(name_parts) > 1 else "",
-        "phone_number": info.get("phone", ""),
-    }

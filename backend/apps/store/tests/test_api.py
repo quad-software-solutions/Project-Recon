@@ -649,3 +649,112 @@ class StoreApiTestCase(APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["id"], order_id)
+
+    # --- Payment Endpoints ---
+
+    def test_payment_verify_valid(self):
+        from unittest.mock import patch
+
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.checkout_service import checkout
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        with patch(
+            "apps.store.services.payment_service.shared_initialize_payment"
+        ) as mock_init:
+            mock_init.return_value = {
+                "provider": "chapa",
+                "reference": "STORE-test-ref-verify",
+                "status": "success",
+                "checkout_url": "https://checkout.test/",
+            }
+            order = checkout(cart, self.branch)
+
+        payment = order.payment
+        with patch(
+            "apps.store.services.payment_service.shared_verify_payment"
+        ) as mock_verify:
+            mock_verify.return_value = {
+                "status": "success",
+                "reference": payment.transaction_reference,
+                "provider": "chapa",
+                "amount": 199.98,
+                "currency": "ETB",
+            }
+            resp = self.client.post(
+                f"{self.base_url}/payments/verify/",
+                {"reference": payment.transaction_reference},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["transaction_reference"], payment.transaction_reference)
+
+    def test_payment_verify_invalid_reference(self):
+        resp = self.client.post(
+            f"{self.base_url}/payments/verify/",
+            {"reference": "invalid-ref"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_payment_verify_not_found(self):
+        resp = self.client.post(
+            f"{self.base_url}/payments/verify/",
+            {"reference": "STORE-abc12345-def123456789"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_payment_webhook_with_tx_ref(self):
+        from unittest.mock import patch
+
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.checkout_service import checkout
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        with patch(
+            "apps.store.services.payment_service.shared_initialize_payment"
+        ) as mock_init:
+            mock_init.return_value = {
+                "provider": "chapa",
+                "reference": "STORE-test-ref-webhook",
+                "status": "success",
+                "checkout_url": "https://checkout.test/",
+            }
+            order = checkout(cart, self.branch)
+
+        payment = order.payment
+        with patch(
+            "apps.store.services.payment_service.shared_verify_payment"
+        ) as mock_verify:
+            mock_verify.return_value = {
+                "status": "success",
+                "reference": payment.transaction_reference,
+                "provider": "chapa",
+                "amount": 199.98,
+                "currency": "ETB",
+            }
+            resp = self.client.post(
+                f"{self.base_url}/payments/webhook/",
+                {"tx_ref": payment.transaction_reference},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["status"], "success")
+
+    def test_payment_webhook_missing_reference(self):
+        resp = self.client.post(
+            f"{self.base_url}/payments/webhook/",
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
