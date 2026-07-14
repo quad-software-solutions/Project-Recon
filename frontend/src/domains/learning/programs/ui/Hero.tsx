@@ -92,14 +92,14 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
           />
         </AnimatePresence>
 
-        <div
-          className="absolute inset-0 z-[1]"
-          style={{ background: 'linear-gradient(135deg, rgba(8,12,30,0.88) 0%, rgba(15,22,60,0.65) 30%, rgba(8,12,50,0.50) 60%, rgba(20,50,120,0.20) 100%)' }}
-        />
-        <div
-          className="absolute inset-0 z-[2]"
-          style={{ background: 'linear-gradient(0deg, rgba(5,8,24,0.85) 0%, transparent 50%, rgba(5,8,24,0.30) 100%)' }}
-        />
+        {/* Desktop: left-to-right scrim — dark behind text column, fades right */}
+        <div className="hidden lg:block absolute inset-0 z-[1] bg-gradient-to-r from-[#0B1220]/90 via-[#0B1220]/55 to-transparent" />
+
+        {/* Desktop: bottom scrim — dark behind stat cards + progress bar */}
+        <div className="hidden lg:block absolute inset-x-0 bottom-0 h-[35%] z-[1] bg-gradient-to-t from-[#0B1220]/85 to-transparent" />
+
+        {/* Mobile: single bottom-anchored scrim covering bottom 70% */}
+        <div className="block lg:hidden absolute inset-x-0 bottom-0 h-[70%] z-[1] bg-gradient-to-t from-[#0B1220]/90 to-transparent" />
 
         <div
           className="absolute inset-0 z-[2] opacity-[0.04] pointer-events-none"
@@ -158,8 +158,12 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
       </div>
 
       {/* ── MAIN CONTENT ── */}
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 py-24 lg:py-32">
-        <div className="flex flex-col items-center text-center gap-7">
+      {/*
+        Mobile: content anchored to bottom so the upper photo stays visible.
+        Desktop: content vertically centered with a left-aligned column.
+      */}
+      <div className="relative z-10 flex w-full flex-1 flex-col justify-end lg:justify-center px-6 lg:px-16 pb-24 pt-12 lg:py-24">
+        <div className="w-full max-w-xl text-left flex flex-col gap-7">
 
           {/* Badge */}
           <motion.div
@@ -171,7 +175,6 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
               <Sparkles className="w-3 h-3 text-blue-300" />
               Robotics Academy
               <span className="w-px h-3 bg-white/15" />
-              {/*<BrandLogo className="h-3.5 w-auto opacity-60" />*/}
               <span>🇪🇹</span>
             </span>
           </motion.div>
@@ -181,7 +184,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             initial={{ opacity: 0, y: 30 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="font-display font-bold text-white tracking-tight leading-[1.05] max-w-4xl"
+            className="font-display font-bold text-white tracking-tight leading-[1.05]"
             style={{ fontSize: 'clamp(34px, 5.5vw, 66px)' }}
             id="hero-title"
           >
@@ -208,7 +211,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
               animate={mounted ? { opacity: 1, y: 0 } : {}}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="font-sans text-white/60 leading-relaxed max-w-2xl"
+              className="font-sans text-white/60 leading-relaxed"
               style={{ fontSize: 'clamp(15px, 1.5vw, 18px)' }}
               id="hero-quote"
             >
@@ -223,7 +226,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             initial={{ opacity: 0 }}
             animate={mounted ? { opacity: 1 } : {}}
             transition={{ duration: 0.6, delay: 0.28 }}
-            className="flex flex-wrap items-center justify-center gap-2"
+            className="flex flex-wrap items-center gap-2"
           >
             {trustItems.map((item) => (
               <span
@@ -241,14 +244,14 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             initial={{ opacity: 0, y: 20 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.35 }}
-            className="flex flex-wrap items-center justify-center gap-3 pt-1"
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1"
             id="hero-actions"
           >
             {banners[currentSlide]?.button_text && banners[currentSlide]?.button_url ? (
               <a
                 href={banners[currentSlide].button_url!}
                 target="_blank" rel="noopener noreferrer"
-                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-700 text-white px-7 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden"
+                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-700 text-white px-7 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden w-full sm:w-auto"
               >
                 <span className="relative z-[1] flex items-center gap-2">
                   {banners[currentSlide].button_text}
@@ -258,7 +261,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             ) : (
               <button
                 onClick={onDiscoverPrograms}
-                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-700 text-white px-7 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden"
+                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-700 text-white px-7 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden w-full sm:w-auto"
                 id="btn-discover-programs"
               >
                 <span className="relative z-[1] flex items-center gap-2">
@@ -270,7 +273,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
 
             <button
               onClick={onJoinCommunity}
-              className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-white/10 backdrop-blur-sm text-white border border-white/20 px-7 py-3.5 rounded-xl hover:bg-white/20 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden"
+              className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white px-7 py-3.5 rounded-xl hover:bg-white/20 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden w-full sm:w-auto"
               id="btn-join-community"
             >
               <span className="relative z-[1] flex items-center gap-2">
@@ -281,7 +284,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
 
             <button
               onClick={onShopStore}
-              className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm text-white/50 border border-white/10 px-5 py-3.5 rounded-xl hover:bg-white/5 hover:text-white/80 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300"
+              className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-white/[0.06] backdrop-blur-md border border-white/15 text-white/60 px-5 py-3.5 rounded-xl hover:bg-white/15 hover:text-white hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 w-full sm:w-auto"
               id="btn-shop-store"
             >
               <span className="relative z-[1] flex items-center gap-2">
@@ -291,48 +294,49 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             </button>
           </motion.div>
 
-          {/* Stats + Progress */}
+          {/* Stats + Progress (grouped into one compact block) */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.45 }}
-            className="w-full pt-2 flex flex-col items-center gap-5"
+            className="w-full"
           >
-            {/* Floating metric cards */}
-            <div className="inline-flex items-center gap-3">
-              {stats.map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={mounted ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.5, delay: 0.55 + i * 0.1 }}
-                  className="card-float bg-white/[0.06] backdrop-blur-lg rounded-2xl border border-white/[0.08] px-5 py-3 text-center min-w-[110px]"
-                >
-                  <div className={`text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${stat.accent}`}>
-                    {stat.value}
-                  </div>
-                  <div className="text-[10px] text-white/40 font-medium mt-0.5 uppercase tracking-widest">
-                    {stat.label}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <div className="w-full bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.06] p-4">
+              {/* Stats row */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {stats.map((stat, i) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={mounted ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.5, delay: 0.55 + i * 0.1 }}
+                  >
+                    <div className={`text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r ${stat.accent}`}>
+                      {stat.value}
+                    </div>
+                    <div className="text-[10px] text-white/40 font-medium mt-0.5 uppercase tracking-widest">
+                      {stat.label}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
 
-            {/* Slim progress bar */}
-            <div className="w-full max-w-sm bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.06] px-4 py-2.5">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[9px] font-mono font-semibold text-white/30 uppercase tracking-[0.15em]">Mission Progress</span>
-                <span className="text-[11px] font-semibold text-white/50 font-mono">1,240,500 / 5,000,000</span>
+              {/* Progress bar */}
+              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[9px] font-mono font-semibold text-white/30 uppercase tracking-[0.15em]">Mission Progress</span>
+                  <span className="text-[11px] font-semibold text-white/50 font-mono">1,240,500 / 5,000,000</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={mounted ? { width: '24.8%' } : {}}
+                    transition={{ duration: 1.5, delay: 0.8, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-full"
+                  />
+                </div>
+                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">24.8% of National Goal</p>
               </div>
-              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={mounted ? { width: '24.8%' } : {}}
-                  transition={{ duration: 1.5, delay: 0.8, ease: "easeOut" }}
-                  className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-full"
-                />
-              </div>
-              <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">24.8% of National Goal</p>
             </div>
           </motion.div>
 
