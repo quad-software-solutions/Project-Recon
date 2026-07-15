@@ -36,14 +36,14 @@ async function buildInstructorRoster(classId: string): Promise<Enrollment[]> {
     try {
       const records = await fetchAttendanceRecordsApi(session.id);
       for (const record of records) {
-        const enrollmentId = record.enrollment || (record as any).enrollment_id;
+        const enrollmentId = record.enrollment_id || record.enrollment;
         if (!enrollmentId || enrollmentMap.has(enrollmentId)) continue;
         enrollmentMap.set(enrollmentId, {
           id: enrollmentId,
           student: enrollmentId,
           enrolled_class: classId,
           class_name: session.class_name,
-          student_name: (record as any).student_name,
+          student_name: record.student_name || '',
           status: 'ACTIVE',
           enrolled_at: session.session_date,
         } as Enrollment);
