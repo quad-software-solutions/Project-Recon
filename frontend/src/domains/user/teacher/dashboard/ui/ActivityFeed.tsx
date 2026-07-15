@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, CheckCircle2, Edit3, DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
+import { Activity, CheckCircle2, DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import {
   fetchEnrollmentsApi,
   fetchPaymentsApi,

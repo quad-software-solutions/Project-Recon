@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, Users, Loader2,
-  BarChart3, TrendingUp, TrendingDown, Search, UserCheck, UserX, AlertTriangle, CreditCard,
-  ChevronDown, FileText, RefreshCw, X, Award
+  Calendar, ChevronLeft, ChevronRight, Clock, Users, Loader2,
+  BarChart3, TrendingUp, Search, UserCheck, UserX,
+  ChevronDown, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';

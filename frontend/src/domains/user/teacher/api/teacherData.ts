@@ -3,9 +3,9 @@ import {
   fetchStudentsApi,
   fetchClassesApi,
   fetchAttendanceSessionsApi,
-  fetchAttendanceRecordsApi,
 } from '@/domains/learning/academics/api/academicApi';
-import type { AcademicClass, Enrollment, StudentProfile } from '@/shared/types';
+import { http } from '@/shared/api/http';
+import type { AcademicClass, AttendanceSession, Enrollment, StudentProfile } from '@/shared/types';
 
 export type TeacherClassOption = { id: string; name: string };
 
@@ -25,36 +25,74 @@ function uniqueClassesFromEnrollments(enrollments: Enrollment[]): TeacherClassOp
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 }
 
-async function buildInstructorRoster(classId: string): Promise<Enrollment[]> {
-  const sessions = await fetchAttendanceSessionsApi(classId).catch(() => []);
-  const sorted = [...sessions].sort((a, b) =>
-    String(b.session_date || '').localeCompare(String(a.session_date || ''))
-  );
-  const enrollmentMap = new Map<string, Enrollment>();
+/** Fetch session detail with embedded records + recorded_by. */
+async function fetchSessionDetail(sessionId: string): Promise<(AttendanceSession & { records?: any[] }) | null> {
+  try {
+    return await http.get<AttendanceSession & { records?: any[] }>(
+      `/academic/attendance/sessions/${sessionId}/`,
+    );
+  } catch {
+    return null;
+  }
+}
 
-  for (const session of sorted) {
-    try {
-      const records = await fetchAttendanceRecordsApi(session.id);
+async function buildInstructorRoster(
+  classId: string,
+  currentUserId: string,
+): Promise<{ enrollments: Enrollment[]; students: StudentProfile[] }> {
+  const sessions = await fetchAttendanceSessionsApi(classId).catch(() => []);
+
+  const enrollmentMap = new Map<string, { enrollment: Enrollment; studentName: string }>();
+  const chunkSize = 3;
+
+  for (let i = 0; i < sessions.length; i += chunkSize) {
+    const chunk = sessions.slice(i, i + chunkSize);
+    const details = await Promise.all(chunk.map(s => fetchSessionDetail(s.id)));
+
+    for (const detail of details) {
+      if (!detail) continue;
+      if (detail.recorded_by !== currentUserId) continue;
+
+      const records = Array.isArray(detail.records) ? detail.records : [];
       for (const record of records) {
         const enrollmentId = record.enrollment_id || record.enrollment;
         if (!enrollmentId || enrollmentMap.has(enrollmentId)) continue;
+
+        const studentName = record.student_name || 'Student';
         enrollmentMap.set(enrollmentId, {
-          id: enrollmentId,
-          student: enrollmentId,
-          enrolled_class: classId,
-          class_name: session.class_name,
-          student_name: record.student_name || '',
-          status: 'ACTIVE',
-          enrolled_at: session.session_date,
-        } as Enrollment);
+          enrollment: {
+            id: enrollmentId,
+            student: `_synth_${enrollmentId}`,
+            enrolled_class: classId,
+            class_name: detail.class_name || '',
+            student_name: studentName,
+            status: 'ACTIVE',
+            enrolled_at: detail.session_date,
+            created_at: detail.session_date,
+            updated_at: detail.session_date,
+          } as Enrollment,
+          studentName,
+        });
       }
-    } catch {
-      /* skip session */
     }
+
     if (enrollmentMap.size > 0) break;
   }
 
-  return Array.from(enrollmentMap.values());
+  const entries = Array.from(enrollmentMap.values());
+  const enrollments = entries.map(e => e.enrollment);
+  const students = entries.map(({ enrollment, studentName }) => {
+    const parts = studentName.split(' ');
+    return {
+      id: enrollment.student,
+      first_name: parts[0] || studentName,
+      last_name: parts.slice(1).join(' ') || '',
+      email: '',
+      is_active: true,
+    } as StudentProfile;
+  });
+
+  return { enrollments, students };
 }
 
 async function discoverInstructorClasses(): Promise<TeacherClassOption[]> {
@@ -66,15 +104,19 @@ async function discoverInstructorClasses(): Promise<TeacherClassOption[]> {
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 }
 
-export async function loadTeacherDashboardData(role?: string): Promise<TeacherDashboardData> {
+export async function loadTeacherDashboardData(
+  role?: string,
+  currentUserId?: string,
+): Promise<TeacherDashboardData> {
   const isAdminOrStaff = role === 'Admin' || role === 'Manager' || role === 'Secretary';
-  const [enrollments, students, classesRaw] = await Promise.all([
-    isAdminOrStaff ? fetchEnrollmentsApi().catch(() => [] as Enrollment[]) : Promise.resolve([] as Enrollment[]),
-    isAdminOrStaff ? fetchStudentsApi().catch(() => [] as StudentProfile[]) : Promise.resolve([] as StudentProfile[]),
-    isAdminOrStaff ? fetchClassesApi().catch(() => [] as AcademicClass[]) : Promise.resolve([] as AcademicClass[]),
-  ]);
 
-  if (classesRaw.length > 0 || enrollments.length > 0) {
+  if (isAdminOrStaff) {
+    const [enrollments, students, classesRaw] = await Promise.all([
+      fetchEnrollmentsApi().catch(() => [] as Enrollment[]),
+      fetchStudentsApi().catch(() => [] as StudentProfile[]),
+      fetchClassesApi().catch(() => [] as AcademicClass[]),
+    ]);
+
     const classes: TeacherClassOption[] = (classesRaw as AcademicClass[]).map(c => ({
       id: c.id,
       name: c.name,
@@ -83,6 +125,7 @@ export async function loadTeacherDashboardData(role?: string): Promise<TeacherDa
     uniqueClassesFromEnrollments(enrollments).forEach(c => {
       if (!classIds.has(c.id)) classes.push(c);
     });
+
     const selectedClassId =
       enrollments.find(e => e.status === 'ACTIVE')?.enrolled_class ||
       classes[0]?.id ||
@@ -98,21 +141,24 @@ export async function loadTeacherDashboardData(role?: string): Promise<TeacherDa
   }
 
   const classes = await discoverInstructorClasses();
-  const selectedClassId = classes[0]?.id || '';
-  const rosterEnrollments = selectedClassId
-    ? await buildInstructorRoster(selectedClassId).catch(() => [])
-    : [];
+
+  let selectedClassId = '';
+  let roster = { enrollments: [] as Enrollment[], students: [] as StudentProfile[] };
+  for (const c of classes) {
+    const r = await buildInstructorRoster(c.id, currentUserId || '').catch(
+      () => ({ enrollments: [] as Enrollment[], students: [] as StudentProfile[] }),
+    );
+    if (r.enrollments.length > 0) {
+      selectedClassId = c.id;
+      roster = r;
+      break;
+    }
+  }
 
   return {
     mode: 'instructor',
-    enrollments: rosterEnrollments,
-    students: rosterEnrollments.map(e => ({
-      id: e.student,
-      first_name: (e.student_name || '').split(' ')[0] || e.student_name || 'Student',
-      last_name: (e.student_name || '').split(' ').slice(1).join(' '),
-      email: '',
-      is_active: true,
-    })) as StudentProfile[],
+    enrollments: roster.enrollments,
+    students: roster.students,
     classes,
     selectedClassId,
   };
@@ -123,25 +169,20 @@ export async function loadClassRoster(
   classId: string,
   allEnrollments: Enrollment[],
   allStudents: StudentProfile[],
+  currentUserId?: string,
 ): Promise<{ enrollments: Enrollment[]; students: StudentProfile[] }> {
   if (!classId) return { enrollments: [], students: [] };
 
   if (mode === 'staff') {
-    const enrollments = allEnrollments.filter(
+    const filtered = allEnrollments.filter(
       e => e.enrolled_class === classId && e.status === 'ACTIVE',
     );
-    const studentIds = new Set(enrollments.map(e => e.student));
-    const students = allStudents.filter(s => studentIds.has(s.id));
-    return { enrollments, students };
+    const studentIds = new Set(filtered.map(e => e.student));
+    return {
+      enrollments: filtered,
+      students: allStudents.filter(s => studentIds.has(s.id)),
+    };
   }
 
-  const enrollments = await buildInstructorRoster(classId);
-  const students = enrollments.map(e => ({
-    id: e.student,
-    first_name: (e.student_name || '').split(' ')[0] || 'Student',
-    last_name: (e.student_name || '').split(' ').slice(1).join(' '),
-    email: '',
-    is_active: true,
-  })) as StudentProfile[];
-  return { enrollments, students };
+  return buildInstructorRoster(classId, currentUserId || '');
 }

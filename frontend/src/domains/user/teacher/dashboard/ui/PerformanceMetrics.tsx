@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, TrendingUp, Users, Award, AlertTriangle, Zap, BookOpen, Target, Star, BrainCircuit } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Award, AlertTriangle, Zap, BookOpen, Target, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { StudentProfile, Enrollment } from '@/shared/types';

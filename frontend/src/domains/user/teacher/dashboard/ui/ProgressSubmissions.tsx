@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Edit3, CheckCircle2, Search, FileText, Clock, Eye, ChevronDown, Star, Loader2, RotateCcw, Filter, BarChart3, Users, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Search, Clock, ChevronDown, Loader2, RotateCcw, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchStudentProgressApi, updateStudentProgressApi } from '@/domains/learning/academics/api/academicApi';
 
@@ -28,11 +28,16 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
   useEffect(() => {
     if (enrollments.length === 0) { setLoading(false); return; }
     setLoading(true);
-    Promise.all(enrollments.map(e => fetchStudentProgressApi(e.id))).then(results => {
+    (async () => {
       const map: Record<string, StudentProgress[]> = {};
-      enrollments.forEach((e, i) => { map[e.id] = Array.isArray(results[i]) ? results[i] : []; });
+      const chunkSize = 3;
+      for (let i = 0; i < enrollments.length; i += chunkSize) {
+        const chunk = enrollments.slice(i, i + chunkSize);
+        const chunkResults = await Promise.all(chunk.map(e => fetchStudentProgressApi(e.id)));
+        chunk.forEach((e, j) => { map[e.id] = Array.isArray(chunkResults[j]) ? chunkResults[j] : []; });
+      }
       setProgressMap(map);
-    }).catch(() => {}).finally(() => setLoading(false));
+    })().catch(() => setProgressMap({})).finally(() => setLoading(false));
   }, [enrollments]);
 
   const updateStatus = async (progressId: string, newStatus: ProgressStatus) => {

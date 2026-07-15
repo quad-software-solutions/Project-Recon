@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock, Target, Megaphone, Shield } from 'lucide-react';
+import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, DollarSign, RefreshCw, Loader2, User, GraduationCap, Clock, Target, Megaphone, Shield } from 'lucide-react';
 import { UserProfile, Enrollment, StudentProfile } from '@/shared/types';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';
@@ -70,14 +70,14 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await loadTeacherDashboardData(currentUser.role);
+      const data = await loadTeacherDashboardData(currentUser.role, currentUser.id);
       setMode(data.mode);
       setAllEnrollments(data.enrollments);
       setAllStudents(data.students);
       setClasses(data.classes);
       const classId = data.selectedClassId;
       setSelectedClassId(classId);
-      const roster = await loadClassRoster(data.mode, classId, data.enrollments, data.students);
+      const roster = await loadClassRoster(data.mode, classId, data.enrollments, data.students, currentUser.id);
       setClassEnrollments(roster.enrollments);
       setClassStudents(roster.students);
     } catch {
@@ -85,7 +85,7 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
     } finally {
       setLoading(false);
     }
-  }, [currentUser.role]);
+  }, [currentUser.role, currentUser.id]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
 
@@ -110,14 +110,14 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
   useEffect(() => {
     if (!selectedClassId || loading) return;
     let cancelled = false;
-    loadClassRoster(mode, selectedClassId, allEnrollments, allStudents).then(roster => {
+    loadClassRoster(mode, selectedClassId, allEnrollments, allStudents, currentUser.id).then(roster => {
       if (!cancelled) {
         setClassEnrollments(roster.enrollments);
         setClassStudents(roster.students);
       }
     });
     return () => { cancelled = true; };
-  }, [selectedClassId, mode, allEnrollments, allStudents, loading]);
+  }, [selectedClassId, mode, allEnrollments, allStudents, loading, currentUser.id]);
 
   const filteredNav = useMemo(
     () => filterTeacherNavItems(currentUser, NAV_ITEMS),

@@ -48,7 +48,7 @@ export default function CertificatesPanel() {
     const timer = setTimeout(() => {
       searchStudentsApi(studentSearch).then(res => {
         setStudentResults(Array.isArray(res) ? res : []);
-      }).catch(() => {}).finally(() => setSearching(false));
+      }).catch(() => setStudentResults([])).finally(() => setSearching(false));
     }, 300);
     return () => clearTimeout(timer);
   }, [studentSearch]);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Download, Award, Loader2, TrendingUp } from 'lucide-react';
+import { Download, Award, Loader2, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
 import { downloadClassReportPdf } from '@/domains/learning/academics/api/academicApi';
 

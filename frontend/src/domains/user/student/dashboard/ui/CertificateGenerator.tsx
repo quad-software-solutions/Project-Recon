@@ -14,7 +14,7 @@ export default function CertificateGenerator({ studentId }: Props) {
   const selected = certificates.find(c => c.id === selectedCert);
 
   useEffect(() => {
-    fetchStudentCertificatesApi(studentId ?? undefined).then(setCertificates).catch(() => {}).finally(() => setLoading(false));
+    fetchStudentCertificatesApi(studentId ?? undefined).then(setCertificates).catch(() => setCertificates([])).finally(() => setLoading(false));
   }, [studentId]);
 
   return (
