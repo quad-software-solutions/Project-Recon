@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff } from 'lucide-react';
 import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment, StudentCertificate } from '@/shared/types';
+import { isForbiddenError } from '@/shared/api/http';
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
@@ -28,8 +29,8 @@ export default function MyRegistrations({ studentId }: Props) {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(setRegistrations).catch(() => {
-      setPermissionDenied(true);
+    fetchEnrollmentsApi(studentId).then(setRegistrations).catch((err) => {
+      setPermissionDenied(isForbiddenError(err) || true);
       fetchStudentCertificatesApi(studentId).then(setCertificates).catch(() => {});
     }).finally(() => setLoading(false));
   }, [studentId]);
@@ -60,7 +61,7 @@ export default function MyRegistrations({ studentId }: Props) {
       <div>
         <div className="bg-white border border-brand-border rounded-2xl p-8 text-center">
           <ShieldOff className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-          <h3 className="font-bold text-lg text-slate-900 mb-2">Enrollments Unavailable</h3>
+          <h3 className="font-bold text-lg text-slate-900 mb-2">Permission Denied</h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
             Student enrollment data requires staff-level access. If you recently enrolled, please contact the administration.
           </p>

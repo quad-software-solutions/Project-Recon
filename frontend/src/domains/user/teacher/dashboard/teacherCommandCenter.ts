@@ -6,7 +6,7 @@ import {
 
 export type TeacherSectionId =
   | 'class' | 'workshops' | 'attendance' | 'progress' | 'milestones'
-  | 'materials' | 'metrics' | 'activity' | 'reports' | 'account';
+  | 'materials' | 'metrics' | 'activity' | 'reports' | 'announcements' | 'account';
 
 export interface TeacherHubStats {
   classStudents: number;
@@ -153,6 +153,18 @@ export function getTeacherCommandCenter(
           { label: 'Active', value: String(classActive), detail: 'enrollment reports', icon: CheckCircle2, tone: 'emerald' },
           { label: 'Classes', value: String(classesCount), detail: 'class reports', icon: BookOpen, tone: 'slate' },
           { label: 'Pending', value: String(classPending), detail: 'unpaid', icon: DollarSign, tone: 'amber' },
+        ],
+      };
+
+    case 'announcements':
+      return {
+        title: 'Announcements',
+        subtitle: 'Official updates, news, and institutional announcements.',
+        signals: [
+          { label: 'Students', value: String(classStudents), detail: 'your class size', icon: Users, tone: 'blue' },
+          { label: 'Active', value: String(classActive), detail: 'active enrollments', icon: CheckCircle2, tone: 'emerald' },
+          { label: 'Classes', value: String(classesCount), detail: 'your classes', icon: BookOpen, tone: 'slate' },
+          { label: 'Workshops', value: String(workshopsCount), detail: 'assigned', icon: GraduationCap, tone: 'purple' },
         ],
       };
 

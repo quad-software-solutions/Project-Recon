@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Users, CheckCircle2, DollarSign, Award, Calendar, Shield, UserPlus, X, Filter, Download, Loader2, RefreshCw } from 'lucide-react';
+import { Users, CheckCircle2, DollarSign, Award, Calendar, Shield, UserPlus, Loader2, RefreshCw, Search } from 'lucide-react';
 import { Enrollment, EnrollmentPayment, StudentCertificate } from '@/shared/types';
 import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 
-export default function Overview() {
+import type { SecretarySectionId } from '../secretaryCommandCenter';
+
+export default function Overview({
+  onNavigate,
+}: {
+  onNavigate?: (section: SecretarySectionId) => void;
+} = {}) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -142,13 +148,19 @@ export default function Overview() {
             <h4 className="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-3 h-3 text-blue-600" />Quick Actions</h4>
             <div className="space-y-1.5">
               {[
-                { label: 'New Admission', icon: UserPlus, color: 'text-blue-600' },
-                { label: 'Record Payment', icon: DollarSign, color: 'text-emerald-600' },
-                { label: 'Issue Certificate', icon: Award, color: 'text-amber-600' },
-              ].map((a, i) => {
+                { label: 'New Admission', icon: UserPlus, color: 'text-blue-600', section: 'admissions' as const },
+                { label: 'Record Payment', icon: DollarSign, color: 'text-emerald-600', section: 'payments' as const },
+                { label: 'Issue Certificate', icon: Award, color: 'text-amber-600', section: 'certificates' as const },
+                { label: 'Student Details', icon: Search, color: 'text-slate-600', section: 'students' as const },
+              ].map((a) => {
                 const AIcon = a.icon;
                 return (
-                  <button key={i} className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                  <button
+                    key={a.section}
+                    type="button"
+                    onClick={() => onNavigate?.(a.section)}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
                     <AIcon className={`w-3.5 h-3.5 ${a.color}`} />{a.label}
                   </button>
                 );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Globe, ShoppingBag, Sparkles, CheckCircle2 } from 'lucide-react';
 
-import untitledLogo from '@/assets/Untitled.png';
+import untitledLogo from '@/assets/logo.svg';
 import sliderImg1 from '@/assets/slider/faj.jpg';
 import sliderImg2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
 import sliderImg3 from '@/assets/slider/photo_2026-06-15_18-51-59.jpg';

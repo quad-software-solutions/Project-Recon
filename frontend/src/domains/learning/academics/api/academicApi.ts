@@ -300,16 +300,21 @@ export async function fetchAttendanceSessionsApi(classId?: string): Promise<Atte
   return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/${queryString({ enrolled_class: classId })}`));
 }
 
+/** Records are embedded on session detail — backend has no GET on .../records/ (405). */
 export async function fetchAttendanceRecordsApi(sessionId: string): Promise<AttendanceRecord[]> {
-  return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/sessions/${sessionId}/records/`));
+  const session = await http.get<AttendanceSession & { records?: AttendanceRecord[] }>(
+    `${BASE}/attendance/sessions/${sessionId}/`,
+  );
+  return Array.isArray(session?.records) ? session.records : [];
 }
 
 export async function createAttendanceSessionApi(payload: { enrolled_class: string; session_date: string; topic?: string }): Promise<AttendanceSession> {
   return http.post<AttendanceSession>(`${BASE}/attendance/sessions/`, payload);
 }
 
+/** Backend expects a JSON array of records, not `{ records: [...] }`. */
 export async function recordBulkAttendanceApi(sessionId: string, records: { enrollment: string; status: string; remarks?: string }[]): Promise<any> {
-  return http.post(`${BASE}/attendance/sessions/${sessionId}/records/`, { records });
+  return http.post(`${BASE}/attendance/sessions/${sessionId}/records/`, records);
 }
 
 export async function updateAttendanceRecordApi(sessionId: string, recordId: string, payload: Partial<{ status: string; remarks: string }>): Promise<AttendanceRecord> {
@@ -382,12 +387,41 @@ export async function updateStaffAttendanceSessionApi(
   return mapStaffSessionFromApi(res as Record<string, unknown>);
 }
 
-export async function publishStaffAttendanceSessionApi(id: string): Promise<any> {
-  return http.post(`${BASE}/staff-attendance/sessions/${id}/publish/`, {});
+/**
+ * Include `branch` in body for Branch Managers — permission mixin needs it on POST.
+ * Super Admins work with `{}` as well.
+ */
+export async function publishStaffAttendanceSessionApi(id: string, branch?: string): Promise<any> {
+  return http.post(`${BASE}/staff-attendance/sessions/${id}/publish/`, branch ? { branch } : {});
 }
 
-export async function upsertStaffAttendanceRecordsApi(sessionId: string, records: StaffAttendanceRecordPayload[]): Promise<any> {
-  return http.post(`${BASE}/staff-attendance/sessions/${sessionId}/records/`, records);
+export async function fetchStaffAttendanceSessionApi(id: string, branch?: string): Promise<any> {
+  const q = branch ? queryString({ branch }) : '';
+  const res = await http.get(`${BASE}/staff-attendance/sessions/${id}/${q}`);
+  return mapStaffSessionFromApi(res as Record<string, unknown>);
+}
+
+/**
+ * SA can POST an array. BM permission check fails on array bodies — send one object
+ * at a time with `branch` so get_branch_id resolves without crashing.
+ */
+export async function upsertStaffAttendanceRecordsApi(
+  sessionId: string,
+  records: StaffAttendanceRecordPayload[],
+  branch?: string,
+): Promise<any> {
+  if (!branch) {
+    return http.post(`${BASE}/staff-attendance/sessions/${sessionId}/records/`, records);
+  }
+  const results = [];
+  for (const record of records) {
+    const row = await http.post(`${BASE}/staff-attendance/sessions/${sessionId}/records/`, {
+      ...record,
+      branch,
+    });
+    results.push(row);
+  }
+  return results.flat();
 }
 
 export async function updateStaffAttendanceRecordApi(sessionId: string, recordId: string, payload: Partial<StaffAttendanceRecordPayload>): Promise<any> {

@@ -12,6 +12,8 @@ import {
 import * as eventsApi from '../../competition/api/eventsApi';
 import type { BackendEvent } from '../../competition/api/eventsApi';
 import { Modal } from '@/shared/ui/Modal';
+import type { UserProfile } from '@/shared/types';
+import { canManageEvents } from '@/shared/auth/permissions';
 
 const defaultForm = {
   title: '', description: '', location: '', event_type: 'GENERAL' as eventsApi.EventType,
@@ -68,10 +70,12 @@ type SortField = 'title' | 'event_type' | 'start_datetime' | 'status';
 type SortDir = 'asc' | 'desc';
 
 interface EventManagerProps {
+  currentUser?: UserProfile;
   onNavigate?: (section: string) => void;
 }
 
-export default function EventManager({ onNavigate }: EventManagerProps) {
+export default function EventManager({ currentUser, onNavigate }: EventManagerProps) {
+  const canManage = currentUser ? canManageEvents(currentUser) : false;
   const [events, setEvents] = useState<BackendEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -533,6 +537,20 @@ export default function EventManager({ onNavigate }: EventManagerProps) {
       </div>
     </div>
   );
+
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">Event management is only available to Super Admin and Branch Manager roles.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return renderSkeleton();
 

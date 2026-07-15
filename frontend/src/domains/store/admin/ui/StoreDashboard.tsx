@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  LayoutGrid, Package, Archive, ShoppingCart, X, CheckCircle, AlertCircle,
+  LayoutGrid, Package, Archive, ShoppingCart, X, CheckCircle, AlertCircle, Lock,
 } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ProductManager from './ProductManager';
 import InventoryManager from './InventoryManager';
 import OrderManager from './OrderManager';
 import { storeAdminApi } from '../api/storeAdminApi';
+import type { UserProfile } from '@/shared/types';
+import { canManageStore, canManageStoreInventory } from '@/shared/auth/permissions';
 
 type Section = 'categories' | 'products' | 'inventory' | 'orders';
 
@@ -40,8 +42,15 @@ const STAT_CARDS: { key: keyof SectionCounts; label: string; icon: React.Element
 
 let toastCounter = 0;
 
-export default function StoreDashboard() {
-  const [section, setSection] = useState<Section>('categories');
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function StoreDashboard({ currentUser }: Props) {
+  const canManageFull = canManageStore(currentUser);
+  const canInventory = canManageStoreInventory(currentUser);
+  const visibleNav = canManageFull ? NAV_ITEMS : NAV_ITEMS.filter(n => n.id === 'inventory');
+  const [section, setSection] = useState<Section>(canManageFull ? 'categories' : 'inventory');
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
     categories: -1, products: -1, inventory: -1, orders: -1,
@@ -50,21 +59,26 @@ export default function StoreDashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const [categories, products, inventory, orders] = await Promise.all([
-          storeAdminApi.categories.list(),
-          storeAdminApi.products.list(),
-          storeAdminApi.inventory.list(),
-          storeAdminApi.orders.list(),
-        ]);
-        setCounts({
-          categories: categories.length,
-          products: products.length,
-          inventory: inventory.length,
-          orders: orders.length,
-        });
-      } catch {}
+        if (canManageFull) {
+          const [categories, products, inventory, orders] = await Promise.all([
+            storeAdminApi.categories.list(),
+            storeAdminApi.products.list(),
+            storeAdminApi.inventory.list(),
+            storeAdminApi.orders.list(),
+          ]);
+          setCounts({
+            categories: categories.length,
+            products: products.length,
+            inventory: inventory.length,
+            orders: orders.length,
+          });
+        } else if (canInventory) {
+          const inventory = await storeAdminApi.inventory.list();
+          setCounts(prev => ({ ...prev, inventory: inventory.length }));
+        }
+      } catch { /* partial load ok */ }
     })();
-  }, []);
+  }, [canManageFull, canInventory]);
 
   const addToast = useCallback((message: string, type: 'success' | 'error') => {
     const id = `st-toast-${++toastCounter}`;
@@ -78,13 +92,37 @@ export default function StoreDashboard() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  if (!canInventory) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">Store administration is only available to Super Admin or Branch Manager users.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const visibleStats = canManageFull
+    ? STAT_CARDS
+    : STAT_CARDS.filter(s => s.key === 'inventory');
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {STAT_CARDS.map(({ key, label, icon: Icon, color }) => {
+      {!canManageFull && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-600">
+          Branch Managers can manage branch inventory. Catalog, products, and orders require Super Admin.
+        </div>
+      )}
+
+      <div className={`grid gap-2 ${canManageFull ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2'}`}>
+        {visibleStats.map(({ key, label, icon: Icon, color }) => {
           const c = counts[key];
           return (
-            <button key={key} onClick={() => setSection(key)}
+            <button key={key} type="button" onClick={() => setSection(key)}
               className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
                 section === key
                   ? 'border-blue-500/30 bg-blue-50 shadow-sm'
@@ -106,11 +144,11 @@ export default function StoreDashboard() {
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {NAV_ITEMS.map(item => {
+        {visibleNav.map(item => {
           const Icon = item.icon;
           const isActive = section === item.id;
           return (
-            <button key={item.id} onClick={() => setSection(item.id)}
+            <button key={item.id} type="button" onClick={() => setSection(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -127,10 +165,10 @@ export default function StoreDashboard() {
       <div className="relative">
         <AnimatePresence mode="wait">
           <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
-            {section === 'categories' && <CategoryManager addToast={addToast} />}
-            {section === 'products' && <ProductManager addToast={addToast} />}
+            {canManageFull && section === 'categories' && <CategoryManager addToast={addToast} />}
+            {canManageFull && section === 'products' && <ProductManager addToast={addToast} />}
             {section === 'inventory' && <InventoryManager addToast={addToast} />}
-            {section === 'orders' && <OrderManager addToast={addToast} />}
+            {canManageFull && section === 'orders' && <OrderManager addToast={addToast} />}
           </motion.div>
         </AnimatePresence>
       </div>

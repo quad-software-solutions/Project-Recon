@@ -1,10 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  LayoutDashboard, Image, FileText, Handshake, Building,
-  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle,
+  Image, FileText, Handshake, Building,
+  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock,
 } from 'lucide-react';
-import CMSBranding from '@/domains/user/manager/dashboard/ui/CMSBranding';
 import HeroBannerManager from './HeroBannerManager';
 import NewsManager from './NewsManager';
 import CmsPartnerManager from './CmsPartnerManager';
@@ -13,8 +12,10 @@ import ContactRequestManager from './ContactRequestManager';
 import FaqManager from './FaqManager';
 import MapNodeManager from './MapNodeManager';
 import { api } from '../api/cmsApi';
+import type { UserProfile } from '@/shared/types';
+import { canManageCms } from '@/shared/auth/permissions';
 
-type CmsSection = 'branding' | 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests';
+type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests';
 
 export interface Toast {
   id: string;
@@ -38,7 +39,6 @@ interface SectionCounts {
 }
 
 const SUB_NAV: CmsSubNavItem[] = [
-  { id: 'branding', label: 'Branding', icon: LayoutDashboard },
   { id: 'hero-banners', label: 'Hero Banners', icon: Image },
   { id: 'news', label: 'News & Announcements', icon: FileText },
   { id: 'partners', label: 'Partners & Sponsors', icon: Handshake },
@@ -59,8 +59,13 @@ const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.Elem
 
 let toastCounter = 0;
 
-export default function CmsDashboard() {
-  const [section, setSection] = useState<CmsSection>('branding');
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function CmsDashboard({ currentUser }: Props) {
+  const canManage = canManageCms(currentUser);
+  const [section, setSection] = useState<CmsSection>('hero-banners');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
     'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1,
@@ -96,6 +101,20 @@ export default function CmsDashboard() {
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
+
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">CMS administration is only available to Super Admin users.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -146,7 +165,6 @@ export default function CmsDashboard() {
       <div className="relative">
         <AnimatePresence mode="wait">
           <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
-            {section === 'branding' && <CMSBranding />}
             {section === 'hero-banners' && <HeroBannerManager addToast={addToast} />}
             {section === 'news' && <NewsManager addToast={addToast} />}
             {section === 'partners' && <CmsPartnerManager addToast={addToast} />}

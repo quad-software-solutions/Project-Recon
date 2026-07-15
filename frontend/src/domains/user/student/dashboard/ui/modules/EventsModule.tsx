@@ -18,7 +18,6 @@ import Leaderboard from '../Leaderboard';
 
 interface Props {
   currentUser: UserProfile;
-  studentId: string;
 }
 
 const REG_STATUS_STYLES: Record<string, string> = {
@@ -31,6 +30,7 @@ const REG_STATUS_STYLES: Record<string, string> = {
 export default function EventsModule({ currentUser }: Props) {
   const [tab, setTab] = useState('browse');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [events, setEvents] = useState<(Tournament | Workshop)[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -41,6 +41,7 @@ export default function EventsModule({ currentUser }: Props) {
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [evts, tourns, regs] = await Promise.all([
         getUpcomingEvents(),
@@ -51,6 +52,8 @@ export default function EventsModule({ currentUser }: Props) {
       setTournaments(tourns);
       setRegistrations(regs);
       setRegisteredIds(new Set(regs.filter(r => r.registration_status !== 'CANCELLED').map(r => r.event)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load events.');
     } finally {
       setLoading(false);
     }
@@ -70,12 +73,16 @@ export default function EventsModule({ currentUser }: Props) {
 
   const handleCancel = async (id: string) => {
     setCancelling(id);
+    setError(null);
     try {
       await cancelMyRegistration(id);
       setRegistrations(prev => prev.map(r => r.id === id ? { ...r, registration_status: 'CANCELLED' as const } : r));
       load();
-    } catch { /* silent */ }
-    finally { setCancelling(null); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not cancel registration.');
+    } finally {
+      setCancelling(null);
+    }
   };
 
   const tabs = [
@@ -109,6 +116,16 @@ export default function EventsModule({ currentUser }: Props) {
       </div>
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
+
+      {error && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <XCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button type="button" onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-semibold">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <GridSkeleton count={3} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search } from 'lucide-react';
+import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search, Megaphone } from 'lucide-react';
 import { UserProfile } from '@/shared/types';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';
@@ -17,6 +17,12 @@ import {
   type SecretaryHubStats,
 } from '../secretaryCommandCenter';
 
+import {
+  canAccessSecretarySection,
+  filterSecretaryNavItems,
+  resolveSecretarySection,
+} from '@/shared/auth/dashboardAccess';
+import AnnouncementsPage from '@/domains/user/student/dashboard/ui/modules/AnnouncementsPage';
 import Overview from './Overview';
 import AdmissionsPanel from './AdmissionsPanel';
 import EnrollmentsPanel from './EnrollmentsPanel';
@@ -41,11 +47,14 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'payments', label: 'Payments', icon: DollarSign, group: 'finances' },
   { id: 'event-registrations', label: 'Event Registrations', icon: UserPlus, group: 'competition' },
   { id: 'reports', label: 'Reports', icon: FileText, group: 'reports' },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'reports' },
   { id: 'account', label: 'Account', icon: Shield, group: 'system' },
 ];
 
 export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
-  const [activeSection, setActiveSection] = useState<SecretarySectionId>('overview');
+  const [activeSection, setActiveSection] = useState<SecretarySectionId>(
+    () => resolveSecretarySection(currentUser, 'overview')
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hubStats, setHubStats] = useState<SecretaryHubStats>({
@@ -100,23 +109,50 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
 
   useEffect(() => { refreshSignals(); }, [refreshSignals]);
 
+  const filteredNav = useMemo(
+    () => filterSecretaryNavItems(currentUser, NAV_ITEMS),
+    [currentUser],
+  );
+
+  const handleSectionChange = useCallback((id: string) => {
+    const sectionId = id as SecretarySectionId;
+    if (canAccessSecretarySection(currentUser, sectionId)) {
+      setActiveSection(sectionId);
+    }
+  }, [currentUser]);
+
   const commandCenter = useMemo(
     () => getSecretaryCommandCenter(activeSection, hubStats),
     [activeSection, hubStats],
   );
 
   const renderPage = () => {
+    if (!canAccessSecretarySection(currentUser, activeSection)) {
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+          <div className="flex items-start gap-3">
+            <Shield className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Access Restricted</p>
+              <p className="mt-1 text-amber-700">You do not have permission to access this section.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeSection) {
-      case 'overview': return <Overview />;
+      case 'overview': return <Overview onNavigate={setActiveSection} />;
       case 'admissions': return <AdmissionsPanel currentUser={currentUser} />;
       case 'enrollments': return <EnrollmentsPanel currentUser={currentUser} />;
       case 'payments': return <PaymentsPanel />;
-      case 'certificates': return <CertificateManager currentUserRole={currentUser.role} />;
+      case 'certificates': return <CertificateManager currentUser={currentUser} />;
       case 'templates': return <CertificateTemplateManager />;
       case 'periods': return <EnrollmentPeriodsPanel currentUser={currentUser} />;
       case 'students': return <StudentDetailPanel />;
       case 'event-registrations': return <RegistrationManager />;
       case 'reports': return <ReportsPanel currentUser={currentUser} />;
+      case 'announcements': return <AnnouncementsPage />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
     }
   };
@@ -126,9 +162,9 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
   return (
     <AppLayout
       sidebar={{
-        items: NAV_ITEMS,
+        items: filteredNav,
         activeSection,
-        onSectionChange: (id) => setActiveSection(id as SecretarySectionId),
+        onSectionChange: handleSectionChange,
         title: 'Secretary Dashboard',
         icon: Shield,
         userName: currentUser.name,

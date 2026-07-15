@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
   Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch, RefreshCw, ShoppingCart,
+  Bell, MessageSquare,
 } from 'lucide-react';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
@@ -20,6 +21,8 @@ import MatchManager from '@/domains/competition/admin/MatchManager';
 import WorkshopManager from '@/domains/competition/admin/WorkshopManager';
 import RegistrationManager from '@/domains/competition/admin/RegistrationManager';
 import CertificateManager from '@/domains/user/shared/ui/CertificateManager';
+import AnnouncementsManager from '@/domains/user/manager/dashboard/ui/AnnouncementsManager';
+import CommunicationsCenter from '@/domains/user/manager/dashboard/ui/CommunicationsCenter';
 import type { UserProfile } from '@/shared/types';
 import {
   fetchEnrollmentsApi, fetchPaymentsApi, fetchProgramsApi, fetchClassesApi,
@@ -39,6 +42,11 @@ import {
   type AdminHubStats,
 } from '../adminCommandCenter';
 import { summarizeSettled } from '@/shared/utils/storage';
+import {
+  filterAdminNavItems,
+  resolveAdminSection,
+  canAccessAdminSection,
+} from '@/shared/auth/dashboardAccess';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
@@ -59,6 +67,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'event-registrations', label: 'Event Registrations', icon: UserPlus, group: 'competition' },
   { id: 'store', label: 'Store', icon: ShoppingCart, group: 'content' },
   { id: 'cms', label: 'Content Manager', icon: LayoutDashboard, group: 'content' },
+  { id: 'announcements', label: 'Announcements', icon: Bell, group: 'communication' },
+  { id: 'communications', label: 'Communications', icon: MessageSquare, group: 'communication' },
   { id: 'branches', label: 'Branches', icon: GitBranch, group: 'content' },
   { id: 'audit', label: 'System Logs', icon: FileText, group: 'system' },
   { id: 'account', label: 'My Account', icon: Shield, group: 'system' },
@@ -75,11 +85,16 @@ const pageTitle: Record<string, string> = {
   certificates: 'Certificate Management',
   audit: 'Audit Logs',
   store: 'Store Management',
-  cms: 'Content Management', account: 'My Account',
+  cms: 'Content Management',
+  announcements: 'Announcements',
+  communications: 'Communications',
+  account: 'My Account',
 };
 
 export default function AdminDashboard({ currentUser, onLogout }: Props) {
-  const [activeSection, setActiveSection] = useState<AdminSectionId>('overview');
+  const [activeSection, setActiveSection] = useState<AdminSectionId>(() =>
+    resolveAdminSection(currentUser, 'overview'),
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hubStats, setHubStats] = useState<AdminHubStats>({
@@ -141,42 +156,67 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
 
   useEffect(() => { refreshSignals(); }, [refreshSignals]);
 
+  const navItems = useMemo(
+    () => filterAdminNavItems(currentUser, NAV_ITEMS),
+    [currentUser],
+  );
+
+  const handleSectionChange = useCallback((id: string) => {
+    setActiveSection(resolveAdminSection(currentUser, id as AdminSectionId));
+  }, [currentUser]);
+
   const commandCenter = useMemo(
     () => getAdminCommandCenter(activeSection, hubStats),
     [activeSection, hubStats],
   );
 
   const renderPage = () => {
+    if (!canAccessAdminSection(currentUser, activeSection)) {
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+          You do not have access to this section.
+        </div>
+      );
+    }
+
     switch (activeSection) {
-      case 'overview': return <AdminOverviewDashboard />;
-      case 'users': return <UserManagementPanel title="User Management" />;
-      case 'roles': return <RolesPermissionsPanel />;
+      case 'overview': return (
+        <AdminOverviewDashboard onNavigate={handleSectionChange} />
+      );
+      case 'users': return <UserManagementPanel title="User Management" currentUser={currentUser} />;
+      case 'roles': return <RolesPermissionsPanel currentUser={currentUser} />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
       case 'classes': return <ClassManagerPanel />;
-      case 'staff-attendance': return <StaffAttendanceManager />;
-      case 'branches': return <BranchSectionShell />;
-      case 'audit': return <SystemLogs />;
+      case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
+      case 'branches': return <BranchSectionShell currentUser={currentUser} />;
+      case 'audit': return <SystemLogs currentUser={currentUser} />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
       case 'registrations': return <AdminRegistrationsPanel />;
-      case 'events': return <EventManager onNavigate={(section) => setActiveSection(section as AdminSectionId)} />;
+      case 'events': return <EventManager currentUser={currentUser} onNavigate={(section) => handleSectionChange(section)} />;
       case 'tournaments': return <TournamentManager />;
       case 'tournament-teams': return <TeamManager />;
       case 'matches': return <MatchManager />;
       case 'workshops': return <WorkshopManager />;
       case 'event-registrations': return <RegistrationManager />;
-      case 'certificates': return <CertificateManager currentUserRole={currentUser.role} />;
-      case 'store': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><StoreDashboard /></div>;
-      case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;
-      default: return <UserManagementPanel title="User Management" />;
+      case 'certificates': return <CertificateManager currentUser={currentUser} />;
+      case 'store': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><StoreDashboard currentUser={currentUser} /></div>;
+      case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard currentUser={currentUser} /></div>;
+      case 'announcements': return <AnnouncementsManager currentUser={currentUser} />;
+      case 'communications': return <CommunicationsCenter currentUser={currentUser} />;
+      default: return (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-sm text-slate-600">
+          Section not found.
+        </div>
+      );
     }
   };
 
   return (
     <AppLayout
       sidebar={{
-        items: NAV_ITEMS,
+        items: navItems,
         activeSection,
-        onSectionChange: (id) => setActiveSection(id as AdminSectionId),
+        onSectionChange: handleSectionChange,
         title: 'Admin Panel',
         icon: Shield,
         accentColor: 'blue',

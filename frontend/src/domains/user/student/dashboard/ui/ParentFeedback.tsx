@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, Send, CheckCircle2, Clock, AlertTriangle, ThumbsUp, Shield, Loader2 } from 'lucide-react';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
+import type { UserProfile } from '@/shared/types';
 
 type TicketCategory = 'academic' | 'safety' | 'facility' | 'general' | 'appreciation';
 
@@ -22,25 +23,30 @@ const CATEGORY_CONFIG: Record<TicketCategory, { label: string; icon: React.Eleme
   appreciation: { label: 'Appreciation',       icon: ThumbsUp,       color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200' },
 };
 
-export default function ParentFeedback() {
+interface Props {
+  currentUser?: UserProfile;
+}
+
+export default function ParentFeedback({ currentUser }: Props) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [formName, setFormName] = useState('');
+  const [formName, setFormName] = useState(currentUser?.name || '');
+  const [formEmail, setFormEmail] = useState(currentUser?.email || '');
   const [formCategory, setFormCategory] = useState<TicketCategory>('general');
   const [formSubject, setFormSubject] = useState('');
   const [formMessage, setFormMessage] = useState('');
 
   const submitTicket = async () => {
-    if (!formName.trim() || !formSubject.trim() || !formMessage.trim()) return;
+    if (!formName.trim() || !formEmail.trim() || !formSubject.trim() || !formMessage.trim()) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
       await cmsPublicApi.submitContactRequest({
         name: formName.trim(),
-        email: '',
+        email: formEmail.trim(),
         subject: `[${formCategory}] ${formSubject.trim()}`,
         description: formMessage.trim(),
       });
@@ -53,7 +59,9 @@ export default function ParentFeedback() {
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       };
       setTickets(prev => [newTicket, ...prev]);
-      setFormName(''); setFormCategory('general'); setFormSubject(''); setFormMessage('');
+      setFormSubject('');
+      setFormMessage('');
+      setFormCategory('general');
       setShowForm(false);
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 4000);
@@ -125,6 +133,11 @@ export default function ParentFeedback() {
                     className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                 </div>
                 <div>
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Email *</label>
+                  <input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="you@example.com"
+                    className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
+                </div>
+                <div className="sm:col-span-2">
                   <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Category</label>
                   <select value={formCategory} onChange={e => setFormCategory(e.target.value as TicketCategory)}
                     className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
@@ -147,7 +160,7 @@ export default function ParentFeedback() {
               </div>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowForm(false)} className="text-xs font-semibold text-slate-500 hover:bg-slate-100 px-5 py-2.5 rounded-lg transition-colors">Cancel</button>
-                <button onClick={submitTicket} disabled={submitting || !formName.trim() || !formSubject.trim() || !formMessage.trim()}
+                <button onClick={submitTicket} disabled={submitting || !formName.trim() || !formEmail.trim() || !formSubject.trim() || !formMessage.trim()}
                   className="bg-blue-600 text-white font-bold text-xs px-6 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-50">
                   {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   {submitting ? 'Submitting...' : 'Submit'}

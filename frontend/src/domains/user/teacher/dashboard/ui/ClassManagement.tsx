@@ -78,8 +78,8 @@ export default function ClassManagement({
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e) {
-      console.error('Failed to record attendance', e);
+    } catch {
+      setSaved(false);
     } finally {
       setSaving(false);
     }

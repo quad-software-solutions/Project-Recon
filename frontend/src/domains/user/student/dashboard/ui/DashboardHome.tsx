@@ -6,7 +6,7 @@ import {
   CalendarDays, TrendingUp, Loader2,
 } from 'lucide-react';
 import type { UserProfile, Enrollment, StudentCertificate } from '@/shared/types';
-import { fetchEnrollmentsApi, fetchStudentCertificatesApi, fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import { getNotifications, getUnreadCount } from '@/domains/notification/model/notificationApi';
@@ -16,7 +16,7 @@ import { GridSkeleton } from '../../shared/ui/LoadingSkeleton';
 
 export type HomeNavigateTarget =
   | 'account' | 'academics' | 'events' | 'notifications' | 'announcements'
-  | 'certificates' | 'career' | 'messaging' | 'settings';
+  | 'certificates' | 'career' | 'messaging';
 
 interface Props {
   currentUser: UserProfile;
@@ -38,7 +38,7 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
   const [announcements, setAnnouncements] = useState<{ title: string; date: string }[]>([]);
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [upcomingSessions, setUpcomingSessions] = useState<{ topic: string; date: string; className: string }[]>([]);
+  const [upcomingSessions] = useState<{ topic: string; date: string; className: string }[]>([]);
 
   const firstName = currentUser.name.split(' ')[0];
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
@@ -50,6 +50,7 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
     async function load() {
       setLoading(true);
       try {
+        // Skip attendance sessions — students receive 403 (staff-only endpoint)
         const [newsRes, eventsRes, certs, unread, notifs] = await Promise.all([
           cmsPublicApi.getNews({ limit: '3' }).catch(() => ({ results: [] })),
           getUpcomingEvents().catch(() => []),
@@ -69,33 +70,13 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
         })));
         setCertificates(certs);
         setUnreadCount(unread || notifs.filter(n => !n.read).length);
-
-        const sessions: { topic: string; date: string; className: string }[] = [];
-        const now = new Date();
-        for (const enr of activeEnrollments.slice(0, 3)) {
-          try {
-            const classSessions = await fetchAttendanceSessionsApi(enr.enrolled_class);
-            for (const s of classSessions) {
-              const d = new Date(s.session_date);
-              if (d >= now) {
-                sessions.push({
-                  topic: s.topic || enr.program_name || 'Class Session',
-                  date: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-                  className: enr.class_name || enr.program_name || 'Class',
-                });
-              }
-            }
-          } catch { /* permission */ }
-        }
-        sessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        if (!cancelled) setUpcomingSessions(sessions.slice(0, 4));
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [studentId, activeEnrollments.length]);
+  }, [studentId]);
 
   const quickActions = [
     { label: 'My Courses', icon: BookOpen, section: 'academics' as const },

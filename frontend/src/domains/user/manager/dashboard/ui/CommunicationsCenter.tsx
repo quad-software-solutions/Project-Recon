@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   Search, X, XCircle, MessageSquare, Mail, Phone, Clock, AlertCircle,
-  CheckCircle, Loader2, ArrowUpDown, ChevronDown, Tag, Paperclip
+  CheckCircle, Loader2, ArrowUpDown, ChevronDown, Tag, Paperclip, Lock,
 } from 'lucide-react';
 import { cmsContactRequestsApi, ContactRequestResponse } from '../../../../cms/shared/api/cmsApi';
+import type { UserProfile } from '@/shared/types';
+import { canManageContactRequests } from '@/shared/auth/permissions';
+
+interface Props {
+  currentUser: UserProfile;
+}
 
 const STATUS_STYLES: Record<string, { icon: React.ElementType; label: string; bg: string; text: string }> = {
   OPEN: { icon: AlertCircle, label: 'Open', bg: 'bg-blue-50', text: 'text-blue-700' },
@@ -21,19 +27,24 @@ const PRIORITY_STYLES: Record<string, { label: string; color: string }> = {
   URGENT: { label: 'Urgent', color: 'text-red-600' },
 };
 
-export default function CommunicationsCenter() {
+export default function CommunicationsCenter({ currentUser }: Props) {
+  const canManage = canManageContactRequests(currentUser);
   const [requests, setRequests] = useState<ContactRequestResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selected, setSelected] = useState<ContactRequestResponse | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [canManage]);
 
   const load = async () => {
+    if (!canManage) {
+      setRequests([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -46,10 +57,10 @@ export default function CommunicationsCenter() {
   };
 
   const updateStatus = async (id: string, status: string) => {
+    if (!canManage) return;
     setError(null);
     try {
       await cmsContactRequestsApi.update(id, { status } as Partial<ContactRequestResponse>);
-      setSelected(null);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update status');
@@ -81,7 +92,30 @@ export default function CommunicationsCenter() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Not available for your role</p>
+            <p className="mt-1 text-amber-700">Contact request management requires Super Admin access via the CMS API.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-pulse">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 h-24" />
+        ))}
+        <div className="col-span-full bg-white rounded-xl border border-slate-200 h-48" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -93,7 +127,7 @@ export default function CommunicationsCenter() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Messages', value: requests.length, icon: MessageSquare, color: 'text-sky-600', bg: 'bg-sky-50' },
           { label: 'Open', value: requests.filter(r => r.status === 'OPEN').length, icon: AlertCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -185,7 +219,7 @@ export default function CommunicationsCenter() {
                       className="px-4 pb-4 pt-0"
                     >
                       <div className="ml-[52px] bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2.5">
-                        <div className="flex items-center gap-4 text-xs text-slate-600">
+                        <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
                           <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {r.email}</span>
                           {r.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {r.phone}</span>}
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(r.created_at).toLocaleString()}</span>
@@ -197,7 +231,7 @@ export default function CommunicationsCenter() {
                           </div>
                         )}
                         <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{r.description}</p>
-                        <div className="flex items-center gap-1.5 pt-1">
+                        <div className="flex items-center gap-1.5 pt-1 flex-wrap">
                           <Tag className="w-3 h-3 text-slate-400" />
                           {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(status => {
                             const cfg = STATUS_STYLES[status];

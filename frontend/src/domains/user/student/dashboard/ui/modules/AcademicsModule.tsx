@@ -29,7 +29,7 @@ export default function AcademicsModule({ studentId, currentUser }: Props) {
     <div>
       <PageHeader
         title="Academics"
-        subtitle="Courses, attendance, grades, and learning resources"
+        subtitle="Courses, attendance, progress, and learning resources"
         icon={GraduationCap}
       />
       <TabBar tabs={TABS} active={tab} onChange={setTab} />

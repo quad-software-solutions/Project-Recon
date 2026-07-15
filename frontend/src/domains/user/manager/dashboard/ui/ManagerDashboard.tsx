@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Image, FileText, Handshake, ShoppingBag, MessageSquare, DollarSign,
   Calendar, Bell, UserPlus, BarChart3, Users, Zap, Award,
-  Clock, CheckCircle, CheckCircle2, Activity, Trophy, Building, Sparkles, Download,
-  BookOpen, RefreshCw, Monitor,
+  Clock, CheckCircle, CheckCircle2, Activity, Trophy, Building, Download,
+  BookOpen, RefreshCw, Monitor, Target, AlertCircle, X,
   User, Loader2, GraduationCap, TrendingUp, UserCheck, ClipboardList, CreditCard, ClipboardCheck, Receipt, LayoutDashboard
 } from 'lucide-react';
 import { UserProfile, AppNotification, Enrollment, EnrollmentPayment, StudentProfile, Program, AcademicClass } from '@/shared/types';
@@ -18,8 +18,12 @@ import {
   type ManagerHubStats,
 } from '../managerCommandCenter';
 import { summarizeSettled } from '@/shared/utils/storage';
+import {
+  filterManagerNavItems,
+  resolveManagerSection,
+  canAccessManagerSection,
+} from '@/shared/auth/dashboardAccess';
 import SponsorManagement from './SponsorManagement';
-import OnlineStoreHub from './OnlineStoreHub';
 import CommunicationsCenter from './CommunicationsCenter';
 import PaymentTracker from './PaymentTracker';
 import EventsManagement from './EventsManagement';
@@ -37,6 +41,9 @@ import RegistrationManager from '@/domains/competition/admin/RegistrationManager
 import MatchManager from '@/domains/competition/admin/MatchManager';
 import TeamManager from '@/domains/competition/admin/TeamManager';
 import CertificateManager from '@/domains/user/shared/ui/CertificateManager';
+import StoreDashboard from '@/domains/store/admin/ui/StoreDashboard';
+import LearningMaterialsPanel from '@/domains/user/secretary/dashboard/ui/LearningMaterialsPanel';
+import LearningMilestonesManager from '@/domains/user/secretary/dashboard/ui/LearningMilestonesManager';
 import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf, downloadProgressReportPdf, downloadCertificateReportPdf, downloadClassReportPdf, downloadSubProgramReportPdf, downloadProgramReportPdf } from '@/domains/learning/academics/api/academicApi';
 
 interface Props {
@@ -52,10 +59,12 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'classes', label: 'Classes', icon: BookOpen, group: 'academic' },
   { id: 'enrollments', label: 'Academic Enrollments', icon: UserPlus, group: 'academic' },
   { id: 'staff-attendance', label: 'Staff Attendance', icon: Calendar, group: 'academic' },
+  { id: 'materials', label: 'Learning Materials', icon: BookOpen, group: 'academic' },
+  { id: 'milestones', label: 'Milestones', icon: Target, group: 'academic' },
   { id: 'certificates', label: 'Certificates', icon: Award, group: 'academic' },
   { id: 'schools', label: 'Branches', icon: Building, group: 'branches' },
   { id: 'payments', label: 'Payments & Sales', icon: DollarSign, group: 'finances' },
-  { id: 'store', label: 'Store & Inventory', icon: ShoppingBag, group: 'finances' },
+  { id: 'store', label: 'Store Inventory', icon: ShoppingBag, group: 'finances' },
   { id: 'events', label: 'Events', icon: Calendar, group: 'competition' },
   { id: 'tournaments', label: 'Tournaments', icon: Trophy, group: 'competition' },
   { id: 'tournament-teams', label: 'Teams', icon: Users, group: 'competition' },
@@ -72,7 +81,9 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function ManagerDashboard({ currentUser, onLogout }: Props) {
-  const [activeSection, setActiveSection] = useState<SectionId>('overview');
+  const [activeSection, setActiveSection] = useState<SectionId>(() =>
+    resolveManagerSection(currentUser, 'overview'),
+  );
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
@@ -123,45 +134,73 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
     [activeSection, hubStats],
   );
 
+  const navItems = useMemo(
+    () => filterManagerNavItems(currentUser, NAV_ITEMS),
+    [currentUser],
+  );
+
+  const handleSectionChange = useCallback((id: SectionId) => {
+    setActiveSection(resolveManagerSection(currentUser, id));
+  }, [currentUser]);
+
   const renderPage = () => {
+    if (!canAccessManagerSection(currentUser, activeSection)) {
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+          You do not have access to this section.
+        </div>
+      );
+    }
+
     switch (activeSection) {
-      case 'overview': return <OverviewPage currentUser={currentUser} onNavigate={setActiveSection} students={students} enrollments={enrollments} payments={payments} programs={programs} />;
+      case 'overview': return (
+        <OverviewPage
+          currentUser={currentUser}
+          onNavigate={handleSectionChange}
+          students={students}
+          enrollments={enrollments}
+          payments={payments}
+          programs={programs}
+        />
+      );
       case 'analytics': return <AnalyticsDashboard />;
       case 'academic-catalog': return <AcademicCatalogManager />;
       case 'classes': return <ClassManagerPanel />;
-      case 'staff-attendance': return <StaffAttendanceManager />;
+      case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
       case 'sponsors': return <SponsorManagement />;
-      case 'schools': return <SchoolManagement />;
+      case 'schools': return <SchoolManagement currentUser={currentUser} />;
       case 'enrollments': return <RegistrationSection />;
       case 'event-registrations': return <RegistrationManager />;
-      case 'store': return <OnlineStoreHub />;
-      case 'events': return <EventsManagement onNavigate={(id: string) => setActiveSection(id as SectionId)} />;
+      case 'store': return <StoreDashboard currentUser={currentUser} />;
+      case 'materials': return <LearningMaterialsPanel currentUser={currentUser} />;
+      case 'milestones': return <LearningMilestonesManager currentUser={currentUser} />;
+      case 'events': return <EventsManagement currentUser={currentUser} onNavigate={(id: string) => handleSectionChange(id as SectionId)} />;
       case 'tournaments': return <TournamentManager />;
       case 'tournament-teams': return <TeamManager />;
       case 'matches': return <MatchManager />;
       case 'workshops': return <WorkshopManager />;
-      case 'announcements': return <AnnouncementsManager />;
-      case 'communications': return <CommunicationsCenter />;
+      case 'announcements': return <AnnouncementsManager currentUser={currentUser} />;
+      case 'communications': return <CommunicationsCenter currentUser={currentUser} />;
       case 'payments': return <PaymentTracker />;
-      case 'walkin': return <WalkInRegistration />;
+      case 'walkin': return <WalkInRegistration currentUser={currentUser} />;
       case 'reports': return <ReportsSection />;
-      case 'certificates': return <CertificateManager currentUserRole={currentUser.role} />;
+      case 'certificates': return <CertificateManager currentUser={currentUser} />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
     }
   };
 
-  const activeLabel = NAV_ITEMS.find(n => n.id === activeSection)?.label ?? '';
+  const activeLabel = navItems.find(n => n.id === activeSection)?.label ?? '';
 
   return (
     <AppLayout
       sidebar={{
-        items: NAV_ITEMS,
+        items: navItems,
         activeSection,
-        onSectionChange: (id) => setActiveSection(id as SectionId),
+        onSectionChange: (id) => handleSectionChange(id as SectionId),
         title: 'Manager Dashboard',
         icon: BarChart3,
         userName: currentUser.name,
-        userRole: 'Manager',
+        userRole: currentUser.role,
       }}
       topNavbar={{
         title: activeLabel,
@@ -207,23 +246,31 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
   }, []);
   const unreadNotifications = notifications.filter(n => !n.read);
 
-  const quickActions: { id: SectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
+  const allQuickActions: { id: SectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
     { id: 'academic-catalog', label: 'Academic Catalog', desc: 'Programs & classes', icon: BookOpen, color: 'from-blue-500 to-blue-600' },
     { id: 'enrollments', label: 'Academic Enrollments', desc: 'View student enrollments', icon: UserPlus, color: 'from-emerald-500 to-emerald-600' },
     { id: 'event-registrations', label: 'Event Registrations', desc: 'Manage event registrations', icon: ClipboardCheck, color: 'from-purple-500 to-purple-600' },
     { id: 'payments', label: 'Payment Reports', desc: 'Track transactions', icon: CreditCard, color: 'from-cyan-500 to-cyan-600' },
     { id: 'reports', label: 'Download Reports', desc: 'PDF reports & data', icon: FileText, color: 'from-rose-500 to-rose-600' },
     { id: 'events', label: 'Events Calendar', desc: 'Manage all events', icon: Calendar, color: 'from-purple-500 to-purple-600' },
-    { id: 'command-center' as SectionId, label: 'Event Command Center', desc: 'Live match & tournament control', icon: Zap, color: 'from-rose-600 to-red-700' },
     { id: 'tournaments', label: 'Tournaments', desc: 'Manage competitions', icon: Trophy, color: 'from-rose-500 to-rose-600' },
     { id: 'workshops', label: 'Workshops', desc: 'Schedule workshops', icon: Monitor, color: 'from-emerald-500 to-emerald-600' },
     { id: 'store', label: 'Store Inventory', desc: 'Manage products & stock', icon: ShoppingBag, color: 'from-amber-500 to-amber-600' },
     { id: 'analytics', label: 'View Analytics', desc: 'Business performance metrics', icon: BarChart3, color: 'from-blue-500 to-blue-600' },
     { id: 'schools', label: 'Branches', desc: 'Manage branches', icon: Building, color: 'from-sky-500 to-blue-600' },
     { id: 'sponsors', label: 'Sponsors', desc: 'Manage partners', icon: Handshake, color: 'from-indigo-500 to-purple-600' },
-    { id: 'announcements', label: 'Announcements', desc: 'Create & publish', icon: Bell, color: 'from-rose-500 to-pink-600' },
-    { id: 'communications', label: 'Communications', desc: 'View messages', icon: MessageSquare, color: 'from-cyan-500 to-teal-600' },
+    { id: 'announcements', label: 'Announcements', desc: 'View published updates', icon: Bell, color: 'from-rose-500 to-pink-600' },
   ];
+
+  const quickActions = allQuickActions.filter(a => canAccessManagerSection(currentUser, a.id));
+
+  const managementTools = [
+    { label: 'Academic Catalog', desc: 'Programs & classes', id: 'academic-catalog' as SectionId, icon: BookOpen, color: 'from-blue-500 to-blue-600' },
+    { label: 'Academic Enrollments', desc: 'Student enrollments', id: 'enrollments' as SectionId, icon: UserPlus, color: 'from-emerald-500 to-emerald-600' },
+    { label: 'Branches', desc: 'Branch management', id: 'schools' as SectionId, icon: Building, color: 'from-sky-500 to-cyan-600' },
+    { label: 'Sponsors', desc: 'Partner management', id: 'sponsors' as SectionId, icon: Handshake, color: 'from-indigo-500 to-purple-600' },
+    { label: 'Announcements', desc: 'View published updates', id: 'announcements' as SectionId, icon: Bell, color: 'from-rose-500 to-pink-600' },
+  ].filter(t => canAccessManagerSection(currentUser, t.id));
 
   return (
     <div className="flex flex-col gap-3">
@@ -242,9 +289,9 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {[
           { label: 'Students', value: String(students.length), icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'Programs', value: String(programs.length), icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-50' },
           { label: 'Revenue', value: payments.reduce((s, p) => s + (p.status === 'PAID' ? Number(p.amount) : 0), 0).toLocaleString() + ' Birr', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
           { label: 'Active Enrollments', value: String(enrollments.filter(e => e.status === 'ACTIVE').length), icon: UserCheck, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: 'Pending Payments', value: String(enrollments.filter(e => e.status === 'PENDING_PAYMENT').length), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
         ].map((m, i) => {
           const MIcon = m.icon;
           return (
@@ -256,30 +303,6 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
               </div>
               <p className="font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{m.label}</p>
               <p className="font-display font-extrabold text-2xl text-slate-900">{m.value}</p>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { label: 'Pending Payments', value: String(enrollments.filter(e => e.status === 'PENDING_PAYMENT').length), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
-          { label: 'Paid Today', value: String(payments.filter(p => p.payment_date?.startsWith(new Date().toISOString().slice(0, 10)) && p.status === 'PAID').length), icon: Receipt, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-          { label: 'Programs', value: String(programs.length), icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-50' },
-          { label: 'Notifications', value: String(unreadNotifications.length), icon: Bell, color: 'text-blue-500', bg: 'bg-blue-50' },
-        ].map((s, i) => {
-          const SIcon = s.icon;
-          return (
-            <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.04 }}
-              className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center gap-2.5 hover:shadow-sm transition-all"
-            >
-              <div className={`w-7 h-7 rounded-lg ${s.bg} flex items-center justify-center`}>
-                <SIcon className={`w-3.5 h-3.5 ${s.color}`} />
-              </div>
-              <div>
-                <p className="text-[11px] text-slate-400 font-medium">{s.label}</p>
-                <p className={`text-sm font-bold ${s.color.replace('500', '700')}`}>{s.value}</p>
-              </div>
             </motion.div>
           );
         })}
@@ -297,14 +320,7 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
                 const ActionIcon = action.icon;
                 return (
                   <motion.button key={action.id}
-                    onClick={() => {
-                      if (action.id === ('command-center' as SectionId)) {
-                        window.history.pushState(null, '', '/command-center');
-                        window.dispatchEvent(new PopStateEvent('popstate'));
-                        return;
-                      }
-                      onNavigate(action.id);
-                    }}
+                    onClick={() => onNavigate(action.id)}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.1 + i * 0.04 }}
@@ -334,7 +350,9 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
               )}
             </div>
             <div className="flex flex-col gap-1.5">
-              {notifications.slice(0, 4).map((n, i) => (
+              {notifications.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">No notifications yet</p>
+              ) : notifications.slice(0, 6).map((n, i) => (
                 <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                   className={`flex items-start gap-2 p-2 rounded-lg text-sm transition-all ${n.read ? 'text-slate-500' : 'bg-blue-600/5 border border-blue-600/10 text-slate-900'}`}
                 >
@@ -352,44 +370,16 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
               ))}
             </div>
           </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl p-3">
-            <h4 className="font-black text-sm text-slate-900 mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              Quick Stats
-            </h4>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { label: 'Active', value: String(enrollments.filter(e => e.status === 'ACTIVE').length), color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                { label: 'Pending', value: String(enrollments.filter(e => e.status === 'PENDING_PAYMENT').length), color: 'text-amber-700', bg: 'bg-amber-50' },
-                { label: 'Total', value: String(enrollments.length), color: 'text-blue-700', bg: 'bg-blue-50' },
-                { label: 'Students', value: String(students.length), color: 'text-purple-700', bg: 'bg-purple-50' },
-              ].map((s, i) => (
-                <div key={i} className={`${s.bg} rounded-lg p-2 text-center`}>
-                  <p className={`font-black text-xl ${s.color}`}>{s.value}</p>
-                  <p className={`text-[10px] font-medium ${s.color}/70`}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4">
           <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5 mb-3">
             <Activity className="w-3.5 h-3.5 text-blue-600" />
             Management Tools
           </h4>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Academic Catalog', desc: 'Programs & classes', id: 'academic-catalog' as SectionId, icon: BookOpen, color: 'from-blue-500 to-blue-600' },
-              { label: 'Academic Enrollments', desc: 'Student enrollments', id: 'enrollments' as SectionId, icon: UserPlus, color: 'from-emerald-500 to-emerald-600' },
-              { label: 'Branches', desc: 'Branch management', id: 'schools' as SectionId, icon: Building, color: 'from-sky-500 to-cyan-600' },
-              { label: 'Sponsors', desc: 'Partner management', id: 'sponsors' as SectionId, icon: Handshake, color: 'from-indigo-500 to-purple-600' },
-              { label: 'Announcements', desc: 'Create & publish', id: 'announcements' as SectionId, icon: Bell, color: 'from-rose-500 to-pink-600' },
-              { label: 'Communications', desc: 'Message center', id: 'communications' as SectionId, icon: MessageSquare, color: 'from-cyan-500 to-teal-600' },
-            ].map((tool, i) => {
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {managementTools.map((tool) => {
               const TIcon = tool.icon;
               return (
                 <button key={tool.id} onClick={() => onNavigate(tool.id)}
@@ -407,47 +397,13 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
             })}
           </div>
         </div>
-
-        <div className="lg:col-span-5 flex flex-col gap-2">
-          <div className="bg-white border border-slate-200 rounded-2xl p-3">
-            <h4 className="font-black text-sm text-slate-900 mb-2 flex items-center gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
-              Platform Summary
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'Students', value: students.length, icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-50' },
-                { label: 'Programs', value: programs.length, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-50' },
-                { label: 'Enrollments', value: enrollments.length, icon: ClipboardList, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                { label: 'Payments', value: payments.length, icon: CreditCard, color: 'text-amber-500', bg: 'bg-amber-50' },
-              ].map((stat, i) => {
-                const StatIcon = stat.icon;
-                return (
-                  <div key={i} className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                    <div className={`w-6 h-6 rounded-lg ${stat.bg} flex items-center justify-center mb-1`}>
-                      <StatIcon className={`w-3.5 h-3.5 ${stat.color}`} />
-                    </div>
-                    <p className="text-lg font-bold text-slate-900">{stat.value}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">{stat.label}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-2xl p-3 text-white">
-            <p className="text-[10px] font-medium text-white/70 mb-0.5">All tools are connected</p>
-            <p className="text-sm font-bold">System-ready sections are live</p>
-            <p className="text-[11px] text-white/70 mt-1">Other sections will be enabled when system APIs are ready.</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
 function ReportsSection() {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -476,8 +432,14 @@ function ReportsSection() {
 
   const doDownload = async (key: string, fn: () => Promise<void>) => {
     setDownloading(key);
-    try { await fn(); } catch {}
-    setTimeout(() => setDownloading(null), 1000);
+    setDownloadError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setDownloadError(e instanceof Error ? e.message : 'Download failed. Please try again.');
+    } finally {
+      setDownloading(null);
+    }
   };
 
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
@@ -495,6 +457,15 @@ function ReportsSection() {
 
   return (
     <div className="space-y-4">
+      {downloadError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{downloadError}</span>
+          <button type="button" onClick={() => setDownloadError(null)} className="text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Students', value: students.length, icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-50' },

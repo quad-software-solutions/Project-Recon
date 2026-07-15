@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   User, Home, GraduationCap, Briefcase, Calendar, Bell, Megaphone,
-  MessageCircle, FileText, Settings, Loader2,
+  MessageCircle, FileText, Loader2,
 } from 'lucide-react';
 import { UserProfile, Enrollment } from '@/shared/types';
 import {
-  fetchStudentsApi, fetchEnrollmentsApi, fetchStudentCertificatesApi,
+  fetchEnrollmentsApi, fetchStudentCertificatesApi,
 } from '@/domains/learning/academics/api/academicApi';
 import { getMyRegistrations } from '@/domains/competition/api/competitionApi';
 import { getUnreadCount } from '@/domains/notification/model/notificationApi';
 import { cacheStudentId } from '@/domains/user/student/api/studentContext';
 import { getCachedStudentId } from '@/shared/utils/storage';
+import { isForbiddenError } from '@/shared/api/http';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';
 import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
 import InlineAlert from '@/shared/ui/InlineAlert';
+import StudentAccount from './Account';
 import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
 import {
   getSectionCommandCenter,
@@ -30,7 +32,6 @@ import NotificationsPage from './modules/NotificationsPage';
 import AnnouncementsPage from './modules/AnnouncementsPage';
 import MessagingModule from './modules/MessagingModule';
 import CertificateGenerator from './CertificateGenerator';
-import SettingsModule from './modules/SettingsModule';
 
 interface StudentDashboardProps {
   currentUser: UserProfile;
@@ -49,7 +50,6 @@ function buildNavItems(): NavItem[] {
     { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'communication' },
     { id: 'messaging', label: 'Messages', icon: MessageCircle, group: 'communication' },
     { id: 'account', label: 'My Account', icon: User, group: 'system' },
-    { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
   ];
 }
 
@@ -82,6 +82,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   const [unreadCount, setUnreadCount] = useState(0);
   const [certificateCount, setCertificateCount] = useState(0);
   const [eventRegCount, setEventRegCount] = useState(0);
+  const [announcementCount, setAnnouncementCount] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const enrollmentSetters = useMemo(() => ({
@@ -92,18 +93,28 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
     try {
       const e = await fetchEnrollmentsApi(sid);
       await applyEnrollments(e, enrollmentSetters);
-    } catch { /* permission denied — student may still use other features */ }
+    } catch (e) {
+      // Student enrollments are staff-only on the backend — do not treat as app crash
+      await applyEnrollments([], enrollmentSetters);
+      if (!isForbiddenError(e)) {
+        setLoadError(e instanceof Error ? e.message : 'Could not load enrollments.');
+      }
+    }
   }, [enrollmentSetters]);
 
   const loadSupplementaryStats = useCallback(async (sid?: string) => {
-    const [certs, regs, unread] = await Promise.all([
+    const [certs, regs, unread, news] = await Promise.all([
       fetchStudentCertificatesApi(sid).catch(() => []),
       getMyRegistrations().catch(() => []),
       getUnreadCount().catch(() => 0),
+      import('@/domains/cms/public/api/cmsPublicApi')
+        .then(m => m.cmsPublicApi.getNews({ limit: '50' }))
+        .catch(() => ({ results: [] as { id: string }[] })),
     ]);
     setCertificateCount(certs.length);
     setEventRegCount(regs.filter(r => r.registration_status !== 'CANCELLED').length);
     setUnreadCount(unread);
+    setAnnouncementCount(news?.results?.length ?? 0);
   }, []);
 
   useEffect(() => {
@@ -131,13 +142,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return;
       }
 
-      const students = await fetchStudentsApi().catch(() => [] as import('@/shared/types').StudentProfile[]);
-      const match = students.find(st => st.user === currentUser.id || st.email === currentUser.email);
-      if (match) {
-        await tryLoadForId(match.id);
-        return;
-      }
-
+      // Do NOT call /academic/students/ — students get 403. Discover via certificates only.
       try {
         const certs = await fetchStudentCertificatesApi();
         if (certs.length > 0 && certs[0].student) {
@@ -157,7 +162,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   useEffect(() => {
     const interval = setInterval(() => {
       getUnreadCount().then(setUnreadCount).catch(() => {});
-    }, 60000);
+    }, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -171,9 +176,9 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
     badgeCount: currentUser.badges.length,
     certificateCount,
     eventRegCount,
-    announcementCount: 0,
+    announcementCount,
     loading: studentLoading,
-  }), [activeCount, enrolledCount, completedCount, pendingCount, unreadCount, currentUser, certificateCount, eventRegCount, studentLoading]);
+  }), [activeCount, enrolledCount, completedCount, pendingCount, unreadCount, currentUser, certificateCount, eventRegCount, announcementCount, studentLoading]);
 
   const commandCenter = getSectionCommandCenter(activeSection, hubStats);
 
@@ -182,6 +187,18 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   };
 
   const renderPage = () => {
+    if (activeSection === 'account') {
+      return studentId
+        ? (
+          <StudentAccount
+            currentUser={currentUser}
+            studentId={studentId}
+            onUserUpdate={onUserUpdate}
+          />
+        )
+        : <AdminAccount currentUser={currentUser} onUserUpdate={onUserUpdate} />;
+    }
+
     const needsStudent = ['home', 'academics', 'career', 'certificates'].includes(activeSection);
 
     if (!studentId && needsStudent) {
@@ -212,24 +229,20 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
             onNavigate={handleHomeNavigate}
           />
         );
-      case 'account':
-        return <AdminAccount currentUser={currentUser} onUserUpdate={onUserUpdate} />;
       case 'academics':
         return <AcademicsModule studentId={studentId!} currentUser={currentUser} />;
       case 'career':
         return <CareerCenterModule studentId={studentId!} currentUser={currentUser} />;
       case 'events':
-        return <EventsModule currentUser={currentUser} studentId={studentId ?? ''} />;
+        return <EventsModule currentUser={currentUser} />;
       case 'notifications':
         return <NotificationsPage />;
       case 'announcements':
         return <AnnouncementsPage />;
       case 'messaging':
-        return <MessagingModule />;
+        return <MessagingModule currentUser={currentUser} />;
       case 'certificates':
         return <CertificateGenerator studentId={studentId!} />;
-      case 'settings':
-        return <SettingsModule currentUser={currentUser} onUserUpdate={onUserUpdate} />;
     }
   };
 

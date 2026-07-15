@@ -2,13 +2,15 @@ import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
   Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch,
+  Bell, MessageSquare,
 } from 'lucide-react';
 
 export type AdminSectionId =
   | 'overview' | 'users' | 'roles' | 'academics' | 'classes' | 'staff-attendance'
   | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events'
   | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops'
-  | 'event-registrations' | 'certificates' | 'store';
+  | 'event-registrations' | 'certificates' | 'store'
+  | 'announcements' | 'communications';
 
 export interface AdminHubStats {
   totalUsers: number;
@@ -178,6 +180,30 @@ export function getAdminCommandCenter(
           { label: 'Active', value: String(activeUsers), detail: 'active users', icon: Users, tone: 'emerald' },
           { label: 'Enrollments', value: String(activeEnrollments), detail: 'recent changes', icon: ClipboardList, tone: 'slate' },
           { label: 'Payments', value: String(paidPayments), detail: 'transactions', icon: Award, tone: 'amber' },
+        ],
+      };
+
+    case 'announcements':
+      return {
+        title: 'Announcements',
+        subtitle: 'Internal announcements and institutional updates.',
+        signals: [
+          { label: 'Users', value: String(totalUsers), detail: 'audience', icon: Users, tone: 'blue' },
+          { label: 'Students', value: String(students), detail: 'recipients', icon: GraduationCap, tone: 'emerald' },
+          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
+          { label: 'Programs', value: String(programs), detail: 'linked', icon: BookOpen, tone: 'amber' },
+        ],
+      };
+
+    case 'communications':
+      return {
+        title: 'Communications',
+        subtitle: 'Contact requests and inbound messages.',
+        signals: [
+          { label: 'Users', value: String(totalUsers), detail: 'staff', icon: Users, tone: 'blue' },
+          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
+          { label: 'Active', value: String(activeUsers), detail: 'responders', icon: Shield, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingEnrollments), detail: 'enrollments', icon: MessageSquare, tone: 'amber' },
         ],
       };
 

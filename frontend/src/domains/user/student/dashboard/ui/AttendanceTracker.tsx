@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, Loader2, ShieldOff, Download } from 'lucide-react';
 import { fetchEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/domains/learning/academics/api/academicApi';
 import type { AttendanceSession } from '@/shared/types';
+import { isForbiddenError } from '@/shared/api/http';
 
 interface Props { studentId: string }
 
@@ -13,18 +14,27 @@ export default function AttendanceTracker({ studentId }: Props) {
   const [year] = useState(new Date().getFullYear());
 
   useEffect(() => {
+    let cancelled = false;
     fetchEnrollmentsApi(studentId).then(async enr => {
       const all: AttendanceSession[] = [];
       for (const e of enr) {
         try {
           const s = await fetchAttendanceSessionsApi(e.enrolled_class);
           all.push(...s);
-        } catch {}
+        } catch (err) {
+          if (isForbiddenError(err)) {
+            if (!cancelled) setPermissionDenied(true);
+            return;
+          }
+        }
       }
-      setSessions(all);
-    }).catch(() => {
-      setPermissionDenied(true);
-    }).finally(() => setLoading(false));
+      if (!cancelled) setSessions(all);
+    }).catch((err) => {
+      if (!cancelled) setPermissionDenied(isForbiddenError(err) || true);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [studentId]);
 
   const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -54,7 +64,7 @@ export default function AttendanceTracker({ studentId }: Props) {
     return (
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-border-light/60 w-full text-center">
         <ShieldOff className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-        <h3 className="font-bold text-lg text-slate-900 mb-2">Attendance Unavailable</h3>
+        <h3 className="font-bold text-lg text-slate-900 mb-2">Permission Denied</h3>
         <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
           Attendance data requires staff-level access. Please contact your instructor or download the PDF report.
         </p>

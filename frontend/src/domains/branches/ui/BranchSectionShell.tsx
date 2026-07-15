@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Building, RefreshCw, Plus } from 'lucide-react';
+import { Building, RefreshCw, Plus, Lock } from 'lucide-react';
 import { branchesApi, assignmentsApi, type BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchListTable } from './BranchListTable';
 import { BranchFormModal, type BranchFormData } from './BranchFormModal';
 import { BranchDetailPanel } from './BranchDetailPanel';
 import { AssignManagerModal } from './AssignManagerModal';
+import type { UserProfile } from '@/shared/types';
+import { canManageBranches } from '@/shared/auth/permissions';
 
 interface UserOption {
   id: string;
@@ -12,7 +14,12 @@ interface UserOption {
   email: string;
 }
 
-export function BranchSectionShell() {
+interface Props {
+  currentUser: UserProfile;
+}
+
+export function BranchSectionShell({ currentUser }: Props) {
+  const canManage = canManageBranches(currentUser);
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -138,10 +145,12 @@ export function BranchSectionShell() {
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
-          <button onClick={() => openForm()}
-            className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark transition-colors">
-            <Plus className="w-4 h-4" /> Add Branch
-          </button>
+          {canManage && (
+            <button onClick={() => openForm()}
+              className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark transition-colors">
+              <Plus className="w-4 h-4" /> Add Branch
+            </button>
+          )}
         </div>
       </div>
 

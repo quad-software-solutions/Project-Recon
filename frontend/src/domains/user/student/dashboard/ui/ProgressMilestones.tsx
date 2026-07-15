@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, Target, Loader2, ShieldOff, Download } from 'lucide-react';
 import { fetchEnrollmentsApi, fetchMilestonesApi, fetchStudentProgressApi, downloadProgressReportPdf } from '@/domains/learning/academics/api/academicApi';
 import type { LearningMilestone, StudentProgress } from '@/shared/types';
+import { isForbiddenError } from '@/shared/api/http';
 
 interface Props { studentId: string }
 
@@ -12,22 +13,36 @@ export default function ProgressMilestones({ studentId }: Props) {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     fetchEnrollmentsApi(studentId).then(async enr => {
       const allMilestones: LearningMilestone[] = [];
       const allProgress: StudentProgress[] = [];
       for (const e of enr) {
+        // Prefer real sub_program id when present on the enrollment payload
+        const subProgramId = (e as { sub_program?: string }).sub_program;
+        if (!subProgramId) continue;
         try {
-          const m = await fetchMilestonesApi(e.enrolled_class);
+          const m = await fetchMilestonesApi(subProgramId);
           allMilestones.push(...m);
           const p = await fetchStudentProgressApi(e.id);
           allProgress.push(...p);
-        } catch {}
+        } catch (err) {
+          if (isForbiddenError(err)) {
+            if (!cancelled) setPermissionDenied(true);
+            return;
+          }
+        }
       }
-      setMilestones(allMilestones);
-      setProgress(allProgress);
-    }).catch(() => {
-      setPermissionDenied(true);
-    }).finally(() => setLoading(false));
+      if (!cancelled) {
+        setMilestones(allMilestones);
+        setProgress(allProgress);
+      }
+    }).catch((err) => {
+      if (!cancelled) setPermissionDenied(isForbiddenError(err) || true);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [studentId]);
 
   if (loading) {
@@ -42,7 +57,7 @@ export default function ProgressMilestones({ studentId }: Props) {
     return (
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-border-light/60 text-center">
         <ShieldOff className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-        <h3 className="font-bold text-lg text-slate-900 mb-2">Progress Unavailable</h3>
+        <h3 className="font-bold text-lg text-slate-900 mb-2">Permission Denied</h3>
         <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
           Progress tracking requires staff-level access. Contact your instructor to view your milestones or download the PDF report.
         </p>

@@ -9,7 +9,11 @@ export const STORAGE_KEYS = {
   DEVICE_ID: 'device_id',
   CMS_BRANDING: 'ethio-cms-branding',
   STUDENT_SETTINGS: 'student_settings',
+  NOTIFICATION_READ_IDS: 'app_notification_read_ids',
+  NOTIFICATION_DISMISSED_IDS: 'app_notification_dismissed_ids',
 } as const;
+
+const MAX_NOTIFICATION_IDS = 500;
 
 export function studentIdKey(email: string): string {
   return `studentId_${email}`;
@@ -98,4 +102,49 @@ export function summarizeSettled<T extends readonly PromiseSettledResult<unknown
     anyFailed: fulfilled < results.length,
     fulfilled,
   };
+}
+
+export function loadIdSet(key: string): Set<string> {
+  try {
+    const raw = safeGet(key);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveIdSet(key: string, ids: Set<string>): void {
+  const capped = [...ids].slice(-MAX_NOTIFICATION_IDS);
+  safeSet(key, JSON.stringify(capped));
+}
+
+export function pruneIdSet(key: string, validIds: Set<string>): void {
+  const current = loadIdSet(key);
+  const pruned = new Set([...current].filter(id => validIds.has(id)));
+  if (pruned.size !== current.size) saveIdSet(key, pruned);
+}
+
+export function clearNotificationStorage(): void {
+  safeRemove(STORAGE_KEYS.NOTIFICATION_READ_IDS);
+  safeRemove(STORAGE_KEYS.NOTIFICATION_DISMISSED_IDS);
+}
+
+export function clearCachedStudentIds(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('studentId_')) keys.push(key);
+    }
+    keys.forEach(safeRemove);
+  } catch {
+    /* noop */
+  }
+}
+
+/** Clear cached identity/session state (not device_id or UI prefs). */
+export function clearSessionStorage(): void {
+  clearUserProfile();
+  clearNotificationStorage();
+  clearCachedStudentIds();
 }

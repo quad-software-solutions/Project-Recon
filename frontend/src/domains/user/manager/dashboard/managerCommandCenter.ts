@@ -7,8 +7,9 @@ import {
 
 export type ManagerSectionId =
   | 'overview' | 'analytics' | 'academic-catalog' | 'classes' | 'staff-attendance'
-  | 'sponsors' | 'store' | 'events' | 'tournaments' | 'tournament-teams'
-  | 'matches' | 'workshops' | 'participants' | 'announcements' | 'communications'
+  | 'sponsors' | 'store' | 'materials' | 'milestones'
+  | 'events' | 'tournaments' | 'tournament-teams'
+  | 'matches' | 'workshops' | 'announcements' | 'communications'
   | 'payments' | 'walkin' | 'reports' | 'schools' | 'enrollments'
   | 'event-registrations' | 'certificates' | 'account';
 
@@ -155,13 +156,28 @@ export function getManagerCommandCenter(
 
     case 'store':
       return {
-        title: 'Store & Inventory',
-        subtitle: 'Product catalog and inventory management.',
+        title: 'Store Inventory',
+        subtitle: 'Branch inventory management (backend-scoped for managers).',
         signals: [
           { label: 'Students', value: String(students), detail: 'potential customers', icon: ShoppingBag, tone: 'blue' },
-          { label: 'Paid', value: String(paidPayments), detail: 'store revenue', icon: DollarSign, tone: 'emerald' },
+          { label: 'Paid', value: String(paidPayments), detail: 'sales signal', icon: DollarSign, tone: 'emerald' },
           { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: UserPlus, tone: 'slate' },
           { label: 'Programs', value: String(programs), detail: 'related offers', icon: BookOpen, tone: 'amber' },
+        ],
+      };
+
+    case 'materials':
+    case 'milestones':
+      return {
+        title: section === 'materials' ? 'Learning Materials' : 'Learning Milestones',
+        subtitle: section === 'materials'
+          ? 'Upload and manage course learning resources.'
+          : 'Define and manage learning milestones for programs.',
+        signals: [
+          { label: 'Programs', value: String(programs), detail: 'catalog', icon: BookOpen, tone: 'blue' },
+          { label: 'Students', value: String(students), detail: 'learners', icon: Users, tone: 'slate' },
+          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: UserPlus, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingPayments), detail: 'queue', icon: DollarSign, tone: 'amber' },
         ],
       };
 

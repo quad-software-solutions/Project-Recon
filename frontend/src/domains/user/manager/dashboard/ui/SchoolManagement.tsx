@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Edit3, Trash2, Search, X, Building, MapPin, Phone, Mail,
-  Users, BookOpen, CheckCircle, XCircle, Clock, Loader2
+  Users, BookOpen, CheckCircle, XCircle, Clock, Loader2, Lock
 } from 'lucide-react';
 import { branchesApi, BranchResponse } from '../../../shared/api/adminApi';
+import type { UserProfile } from '@/shared/types';
+import { canManageBranches } from '@/shared/auth/permissions';
 
 const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
   Active: { icon: CheckCircle, color: 'text-emerald-500' },
@@ -12,7 +14,12 @@ const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string }> 
   Archived: { icon: Clock, color: 'text-amber-500' },
 };
 
-export default function SchoolManagement() {
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function SchoolManagement({ currentUser }: Props) {
+  const canManage = canManageBranches(currentUser);
   const [schools, setSchools] = useState<BranchResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +105,20 @@ export default function SchoolManagement() {
       setError(e instanceof Error ? e.message : 'Failed to update status');
     }
   };
+
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">School management is only available to Super Admin and Branch Manager roles.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
 

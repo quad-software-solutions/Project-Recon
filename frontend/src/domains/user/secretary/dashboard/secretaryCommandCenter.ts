@@ -6,7 +6,7 @@ import {
 
 export type SecretarySectionId =
   | 'overview' | 'admissions' | 'enrollments' | 'payments' | 'certificates'
-  | 'templates' | 'reports' | 'periods'
+  | 'templates' | 'reports' | 'periods' | 'announcements'
   | 'students' | 'event-registrations' | 'account';
 
 export interface SecretaryHubStats {
@@ -171,6 +171,18 @@ export function getSecretaryCommandCenter(
           { label: 'Certificates', value: String(certificatesIssued), detail: 'certificate reports', icon: Award, tone: 'emerald' },
           { label: 'Today', value: String(todayPayments), detail: 'payment reports', icon: DollarSign, tone: 'slate' },
           { label: 'Templates', value: String(templates), detail: 'template count', icon: FileText, tone: 'purple' },
+        ],
+      };
+
+    case 'announcements':
+      return {
+        title: 'Announcements',
+        subtitle: 'Official news, updates, and institutional announcements.',
+        signals: [
+          { label: 'Active', value: String(activeEnrollments), detail: 'current enrollments', icon: Users, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingPayments), detail: 'awaiting payment', icon: DollarSign, tone: pendingPayments ? 'amber' : 'slate' },
+          { label: 'Today', value: String(todayPayments), detail: 'payments today', icon: DollarSign, tone: 'blue' },
+          { label: 'Templates', value: String(templates), detail: 'cert templates', icon: FileText, tone: 'slate' },
         ],
       };
 

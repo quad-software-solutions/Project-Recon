@@ -7,7 +7,7 @@ import {
 
 export type StudentSectionId =
   | 'home' | 'account' | 'academics' | 'career' | 'events'
-  | 'notifications' | 'announcements' | 'messaging' | 'certificates' | 'settings';
+  | 'notifications' | 'announcements' | 'messaging' | 'certificates';
 
 export interface StudentHubStats {
   activeCount: number;
@@ -40,7 +40,7 @@ export function getSectionCommandCenter(
     loading = false,
   } = stats;
 
-  if (loading && section !== 'settings') {
+  if (loading) {
     return {
       title: section === 'home' ? 'Student Hub' : 'Loading',
       subtitle: 'Fetching your dashboard data…',
@@ -119,10 +119,10 @@ export function getSectionCommandCenter(
         title: 'Announcements',
         subtitle: 'Official news and updates from the institution.',
         signals: [
+          { label: 'News', value: String(stats.announcementCount), detail: 'published items', icon: Megaphone, tone: stats.announcementCount ? 'blue' : 'slate' },
           { label: 'Alerts', value: String(unreadCount), detail: 'unread notifications', icon: Bell, tone: unreadCount ? 'amber' : 'slate' },
           { label: 'Courses', value: String(activeCount), detail: 'your programs', icon: GraduationCap, tone: 'blue' },
           { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: 'slate' },
-          { label: 'XP', value: xpPoints.toLocaleString(), detail: 'experience points', icon: Zap, tone: 'purple' },
         ],
       };
 
@@ -161,9 +161,6 @@ export function getSectionCommandCenter(
           { label: 'Alerts', value: String(unreadCount), detail: 'notifications', icon: Bell, tone: unreadCount ? 'amber' : 'slate' },
         ],
       };
-
-    case 'settings':
-      return null;
 
     default:
       return null;
