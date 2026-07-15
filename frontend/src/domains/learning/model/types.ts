@@ -210,6 +210,8 @@ export interface AttendanceRecord {
   id: string;
   attendance_session: string;
   enrollment: string;
+  enrollment_id?: string;
+  student_name?: string;
   status: AttendanceStatus;
   remarks?: string;
   created_at: string;
