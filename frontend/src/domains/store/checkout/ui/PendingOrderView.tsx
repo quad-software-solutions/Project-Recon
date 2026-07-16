@@ -1,12 +1,21 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { ArrowLeft, CheckCircle2, Clock, Package, Building2, XCircle, AlertCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ArrowLeft, CheckCircle2, Clock, Building2, XCircle, AlertCircle,
+  Upload, Loader2,
+} from 'lucide-react';
 import { getPendingOrder } from '../api/checkoutApi';
-import type { PendingOrder } from '@/domains/store/model/types';
+import { submitPaymentEvidence } from '@/domains/store/payments/api/paymentApi';
+import type { PendingOrder, StorePaymentMethod } from '@/domains/store/model/types';
 import { formatMoney } from '@/domains/store/utils/formatMoney';
 import { cn } from '@/shared/utils/cn';
 import { Button } from '@/shared/ui/Button';
 import { navigateStore } from '@/domains/store/utils/catalog';
+
+const PAYMENT_METHODS: { value: StorePaymentMethod; label: string }[] = [
+  { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+  { value: 'CASH', label: 'Cash (pay at branch)' },
+  { value: 'CHEQUE', label: 'Cheque' },
+];
 
 interface Props {
   orderId: string;
@@ -17,6 +26,14 @@ export default function PendingOrderView({ orderId, onBack }: Props) {
   const [order, setOrder] = useState<PendingOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [evMethod, setEvMethod] = useState<StorePaymentMethod>('BANK_TRANSFER');
+  const [evBank, setEvBank] = useState('');
+  const [evRef, setEvRef] = useState('');
+  const [evFile, setEvFile] = useState<File | null>(null);
+  const [evSubmitting, setEvSubmitting] = useState(false);
+  const [evSuccess, setEvSuccess] = useState(false);
+  const [evError, setEvError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -32,6 +49,26 @@ export default function PendingOrderView({ orderId, onBack }: Props) {
       }
     })();
   }, [orderId]);
+
+  const handleSubmitEvidence = async () => {
+    if (!order) return;
+    setEvSubmitting(true);
+    setEvError(null);
+    try {
+      await submitPaymentEvidence(order.id, {
+        amount: order.total,
+        payment_method: evMethod,
+        transaction_reference: evRef.trim() || undefined,
+        bank_name: evBank.trim() || undefined,
+        attachment: evFile || undefined,
+      });
+      setEvSuccess(true);
+    } catch (e: unknown) {
+      setEvError(e instanceof Error ? e.message : 'Failed to submit evidence');
+    } finally {
+      setEvSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -147,10 +184,77 @@ export default function PendingOrderView({ orderId, onBack }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        {!isExpired && (
+        {!isExpired && !evSuccess && (
+          <div className="border-t border-brand-border/50 pt-4 mb-2">
+            <h4 className="font-bold text-sm text-brand-ink mb-3 flex items-center gap-1.5">
+              <Upload className="w-4 h-4" /> Submit payment evidence
+            </h4>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Payment method</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PAYMENT_METHODS.map(m => (
+                    <button key={m.value} onClick={() => setEvMethod(m.value)}
+                      className={cn('px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors',
+                        evMethod === m.value ? 'bg-brand-blue text-white border-brand-blue' : 'bg-white text-brand-muted border-brand-border hover:border-brand-blue/30',
+                      )}>
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Bank / provider</label>
+                <input value={evBank} onChange={e => setEvBank(e.target.value)}
+                  className="form-input w-full" placeholder="e.g. Commercial Bank of Ethiopia" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Transaction reference</label>
+                <input value={evRef} onChange={e => setEvRef(e.target.value)}
+                  className="form-input w-full" placeholder="Transfer / receipt reference" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Upload receipt (optional)</label>
+                <div className="flex items-center gap-2">
+                  <input ref={fileRef} type="file" accept="image/*,.pdf"
+                    onChange={e => setEvFile(e.target.files?.[0] || null)}
+                    className="hidden" />
+                  <button type="button" onClick={() => fileRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:text-brand-ink hover:border-brand-blue/30 transition-all">
+                    <Upload className="w-3.5 h-3.5" />
+                    {evFile ? evFile.name : 'Choose file'}
+                  </button>
+                  {evFile && (
+                    <button type="button" onClick={() => { setEvFile(null); if (fileRef.current) fileRef.current.value = ''; }}
+                      className="p-1.5 text-brand-muted hover:text-red-500 transition-colors">
+                      <XCircle className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            {evError && (
+              <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {evError}
+              </div>
+            )}
+            <button onClick={handleSubmitEvidence} disabled={evSubmitting}
+              className="w-full py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
+              {evSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {evSubmitting ? 'Submitting...' : 'Submit evidence'}
+            </button>
+          </div>
+        )}
+        {evSuccess && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 mb-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            Payment evidence submitted! Staff will verify shortly.
+          </div>
+        )}
+        {!isExpired && !evSuccess && (
           <p className="text-xs text-brand-muted text-center">
             <CheckCircle2 className="w-3.5 h-3.5 inline mr-1 text-emerald-500" />
-            Submit payment at the branch or contact staff with your reference.
+            Or submit payment at the branch and contact staff with your reference.
           </p>
         )}
         <Button onClick={onBack} variant="secondary">Back to store</Button>

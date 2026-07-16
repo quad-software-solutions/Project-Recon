@@ -16,7 +16,13 @@ export default function ProgramDetailModal({ program, onClose, onEnroll }: Progr
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
           <motion.div initial={{ opacity: 0, scale: 0.96, y: 18 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 18 }} className="relative w-full max-w-2xl max-h-[86vh] overflow-y-auto rounded-modal bg-white shadow-premium-xl ring-1 ring-white/20">
             <div className="relative h-56 overflow-hidden">
-              <img src={program.image} alt={program.title} className="w-full h-full object-cover" />
+              {program.image ? (
+                <img src={program.image} alt={program.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-brand-blue/30 via-brand-red/20 to-slate-100 flex items-center justify-center">
+                  <BookOpen className="w-14 h-14 text-white/40" />
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
               <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-lg text-slate-700 hover:bg-white transition-colors" aria-label="Close program details"><X className="w-4 h-4" /></button>
             </div>

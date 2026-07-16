@@ -204,3 +204,17 @@ export interface ProductFilters {
   max_price?: number;
   sort_by?: string;
 }
+
+export interface BankAccount {
+  id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  branch?: string;
+  swift_code?: string;
+  iban?: string;
+  is_active: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}

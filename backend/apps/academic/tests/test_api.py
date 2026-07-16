@@ -94,6 +94,29 @@ class AcademicAPITestCase(APITestCase):
         self._authenticate(student)
         return student
 
+    def _create_temp_file(self, name="test.pdf"):
+        from io import BytesIO
+        from PIL import Image
+        ext = os.path.splitext(name)[1].lower()
+        if ext == ".pdf":
+            content = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF"
+        elif ext in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+            buf = BytesIO()
+            img = Image.new("RGB", (1, 1), color="red")
+            if ext in (".jpg", ".jpeg"):
+                img.save(buf, format="JPEG")
+            elif ext == ".png":
+                img.save(buf, format="PNG")
+            elif ext == ".gif":
+                img.save(buf, format="GIF")
+            elif ext == ".webp":
+                img.save(buf, format="WebP")
+            content = buf.getvalue()
+        else:
+            content = b"test content"
+        from django.core.files.base import ContentFile
+        return ContentFile(content, name=name)
+
     def authenticate_as_secretary(self):
         secretary = user_service.create_staff_user(
             "secretary@test.com",
@@ -193,6 +216,48 @@ class ProgramAPITest(AcademicAPITestCase):
         self.assertEqual(response.status_code, 200)
         program.refresh_from_db()
         self.assertFalse(program.is_active)
+
+    def test_create_program_with_image(self):
+        self.authenticate_as_super_admin()
+        image = self._create_temp_file(name="program.png")
+        data = {"name": "Robotics", "slug": "robotics", "image": image, "supports_group": True, "supports_individual": True}
+        response = self.client.post(f"{self.base_url}/programs/", data, format="multipart")
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("image", response.json())
+        self.assertTrue(response.json()["image"])
+
+    def test_update_program_image(self):
+        self.authenticate_as_super_admin()
+        program = program_service.create_program(name="Programming", slug="programming")
+        image = self._create_temp_file(name="new_image.png")
+        response = self.client.patch(
+            f"{self.base_url}/programs/{program.pk}/",
+            {"image": image},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("image", response.json())
+        self.assertTrue(response.json()["image"])
+
+    def test_clear_program_image(self):
+        self.authenticate_as_super_admin()
+        image = self._create_temp_file(name="program.png")
+        program = program_service.create_program(name="Robotics", slug="robotics")
+        response = self.client.patch(
+            f"{self.base_url}/programs/{program.pk}/",
+            {"image": image},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("image", response.json())
+        self.assertTrue(response.json()["image"])
+        response = self.client.patch(
+            f"{self.base_url}/programs/{program.pk}/",
+            {"image": ""},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["image"])
 
 
 class SubProgramAPITest(AcademicAPITestCase):
@@ -307,6 +372,58 @@ class SubProgramAPITest(AcademicAPITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_create_sub_program_with_image(self):
+        self.authenticate_as_super_admin()
+        image = self._create_temp_file(name="sub_program.png")
+        data = {
+            "program": str(self.program.pk),
+            "name": "Python",
+            "slug": "python",
+            "group_fee": "500.00",
+            "individual_fee": "500.00",
+            "image": image,
+        }
+        response = self.client.post(f"{self.base_url}/sub-programs/", data, format="multipart")
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("image", response.json())
+        self.assertTrue(response.json()["image"])
+
+    def test_update_sub_program_image(self):
+        self.authenticate_as_super_admin()
+        sub = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
+        )
+        image = self._create_temp_file(name="new_image.png")
+        response = self.client.patch(
+            f"{self.base_url}/sub-programs/{sub.pk}/",
+            {"image": image},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("image", response.json())
+        self.assertTrue(response.json()["image"])
+
+    def test_clear_sub_program_image(self):
+        self.authenticate_as_super_admin()
+        sub = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
+        )
+        image = self._create_temp_file(name="sub_program.png")
+        response = self.client.patch(
+            f"{self.base_url}/sub-programs/{sub.pk}/",
+            {"image": image},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["image"])
+        response = self.client.patch(
+            f"{self.base_url}/sub-programs/{sub.pk}/",
+            {"image": ""},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["image"])
 
 
 class ClassAPITest(AcademicAPITestCase):

@@ -204,27 +204,52 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
           <p className="text-sm font-medium">No bank accounts configured</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {accounts.map((acc) => (
-            <div key={acc.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                  {String(acc.bank_name || '').toLowerCase().includes('tele') ? <Smartphone className="w-4 h-4 text-blue-600" /> : <Landmark className="w-4 h-4 text-blue-600" />}
-                  {acc.bank_name}
+        <div className="space-y-3">
+          {(() => {
+            const seen = new Set<string>();
+            const byBank: [string, typeof accounts][] = [];
+            accounts.filter(a => { const k = a.account_number; if (seen.has(k)) return false; seen.add(k); return true; }).forEach(a => {
+              let g = byBank.find(([b]) => b === a.bank_name);
+              if (!g) { g = [a.bank_name, []]; byBank.push(g); }
+              g[1].push(a);
+            });
+            return byBank.map(([bank, accs]) => (
+              <div key={bank}>
+                <p className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-2">
+                  {String(bank).toLowerCase().includes('tele') ? <Smartphone className="w-4 h-4 text-blue-600" /> : <Landmark className="w-4 h-4 text-blue-600" />}
+                  {bank}
+                  <span className="text-[10px] font-normal text-slate-400">({accs.length} account{accs.length > 1 ? 's' : ''})</span>
                 </p>
-                <p className="text-xs text-slate-600 mt-1">{acc.account_holder}</p>
-                <p className="font-mono text-xs font-semibold text-slate-800 mt-1">{acc.account_number}</p>
-                {acc.branch && <p className="text-[11px] text-slate-500 mt-1">{acc.branch}</p>}
-                {acc.iban && <p className="text-[11px] text-slate-500 mt-1">IBAN: <span className="font-mono">{acc.iban}</span></p>}
-                {acc.notes && <p className="text-[11px] text-slate-500 mt-2 whitespace-pre-line">{acc.notes}</p>}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {accs.map(acc => (
+                    <div key={acc.account_number} className="bg-white border border-slate-200 rounded-xl p-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-mono text-xs font-bold text-slate-800">{acc.account_number}</p>
+                        <p className="text-xs text-slate-600 mt-0.5 truncate">{acc.account_holder}</p>
+                        {acc.branch && <p className="text-[10px] text-slate-500 truncate">{acc.branch}</p>}
+                        {acc.iban && <p className="text-[10px] text-slate-500 truncate">IBAN: <span className="font-mono">{acc.iban}</span></p>}
+                        {acc.notes && <p className="text-[10px] text-slate-500 mt-1 whitespace-pre-line line-clamp-2">{acc.notes}</p>}
+                      </div>
+                      <div className="flex items-start gap-1 shrink-0">
+                        <button type="button" onClick={() => navigator.clipboard.writeText(acc.account_number)}
+                          className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Copy account number">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        </button>
+                        {canManage && (
+                          <button type="button" onClick={() => onDelete(acc.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {canManage && (
-                <button type="button" onClick={() => onDelete(acc.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" aria-label="Delete bank account">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
+            ));
+          })()}
         </div>
       )}
     </div>

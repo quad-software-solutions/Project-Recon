@@ -3,6 +3,7 @@ export interface Program {
   name: string;
   slug: string;
   description?: string;
+  image?: string | null;
   supports_group: boolean;
   supports_individual: boolean;
   is_active: boolean;
@@ -111,6 +112,7 @@ export interface SubProgram {
   name: string;
   slug: string;
   description?: string;
+  image?: string | null;
   duration?: number;
   duration_unit?: DurationUnit;
   group_fee: number;

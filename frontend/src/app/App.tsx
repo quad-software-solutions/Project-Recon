@@ -60,7 +60,7 @@ export default function App() {
 
   const handleEnrollInProgram = (_programId: string) => {
     if (!currentUser) {
-      handleTabChange('login');
+      handleTabChange('register');
       return;
     }
     handleTabChange('dashboard');

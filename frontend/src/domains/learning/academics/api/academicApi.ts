@@ -29,6 +29,7 @@ export type AcademicProgramPayload = {
   name: string;
   slug: string;
   description?: string;
+  image?: string | File | null;
   supports_group: boolean;
   supports_individual: boolean;
 };
@@ -38,6 +39,7 @@ export type AcademicSubProgramPayload = {
   name: string;
   slug: string;
   description?: string;
+  image?: string | File | null;
   duration?: number | null;
   duration_unit?: string | null;
   fee: string;
@@ -181,24 +183,44 @@ export async function fetchSubProgramsApi(programId?: string): Promise<SubProgra
   return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/${queryString({ program: programId })}`));
 }
 
+function toProgramFormData(payload: Partial<AcademicProgramPayload>): FormData | typeof payload {
+  if (!(payload.image instanceof File)) return payload;
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(payload)) {
+    if (k === 'image') { fd.append('image', v as File); }
+    else if (v !== undefined) { fd.append(k, String(v)); }
+  }
+  return fd;
+}
+
 export async function createProgramApi(payload: AcademicProgramPayload): Promise<Program> {
-  return http.post<Program>(`${BASE}/programs/`, payload);
+  return http.post<Program>(`${BASE}/programs/`, toProgramFormData(payload));
 }
 
 export async function updateProgramApi(id: string, payload: Partial<AcademicProgramPayload>): Promise<Program> {
-  return http.patch<Program>(`${BASE}/programs/${id}/`, payload);
+  return http.patch<Program>(`${BASE}/programs/${id}/`, toProgramFormData(payload));
 }
 
 export async function setProgramActiveApi(id: string, active: boolean): Promise<Program> {
   return http.post<Program>(`${BASE}/programs/${id}/${active ? 'activate' : 'deactivate'}/`, {});
 }
 
+function toSubProgramFormData(payload: Partial<AcademicSubProgramPayload>): FormData | typeof payload {
+  if (!(payload.image instanceof File)) return payload;
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(payload)) {
+    if (k === 'image') { fd.append('image', v as File); }
+    else if (v !== undefined) { fd.append(k, String(v)); }
+  }
+  return fd;
+}
+
 export async function createSubProgramApi(payload: AcademicSubProgramPayload): Promise<SubProgram> {
-  return http.post<SubProgram>(`${BASE}/sub-programs/`, payload);
+  return http.post<SubProgram>(`${BASE}/sub-programs/`, toSubProgramFormData(payload));
 }
 
 export async function updateSubProgramApi(id: string, payload: Partial<AcademicSubProgramPayload>): Promise<SubProgram> {
-  return http.patch<SubProgram>(`${BASE}/sub-programs/${id}/`, payload);
+  return http.patch<SubProgram>(`${BASE}/sub-programs/${id}/`, toSubProgramFormData(payload));
 }
 
 export async function setSubProgramActiveApi(id: string, active: boolean): Promise<SubProgram> {

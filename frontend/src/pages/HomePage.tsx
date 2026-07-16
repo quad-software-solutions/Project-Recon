@@ -280,8 +280,14 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               transition={{ duration: 0.5, delay: Math.min(idx * 0.15, 0.6) }}
               className="surface-card interactive-lift rounded-card overflow-hidden flex flex-col group h-full"
             >
-              <div className="relative aspect-video w-full bg-slate-100 overflow-hidden cursor-pointer" onClick={() => onSetSelectedProgramSpec(prog)}>
-                {prog.image && <img src={prog.image} alt={prog.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" />}
+              <div className="relative aspect-video w-full overflow-hidden cursor-pointer" onClick={() => onSetSelectedProgramSpec(prog)}>
+                {prog.image ? (
+                  <img src={prog.image} alt={prog.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-brand-blue/20 via-brand-red/10 to-slate-100 flex items-center justify-center">
+                    <BookOpen className="w-10 h-10 text-slate-400/40" />
+                  </div>
+                )}
                 <div className="absolute top-4 left-4">
                   <span className="font-mono text-[9px] font-bold uppercase tracking-wider bg-white/95 px-2.5 py-1 rounded-full text-slate-800 shadow-sm border border-slate-100">{prog.category}</span>
                 </div>

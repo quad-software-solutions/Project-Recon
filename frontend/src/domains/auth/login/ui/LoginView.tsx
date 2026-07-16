@@ -32,7 +32,7 @@ interface LoginViewProps {
 }
 
 export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateRegister, onNavigateForgotPassword, initialView = 'login' }: LoginViewProps) {
-  const [viewMode, setViewMode] = useState<'login' | 'register' | 'email-verify'>(initialView === 'register' ? 'register' : 'login');
+  const [viewMode, setViewMode] = useState<'login' | 'email-verify'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -56,9 +56,13 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
   }, []);
 
   React.useEffect(() => {
+    if (initialView === 'register') {
+      onNavigateRegister?.();
+      return;
+    }
     setViewMode(initialView);
     setErrorMsg('');
-  }, [initialView]);
+  }, [initialView, onNavigateRegister]);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,12 +79,6 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
     }
 
     setLoading(true);
-
-    if (viewMode !== 'login') {
-      setLoading(false);
-      onNavigateRegister?.();
-      return;
-    }
 
     import('../api/loginApi').then(({ loginApi, EmailNotVerifiedError, requestEmailVerificationApi }) => {
       loginApi({ email, password })
@@ -206,10 +204,10 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
           </button>
           <button
             onClick={() => {
-              if (viewMode === 'login' && onNavigateRegister) {
-                onNavigateRegister();
+              if (viewMode === 'login') {
+                onNavigateRegister?.();
               } else {
-                setViewMode(viewMode === 'login' ? 'register' : 'login');
+                setViewMode('login');
                 setErrorMsg('');
               }
             }}
@@ -300,7 +298,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                   transition={{ duration: 0.4, delay: 0.15 }}
                   className="font-black text-slate-900 tracking-tight text-[28px] uppercase"
                 >
-                  {viewMode === 'login' ? 'Welcome Back' : viewMode === 'email-verify' ? 'Verify Email' : 'Join the Lab'}
+                  {viewMode === 'login' ? 'Welcome Back' : 'Verify Email'}
                 </motion.h2>
                 <motion.p
                   initial={{ opacity: 0, y: 10 }}
@@ -310,9 +308,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                 >
                   {viewMode === 'login'
                     ? 'Access your engineering dashboard & simulation laboratories.'
-                    : viewMode === 'email-verify'
-                    ? 'Please enter the 6-digit verification code sent to your email.'
-                    : 'Submit a student registration request for administrator review.'}
+                    : 'Please enter the 6-digit verification code sent to your email.'}
                 </motion.p>
               </div>
 
@@ -467,17 +463,14 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                       setErrorMsg('');
                       return;
                     }
-                    if (viewMode === 'login' && onNavigateRegister) {
-                      onNavigateRegister();
-                    } else {
-                      setViewMode(viewMode === 'login' ? 'register' : 'login');
-                      setErrorMsg('');
+                    if (viewMode === 'login') {
+                      onNavigateRegister?.();
                     }
                   }}
                   className="text-xs font-bold text-brand-red hover:underline transition-all"
                   id="btn-login-bottom-toggle"
                 >
-                  {viewMode === 'email-verify' ? 'Back to Login' : viewMode === 'login' ? 'Register Here' : 'Log In Here'}
+                  {viewMode === 'email-verify' ? 'Back to Login' : 'Register Here'}
                 </button>
               </motion.div>
 

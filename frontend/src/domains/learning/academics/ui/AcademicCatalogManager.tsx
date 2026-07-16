@@ -110,6 +110,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
       name: programForm.name.trim(),
       slug: programForm.slug || slugify(programForm.name),
       description: programForm.description,
+      image: programForm.image || undefined,
       supports_group: programForm.supports_group,
       supports_individual: programForm.supports_individual,
     };
@@ -133,6 +134,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
       name: subProgramForm.name.trim(),
       slug: subProgramForm.slug || slugify(subProgramForm.name),
       description: subProgramForm.description,
+      image: subProgramForm.image || undefined,
       duration: subProgramForm.duration ? Number(subProgramForm.duration) : null,
       duration_unit: subProgramForm.duration_unit || null,
       fee: subProgramForm.fee || '0.00',
@@ -275,6 +277,26 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
               <textarea value={programForm.description || ''} onChange={e => setProgramForm(p => ({ ...p, description: e.target.value }))}
                 rows={3} className="form-input resize-none" />
             </FormField>
+            <FormField label="Image">
+              <div className="flex items-center gap-3">
+                {programForm.image && typeof programForm.image === 'string' && (
+                  <img src={programForm.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
+                )}
+                <label className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-brand-red/50 transition-colors text-sm text-slate-500">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setProgramForm(p => ({ ...p, image: file }));
+                  }} />
+                  {programForm.image instanceof File ? programForm.image.name : 'Choose image...'}
+                </label>
+                {programForm.image && (
+                  <button type="button" onClick={() => setProgramForm(p => ({ ...p, image: undefined }))}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </FormField>
             <div className="grid grid-cols-2 gap-3">
               <ToggleSwitch label="Group classes" checked={programForm.supports_group} onChange={v => setProgramForm(p => ({ ...p, supports_group: v }))} />
               <ToggleSwitch label="Private sessions" checked={programForm.supports_individual} onChange={v => setProgramForm(p => ({ ...p, supports_individual: v }))} />
@@ -302,6 +324,26 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
             <FormField label="Description">
               <textarea value={subProgramForm.description || ''} onChange={e => setSubProgramForm(p => ({ ...p, description: e.target.value }))}
                 rows={2} className="form-input resize-none" />
+            </FormField>
+            <FormField label="Image">
+              <div className="flex items-center gap-3">
+                {subProgramForm.image && typeof subProgramForm.image === 'string' && (
+                  <img src={subProgramForm.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
+                )}
+                <label className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-brand-red/50 transition-colors text-sm text-slate-500">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setSubProgramForm(p => ({ ...p, image: file }));
+                  }} />
+                  {subProgramForm.image instanceof File ? subProgramForm.image.name : 'Choose image...'}
+                </label>
+                {subProgramForm.image && (
+                  <button type="button" onClick={() => setSubProgramForm(p => ({ ...p, image: undefined }))}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </FormField>
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Duration">
@@ -351,9 +393,13 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
               {filteredPrograms.map(program => (
                 <div key={program.id} className="hover:bg-slate-50 transition-colors">
                   <div className="flex items-center gap-3 px-5 py-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${program.is_active ? 'bg-brand-red/10 text-brand-red' : 'bg-slate-100 text-slate-400'}`}>
-                      <BookOpen className="w-4 h-4" />
-                    </div>
+                    {program.image ? (
+                      <img src={program.image} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-slate-200" />
+                    ) : (
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${program.is_active ? 'bg-brand-red/10 text-brand-red' : 'bg-slate-100 text-slate-400'}`}>
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{program.name}</p>
                       <p className="text-xs text-slate-400 truncate font-mono">{program.slug}</p>
@@ -430,9 +476,13 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                 const parentProgram = programs.find(p => p.id === sp.program);
                 return (
                   <div key={sp.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${sp.is_active ? 'bg-purple-50 text-purple-500' : 'bg-slate-100 text-slate-400'}`}>
-                      <Layers3 className="w-4 h-4" />
-                    </div>
+                    {sp.image ? (
+                      <img src={sp.image} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-slate-200" />
+                    ) : (
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${sp.is_active ? 'bg-purple-50 text-purple-500' : 'bg-slate-100 text-slate-400'}`}>
+                        <Layers3 className="w-4 h-4" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{sp.name}</p>
                       <p className="text-xs text-slate-400 truncate">{parentProgram?.name || '—'}</p>

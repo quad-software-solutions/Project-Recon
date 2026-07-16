@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Clock, Eye, EyeOff, Loader2, Building2, Hash, FileUp } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Clock, Eye, EyeOff, Loader2, Building2, Hash, FileUp, Users, User as UserIcon } from 'lucide-react';
 import { registerApi } from '../api/registerApi';
 import { fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, fetchBankAccountsApi } from '../../../learning/academics/api/academicApi';
 import type { Program, SubProgram, AcademicClass } from '@/shared/types';
@@ -46,6 +46,7 @@ export default function StudentRegistration() {
   const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
   const [programsLoading, setProgramsLoading] = useState(true);
   const [programsError, setProgramsError] = useState('');
+  const [enrollmentType, setEnrollmentType] = useState<'GROUP' | 'INDIVIDUAL'>('GROUP');
 
   useEffect(() => {
     Promise.all([
@@ -74,7 +75,10 @@ export default function StudentRegistration() {
   const selectedSub = selectedClass
     ? subPrograms.find(s => s.id === selectedClass.sub_program)
     : undefined;
-  const classFee = selectedSub ? Number(selectedSub.group_fee || selectedSub.individual_fee || 0) : 0;
+  const classFee = selectedSub
+    ? Number(enrollmentType === 'GROUP' ? selectedSub.group_fee : (selectedSub.individual_fee ?? 0))
+    : 0;
+  const filteredClasses = classes.filter(c => c.class_type === enrollmentType);
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -367,6 +371,32 @@ export default function StudentRegistration() {
                   <p className="text-slate-600 mt-2 font-medium">Choose between group classes or private 1-on-1 tutoring.</p>
                 </motion.div>
 
+                {/* Group / Individual toggle */}
+                <div className="flex gap-2 bg-white/90 border border-slate-200 rounded-xl p-1 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => { setEnrollmentType('GROUP'); setSelectedClassId(''); }}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-black uppercase tracking-wider transition-all ${
+                      enrollmentType === 'GROUP'
+                        ? 'bg-brand-red text-white shadow-md shadow-brand-red/30'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <Users className="w-4 h-4" /> Group
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEnrollmentType('INDIVIDUAL'); setSelectedClassId(''); }}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-black uppercase tracking-wider transition-all ${
+                      enrollmentType === 'INDIVIDUAL'
+                        ? 'bg-brand-red text-white shadow-md shadow-brand-red/30'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <UserIcon className="w-4 h-4" /> 1-on-1
+                  </button>
+                </div>
+
                 <motion.div
                   variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
                   initial="hidden"
@@ -382,10 +412,10 @@ export default function StudentRegistration() {
                     <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
                       <p className="text-red-700 font-bold">{programsError}</p>
                     </div>
-                  ) : classes.length === 0 ? (
+                  ) : filteredClasses.length === 0 ? (
                     <div className="bg-white/80 rounded-2xl p-12 text-center">
                       <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                      <p className="text-lg font-bold text-slate-600">No classes available</p>
+                      <p className="text-lg font-bold text-slate-600">No {enrollmentType === 'GROUP' ? 'group' : 'individual'} classes available</p>
                       <p className="text-sm text-slate-500 mt-1">Open classes will appear here once they are published.</p>
                     </div>
                   ) : (
@@ -398,33 +428,39 @@ export default function StudentRegistration() {
                         <h3 className="font-black text-lg text-slate-900 uppercase tracking-tight">Select a class</h3>
                       </div>
                       <div className="p-6 flex flex-col gap-3">
-                        {classes.map((cls, ci) => {
+                        {filteredClasses.map((cls, ci) => {
                           const sub = subPrograms.find(s => s.id === cls.sub_program);
-                          const fee = Number(sub?.group_fee || sub?.individual_fee || 0);
+                          const fee = Number(enrollmentType === 'GROUP' ? sub?.group_fee : (sub?.individual_fee ?? 0));
                           const selected = selectedClassId === cls.id;
+                          const programName = cls.sub_program_name || sub?.name || 'Program';
+                          const initials = programName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                          const colors = ['from-brand-red to-brand-red-dark', 'from-brand-blue to-blue-700', 'from-emerald-500 to-emerald-700', 'from-amber-500 to-orange-600', 'from-violet-500 to-violet-700', 'from-cyan-500 to-cyan-700'];
+                          const colorIdx = [...(programName)].reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
                           return (
                             <button
                               key={cls.id}
                               type="button"
                               onClick={() => setSelectedClassId(cls.id)}
-                              className={`text-left rounded-xl p-5 border transition-all ${
+                              className={`text-left rounded-xl p-4 border transition-all ${
                                 selected
                                   ? 'border-brand-red bg-brand-red/5 shadow-lg shadow-brand-red/5'
                                   : 'border-slate-200 hover:border-slate-300 bg-white'
                               }`}
                             >
-                              <div className="flex justify-between gap-4 items-start">
-                                <div>
-                                  <h4 className="font-bold text-slate-900 text-base">{cls.name}</h4>
-                                  <p className="text-sm text-slate-600 mt-1">
-                                    {cls.sub_program_name || sub?.name || 'Program'}
+                              <div className="flex gap-4 items-center">
+                                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${colors[colorIdx]} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm`}>
+                                  {initials}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">{cls.name}</h4>
+                                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                                    {programName}
                                     {cls.branch_name ? ` · ${cls.branch_name}` : ''}
-                                    {cls.class_type ? ` · ${cls.class_type}` : ''}
                                   </p>
                                 </div>
-                                <div className="text-right shrink-0">
-                                  <p className={`font-black text-sm ${selected ? 'text-brand-red' : 'text-slate-700'}`}>
-                                    {fee > 0 ? `${fee.toLocaleString()} Birr` : 'Fee on file'}
+                                <div className="text-right shrink-0 ml-2">
+                                  <p className={`font-black text-xs ${selected ? 'text-brand-red' : 'text-slate-700'}`}>
+                                    {fee > 0 ? `${fee.toLocaleString()} Birr` : 'Fee'}
                                   </p>
                                 </div>
                               </div>
@@ -542,14 +578,38 @@ export default function StudentRegistration() {
                           <p className="text-[10px] font-black text-brand-blue uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <Building2 className="w-3 h-3" /> Our Bank Accounts
                           </p>
-                          <div className="space-y-2">
-                            {bankAccounts.map(acc => (
-                              <div key={acc.id} className="bg-white rounded-lg border border-brand-blue/10 p-2.5 text-[11px]">
-                                <p className="font-bold text-slate-800">{acc.bank_name}</p>
-                                <p className="text-slate-600">{acc.account_holder} &middot; <span className="font-mono font-bold">{acc.account_number}</span></p>
-                                {acc.branch && <p className="text-slate-500">{acc.branch}</p>}
-                              </div>
-                            ))}
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                            {(() => {
+                              const seen = new Set<string>();
+                              const byBank: [string, typeof bankAccounts][] = [];
+                              bankAccounts.filter(a => { const k = a.account_number; if (seen.has(k)) return false; seen.add(k); return true; }).forEach(a => {
+                                let g = byBank.find(([b]) => b === a.bank_name);
+                                if (!g) { g = [a.bank_name, []]; byBank.push(g); }
+                                g[1].push(a);
+                              });
+                              return byBank.map(([bank, accs]) => (
+                                <div key={bank}>
+                                  <p className="font-semibold text-slate-800 text-xs mb-1">{bank}</p>
+                                  <div className="space-y-1">
+                                    {accs.map(acc => (
+                                      <div key={acc.account_number} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-brand-blue/10 text-xs">
+                                        <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                                          <span className="font-mono font-bold text-slate-800">{acc.account_number}</span>
+                                          <span className="text-slate-500 text-[10px] truncate">{acc.account_holder}{acc.branch ? ` • ${acc.branch}` : ''}</span>
+                                        </div>
+                                        <button type="button" onClick={() => navigator.clipboard.writeText(acc.account_number)}
+                                          className="shrink-0 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Copy account number">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ));
+                            })()}
                           </div>
                         </div>
                       )}

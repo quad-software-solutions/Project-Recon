@@ -18,6 +18,7 @@ class SubProgram(models.Model):
     duration_unit = models.CharField(
         max_length=10, choices=DurationUnit.choices, null=True, blank=True
     )
+    image = models.ImageField(upload_to="sub_program_images/", null=True, blank=True)
     group_fee = models.DecimalField(max_digits=10, decimal_places=2)
     individual_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)

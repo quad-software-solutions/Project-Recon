@@ -8,6 +8,7 @@ class Program(models.Model):
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True, default="")
+    image = models.ImageField(upload_to="program_images/", null=True, blank=True)
     supports_group = models.BooleanField(default=True)
     supports_individual = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True, db_index=True)

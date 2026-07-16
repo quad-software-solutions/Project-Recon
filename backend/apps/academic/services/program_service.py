@@ -14,14 +14,8 @@ def list_programs():
     return Program.objects.all()
 
 
-def create_program(*, name, slug, description="", supports_group=True, supports_individual=True):
-    program = Program(
-        name=name,
-        slug=slug,
-        description=description,
-        supports_group=supports_group,
-        supports_individual=supports_individual,
-    )
+def create_program(**kwargs):
+    program = Program(**kwargs)
     program.full_clean()
     program.save()
     return program
@@ -55,33 +49,13 @@ def list_sub_programs():
     return SubProgram.objects.select_related("program").all()
 
 
-def create_sub_program(
-    *,
-    program,
-    name,
-    slug,
-    description="",
-    duration=None,
-    duration_unit=None,
-    group_fee,
-    individual_fee=None,
-):
-    if duration_unit and duration_unit not in DurationUnit.values:
-        raise DjangoValidationError(f"Invalid duration_unit: {duration_unit}")
-    
-    if duration is not None and duration <= 0:
+def create_sub_program(**kwargs):
+    if "duration_unit" in kwargs and kwargs["duration_unit"] and kwargs["duration_unit"] not in DurationUnit.values:
+        raise DjangoValidationError(f"Invalid duration_unit: {kwargs['duration_unit']}")
+    if "duration" in kwargs and kwargs["duration"] is not None and kwargs["duration"] <= 0:
         raise DjangoValidationError("Duration must be a positive integer.")
     
-    sub_program = SubProgram(
-        program=program,
-        name=name,
-        slug=slug,
-        description=description,
-        duration=duration,
-        duration_unit=duration_unit,
-        group_fee=group_fee,
-        individual_fee=individual_fee,
-    )
+    sub_program = SubProgram(**kwargs)
     sub_program.full_clean()
     sub_program.save()
     return sub_program

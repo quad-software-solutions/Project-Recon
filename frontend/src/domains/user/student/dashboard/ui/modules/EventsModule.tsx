@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   Calendar, Trophy, ClipboardList, Search, Loader2, MapPin, Clock,
-  XCircle, RefreshCw,
+  XCircle, RefreshCw, Eye,
 } from 'lucide-react';
 import type { UserProfile, Tournament, Workshop } from '@/shared/types';
 import {
-  getUpcomingEvents, getTournaments, getMyRegistrations,
+  getUpcomingEvents, getLiveEvents, getPastEvents, getTournaments, getMyRegistrations,
 } from '@/domains/competition/api/competitionApi';
 import { cancelMyRegistration, type BackendEventRegistration } from '@/domains/competition/api/eventsApi';
 import EventRegistrationModal from '@/domains/competition/shared/EventRegistrationModal';
@@ -33,22 +33,29 @@ export default function EventsModule({ currentUser }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [events, setEvents] = useState<(Tournament | Workshop)[]>([]);
+  const [liveEvents, setLiveEvents] = useState<(Tournament | Workshop)[]>([]);
+  const [pastEvents, setPastEvents] = useState<(Tournament | Workshop)[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [registrations, setRegistrations] = useState<BackendEventRegistration[]>([]);
   const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set());
   const [regTarget, setRegTarget] = useState<Tournament | Workshop | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Tournament | Workshop | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [evts, tourns, regs] = await Promise.all([
+      const [evts, live, past, tourns, regs] = await Promise.all([
         getUpcomingEvents(),
+        getLiveEvents(),
+        getPastEvents(),
         getTournaments(),
         getMyRegistrations(),
       ]);
       setEvents(evts);
+      setLiveEvents(live);
+      setPastEvents(past);
       setTournaments(tourns);
       setRegistrations(regs);
       setRegisteredIds(new Set(regs.filter(r => r.registration_status !== 'CANCELLED').map(r => r.event)));
@@ -86,7 +93,9 @@ export default function EventsModule({ currentUser }: Props) {
   };
 
   const tabs = [
-    { id: 'browse', label: 'Browse Events' },
+    { id: 'browse', label: 'Upcoming' },
+    { id: 'live', label: 'Live', count: liveEvents.length },
+    { id: 'past', label: 'Past' },
     { id: 'tournaments', label: 'Tournaments' },
     { id: 'registrations', label: 'My Registrations', count: registrations.filter(r => r.registration_status !== 'CANCELLED').length },
     { id: 'leaderboard', label: 'Leaderboard' },
@@ -131,51 +140,9 @@ export default function EventsModule({ currentUser }: Props) {
         <GridSkeleton count={3} />
       ) : (
         <>
-          {tab === 'browse' && (
-            <div className="space-y-4">
-              {filteredEvents.length > 0 ? filteredEvents.map((ev, i) => (
-                <motion.div
-                  key={ev.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="bg-white border border-brand-border rounded-2xl p-5 hover:border-blue-200 transition-colors"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h4 className="font-bold text-slate-900">{ev.title}</h4>
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{ev.eventType}</span>
-                        {registeredIds.has(ev.id) && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Registered</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-500 line-clamp-2">{ev.description}</p>
-                      <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
-                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />
-                          {new Date(ev.startDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        </span>
-                        {ev.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{ev.location}</span>}
-                      </div>
-                    </div>
-                    {ev.registrationEnabled && !registeredIds.has(ev.id) && (
-                      <button
-                        onClick={() => setRegTarget(ev)}
-                        className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-                      >
-                        Register
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              )) : (
-                <div className="bg-white border border-brand-border rounded-2xl">
-                  <EmptyState icon={Calendar} title="No upcoming events" description="Check back later for new events and workshops." />
-                </div>
-              )}
-            </div>
-          )}
-
+          {tab === 'browse' && renderEventList({ list: filteredEvents, type: 'upcoming', onDetail: setDetailTarget, onRegister: setRegTarget })}
+          {tab === 'live' && renderEventList({ list: liveEvents, type: 'live', onDetail: setDetailTarget, onRegister: setRegTarget })}
+          {tab === 'past' && renderEventList({ list: pastEvents, type: 'past', onDetail: setDetailTarget, onRegister: setRegTarget })}
           {tab === 'tournaments' && (
             <div className="space-y-4">
               {filteredTournaments.length > 0 ? filteredTournaments.map((t, i) => (
@@ -205,7 +172,6 @@ export default function EventsModule({ currentUser }: Props) {
               )}
             </div>
           )}
-
           {tab === 'registrations' && (
             <div className="space-y-4">
               {registrations.length > 0 ? registrations.map(reg => (
@@ -242,7 +208,6 @@ export default function EventsModule({ currentUser }: Props) {
               )}
             </div>
           )}
-
           {tab === 'leaderboard' && <Leaderboard />}
         </>
       )}
@@ -257,8 +222,94 @@ export default function EventsModule({ currentUser }: Props) {
             load();
             setRegTarget(null);
           }}
+          onNavigateLogin={() => { /* handled by auth */ }}
         />
+      )}
+
+      {detailTarget && (
+        <EventDetailModal event={detailTarget} onClose={() => setDetailTarget(null)} />
       )}
     </div>
   );
+}
+
+function EventDetailModal({ event, onClose }: { event: Tournament | Workshop; onClose: () => void }) {
+  const isTournament = event.eventType === 'TOURNAMENT';
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl border border-brand-border max-w-lg w-full shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b border-brand-border/50 flex items-center justify-between p-4 rounded-t-2xl">
+          <h3 className="font-bold text-brand-ink">{event.title}</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-brand-surface transition-colors">
+            <XCircle className="w-5 h-5 text-brand-muted" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3 text-sm">
+          <span className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isTournament ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+            {event.eventType}
+          </span>
+          <p className="text-brand-muted leading-relaxed">{event.description}</p>
+          <div className="space-y-2 text-xs text-brand-muted">
+            <p className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> {new Date(event.startDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+            {event.location && <p className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> {event.location}</p>}
+            {isTournament && (event as Tournament).prizePool && <p className="flex items-center gap-2 text-emerald-600 font-medium">Prize: {(event as Tournament).prizePool}</p>}
+            {event.capacity > 0 && <p className="flex items-center gap-2">Capacity: {event.enrolledCount}/{event.capacity}</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderEventList({ list, type, onDetail, onRegister }: {
+  list: (Tournament | Workshop)[];
+  type: 'upcoming' | 'live' | 'past';
+  onDetail: (e: Tournament | Workshop) => void;
+  onRegister: (e: Tournament | Workshop) => void;
+}) {
+  if (list.length === 0) {
+    const titles: Record<string, string> = { upcoming: 'No upcoming events', live: 'No live events', past: 'No past events' };
+    const descs: Record<string, string> = { upcoming: 'Check back later for new events.', live: 'No events are currently live.', past: 'No completed events yet.' };
+    return <div className="bg-white border border-brand-border rounded-2xl">
+      <EmptyState icon={Calendar} title={titles[type]} description={descs[type]} />
+    </div>;
+  }
+  return <div className="space-y-4">
+    {list.map((ev, i) => (
+      <motion.div
+        key={ev.id}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: i * 0.04 }}
+        className="bg-white border border-brand-border rounded-2xl p-5 hover:border-blue-200 transition-colors"
+      >
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h4 className="font-bold text-slate-900">{ev.title}</h4>
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{ev.eventType}</span>
+            </div>
+            <p className="text-xs text-slate-500 line-clamp-2">{ev.description}</p>
+            <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
+              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />
+                {new Date(ev.startDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
+              {ev.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{ev.location}</span>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => onDetail(ev)} className="p-2 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-colors" title="View details">
+              <Eye className="w-4 h-4" />
+            </button>
+            {type !== 'past' && ev.registrationEnabled && (
+              <button onClick={() => onRegister(ev)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+                Register
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    ))}
+  </div>;
 }
