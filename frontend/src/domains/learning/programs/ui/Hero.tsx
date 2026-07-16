@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Globe, ShoppingBag, Sparkles, CheckCircle2 } from 'lucide-react';
 
-import untitledLogo from '@/assets/Untitled.png';
 import sliderImg1 from '@/assets/slider/faj.jpg';
 import sliderImg2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
 import sliderImg3 from '@/assets/slider/photo_2026-06-15_18-51-59.jpg';
@@ -108,10 +107,6 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             backgroundSize: '56px 56px',
           }}
         />
-
-        <div className="absolute inset-0 z-[1] flex items-center justify-center opacity-[0.025] pointer-events-none">
-          <img src={untitledLogo} alt="" className="w-[55%] max-w-[400px] object-contain" />
-        </div>
 
         <div className="absolute inset-0 z-[3] pointer-events-none overflow-hidden">
           {HERO_PARTICLES.map((particle, i) => (
