@@ -287,7 +287,7 @@ class EventRegistrationModelTest(TestCase):
 
     def test_registration_defaults(self):
         self.assertEqual(self.registration.registration_status, RegistrationStatus.PENDING)
-        self.assertEqual(self.registration.payment_status, "PENDING")
+        self.assertEqual(self.registration.payment_status, "PENDING_VERIFICATION")
 
     def test_registration_uuid_pk(self):
         self.assertIsInstance(self.registration.id, UUID)
@@ -324,11 +324,11 @@ class EventPaymentModelTest(TestCase):
         )
 
     def test_create_payment(self):
-        expected = f"Payment for {self.registration} — Pending"
+        expected = f"Payment for {self.registration} — Pending Verification"
         self.assertEqual(str(self.payment), expected)
-
+    
     def test_payment_defaults(self):
-        self.assertEqual(self.payment.status, "PENDING")
+        self.assertEqual(self.payment.status, "PENDING_VERIFICATION")
 
     def test_payment_uuid_pk(self):
         self.assertIsInstance(self.payment.id, UUID)
