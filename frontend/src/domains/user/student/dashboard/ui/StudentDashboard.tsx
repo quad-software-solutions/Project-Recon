@@ -164,6 +164,8 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return <MessagingModule currentUser={currentUser} />;
       case 'certificates':
         return <CertificateGenerator studentId={studentId!} />;
+      case 'account':
+        return <AdminAccount currentUser={currentUser} onUserUpdate={onUserUpdate} />;
     }
   };
 
