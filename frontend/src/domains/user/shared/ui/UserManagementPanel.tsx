@@ -9,7 +9,7 @@ import {
   createStaffApi, createBranchManagerApi, updateUserApi, branchesApi,
   type AdminUserResponse, type BranchResponse, type PaginatedResponse,
 } from '../api/adminApi';
-import { ErrorModal } from '@/src/shared/ui/ErrorModal';
+import { ErrorModal } from '@/shared/ui/ErrorModal';
 
 const ROLE_BADGE: Record<string, string> = {
   Admin: 'bg-purple-50 text-purple-600',

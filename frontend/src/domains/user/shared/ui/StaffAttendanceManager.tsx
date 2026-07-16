@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Calendar, Clock, CheckCircle2, Users, UserCheck, UserX, Send, Eye, Edit3, Trash2, Building } from 'lucide-react';
-import { fetchAvailableStaffApi, fetchStaffAttendanceSessionsApi, createStaffAttendanceSessionApi, updateStaffAttendanceSessionApi, publishStaffAttendanceSessionApi, upsertStaffAttendanceRecordsApi } from '@/src/domains/learning/academics/api/academicApi';
-import { branchesApi } from '@/src/domains/user/shared/api/adminApi';
+import { fetchAvailableStaffApi, fetchStaffAttendanceSessionsApi, createStaffAttendanceSessionApi, updateStaffAttendanceSessionApi, publishStaffAttendanceSessionApi, upsertStaffAttendanceRecordsApi } from '@/domains/learning/academics/api/academicApi';
+import { branchesApi } from '@/domains/user/shared/api/adminApi';
 
 const defaultForm = { branch: '', date: '', notes: '' };
 

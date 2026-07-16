@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Mail, ArrowRight, ShieldCheck, Sparkles, Info, CheckCircle, Lock
 } from 'lucide-react';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 import slide1 from '@/assets/slider/faj.jpg';
 import slide2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage({ onNavigateHome, onNavigateLogin }: 
         return;
       }
       try {
-        const { forgotPasswordApi } = await import('@/src/domains/auth/login/api/loginApi');
+        const { forgotPasswordApi } = await import('@/domains/auth/login/api/loginApi');
         await forgotPasswordApi(email);
         setPhase(2);
       } catch {
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage({ onNavigateHome, onNavigateLogin }: 
         return;
       }
       try {
-        const { resetPasswordApi } = await import('@/src/domains/auth/login/api/loginApi');
+        const { resetPasswordApi } = await import('@/domains/auth/login/api/loginApi');
         await resetPasswordApi(otp, newPassword);
         setPhase(3);
       } catch (err) {

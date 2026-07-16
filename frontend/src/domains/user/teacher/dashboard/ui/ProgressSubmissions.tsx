@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Edit3, CheckCircle2, Search, FileText, Clock, Eye, ChevronDown, Star, Loader2, RotateCcw, Filter, BarChart3, Users, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchStudentProgressApi, updateStudentProgressApi } from '@/src/domains/learning/academics/api/academicApi';
+import { fetchStudentProgressApi, updateStudentProgressApi } from '@/domains/learning/academics/api/academicApi';
 
-import { StudentProfile, Enrollment, StudentProgress } from '@/src/shared/types';
+import { StudentProfile, Enrollment, StudentProgress } from '@/shared/types';
 
 interface Props {
   students: StudentProfile[];

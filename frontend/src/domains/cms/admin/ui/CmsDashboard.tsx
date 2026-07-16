@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Image, FileText, Handshake, Building,
   MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle,
 } from 'lucide-react';
-import CMSBranding from '@/src/domains/user/manager/dashboard/ui/CMSBranding';
+import CMSBranding from '@/domains/user/manager/dashboard/ui/CMSBranding';
 import HeroBannerManager from './HeroBannerManager';
 import NewsManager from './NewsManager';
 import CmsPartnerManager from './CmsPartnerManager';

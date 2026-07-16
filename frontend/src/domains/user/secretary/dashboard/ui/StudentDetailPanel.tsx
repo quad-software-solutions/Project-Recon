@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, Loader2, AlertCircle, User, Mail, Phone, BookOpen, Calendar, Award, Target, Clock, CheckCircle2, Shield, MapPin, TrendingUp } from 'lucide-react';
-import { StudentProfile, Enrollment, AttendanceRecord, StudentProgress, StudentCertificate } from '@/src/shared/types';
-import { fetchStudentsApi, fetchEnrollmentsApi, fetchEnrollmentAttendanceSummaryApi, fetchStudentProgressSummaryApi, fetchStudentCertificatesApi } from '@/src/domains/learning/academics/api/academicApi';
+import { StudentProfile, Enrollment, AttendanceRecord, StudentProgress, StudentCertificate } from '@/shared/types';
+import { fetchStudentsApi, fetchEnrollmentsApi, fetchEnrollmentAttendanceSummaryApi, fetchStudentProgressSummaryApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 
 export default function StudentDetailPanel() {
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -190,7 +190,7 @@ export default function StudentDetailPanel() {
                           {studentData.enrollments.map(e => (
                             <div key={e.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-xs">
                               <span className="font-medium text-slate-700">{e.class_name || e.sub_program_name || 'Class'}</span>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
                                 {e.status?.replace('_', ' ')}
                               </span>
                             </div>

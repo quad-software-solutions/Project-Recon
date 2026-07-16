@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Calendar, Clock, CheckCircle2, RotateCcw, Filter } from 'lucide-react';
-import { EnrollmentPeriod, UserProfile } from '@/src/shared/types';
-import { fetchEnrollmentPeriodsApi, createEnrollmentPeriodApi, updateEnrollmentPeriodApi, setEnrollmentPeriodActiveApi, fetchProgramsApi, fetchSubProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
-import { branchesApi } from '@/src/domains/user/shared/api/adminApi';
+import { EnrollmentPeriod, UserProfile } from '@/shared/types';
+import { fetchEnrollmentPeriodsApi, createEnrollmentPeriodApi, updateEnrollmentPeriodApi, setEnrollmentPeriodActiveApi, fetchProgramsApi, fetchSubProgramsApi } from '@/domains/learning/academics/api/academicApi';
+import { branchesApi } from '@/domains/user/shared/api/adminApi';
 
 const defaultForm = {
   branch: '', program: '', sub_program: '', class_type: 'GROUP', class_period: '', title: '', start_date: '', end_date: '',

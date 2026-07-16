@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Users, Trophy, Swords, Medal, Building, Phone, Mail, User, Calendar, Gamepad2, Loader2, AlertCircle, Clock, Target, AlertTriangle } from 'lucide-react';
 import { getPublicTeamById, getTeamMatches, type PublicTeamEntry } from '../../api/competitionApi';
-import type { MatchResult } from '@/src/shared/types';
+import type { MatchResult } from '@/shared/types';
 
 interface TeamDetailsPageProps {
   teamId: string;

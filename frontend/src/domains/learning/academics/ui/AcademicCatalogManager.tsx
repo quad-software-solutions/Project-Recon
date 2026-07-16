@@ -25,7 +25,7 @@ import {
   X,
   Check,
 } from 'lucide-react';
-import type { Program, SubProgram } from '@/src/shared/types';
+import type { Program, SubProgram } from '@/shared/types';
 import {
   createProgramApi,
   createSubProgramApi,
@@ -37,7 +37,7 @@ import {
   updateSubProgramApi,
   type AcademicProgramPayload,
   type AcademicSubProgramPayload,
-} from '@/src/domains/learning/academics/api/academicApi';
+} from '@/domains/learning/academics/api/academicApi';
 
 type ProgramForm = AcademicProgramPayload & { id?: string };
 type SubProgramForm = AcademicSubProgramPayload & { id?: string };

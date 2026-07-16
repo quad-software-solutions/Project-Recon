@@ -5,9 +5,9 @@ import {
   Edit3, Save, X, Loader2, Shield, Star, TrendingUp, Zap, Medal,
   Target, Clock, GraduationCap, Eye, EyeOff, ChevronRight
 } from 'lucide-react';
-import type { UserProfile, Enrollment } from '@/src/shared/types';
-import { updateUserApi } from '@/src/domains/user/shared/api/adminApi';
-import { fetchEnrollmentsApi } from '@/src/domains/learning/academics/api/academicApi';
+import type { UserProfile, Enrollment } from '@/shared/types';
+import { updateUserApi } from '@/domains/user/shared/api/adminApi';
+import { fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  PENDING_PAYMENT: 'bg-amber-100 text-amber-700 border-amber-200',
+  PENDING_VERIFICATION: 'bg-amber-100 text-amber-700 border-amber-200',
   COMPLETED: 'bg-blue-100 text-blue-700 border-blue-200',
   CANCELLED: 'bg-red-100 text-red-700 border-red-200',
 };
@@ -83,7 +83,7 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
 
   const activeCount = enrollments.filter(e => e.status === 'ACTIVE').length;
   const completedCount = enrollments.filter(e => e.status === 'COMPLETED').length;
-  const pendingCount = enrollments.filter(e => e.status === 'PENDING_PAYMENT').length;
+  const pendingCount = enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -185,27 +185,7 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
       </div>
 
       {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <Zap className="w-6 h-6 text-emerald-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">XP Points</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{currentUser.xpPoints.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-            <Award className="w-6 h-6 text-purple-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">Badges</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{currentUser.badges.length} <span className="text-sm font-normal text-slate-400">earned</span></p>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
             <TrendingUp className="w-6 h-6 text-blue-500" />
@@ -225,12 +205,20 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
             <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{completedCount} <span className="text-sm font-normal text-slate-400">courses</span></p>
           </div>
         </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <BookOpen className="w-6 h-6 text-emerald-500" />
+          </div>
+          <div>
+            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">Total</p>
+            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{enrollments.length} <span className="text-sm font-normal text-slate-400">enrollments</span></p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Portfolio: Enrollments & Achievements ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Enrollment Portfolio */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
+      {/* ── Learning Portfolio ── */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-blue-600" />
@@ -257,26 +245,26 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
                   className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${
                     enr.status === 'ACTIVE' ? 'bg-emerald-50/50 border-emerald-200' :
                     enr.status === 'COMPLETED' ? 'bg-blue-50/50 border-blue-200' :
-                    enr.status === 'PENDING_PAYMENT' ? 'bg-amber-50/50 border-amber-200' :
+                    enr.status === 'PENDING_VERIFICATION' ? 'bg-amber-50/50 border-amber-200' :
                     'bg-slate-50 border-slate-200'
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     enr.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' :
                     enr.status === 'COMPLETED' ? 'bg-blue-100 text-blue-600' :
-                    enr.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-600' :
+                    enr.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-600' :
                     'bg-slate-100 text-slate-500'
                   }`}>
                     {enr.status === 'ACTIVE' ? <TrendingUp className="w-5 h-5" /> :
                      enr.status === 'COMPLETED' ? <CheckCircle2 className="w-5 h-5" /> :
-                     enr.status === 'PENDING_PAYMENT' ? <Clock className="w-5 h-5" /> :
+                     enr.status === 'PENDING_VERIFICATION' ? <Clock className="w-5 h-5" /> :
                      <X className="w-5 h-5" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-bold text-sm text-slate-900">{enr.program_name || enr.sub_program_name || 'Program'}</h4>
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${STATUS_STYLES[enr.status] || 'bg-slate-100 text-slate-600'}`}>
-                        {enr.status === 'PENDING_PAYMENT' ? 'Pending' : enr.status.charAt(0) + enr.status.slice(1).toLowerCase()}
+                        {enr.status === 'PENDING_VERIFICATION' ? 'Pending' : enr.status.charAt(0) + enr.status.slice(1).toLowerCase()}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -289,51 +277,6 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
               ))}
             </div>
           )}
-        </div>
-
-        {/* Achievements / Badges */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-500" />
-              <h3 className="font-black text-lg text-slate-900">Achievements</h3>
-            </div>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">{currentUser.badges.length} badges</span>
-          </div>
-
-          {currentUser.badges.length === 0 ? (
-            <div className="py-8 text-center text-slate-400">
-              <Award className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">Complete challenges to earn badges!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {currentUser.badges.map((badge, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-200 hover:-translate-y-1 hover:border-amber-200 transition-all"
-                >
-                  <span className="text-2xl mb-2">
-                    {['🏆', '🛡️', '⭐', '🎯', '💎', '🔥', '🌟', '📜', '🔬', '⚡', '🧠', '🎖️'][i % 12]}
-                  </span>
-                  <span className="font-bold text-xs text-slate-700 text-center leading-tight">{badge}</span>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-5 pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 font-medium">Account Status</span>
-              <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                <Shield className="w-3.5 h-3.5" /> Active
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

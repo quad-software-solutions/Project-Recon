@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Book, Video, FileText, Code, Download, ExternalLink, Loader2, ShieldOff } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchLearningMaterialsApi } from '@/src/domains/learning/academics/api/academicApi';
-import type { LearningMaterial } from '@/src/shared/types';
+import { fetchEnrollmentsApi, fetchLearningMaterialsApi } from '@/domains/learning/academics/api/academicApi';
+import type { LearningMaterial } from '@/shared/types';
 
 const TYPE_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   PDF: { icon: Book, color: 'text-blue-600', bg: 'bg-blue-50' },

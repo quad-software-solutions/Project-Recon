@@ -1,5 +1,5 @@
-import type { StudentProfile, Program, SubProgram, AcademicClass, Enrollment, EnrollmentPeriod, EnrollmentPayment, AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress, LearningMaterial, Certificate, StudentCertificate } from '@/src/shared/types';
-import { http } from '@/src/shared/api/http';
+import type { StudentProfile, Program, SubProgram, AcademicClass, Enrollment, EnrollmentPeriod, EnrollmentPayment, AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress, LearningMaterial, Certificate, StudentCertificate } from '@/shared/types';
+import { http } from '@/shared/api/http';
 
 const BASE = '/academic';
 
@@ -45,8 +45,6 @@ export type AcademicSubProgramPayload = {
 
 export type OnlineEnrollmentPayload = {
   enrolled_class: string;
-  callback_url: string;
-  return_url?: string;
   email?: string;
   first_name?: string;
   last_name?: string;
@@ -55,17 +53,30 @@ export type OnlineEnrollmentPayload = {
   guardian_name?: string;
   guardian_phone?: string;
   guardian_email?: string;
+  payment_method: string;
+  transaction_reference?: string;
+  bank_name?: string;
+  transfer_reference?: string;
 };
 
 export type OnlineEnrollmentResponse = {
   enrollment: Enrollment;
-  checkout_url: string;
+  student?: string;
 };
 
-export type CashPaymentPayload = {
+export type RecordPaymentPayload = {
   enrollment: string;
   amount: string;
+  payment_method: string;
   payment_date?: string;
+  transaction_reference?: string;
+  bank_name?: string;
+  transfer_reference?: string;
+  verification_notes?: string;
+};
+
+export type RejectPaymentPayload = {
+  rejection_reason: string;
 };
 
 export type AdmitStudentPayload = {
@@ -249,10 +260,6 @@ export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise
   return http.post<OnlineEnrollmentResponse>(`${BASE}/enrollments/online/`, payload);
 }
 
-export async function verifyOnlinePaymentApi(payload: { reference: string }): Promise<EnrollmentPayment> {
-  return http.post<EnrollmentPayment>(`${BASE}/enrollments/online/verify/`, payload);
-}
-
 export async function cancelEnrollmentApi(id: string): Promise<Enrollment> {
   return http.post<Enrollment>(`${BASE}/enrollments/${id}/cancel/`, {});
 }
@@ -287,12 +294,27 @@ export async function setStudentActiveApi(id: string, active: boolean): Promise<
 }
 
 // ─── Payments ───
-export async function createCashPaymentApi(payload: CashPaymentPayload): Promise<EnrollmentPayment> {
-  return http.post<EnrollmentPayment>(`${BASE}/payments/cash/`, payload);
+export async function recordPaymentApi(payload: RecordPaymentPayload): Promise<EnrollmentPayment> {
+  return http.post<EnrollmentPayment>(`${BASE}/payments/`, payload);
 }
 
-export async function fetchPaymentsApi(): Promise<EnrollmentPayment[]> {
-  return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/`));
+export async function fetchPaymentsListApi(): Promise<EnrollmentPayment[]> {
+  return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/list/`));
+}
+
+/** @deprecated Use fetchPaymentsListApi */
+export const fetchPaymentsApi = fetchPaymentsListApi;
+
+export async function fetchVerificationQueueApi(): Promise<EnrollmentPayment[]> {
+  return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/verification-queue/`));
+}
+
+export async function setUnderReviewApi(pk: string): Promise<{ status: string }> {
+  return http.post<{ status: string }>(`${BASE}/payments/${pk}/under-review/`, {});
+}
+
+export async function rejectPaymentApi(pk: string, payload: RejectPaymentPayload): Promise<{ status: string }> {
+  return http.post<{ status: string }>(`${BASE}/payments/${pk}/reject/`, payload);
 }
 
 // ─── Attendance ───
@@ -548,4 +570,97 @@ export function downloadSubProgramReportPdf(subProgramId: string) {
 
 export function downloadProgramReportPdf(programId: string) {
   return downloadPdf(`${BASE}/reports/programs/${programId}/`, `program-report-${programId}.pdf`);
+}
+
+export type BankAccount = {
+  id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  branch?: string;
+  swift_code?: string;
+  iban?: string;
+  is_active: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchBankAccountsApi(): Promise<BankAccount[]> {
+  return http.get<BankAccount[]>('/bank-accounts/');
+}
+
+export async function createBankAccountApi(data: Partial<BankAccount>): Promise<BankAccount> {
+  return http.post<BankAccount>('/bank-accounts/', data);
+}
+
+export async function updateBankAccountApi(id: string, data: Partial<BankAccount>): Promise<BankAccount> {
+  return http.put<BankAccount>(`/bank-accounts/${id}/`, data);
+}
+
+export async function deleteBankAccountApi(id: string): Promise<void> {
+  return http.delete(`/bank-accounts/${id}/`);
+}
+
+// ---- Branch Transfer ----
+
+export type BranchTransferRequest = {
+  id: string;
+  enrollment: string;
+  from_branch: string;
+  to_branch: string;
+  target_class: string;
+  requested_by: string;
+  approved_by?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejection_reason?: string;
+  created_at: string;
+  approved_at?: string;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+  code?: string;
+};
+
+export async function fetchBranchesApi(): Promise<Branch[]> {
+  return http.get<Branch[]>('/accounts/branches/');
+}
+
+export async function requestTransferApi(data: { enrollment: string; target_class: string; to_branch: string }): Promise<BranchTransferRequest> {
+  return http.post<BranchTransferRequest>(`${BASE}/transfers/request/`, data);
+}
+
+export async function listTransferRequestsApi(): Promise<BranchTransferRequest[]> {
+  return http.get<BranchTransferRequest[]>(`${BASE}/transfers/`);
+}
+
+export async function approveTransferApi(id: string): Promise<BranchTransferRequest> {
+  return http.post<BranchTransferRequest>(`${BASE}/transfers/${id}/approve/`, {});
+}
+
+export async function rejectTransferApi(id: string, rejection_reason: string): Promise<BranchTransferRequest> {
+  return http.post<BranchTransferRequest>(`${BASE}/transfers/${id}/reject/`, { rejection_reason });
+}
+
+export async function moveEnrollmentApi(
+  enrollmentId: string,
+  payload: { target_class: string },
+): Promise<Enrollment> {
+  return http.post<Enrollment>(`${BASE}/enrollments/${enrollmentId}/move/`, payload);
+}
+
+export async function splitClassApi(
+  classId: string,
+  payload: { target_class: string; enrollment_ids?: string[] },
+): Promise<{ detail?: string }> {
+  return http.post(`${BASE}/classes/${classId}/split/`, payload);
+}
+
+export async function switchSubProgramApi(
+  enrollmentId: string,
+  payload: { target_class: string },
+): Promise<{ old_enrollment: Enrollment; new_enrollment: Enrollment; amount_due?: string | number }> {
+  return http.post(`${BASE}/enrollments/${enrollmentId}/switch-subprogram/`, payload);
 }

@@ -9,6 +9,7 @@ export function statusBadge(status: string | undefined | null): string {
     case 'COMPLETED':
     case 'APPROVED':
     case 'PAID':
+    case 'VERIFIED':
     case 'SUCCESS':
     case 'PUBLISHED':
     case 'RESOLVED':
@@ -18,6 +19,8 @@ export function statusBadge(status: string | undefined | null): string {
     // Warning / Pending
     case 'PENDING':
     case 'PENDING_PAYMENT':
+    case 'PENDING_VERIFICATION':
+    case 'SUBMITTED':
     case 'VERIFYING':
     case 'INACTIVE':
       return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -25,6 +28,7 @@ export function statusBadge(status: string | undefined | null): string {
     // Info / In Progress
     case 'IN_PROGRESS':
     case 'SCHEDULED':
+    case 'UNDER_REVIEW':
       return 'bg-blue-100 text-blue-700 border-blue-200';
 
     // Danger / Live / Cancelled

@@ -4,19 +4,19 @@ import {
   ArrowLeft, Calendar, ExternalLink, Image as ImageIcon, Loader2, MapPin, RotateCcw,
   ShieldAlert, Sparkles, Ticket, Trophy, Users, Video,
 } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import * as eventsApi from '@/src/domains/competition/api/eventsApi';
+import type { UserProfile } from '@/shared/types';
+import * as eventsApi from '@/domains/competition/api/eventsApi';
 import {
   getMyRegistrations,
   getTournamentById,
   getWorkshopById,
   resolveTournamentIdForEvent,
-} from '@/src/domains/competition/api/competitionApi';
-import { listPublicMatchesForTournament } from '@/src/domains/competition/api/matchApi';
-import { fetchTournamentStandings } from '@/src/domains/competition/api/matchApi';
-import type { Tournament, Workshop } from '@/src/shared/types';
-import EventRegisterButton from '@/src/domains/competition/shared/EventRegisterButton';
-import EventRegistrationModal from '@/src/domains/competition/shared/EventRegistrationModal';
+} from '@/domains/competition/api/competitionApi';
+import { listPublicMatchesForTournament } from '@/domains/competition/api/matchApi';
+import { fetchTournamentStandings } from '@/domains/competition/api/matchApi';
+import type { Tournament, Workshop } from '@/shared/types';
+import EventRegisterButton from '@/domains/competition/shared/EventRegisterButton';
+import EventRegistrationModal from '@/domains/competition/shared/EventRegistrationModal';
 
 type DetailState = 'loading' | 'ready' | 'error';
 

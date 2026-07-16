@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, GraduationCap, Edit3, Trash2, Clock, DollarSign, User } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendWorkshop, BackendEvent, WorkshopLevel } from '../api/eventsApi';
-import { http } from '@/src/shared/api/http';
+import { http } from '@/shared/api/http';
 
 interface UserOption { id: string; full_name: string; email: string; }
 

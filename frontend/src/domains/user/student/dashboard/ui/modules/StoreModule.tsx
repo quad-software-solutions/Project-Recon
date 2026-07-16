@@ -10,9 +10,10 @@ import { listActiveCategories } from '@/domains/store/categories/api/categoriesA
 import { getCart, addCartItem, updateCartItemQuantity, removeCartItem, clearCart } from '@/domains/store/cart/api/cartApi';
 import { getUserOrders } from '@/domains/store/orders/api/orderApi';
 import checkout from '@/domains/store/checkout/api/checkoutApi';
+import { getOrderStatusLabel, getOrderStatusTone } from '@/domains/store/utils/orderStatus';
 import type {
   Product, ProductCategory, ShoppingCart, ShoppingCartItem,
-  Order, PendingOrder,
+  Order, PendingOrder, StorePaymentMethod,
 } from '@/shared/types';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
@@ -141,11 +142,19 @@ function ShopPanel({ branchId }: { branchId: string }) {
   );
 }
 
+const PAYMENT_OPTIONS: { value: StorePaymentMethod; label: string }[] = [
+  { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+  { value: 'MOBILE_MONEY', label: 'Mobile money' },
+  { value: 'CASH', label: 'Cash (pay at branch)' },
+  { value: 'CHEQUE', label: 'Cheque' },
+];
+
 function CartPanel({ branchId, branchName, currentUser }: { branchId: string; branchName: string; currentUser: Props['currentUser'] }) {
   const [cart, setCart] = useState<ShoppingCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<StorePaymentMethod>('BANK_TRANSFER');
   const [error, setError] = useState('');
 
   const loadCart = useCallback(async () => {
@@ -189,7 +198,10 @@ function CartPanel({ branchId, branchName, currentUser }: { branchId: string; br
     try {
       const order = await checkout({
         branch: branchId,
-        ...(currentUser.name ? {} : { guest_name: currentUser.name, guest_email: currentUser.email }),
+        payment: {
+          amount: String(cart.total),
+          payment_method: paymentMethod,
+        },
       });
       setPendingOrder(order);
     } catch (e: any) {
@@ -275,10 +287,22 @@ function CartPanel({ branchId, branchName, currentUser }: { branchId: string; br
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-brand-border p-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-2xl border border-brand-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
           <span className="font-bold text-slate-900">Total ({cart.item_count} items)</span>
           <span className="font-black text-lg text-blue-600">{Number(cart.total).toLocaleString()} ETB</span>
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Payment method</label>
+          <select
+            value={paymentMethod}
+            onChange={e => setPaymentMethod(e.target.value as StorePaymentMethod)}
+            className="w-full text-sm border border-slate-200 rounded-xl p-2.5 bg-white"
+          >
+            {PAYMENT_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
         <div className="flex gap-2">
           <button onClick={handleClear} className="flex-1 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50">
@@ -306,15 +330,8 @@ function OrdersPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  const STATUS_COLORS: Record<string, string> = {
-    PENDING_PAYMENT: 'bg-amber-100 text-amber-700',
-    PAID: 'bg-blue-100 text-blue-700',
-    PREPARING: 'bg-purple-100 text-purple-700',
-    READY_FOR_PICKUP: 'bg-cyan-100 text-cyan-700',
-    COMPLETED: 'bg-emerald-100 text-emerald-700',
-    CANCELLED: 'bg-red-100 text-red-700',
-    REFUNDED: 'bg-slate-100 text-slate-700',
-  };
+  const statusLabel = getOrderStatusLabel;
+  const statusTone = getOrderStatusTone;
 
   if (loading) return <div className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" /></div>;
 
@@ -336,8 +353,8 @@ function OrdersPanel() {
               <p className="text-xs text-slate-500 font-mono">{order.order_number}</p>
               <p className="text-[11px] text-slate-400">{new Date(order.created_at).toLocaleDateString()}</p>
             </div>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${STATUS_COLORS[order.status] || 'bg-slate-100 text-slate-600'}`}>
-              {order.status.replace(/_/g, ' ')}
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusTone(order.status)}`}>
+              {statusLabel(order.status)}
             </span>
           </div>
           <div className="space-y-1">

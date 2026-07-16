@@ -1,6 +1,6 @@
 import { http } from '@/shared/api/http';
 import type {
-  ProductCategory, Product, BranchInventory, Order,
+  ProductCategory, Product, BranchInventory, Order, ProductImage,
 } from '@/domains/store/model/types';
 
 const PREFIX = '/store/admin';
@@ -14,6 +14,7 @@ export interface CategoryPayload {
 export interface ProductPayload {
   category: string;
   name: string;
+  slug?: string;
   short_description: string;
   description: string;
   sku: string;
@@ -92,13 +93,31 @@ export interface OrderReportRow {
   total_value?: number;
 }
 
+export interface InventoryReportRow {
+  branch_id: string;
+  branch_name: string;
+  product_id: string;
+  product_name: string;
+  sku: string;
+  category: string;
+  quantity: number;
+  minimum_quantity: number;
+}
+
+export interface BranchSalesReportRow {
+  period: string | null;
+  branch_id: string;
+  branch_name: string;
+  order_count: number;
+  total_revenue: number;
+}
+
 export const storeAdminApi = {
   categories: {
     list: () => http.get<ProductCategory[]>(`${PREFIX}/categories/`),
     get: (id: string) => http.get<ProductCategory>(`${PREFIX}/categories/${id}/`),
     create: (data: CategoryPayload) => http.post<ProductCategory>(`${PREFIX}/categories/`, data),
     update: (id: string, data: Partial<CategoryPayload>) => http.patch<ProductCategory>(`${PREFIX}/categories/${id}/`, data),
-    delete: (id: string) => http.delete<void>(`${PREFIX}/categories/${id}/`),
     activate: (id: string) => http.post<void>(`${PREFIX}/categories/${id}/activate/`, {}),
     deactivate: (id: string) => http.post<void>(`${PREFIX}/categories/${id}/deactivate/`, {}),
   },
@@ -114,13 +133,16 @@ export const storeAdminApi = {
       return http.post<Product>(`${PREFIX}/products/`, payload);
     },
     update: (id: string, data: Partial<ProductPayload>) => http.put<Product>(`${PREFIX}/products/${id}/`, data),
-    delete: (id: string) => http.delete<void>(`${PREFIX}/products/${id}/`),
     archive: (id: string) => http.post<void>(`${PREFIX}/products/${id}/archive/`, {}),
     restore: (id: string) => http.post<void>(`${PREFIX}/products/${id}/restore/`, {}),
     activate: (id: string) => http.post<void>(`${PREFIX}/products/${id}/activate/`, {}),
     deactivate: (id: string) => http.post<void>(`${PREFIX}/products/${id}/deactivate/`, {}),
+    listImages: (productId: string) =>
+      http.get<ProductImage[]>(`${PREFIX}/products/${productId}/images/list/`),
     uploadImage: (productId: string, formData: FormData) =>
       http.post<Product>(`${PREFIX}/products/${productId}/images/`, formData),
+    reorderImages: (productId: string, orderedIds: string[]) =>
+      http.post<void>(`${PREFIX}/products/${productId}/images/reorder/`, { ordered_ids: orderedIds }),
     deleteImage: (imageId: string) =>
       http.delete<void>(`/store/admin/product-images/${imageId}/`),
     setPrimaryImage: (imageId: string) =>
@@ -145,10 +167,14 @@ export const storeAdminApi = {
 
   reports: {
     products: () => http.get<ProductStatsReport>(`${PREFIX}/reports/products/`),
+    inventory: (params?: Record<string, string>) =>
+      http.get<InventoryReportRow[]>(`${PREFIX}/reports/inventory/`, { params }),
     sales: (params?: Record<string, string>) =>
       http.get<SalesReportRow[]>(`${PREFIX}/reports/sales/`, { params }),
     lowStock: () => http.get<LowStockReportRow[]>(`${PREFIX}/reports/low-stock/`),
     orders: (params?: Record<string, string>) =>
       http.get<OrderReportRow[]>(`${PREFIX}/reports/orders/`, { params }),
+    branchSales: (params?: Record<string, string>) =>
+      http.get<BranchSalesReportRow[]>(`${PREFIX}/reports/branch-sales/`, { params }),
   },
 };

@@ -12,7 +12,6 @@ import AnimatedParticles from '../shared/ui/AnimatedParticles';
 import CartDrawer from '../domains/store/cart/ui/CartDrawer';
 import ProgramDetailModal from '../domains/learning/programs/ui/ProgramDetailModal';
 import Footer from '../shared/ui/Footer';
-import PaymentReturnBanner from '../shared/ui/PaymentReturnBanner';
 
 import HomePage from '../pages/HomePage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
@@ -64,14 +63,6 @@ export default function App() {
       handleTabChange('login');
       return;
     }
-    const updatedUser: UserProfile = {
-      ...currentUser,
-      xpPoints: currentUser.xpPoints + 50,
-      badges: currentUser.badges.includes('Class Pioneer')
-        ? currentUser.badges
-        : [...currentUser.badges, 'Class Pioneer']
-    };
-    setCurrentUser(updatedUser);
     handleTabChange('dashboard');
   };
 
@@ -151,7 +142,7 @@ export default function App() {
           )}
 
           {activeTab === 'store' && (
-            <StorePage />
+            <StorePage openCart={openCart} />
           )}
 
           {activeTab === 'store-orders' && (
@@ -224,7 +215,6 @@ export default function App() {
 
       {!currentUser && <Footer onNavigate={handleTabChange} />}
 
-      <PaymentReturnBanner />
     </div>
   );
 }

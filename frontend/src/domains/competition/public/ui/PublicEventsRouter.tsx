@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import type { UserProfile } from '@/src/shared/types';
+import type { UserProfile } from '@/shared/types';
 
 type PublicEventsView =
   | { id: 'home' }

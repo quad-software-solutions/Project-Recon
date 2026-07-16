@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  User, Calendar, BookOpen, Bell, Award, ClipboardList, ChevronRight,
+  User, Calendar, BookOpen, MessageCircle, Award, ClipboardList, ChevronRight,
   Zap, CheckCircle2, Clock, AlertCircle, GraduationCap, Target, FileText,
   CalendarDays, TrendingUp, Loader2,
 } from 'lucide-react';
-import type { UserProfile, Enrollment, StudentCertificate } from '@/src/shared/types';
-import { fetchEnrollmentsApi, fetchStudentCertificatesApi, fetchAttendanceSessionsApi } from '@/src/domains/learning/academics/api/academicApi';
-import { getUpcomingEvents } from '@/src/domains/competition/api/eventsApi';
-import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
-import { getNotifications, getUnreadCount } from '@/src/domains/notification/model/notificationApi';
+import type { UserProfile, Enrollment, StudentCertificate } from '@/shared/types';
+import { fetchStudentCertificatesApi, fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
+import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 import EmptyState from '../../shared/ui/EmptyState';
 import { GridSkeleton } from '../../shared/ui/LoadingSkeleton';
 
 export type HomeNavigateTarget =
-  | 'account' | 'academics' | 'events' | 'notifications' | 'announcements'
+  | 'account' | 'academics' | 'events' | 'announcements'
   | 'certificates' | 'career' | 'messaging' | 'settings';
 
 interface Props {
@@ -37,12 +36,11 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
   const [events, setEvents] = useState<{ title: string; date: string }[]>([]);
   const [announcements, setAnnouncements] = useState<{ title: string; date: string }[]>([]);
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [upcomingSessions, setUpcomingSessions] = useState<{ topic: string; date: string; className: string }[]>([]);
 
   const firstName = currentUser.name.split(' ')[0];
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
-  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
   const completedEnrollments = enrollments.filter(e => e.status === 'COMPLETED');
 
   useEffect(() => {
@@ -50,12 +48,10 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
     async function load() {
       setLoading(true);
       try {
-        const [newsRes, eventsRes, certs, unread, notifs] = await Promise.all([
+        const [newsRes, eventsRes, certs] = await Promise.all([
           cmsPublicApi.getNews({ limit: '3' }).catch(() => ({ results: [] })),
           getUpcomingEvents().catch(() => []),
           fetchStudentCertificatesApi(studentId).catch(() => []),
-          getUnreadCount().catch(() => 0),
-          getNotifications().catch(() => []),
         ]);
         if (cancelled) return;
 
@@ -68,7 +64,6 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
           date: new Date(e.start_datetime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
         })));
         setCertificates(certs);
-        setUnreadCount(unread || notifs.filter(n => !n.read).length);
 
         const sessions: { topic: string; date: string; className: string }[] = [];
         const now = new Date();
@@ -101,7 +96,7 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
     { label: 'My Courses', icon: BookOpen, section: 'academics' as const },
     { label: 'Events', icon: Calendar, section: 'events' as const },
     { label: 'Certificates', icon: Award, section: 'certificates' as const },
-    { label: 'Messages', icon: Bell, section: 'messaging' as const },
+    { label: 'Support', icon: MessageCircle, section: 'messaging' as const },
   ];
 
   const pendingTasks = [
@@ -110,7 +105,6 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
       label: `Complete payment for ${e.program_name || e.class_name || 'enrollment'}`,
       type: 'payment' as const,
     })),
-    ...(unreadCount > 0 ? [{ id: 'notif', label: `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`, type: 'notification' as const }] : []),
   ];
 
   return (
@@ -141,8 +135,8 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
           {[
             { label: 'Active Courses', value: activeEnrollments.length, icon: BookOpen },
             { label: 'Completed', value: completedEnrollments.length, icon: CheckCircle2 },
-            { label: 'XP Points', value: currentUser.xpPoints.toLocaleString(), icon: Zap },
-            { label: 'Badges', value: currentUser.badges.length, icon: Award },
+            { label: 'Certificates', value: certificates.length, icon: Award },
+            { label: 'Pending', value: pendingEnrollments.length, icon: Clock },
           ].map(stat => (
             <div key={stat.label} className="bg-white px-4 py-3 text-center">
               <p className="font-black text-xl text-slate-900">{stat.value}</p>
@@ -270,28 +264,6 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
 
           {/* Right column - 1/3 */}
           <div className="space-y-6">
-            {/* Notification Summary */}
-            <section className="bg-white border border-brand-border rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-black text-base text-slate-900">Notifications</h3>
-                </div>
-                {unreadCount > 0 && (
-                  <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">{unreadCount}</span>
-                )}
-              </div>
-              <button
-                onClick={() => onNavigate('notifications')}
-                className="w-full text-left p-3 rounded-xl bg-slate-50 border border-brand-border hover:border-blue-200 transition-colors"
-              >
-                <p className="text-sm font-semibold text-slate-900">
-                  {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">View notification center</p>
-              </button>
-            </section>
-
             {/* Pending Tasks */}
             <section className="bg-white border border-brand-border rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -303,7 +275,7 @@ export default function DashboardHome({ currentUser, studentId, enrollments, onN
                   {pendingTasks.map(task => (
                     <button
                       key={task.id}
-                      onClick={() => onNavigate(task.type === 'notification' ? 'notifications' : 'academics')}
+                      onClick={() => onNavigate('academics')}
                       className="w-full flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100 text-left hover:bg-amber-100/50 transition-colors"
                     >
                       <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />

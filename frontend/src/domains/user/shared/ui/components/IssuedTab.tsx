@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Award, Eye, Download, Loader2, CheckCircle2, Users, Calendar, Shield } from 'lucide-react';
-import type { StudentCertificate } from '@/src/shared/types';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import type { StudentCertificate } from '@/shared/types';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 export default function IssuedTab({ issuedCerts, loading, onRefresh }: {
   issuedCerts: StudentCertificate[];

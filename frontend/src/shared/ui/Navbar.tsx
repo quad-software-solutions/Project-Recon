@@ -453,7 +453,7 @@ export default function Navbar({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm text-slate-900 truncate leading-tight">{currentUser.name}</p>
-                          <p className="text-[10px] text-brand-muted">{currentUser.xpPoints} XP · {currentUser.role}</p>
+                          <p className="text-[10px] text-brand-muted">{currentUser.role}</p>
                         </div>
                       </div>
                       <button onClick={() => handleNavClick('dashboard')} className="w-full text-center py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-brand-blue to-brand-blue-dark rounded-lg shadow-sm">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { clearTokens } from '@/src/shared/utils/auth';
-import { getUserProfile, setUserProfile, clearUserProfile } from '@/src/shared/utils/storage';
+import { clearTokens } from '@/shared/utils/auth';
+import { getUserProfile, setUserProfile, clearUserProfile } from '@/shared/utils/storage';
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getUserProfile());

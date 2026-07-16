@@ -1,6 +1,6 @@
 import * as eventsApi from './eventsApi';
 import type { BackendMatch, BackendStanding, SideType } from './eventsApi';
-import { isAuthenticated } from '@/src/shared/utils/auth';
+import { isAuthenticated } from '@/shared/utils/auth';
 import { mapBackendMatchToDetail, type MatchDetail } from './matchMappers';
 
 type ListResponse<T> = T[] | { results: T[]; count?: number };

@@ -1,8 +1,8 @@
-import { http } from '@/src/shared/api/http';
-import { computeEventState, type Tournament, type Workshop, type MatchResult, type EventStoredStatus, type RegistrationMode } from '@/src/shared/types';
+import { http } from '@/shared/api/http';
+import { computeEventState, type Tournament, type Workshop, type MatchResult, type EventStoredStatus, type RegistrationMode } from '@/shared/types';
 import * as eventsApi from './eventsApi';
 import { mapBackendMatchToDetail, type MatchDetail } from './matchMappers';
-import { unwrapList } from '@/src/shared/api/pagination';
+import { unwrapList } from '@/shared/api/pagination';
 
 /* ═══ TOURNAMENT INDEX (event UUID → tournament record) ═══ */
 
@@ -228,6 +228,12 @@ export interface PublicRegistrationData {
   public_email?: string;
   public_phone?: string;
   public_organization?: string;
+  payment?: {
+    amount: string;
+    payment_method: 'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE';
+    transaction_reference?: string;
+    bank_name?: string;
+  };
 }
 
 export async function registerForEvent(eventId: string, data: PublicRegistrationData = {}) {

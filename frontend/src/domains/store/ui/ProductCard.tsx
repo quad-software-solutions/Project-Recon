@@ -1,4 +1,4 @@
-import { ImageOff, ShoppingCart, Check, Eye, Star } from 'lucide-react';
+import { ImageOff, ShoppingCart, Check, Eye, Star, Clock, Ban } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import type { Product } from '@/domains/store/model/types';
 import { PriceDisplay } from './PriceDisplay';
@@ -15,6 +15,13 @@ interface ProductCardProps {
   featured?: boolean;
 }
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isNewProduct(product: Product): boolean {
+  const created = new Date(product.created_at).getTime();
+  return Date.now() - created < THIRTY_DAYS_MS;
+}
+
 export function ProductCard({
   product,
   onView,
@@ -25,12 +32,16 @@ export function ProductCard({
   className,
   featured,
 }: ProductCardProps) {
+  const outOfStock = stockQuantity != null && stockQuantity <= 0;
+  const isNew = isNewProduct(product);
+
   return (
     <article
       className={cn(
         'group flex flex-col bg-white rounded-[var(--radius-card)] border border-brand-border/80 overflow-hidden transition-all duration-200',
         'hover:shadow-premium-md hover:border-brand-blue/20 hover:-translate-y-1',
         featured && 'ring-1 ring-brand-blue/10',
+        outOfStock && 'opacity-75',
         className,
       )}
     >
@@ -48,7 +59,7 @@ export function ProductCard({
               src={imgSrc}
               alt={imgAlt}
               loading="lazy"
-              className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500"
+              className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700 ease-out"
             />
           ) : null;
         })()}
@@ -58,6 +69,7 @@ export function ProductCard({
           </div>
         )}
 
+        {/* Top-left badges */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
           {product.category_name && (
             <span className="inline-flex items-center px-2 py-0.5 bg-white/95 text-[10px] font-semibold text-brand-muted rounded-md border border-brand-border/60 backdrop-blur-sm shadow-xs">
@@ -70,9 +82,25 @@ export function ProductCard({
               Featured
             </span>
           )}
+          {isNew && !featured && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50/95 text-[10px] font-semibold text-emerald-700 rounded-md border border-emerald-200/60 backdrop-blur-sm">
+              <Clock className="w-2.5 h-2.5" />
+              New
+            </span>
+          )}
         </div>
 
-        {stockQuantity != null && (
+        {/* Out-of-stock overlay */}
+        {outOfStock && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50/95 border border-red-200 rounded-lg text-[11px] font-bold text-red-600 shadow-sm">
+              <Ban className="w-3.5 h-3.5" />
+              Out of stock
+            </span>
+          </div>
+        )}
+
+        {stockQuantity != null && !outOfStock && (
           <span className="absolute bottom-2.5 left-2.5">
             <StockBadge quantity={stockQuantity} />
           </span>
@@ -111,7 +139,7 @@ export function ProductCard({
               <button
                 type="button"
                 onClick={() => onAdd(product)}
-                disabled={adding || stockQuantity === 0}
+                disabled={adding || outOfStock}
                 className={cn(
                   'h-9 px-3 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5',
                   added

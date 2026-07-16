@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, DollarSign, Download, Eye, Filter, Calendar, BookOpen, CreditCard, Banknote, CheckCircle2, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { EnrollmentPayment, Enrollment } from '@/src/shared/types';
-import { fetchPaymentsApi, fetchEnrollmentsPaginatedApi, createCashPaymentApi } from '@/src/domains/learning/academics/api/academicApi';
+import { Plus, Search, X, Loader2, AlertCircle, DollarSign, Download, Eye, Filter, Calendar, BookOpen, CreditCard, Banknote, CheckCircle2, Clock, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { EnrollmentPayment, Enrollment } from '@/shared/types';
+import { fetchPaymentsListApi, fetchEnrollmentsPaginatedApi, recordPaymentApi, fetchVerificationQueueApi, setUnderReviewApi, rejectPaymentApi } from '@/domains/learning/academics/api/academicApi';
 
 const PAGE_SIZE = 50;
 
@@ -14,50 +14,77 @@ const STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-slate-100 text-slate-500',
 };
 
+const VERIFICATION_STYLES: Record<string, string> = {
+  SUBMITTED: 'bg-amber-100 text-amber-700',
+  UNDER_REVIEW: 'bg-blue-100 text-blue-700',
+  VERIFIED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-red-100 text-red-600',
+};
+
+const PAYMENT_METHODS = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'MOBILE_MONEY', label: 'Mobile Money' },
+  { value: 'CHEQUE', label: 'Cheque' },
+];
+
 export default function PaymentsPanel() {
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [verificationQueue, setVerificationQueue] = useState<EnrollmentPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRecord, setShowRecord] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [form, setForm] = useState({ enrollment: '', amount: '' });
+  const [form, setForm] = useState({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', bank_name: '' });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<EnrollmentPayment | null>(null);
+  const [activeTab, setActiveTab] = useState<'payments' | 'verification'>('payments');
+  const [rejectReason, setRejectReason] = useState('');
+  const [showReject, setShowReject] = useState<EnrollmentPayment | null>(null);
 
   const loadData = () => {
     setLoading(true);
     setError(null);
     const errors: string[] = [];
     Promise.allSettled([
-      fetchPaymentsApi(),
+      fetchPaymentsListApi(),
       fetchEnrollmentsPaginatedApi(1, PAGE_SIZE),
-    ]).then(([pay, enr]) => {
+      fetchVerificationQueueApi(),
+    ]).then(([pay, enr, queue]) => {
       if (pay.status === 'fulfilled') {
         setPayments(Array.isArray(pay.value) ? pay.value : []);
       } else {
         errors.push('payments');
       }
       if (enr.status === 'fulfilled') {
-        setEnrollments((enr.value.results || []).filter(e => e.status === 'ACTIVE' || e.status === 'PENDING_PAYMENT'));
+        setEnrollments((enr.value.results || []).filter(e => e.status === 'ACTIVE' || e.status === 'PENDING_VERIFICATION'));
       } else {
         errors.push('enrollments');
       }
-      if (errors.length) setError(`Failed to load: ${errors.join(', ')}`);
+      if (queue.status === 'fulfilled') {
+        setVerificationQueue(Array.isArray(queue.value) ? queue.value : []);
+      }
     }).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
 
   const handleRecord = async () => {
-    if (!form.enrollment || !form.amount) return;
+    if (!form.enrollment || !form.amount || !form.payment_method) return;
     setSubmitting(true);
     setError(null);
     try {
-      await createCashPaymentApi({ enrollment: form.enrollment, amount: form.amount });
-      setForm({ enrollment: '', amount: '' });
+      await recordPaymentApi({
+        enrollment: form.enrollment,
+        amount: form.amount,
+        payment_method: form.payment_method,
+        transaction_reference: form.transaction_reference || undefined,
+        bank_name: form.bank_name || undefined,
+      });
+      setForm({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', bank_name: '' });
       setShowRecord(false);
       loadData();
     } catch (e) {
@@ -67,8 +94,29 @@ export default function PaymentsPanel() {
     }
   };
 
+  const handleUnderReview = async (payment: EnrollmentPayment) => {
+    try {
+      await setUnderReviewApi(payment.enrollment);
+      loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to set under review');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!showReject || !rejectReason.trim()) return;
+    try {
+      await rejectPaymentApi(showReject.enrollment, { rejection_reason: rejectReason });
+      setShowReject(null);
+      setRejectReason('');
+      loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reject payment');
+    }
+  };
+
   const filtered = useMemo(() => {
-    let list = [...payments];
+    let list = activeTab === 'verification' ? verificationQueue : [...payments];
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(p =>
@@ -81,11 +129,12 @@ export default function PaymentsPanel() {
     if (methodFilter !== 'all') list = list.filter(p => p.payment_method === methodFilter);
     if (statusFilter !== 'all') list = list.filter(p => p.status === statusFilter);
     return list;
-  }, [payments, searchQuery, methodFilter, statusFilter]);
+  }, [payments, verificationQueue, searchQuery, methodFilter, statusFilter, activeTab]);
 
-  const totalAmount = filtered.reduce((sum, p) => sum + (p.status === 'PAID' ? Number(p.amount) : 0), 0);
+  const totalAmount = filtered.reduce((sum, p) => sum + (p.status === 'PAID' || p.status === 'VERIFIED' ? Number(p.amount) : 0), 0);
   const paidCount = payments.filter(p => p.status === 'PAID').length;
   const pendingCount = payments.filter(p => p.status !== 'PAID').length;
+  const queueCount = verificationQueue.length;
 
   const exportCsv = () => {
     const headers = ['Student', 'Program', 'Class', 'Amount', 'Method', 'Date', 'Status', 'Reference'];
@@ -110,7 +159,7 @@ export default function PaymentsPanel() {
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
           <button onClick={() => setShowRecord(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-            <Plus className="w-3.5 h-3.5" /> Record Cash Payment
+            <Plus className="w-3.5 h-3.5" /> Record Payment
           </button>
         </div>
       </div>
@@ -142,6 +191,16 @@ export default function PaymentsPanel() {
         })}
       </div>
 
+      <div className="flex items-center gap-4 border-b border-brand-border">
+        <button onClick={() => setActiveTab('payments')} className={`pb-2 text-xs font-bold transition-colors ${activeTab === 'payments' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+          All Payments
+        </button>
+        <button onClick={() => setActiveTab('verification')} className={`pb-2 text-xs font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'verification' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+          <Shield className="w-3.5 h-3.5" /> Verification Queue
+          {queueCount > 0 && <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">{queueCount}</span>}
+        </button>
+      </div>
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -156,8 +215,7 @@ export default function PaymentsPanel() {
             className="px-2.5 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
           >
             <option value="all">All Methods</option>
-            <option value="CASH">Cash</option>
-            <option value="ONLINE">Online</option>
+            {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-2.5 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
@@ -167,6 +225,15 @@ export default function PaymentsPanel() {
             <option value="PENDING">Pending</option>
             <option value="FAILED">Failed</option>
             <option value="REFUNDED">Refunded</option>
+            <option value="CANCELLED">Cancelled</option>
+            {activeTab === 'verification' && (
+              <>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="UNDER_REVIEW">Under Review</option>
+                <option value="VERIFIED">Verified</option>
+                <option value="REJECTED">Rejected</option>
+              </>
+            )}
           </select>
         </div>
       </div>
@@ -190,7 +257,7 @@ export default function PaymentsPanel() {
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-xs text-slate-400">
-                  {searchQuery || methodFilter !== 'all' || statusFilter !== 'all' ? 'No payments match your filters' : 'No payments recorded yet'}
+                  {activeTab === 'verification' ? 'No payments pending verification' : 'No payments recorded yet'}
                 </td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
@@ -214,17 +281,29 @@ export default function PaymentsPanel() {
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
                       {p.payment_method === 'CASH' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
-                      {p.payment_method}
+                      {PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{p.payment_date?.slice(0, 10) || '—'}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_STYLES[p.status] || 'bg-slate-100 text-slate-500'}`}>{p.status}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_STYLES[p.status] || VERIFICATION_STYLES[p.status] || 'bg-slate-100 text-slate-500'}`}>{p.status}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button onClick={() => setSelectedPayment(p)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details">
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => setSelectedPayment(p)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      {activeTab === 'verification' && p.status !== 'UNDER_REVIEW' && p.status !== 'VERIFIED' && p.status !== 'REJECTED' && (
+                        <>
+                          <button onClick={() => handleUnderReview(p)} className="p-1 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors" title="Mark under review">
+                            <Shield className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => { setShowReject(p); setRejectReason(''); }} className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Reject">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -261,15 +340,19 @@ export default function PaymentsPanel() {
                   <div className="flex justify-between"><span className="text-slate-500">Method</span>
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700">
                       {selectedPayment.payment_method === 'CASH' ? <Banknote className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
-                      {selectedPayment.payment_method}
+                      {PAYMENT_METHODS.find(m => m.value === selectedPayment.payment_method)?.label || selectedPayment.payment_method}
                     </span>
                   </div>
-                  <div className="flex justify-between"><span className="text-slate-500">Provider</span><span className="font-medium">{selectedPayment.payment_provider || '—'}</span></div>
+                  {selectedPayment.bank_name && <div className="flex justify-between"><span className="text-slate-500">Bank</span><span className="font-medium">{selectedPayment.bank_name}</span></div>}
+                  {selectedPayment.transfer_reference && <div className="flex justify-between"><span className="text-slate-500">Transfer Ref</span><span className="font-mono text-[10px] font-bold">{selectedPayment.transfer_reference}</span></div>}
                   <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="text-[10px] font-mono font-bold text-slate-700">{selectedPayment.transaction_reference || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-medium">{selectedPayment.payment_date?.slice(0, 10) || '—'}</span></div>
+                  {selectedPayment.verified_by && <div className="flex justify-between"><span className="text-slate-500">Verified By</span><span className="font-medium">{selectedPayment.verified_by}</span></div>}
+                  {selectedPayment.verified_at && <div className="flex justify-between"><span className="text-slate-500">Verified At</span><span className="font-medium">{new Date(selectedPayment.verified_at).toLocaleString()}</span></div>}
+                  {selectedPayment.verification_notes && <div className="flex justify-between"><span className="text-slate-500">Notes</span><span className="font-medium text-right max-w-[200px]">{selectedPayment.verification_notes}</span></div>}
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Status</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[selectedPayment.status] || 'bg-slate-100 text-slate-500'}`}>{selectedPayment.status}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[selectedPayment.status] || VERIFICATION_STYLES[selectedPayment.status] || 'bg-slate-100 text-slate-500'}`}>{selectedPayment.status}</span>
                   </div>
                 </div>
               </div>
@@ -278,7 +361,7 @@ export default function PaymentsPanel() {
         )}
       </AnimatePresence>
 
-      {/* Record Cash Payment Modal */}
+      {/* Record Payment Modal */}
       <AnimatePresence>
         {showRecord && (
           <>
@@ -291,7 +374,7 @@ export default function PaymentsPanel() {
                 <div className="flex items-center justify-between p-4 border-b border-brand-border">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-blue-600/5 flex items-center justify-center"><Banknote className="w-4 h-4 text-blue-600" /></div>
-                    <h3 className="font-bold text-base text-slate-900">Record Cash Payment</h3>
+                    <h3 className="font-bold text-base text-slate-900">Record Payment</h3>
                   </div>
                   <button onClick={() => setShowRecord(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
                 </div>
@@ -327,13 +410,74 @@ export default function PaymentsPanel() {
                         placeholder="e.g. 2500" type="number" min="0" />
                     </div>
                   </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Payment Method</label>
+                    <select value={form.payment_method} onChange={e => setForm(p => ({ ...p, payment_method: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                    >
+                      {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+                  {form.payment_method !== 'CASH' && (
+                    <>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Transaction Reference</label>
+                        <input value={form.transaction_reference} onChange={e => setForm(p => ({ ...p, transaction_reference: e.target.value }))}
+                          className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                          placeholder="e.g. TRX123456" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Bank Name (optional)</label>
+                        <input value={form.bank_name} onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
+                          className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                          placeholder="e.g. Commercial Bank of Ethiopia" />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
                   <button onClick={() => setShowRecord(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                  <button onClick={handleRecord} disabled={submitting || !form.enrollment || !form.amount}
+                  <button onClick={handleRecord} disabled={submitting || !form.enrollment || !form.amount || !form.payment_method}
                     className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
                     {submitting ? 'Recording...' : 'Record Payment'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Reject Payment Modal */}
+      <AnimatePresence>
+        {showReject && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReject(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm">
+                <div className="flex items-center justify-between p-4 border-b border-brand-border">
+                  <h3 className="font-bold text-base text-slate-900">Reject Payment</h3>
+                  <button onClick={() => setShowReject(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-slate-500">Student: <strong>{showReject.student_name || 'Unknown'}</strong></p>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Rejection Reason *</label>
+                    <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10"
+                      placeholder="Explain why the payment is being rejected..."
+                      rows={3} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
+                  <button onClick={() => setShowReject(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                  <button onClick={handleReject} disabled={!rejectReason.trim()}
+                    className="bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5">
+                    Reject Payment
                   </button>
                 </div>
               </div>

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Plus, Award, FileText, Eye, RotateCcw, X, CheckCircle2, Loader2, Upload, Shield } from 'lucide-react';
-import { Certificate } from '@/src/shared/types';
-import { decodeBodyWithSignatory, updateCertificateTemplateApi, createCertificateTemplateApi, setCertificateTemplateActiveApi } from '@/src/domains/learning/academics/api/academicApi';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import { Certificate } from '@/shared/types';
+import { decodeBodyWithSignatory, updateCertificateTemplateApi, createCertificateTemplateApi, setCertificateTemplateActiveApi } from '@/domains/learning/academics/api/academicApi';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 interface TemplateForm {
   sub_program: string;

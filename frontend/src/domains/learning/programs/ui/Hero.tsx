@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Globe, Award, ShoppingBag, Sparkles } from 'lucide-react';
 import Robotics3DShowcase from '../../../store/products/ui/Robotics3DShowcase';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 import untitledLogo from '@/assets/Untitled.png';
 import sliderImg1 from '@/assets/slider/faj.jpg';

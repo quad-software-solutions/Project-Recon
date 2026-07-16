@@ -16,7 +16,11 @@ export type Permission =
   | 'academic:certificates:manage'
   | 'academic:reports:view'
   | 'student:self:view'
-  | 'command-center:view';
+  | 'command-center:view'
+  | 'store:manage'
+  | 'store:inventory:manage'
+  | 'audit:view'
+  | 'events:manage';
 
 export const STAFF_ROLES: AppRole[] = ['Admin', 'Manager', 'Secretary', 'Instructor'];
 
@@ -36,6 +40,10 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     'academic:certificates:manage',
     'academic:reports:view',
     'command-center:view',
+    'store:manage',
+    'store:inventory:manage',
+    'audit:view',
+    'events:manage',
   ],
   Manager: [
     'dashboard:view',
@@ -50,6 +58,8 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     'academic:certificates:manage',
     'academic:reports:view',
     'command-center:view',
+    'store:inventory:manage',
+    'events:manage',
   ],
   Secretary: [
     'dashboard:view',
@@ -67,14 +77,14 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     'academic:reports:view',
   ],
   Student: ['dashboard:view', 'student:self:view'],
-  Parent: ['dashboard:view', 'student:self:view'],
-  EventManager: ['dashboard:view', 'command-center:view'],
 };
 
 const PUBLIC_TABS: ActiveTab[] = [
   'home',
   'about',
   'store',
+  'store-orders',
+  'store-order-detail',
   'login',
   'register',
   'registration',
@@ -104,8 +114,16 @@ export function getDefaultAuthenticatedTab(user: UserProfile | null | undefined)
   return user ? 'dashboard' : 'login';
 }
 
+export function canManageStore(user: UserProfile | null | undefined): boolean {
+  return hasPermission(user, 'store:manage');
+}
+
+export function canManageStoreInventory(user: UserProfile | null | undefined): boolean {
+  return hasPermission(user, 'store:inventory:manage');
+}
+
 export function normalizeRole(role: string | undefined | null): AppRole {
-  if (role === 'Admin' || role === 'Manager' || role === 'Secretary' || role === 'Instructor' || role === 'Student' || role === 'Parent' || role === 'EventManager') {
+  if (role === 'Admin' || role === 'Manager' || role === 'Secretary' || role === 'Instructor' || role === 'Student') {
     return role;
   }
   return 'Student';

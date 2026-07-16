@@ -1,4 +1,4 @@
-import type { Tournament, Workshop, UserProfile } from '@/src/shared/types';
+import type { Tournament, Workshop, UserProfile } from '@/shared/types';
 
 export const REGISTRATION_MODE_LABELS: Record<string, string> = {
   NONE: 'Not available',

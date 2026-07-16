@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Clock, Award, Users, BookOpen } from 'lucide-react';
-import { ProgramDisplay } from '@/src/shared/types';
+import { ProgramDisplay } from '@/shared/types';
 
 interface ProgramDetailModalProps {
   program: ProgramDisplay | null;

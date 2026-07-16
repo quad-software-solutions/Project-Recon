@@ -76,15 +76,16 @@ export function paginate<T>(items: T[], page: number, pageSize: number): {
 export type StoreView =
   | { kind: 'home' }
   | { kind: 'category'; categoryId: string }
-  | { kind: 'product'; productId: string };
+  | { kind: 'product'; productId: string }
+  | { kind: 'pending-order'; orderId: string };
 
 export function parseStorePath(pathname: string): StoreView {
+  const pendingMatch = pathname.match(/^\/store\/pending-orders\/([^/]+)\/?$/);
+  if (pendingMatch) return { kind: 'pending-order', orderId: decodeURIComponent(pendingMatch[1]) };
   const productMatch = pathname.match(/^\/store\/products\/([^/]+)\/?$/);
   if (productMatch) return { kind: 'product', productId: decodeURIComponent(productMatch[1]) };
-
   const categoryMatch = pathname.match(/^\/store\/categories\/([^/]+)\/?$/);
   if (categoryMatch) return { kind: 'category', categoryId: decodeURIComponent(categoryMatch[1]) };
-
   return { kind: 'home' };
 }
 
@@ -94,6 +95,10 @@ export function storeProductPath(productId: string): string {
 
 export function storeCategoryPath(categoryId: string): string {
   return `/store/categories/${categoryId}`;
+}
+
+export function storePendingOrderPath(orderId: string): string {
+  return `/store/pending-orders/${orderId}`;
 }
 
 export function navigateStore(path: string) {

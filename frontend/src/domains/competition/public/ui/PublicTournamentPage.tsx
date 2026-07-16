@@ -4,10 +4,10 @@ import {
   ArrowLeft, Award, Calendar, Gamepad2, Loader2, MapPin, Medal, RotateCcw,
   ShieldAlert, Trophy, Users,
 } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import type { BackendEvent, BackendStanding, BackendTournament, BackendMatch } from '@/src/domains/competition/api/eventsApi';
-import * as eventsApi from '@/src/domains/competition/api/eventsApi';
-import { resolveTournamentIdForEvent } from '@/src/domains/competition/api/competitionApi';
+import type { UserProfile } from '@/shared/types';
+import type { BackendEvent, BackendStanding, BackendTournament, BackendMatch } from '@/domains/competition/api/eventsApi';
+import * as eventsApi from '@/domains/competition/api/eventsApi';
+import { resolveTournamentIdForEvent } from '@/domains/competition/api/competitionApi';
 
 type PageState = 'loading' | 'ready' | 'error';
 type TabId = 'overview' | 'teams' | 'schedule' | 'results' | 'brackets';

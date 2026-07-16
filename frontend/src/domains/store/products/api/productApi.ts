@@ -1,18 +1,21 @@
-import { http } from '@/src/shared/api/http';
-import type { Product } from '@/src/shared/types';
-import type { ProductFilters } from '../model/types';
+import { http } from '@/shared/api/http';
+import type { Product, ProductFilters } from '@/domains/store/model/types';
 
 const BASE = '/store/products';
 
 export async function getProducts(filters?: ProductFilters): Promise<Product[]> {
+  return listProducts(filters);
+}
+
+export async function listProducts(filters?: ProductFilters): Promise<Product[]> {
   const params: Record<string, string> = {};
-  if (filters?.category) params.category = filters.category;
+  if (filters?.category_id) params.category = filters.category_id;
   if (filters?.search) params.search = filters.search;
-  if (filters?.sortBy) params.sorting = filters.sortBy;
+  if (filters?.sort_by) params.sorting = filters.sort_by;
   const res = await http.get<Product[]>(`${BASE}/`, { params });
   return res;
 }
 
-export async function getProductById(id: string): Promise<Product | undefined> {
+export async function getProduct(id: string): Promise<Product | undefined> {
   return await http.get<Product>(`${BASE}/${id}/`);
 }

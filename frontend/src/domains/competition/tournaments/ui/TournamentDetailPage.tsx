@@ -5,14 +5,14 @@ import {
   Gamepad2, CheckCircle, Clock, Swords, Medal, Target, Flame, Award, ScrollText, Sparkles,
 } from 'lucide-react';
 import { getTournamentById, getMatches, getTournamentStandings, getTournamentMatchDetails, getMyRegistrations, type StandingEntry, type MatchDetail } from '../../api/competitionApi';
-import { type Tournament, type MatchResult } from '@/src/shared/types';
+import { type Tournament, type MatchResult } from '@/shared/types';
 import TournamentCertificateManager from './TournamentCertificateManager';
 import MatchCard from '../../matches/ui/MatchCard';
 import VexRulesPanel from '../../shared/VexRulesPanel';
 import EventRegistrationModal from '../../shared/EventRegistrationModal';
 import EventRegisterButton from '../../shared/EventRegisterButton';
 import { REGISTRATION_MODE_LABELS } from '../../shared/eventRegistrationUtils';
-import type { UserProfile } from '@/src/shared/types';
+import type { UserProfile } from '@/shared/types';
 
 interface TournamentDetailPageProps {
   tournamentId: string;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Megaphone, Search, Loader2, ChevronRight } from 'lucide-react';
-import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import PageHeader from '../../../shared/ui/PageHeader';
 import EmptyState from '../../../shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';

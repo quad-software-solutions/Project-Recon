@@ -1,42 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Mail, Phone, BookOpen, ShieldCheck, Check, CreditCard, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, Info, ArrowRight, Clock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Clock, Eye, EyeOff, Loader2, Building2, Hash, FileUp } from 'lucide-react';
 import { registerApi } from '../api/registerApi';
-import { fetchProgramsApi, fetchSubProgramsApi } from '../../../learning/academics/api/academicApi';
-import type { Program, SubProgram } from '@/src/shared/types';
+import { fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, fetchBankAccountsApi } from '../../../learning/academics/api/academicApi';
+import type { Program, SubProgram, AcademicClass } from '@/shared/types';
 
-interface SavedEnrollment {
-  ref: string;
-  name: string;
-  studentEmail: string;
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
-  courses: string;
-  total: number;
-  paymentMethod: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
-  submittedAt: string;
-}
+type PaymentMethodType = 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE' | 'CASH';
 
-const STORAGE_KEY = 'enrollments';
-
-function loadEnrollments(): SavedEnrollment[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-}
-
-function saveEnrollment(e: SavedEnrollment) {
-  const list = loadEnrollments();
-  list.unshift(e);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-}
-
-function genRef(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return `ERR-${code}`;
-}
 
 import slide1 from '@/assets/slider/faj.jpg';
 import slide2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
@@ -59,17 +29,19 @@ const staggerItem = {
 export default function StudentRegistration() {
   const [step, setStep] = useState<1 | 2>(1);
   const [formData, setFormData] = useState({
-    name: '', studentEmail: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: ''
+    name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: ''
   });
-  const [selectedCourses, setSelectedCourses] = useState<Record<string, 'class' | 'private' | null>>({});
-  const [paymentMethod, setPaymentMethod] = useState<'chapa' | 'stripe'>('chapa');
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [classes, setClasses] = useState<AcademicClass[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('BANK_TRANSFER');
+  const [paymentDetails, setPaymentDetails] = useState({ bank_name: '', transaction_reference: '', transfer_reference: '' });
+  const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<Array<{ id: string; bank_name: string; account_holder: string; account_number: string; branch?: string; swift_code?: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [lastRef, setLastRef] = useState('');
-  const [savedEnrollments] = useState<SavedEnrollment[]>(loadEnrollments);
-  const [showHistory, setShowHistory] = useState(false);
+  const [enrollmentNumber, setEnrollmentNumber] = useState('');
   const [programs, setPrograms] = useState<Program[]>([]);
   const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
   const [programsLoading, setProgramsLoading] = useState(true);
@@ -78,10 +50,14 @@ export default function StudentRegistration() {
   useEffect(() => {
     Promise.all([
       fetchProgramsApi(),
-      fetchSubProgramsApi()
-    ]).then(([progs, subs]) => {
+      fetchSubProgramsApi(),
+      fetchClassesApi(),
+      fetchBankAccountsApi().catch(() => [] as any[]),
+    ]).then(([progs, subs, cls, banks]) => {
       if (progs.length > 0) setPrograms(progs);
       if (subs.length > 0) setSubPrograms(subs);
+      setClasses((cls || []).filter(c => c.is_active));
+      if (Array.isArray(banks) && banks.length > 0) setBankAccounts(banks);
     }).catch(() => {
       setProgramsError('Failed to load programs');
     }).finally(() => setProgramsLoading(false));
@@ -94,48 +70,11 @@ export default function StudentRegistration() {
     return () => clearInterval(timer);
   }, []);
 
-  const toggleCourse = (id: string, format: 'class' | 'private') => {
-    setSelectedCourses(prev => {
-      if (prev[id] === format) {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      }
-      return { ...prev, [id]: format };
-    });
-  };
-
-  const courseCategories = programs.map(p => {
-    const subs = subPrograms.filter(s => s.program === p.id);
-    return {
-      id: p.slug || p.id,
-      title: p.name,
-      icon: p.name.toLowerCase().includes('robot') || p.name.toLowerCase().includes('vex') ? Cpu : Laptop,
-      courses: subs.length > 0
-        ? subs.map(s => ({
-            id: s.slug || s.id,
-            name: s.name,
-            priceClass: Number(s.fee),
-            pricePrivate: Number(s.fee),
-            desc: s.description || p.description || '',
-          }))
-        : [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 3500, desc: p.description || '' }],
-    };
-  });
-
-  const allCourses = courseCategories.flatMap(cat => cat.courses);
-
-  const subtotal = Object.keys(selectedCourses).reduce((sum, id) => {
-    const course = allCourses.find(c => c.id === id);
-    const format = selectedCourses[id];
-    if (course && format) {
-      return sum + (format === 'private' ? course.pricePrivate : course.priceClass);
-    }
-    return sum;
-  }, 0);
-
-  const registrationFee = 500;
-  const grandTotal = subtotal > 0 ? subtotal + registrationFee : 0;
+  const selectedClass = classes.find(c => c.id === selectedClassId);
+  const selectedSub = selectedClass
+    ? subPrograms.find(s => s.id === selectedClass.sub_program)
+    : undefined;
+  const classFee = selectedSub ? Number(selectedSub.group_fee || selectedSub.individual_fee || 0) : 0;
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,46 +83,46 @@ export default function StudentRegistration() {
 
   const handleSubmit = async () => {
     setSubmitError('');
-    if (subtotal === 0) {
-      setSubmitError('Please select at least one course.');
+    if (!selectedClassId) {
+      setSubmitError('Please select a class to enroll in.');
+      return;
+    }
+    if (!formData.studentEmail.trim() || !formData.password.trim()) {
+      setSubmitError('Student email and password are required.');
+      return;
+    }
+    if (paymentMethod !== 'CASH' && !paymentDetails.transaction_reference.trim() && !paymentAttachment) {
+      setSubmitError('Transaction reference is required for non-cash payments.');
       return;
     }
     setIsSubmitting(true);
-    const ref = genRef();
     try {
-      await registerApi({
-        ...formData,
-        selectedCourses: Object.keys(selectedCourses).map(id => {
-          const course = allCourses.find(c => c.id === id)!;
-          const format = selectedCourses[id]!;
-          return {
-            name: course.name,
-            format,
-            price: format === 'private' ? course.pricePrivate : course.priceClass,
-          };
-        }),
-        paymentMethod,
-        total: grandTotal,
-      });
-
-      saveEnrollment({
-        ref,
+      const result = await registerApi({
         name: formData.name,
-        studentEmail: formData.studentEmail,
+        studentEmail: formData.studentEmail.trim(),
+        password: formData.password,
+        age: formData.age,
+        grade: formData.grade,
+        school: formData.school,
         parentName: formData.parentName,
-        parentEmail: formData.parentEmail,
         parentPhone: formData.parentPhone,
-        courses: Object.keys(selectedCourses).map(id => allCourses.find(c => c.id === id)!.name).join(', '),
-        total: grandTotal,
+        parentEmail: formData.parentEmail,
+        enrolledClassId: selectedClassId,
         paymentMethod,
-        status: 'PENDING',
-        submittedAt: new Date().toISOString(),
+        bank_name: paymentDetails.bank_name || undefined,
+        transaction_reference: paymentDetails.transaction_reference || undefined,
+        transfer_reference: paymentDetails.transfer_reference || undefined,
       });
-      setLastRef(ref);
+      setEnrollmentNumber(
+        (result.enrollment as { enrollment_number?: string; pending_code?: string })?.enrollment_number
+        || (result.enrollment as { pending_code?: string })?.pending_code
+        || result.enrollment?.id?.slice(0, 8)
+        || ''
+      );
       setIsSubmitting(false);
       setIsSuccess(true);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Registration request failed. Please try again.');
+      setSubmitError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -212,14 +151,13 @@ export default function StudentRegistration() {
           <h2 className="font-black text-2xl text-slate-900 uppercase tracking-tight mb-2">Registration Complete!</h2>
           <div className="bg-slate-100 rounded-xl px-4 py-3 mb-4 inline-block mx-auto">
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Reference</span>
-            <span className="font-black text-lg text-brand-red tracking-widest">{lastRef}</span>
+            <span className="font-black text-lg text-brand-red tracking-widest">{enrollmentNumber || "Submitted"}</span>
           </div>
           <p className="text-slate-600 font-medium mb-8 text-sm leading-relaxed">
-            Thank you for registering <strong className="text-slate-900">{formData.name}</strong>. Your request was sent to the admissions team. They will review it and create your account — you'll receive login credentials at <strong className="text-brand-red">{formData.parentEmail}</strong> once processed.
-            Your enrollment has been saved locally — you can view it in <strong>My Enrollments</strong> below.
+            Thank you for registering <strong className="text-slate-900">{formData.name}</strong>. Your enrollment was submitted for payment verification. Sign in with <strong className="text-brand-red">{formData.studentEmail}</strong> after verifying your email to open the Student Dashboard.
           </p>
           <div className="flex gap-3">
-            <button onClick={() => { setIsSuccess(false); setStep(1); setFormData({ name: '', studentEmail: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: '' }); setSelectedCourses({}); }}
+            <button onClick={() => { setIsSuccess(false); setStep(1); setFormData({ name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: '' }); setSelectedClassId(''); }}
               className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-8 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97]">
               New Registration
             </button>
@@ -281,44 +219,7 @@ export default function StudentRegistration() {
       <div className="max-w-4xl mx-auto relative z-10">
 
         {/* My Enrollments */}
-        {savedEnrollments.length > 0 && (
-          <div className="mb-8">
-            <button onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-2 text-sm font-bold text-slate-700 bg-white/90 backdrop-blur-sm px-4 py-2.5 rounded-xl border border-slate-200 hover:border-brand-red/30 hover:text-brand-red transition-all shadow-sm">
-              {showHistory ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              My Enrollments ({savedEnrollments.length})
-            </button>
-            <AnimatePresence>
-              {showHistory && (
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                  className="mt-3 bg-white/95 backdrop-blur-sm rounded-2xl border border-slate-200 overflow-hidden shadow-lg">
-                  <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                    {savedEnrollments.map((enr, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-brand-red">{enr.ref}</span>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${enr.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : enr.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                              {enr.status}
-                            </span>
-                          </div>
-                          <p className="text-sm font-bold text-slate-800 truncate mt-1">{enr.name}</p>
-                          <p className="text-xs text-slate-500 truncate">{enr.courses} &middot; {enr.total.toLocaleString()} Birr</p>
-                        </div>
-                        <div className="text-[10px] text-slate-400 shrink-0 ml-2 text-right">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          {new Date(enr.submittedAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* Step Indicator */}
+                {/* Step Indicator */}
         <div className="flex items-center justify-center mb-12">
           <div className="flex items-center gap-5">
             <div className="flex flex-col items-center gap-2">
@@ -377,6 +278,13 @@ export default function StudentRegistration() {
                     <div className="relative group">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
                       <input type="email" placeholder="student@email.com" required value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
+                    </div>
+                  </motion.div>
+                  <motion.div variants={staggerItem} className="flex flex-col gap-1.5 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Account Password <span className="text-brand-red">*</span></label>
+                    <div className="relative group">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-red transition-colors" />
+                      <input type="password" placeholder="Min. 8 characters" required minLength={8} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
                     </div>
                   </motion.div>
                   <motion.div variants={staggerItem} className="flex flex-col gap-1.5">
@@ -474,80 +382,58 @@ export default function StudentRegistration() {
                     <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
                       <p className="text-red-700 font-bold">{programsError}</p>
                     </div>
-                  ) : courseCategories.length === 0 ? (
+                  ) : classes.length === 0 ? (
                     <div className="bg-white/80 rounded-2xl p-12 text-center">
                       <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                      <p className="text-lg font-bold text-slate-600">No courses available</p>
-                      <p className="text-sm text-slate-500 mt-1">Programs will appear here once they are added.</p>
+                      <p className="text-lg font-bold text-slate-600">No classes available</p>
+                      <p className="text-sm text-slate-500 mt-1">Open classes will appear here once they are published.</p>
                     </div>
-                  ) : courseCategories.map((category) => (
+                  ) : (
                     <motion.div
-                      key={category.id}
                       variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                      whileHover={{ scale: 1.003 }}
-                      className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl shadow-slate-300/30 border border-slate-200 overflow-hidden transition-all hover:border-slate-300"
+                      className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl shadow-slate-300/30 border border-slate-200 overflow-hidden"
                     >
                       <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                        <category.icon className="w-5 h-5 text-brand-red" />
-                        <h3 className="font-black text-lg text-slate-900 uppercase tracking-tight">{category.title}</h3>
+                        <BookOpen className="w-5 h-5 text-brand-red" />
+                        <h3 className="font-black text-lg text-slate-900 uppercase tracking-tight">Select a class</h3>
                       </div>
-                      <div className="p-6 flex flex-col gap-4">
-                        {category.courses.map((course, ci) => {
-                          const isSelectedClass = selectedCourses[course.id] === 'class';
-                          const isSelectedPrivate = selectedCourses[course.id] === 'private';
-                          const isSelected = isSelectedClass || isSelectedPrivate;
-
+                      <div className="p-6 flex flex-col gap-3">
+                        {classes.map((cls, ci) => {
+                          const sub = subPrograms.find(s => s.id === cls.sub_program);
+                          const fee = Number(sub?.group_fee || sub?.individual_fee || 0);
+                          const selected = selectedClassId === cls.id;
                           return (
-                            <motion.div
-                              key={course.id}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: ci * 0.07 }}
-                              whileHover={{ scale: 1.008 }}
-                              className={`rounded-xl p-5 border transition-all ${
-                                isSelected
+                            <button
+                              key={cls.id}
+                              type="button"
+                              onClick={() => setSelectedClassId(cls.id)}
+                              className={`text-left rounded-xl p-5 border transition-all ${
+                                selected
                                   ? 'border-brand-red bg-brand-red/5 shadow-lg shadow-brand-red/5'
-                                  : 'border-slate-200 hover:border-slate-300 bg-slate-1000'
+                                  : 'border-slate-200 hover:border-slate-300 bg-white'
                               }`}
                             >
-                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="flex-1">
-                                  <h4 className="font-bold text-slate-900 text-base">{course.name}</h4>
-                                  <p className="text-sm text-slate-600 mt-1 leading-relaxed">{course.desc}</p>
+                              <div className="flex justify-between gap-4 items-start">
+                                <div>
+                                  <h4 className="font-bold text-slate-900 text-base">{cls.name}</h4>
+                                  <p className="text-sm text-slate-600 mt-1">
+                                    {cls.sub_program_name || sub?.name || 'Program'}
+                                    {cls.branch_name ? ` · ${cls.branch_name}` : ''}
+                                    {cls.class_type ? ` · ${cls.class_type}` : ''}
+                                  </p>
                                 </div>
-                                <div className="flex gap-2 shrink-0">
-                                  <button
-                                    onClick={() => toggleCourse(course.id, 'class')}
-                                    className={`flex flex-col items-center justify-center px-4 py-2.5 rounded-xl border-2 transition-all ${
-                                      isSelectedClass
-                                        ? 'border-brand-red bg-brand-red/10 shadow-sm shadow-brand-red/20'
-                                        : 'border-slate-200 hover:border-brand-red/40 bg-white'
-                                    }`}
-                                  >
-                                    <span className={`text-[10px] font-black uppercase tracking-wider mb-0.5 ${isSelectedClass ? 'text-brand-red' : 'text-slate-500'}`}>Group</span>
-                                    <span className={`font-black text-sm ${isSelectedClass ? 'text-brand-red' : 'text-slate-700'}`}>{course.priceClass.toLocaleString()} Birr</span>
-                                  </button>
-                                  {(programs.length === 0 || (programs.find(p => p.slug === category.id || p.id === category.id)?.supports_individual ?? true)) && (
-                                    <button
-                                      onClick={() => toggleCourse(course.id, 'private')}
-                                      className={`flex flex-col items-center justify-center px-4 py-2.5 rounded-xl border-2 transition-all ${
-                                        isSelectedPrivate
-                                          ? 'border-brand-red bg-brand-red/10 shadow-sm shadow-brand-red/20'
-                                          : 'border-slate-200 hover:border-brand-red/40 bg-white'
-                                      }`}
-                                    >
-                                      <span className={`text-[10px] font-black uppercase tracking-wider mb-0.5 ${isSelectedPrivate ? 'text-brand-red' : 'text-slate-500'}`}>Private</span>
-                                      <span className={`font-black text-sm ${isSelectedPrivate ? 'text-brand-red' : 'text-slate-700'}`}>{course.pricePrivate.toLocaleString()} Birr</span>
-                                    </button>
-                                  )}
+                                <div className="text-right shrink-0">
+                                  <p className={`font-black text-sm ${selected ? 'text-brand-red' : 'text-slate-700'}`}>
+                                    {fee > 0 ? `${fee.toLocaleString()} Birr` : 'Fee on file'}
+                                  </p>
                                 </div>
                               </div>
-                            </motion.div>
+                            </button>
                           );
                         })}
                       </div>
                     </motion.div>
-                  ))}
+                  )}
                 </motion.div>
               </div>
 
@@ -566,71 +452,111 @@ export default function StudentRegistration() {
 
                   <div className="p-6">
                     <div className="flex flex-col gap-3 min-h-[120px] max-h-[300px] overflow-y-auto pr-2 mb-6 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-                      {Object.keys(selectedCourses).length === 0 ? (
+                      {!selectedClass ? (
                         <div className="flex flex-col items-center justify-center text-center h-full text-slate-500 py-8">
                           <BookOpen className="w-10 h-10 mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Select courses from the left to build your schedule.</p>
+                          <p className="text-sm font-medium">Select a class from the left to continue.</p>
                         </div>
                       ) : (
-                        Object.keys(selectedCourses).map(id => {
-                          const course = allCourses.find(c => c.id === id)!;
-                          const format = selectedCourses[id]!;
-                          const price = format === 'private' ? course.pricePrivate : course.priceClass;
-                          return (
-                            <div key={id} className="flex justify-between items-start text-sm bg-white p-3.5 rounded-xl border border-slate-100">
-                              <div className="flex flex-col pr-4">
-                                <span className="font-bold text-slate-900 leading-tight mb-1">{course.name}</span>
-                                <span className="text-[10px] font-black tracking-wider text-brand-red uppercase bg-brand-red/10 w-fit px-1.5 py-0.5 rounded">{format}</span>
-                              </div>
-                              <span className="font-black text-slate-900 whitespace-nowrap">{price.toLocaleString()} Birr</span>
-                            </div>
-                          );
-                        })
+                        <div key={selectedClass.id} className="flex justify-between items-start text-sm bg-white p-3.5 rounded-xl border border-slate-100">
+                          <div className="flex flex-col pr-4">
+                            <span className="font-bold text-slate-900 leading-tight mb-1">{selectedClass.name}</span>
+                            <span className="text-[10px] font-black tracking-wider text-brand-red uppercase bg-brand-red/10 w-fit px-1.5 py-0.5 rounded">
+                              {selectedClass.class_type || 'Class'}
+                            </span>
+                          </div>
+                          <span className="font-black text-slate-900 whitespace-nowrap">{classFee.toLocaleString()} Birr</span>
+                        </div>
                       )}
                     </div>
 
                     <div className="flex flex-col gap-2 text-sm pt-5 border-t border-slate-100">
-                      <div className="flex justify-between text-slate-600"><span className="font-medium">Subtotal</span><span className="font-black">{subtotal.toLocaleString()} Birr</span></div>
-                      <div className="flex justify-between text-slate-600"><span className="font-medium">Registration Fee</span><span className="font-black">{registrationFee.toLocaleString()} Birr</span></div>
+                      <div className="flex justify-between text-slate-600"><span className="font-medium">Class fee</span><span className="font-black">{classFee.toLocaleString()} Birr</span></div>
                       <div className="flex justify-between text-slate-900 mt-3 pt-4 border-t border-slate-100">
                         <span className="font-black text-base">Total Due</span>
-                        <span className="font-black text-2xl text-brand-red">{grandTotal.toLocaleString()} Birr</span>
+                        <span className="font-black text-2xl text-brand-red">{classFee.toLocaleString()} Birr</span>
                       </div>
                     </div>
 
                     <div className="mt-6 bg-gradient-to-br from-brand-red/10 to-brand-red/5 border border-brand-red/20 rounded-xl p-4 flex items-start gap-3">
                       <ShieldCheck className="w-5 h-5 text-brand-red shrink-0 mt-0.5" />
                       <p className="text-xs text-brand-red/80 leading-relaxed font-medium">
-                        Your registration includes instant access to the <strong className="font-bold text-brand-red">Student Dashboard</strong> and <strong className="font-bold text-brand-red">Parent Portal</strong> for progress tracking.
+                        Your registration creates a student account. After email verification, you can sign in to the <strong className="font-bold text-brand-red">Student Dashboard</strong> to track enrollments and progress.
                       </p>
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-slate-100">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide block mb-3">Payment Method</label>
-                      <div className="grid grid-cols-2 gap-3 mb-6">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('chapa')}
-                          className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-black uppercase tracking-wider transition-all ${
-                            paymentMethod === 'chapa' ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm shadow-brand-red/20' : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                          }`}
-                        >
-                          Chapa
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('stripe')}
-                          className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-black uppercase tracking-wider transition-all ${
-                            paymentMethod === 'stripe' ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm shadow-brand-red/20' : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                          }`}
-                        >
-                          Stripe
-                        </button>
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        {(['BANK_TRANSFER', 'MOBILE_MONEY', 'CHEQUE', 'CASH'] as PaymentMethodType[]).map(method => (
+                          <button
+                            key={method}
+                            type="button"
+                            onClick={() => { setPaymentMethod(method); setPaymentDetails({ bank_name: '', transaction_reference: '', transfer_reference: '' }); setPaymentAttachment(null); }}
+                            className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-black uppercase tracking-wider transition-all ${
+                              paymentMethod === method ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm shadow-brand-red/20' : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            {method === 'BANK_TRANSFER' ? 'Bank Transfer' : method === 'MOBILE_MONEY' ? 'Mobile Money' : method === 'CHEQUE' ? 'Cheque' : 'Cash'}
+                          </button>
+                        ))}
                       </div>
+
+                      {paymentMethod !== 'CASH' && (
+                        <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 space-y-3">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Payment Details</p>
+
+                          {paymentMethod === 'BANK_TRANSFER' && (
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Bank Name</label>
+                              <div className="relative">
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                <input type="text" placeholder="e.g. Dashen Bank" value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" />
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Transaction Reference</label>
+                            <div className="relative">
+                              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                              <input type="text" placeholder="Transaction ID or receipt number" value={paymentDetails.transaction_reference} onChange={e => setPaymentDetails(p => ({ ...p, transaction_reference: e.target.value }))}
+                                className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Attachment (receipt/screenshot)</label>
+                            <label className="flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-brand-red/50 transition-colors">
+                              <FileUp className="w-4 h-4 text-slate-400" />
+                              <span className="text-sm text-slate-600 flex-1">{paymentAttachment ? paymentAttachment.name : 'Upload file...'}</span>
+                              <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => setPaymentAttachment(e.target.files?.[0] || null)} />
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
+                      {paymentMethod === 'BANK_TRANSFER' && bankAccounts.length > 0 && (
+                        <div className="bg-brand-blue/5 border border-brand-blue/20 rounded-xl p-4 mb-4">
+                          <p className="text-[10px] font-black text-brand-blue uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Building2 className="w-3 h-3" /> Our Bank Accounts
+                          </p>
+                          <div className="space-y-2">
+                            {bankAccounts.map(acc => (
+                              <div key={acc.id} className="bg-white rounded-lg border border-brand-blue/10 p-2.5 text-[11px]">
+                                <p className="font-bold text-slate-800">{acc.bank_name}</p>
+                                <p className="text-slate-600">{acc.account_holder} &middot; <span className="font-mono font-bold">{acc.account_number}</span></p>
+                                {acc.branch && <p className="text-slate-500">{acc.branch}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <button
                         onClick={handleSubmit}
-                        disabled={subtotal === 0 || isSubmitting}
+                        disabled={!selectedClassId || isSubmitting}
                         className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white px-4 py-4 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 flex items-center justify-center gap-2 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97]"
                       >
                         {isSubmitting ? (
@@ -638,7 +564,7 @@ export default function StudentRegistration() {
                         ) : (
                           <>
                             <Lock className="w-4 h-4" />
-                            PAY {grandTotal.toLocaleString()} Birr
+                            Submit enrollment
                           </>
                         )}
                       </button>

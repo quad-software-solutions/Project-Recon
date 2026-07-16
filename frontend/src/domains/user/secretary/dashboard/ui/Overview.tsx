@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Users, CheckCircle2, DollarSign, Award, Calendar, Shield, UserPlus, X, Filter, Download, Loader2, RefreshCw } from 'lucide-react';
-import { Enrollment, EnrollmentPayment, StudentCertificate } from '@/src/shared/types';
-import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi } from '@/src/domains/learning/academics/api/academicApi';
+import { Enrollment, EnrollmentPayment, StudentCertificate } from '@/shared/types';
+import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 
 export default function Overview() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -29,7 +29,7 @@ export default function Overview() {
   useEffect(() => { loadData(); }, []);
 
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
-  const pendingPayments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingPayments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
 
   const statCards = [
     { label: 'Total Students', value: students.length, icon: Users, color: 'text-brand-blue', bg: 'bg-brand-blue/10' },
@@ -88,7 +88,7 @@ export default function Overview() {
                         <p className="text-[10px] text-slate-500">{e.class_name || e.sub_program_name || '—'}</p>
                       </div>
                     </div>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                       {e.status.replace('_', ' ')}
                     </span>
                   </div>

@@ -4,9 +4,9 @@ import {
   ArrowRight, Calendar, MapPin, Search, Sparkles, Trophy, Video, Zap,
   AlertCircle, RotateCcw, Layers3, Users,
 } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import * as eventsApi from '@/src/domains/competition/api/eventsApi';
-import { cmsPublicApi, type MapNodeResponse } from '@/src/domains/cms/public/api/cmsPublicApi';
+import type { UserProfile } from '@/shared/types';
+import * as eventsApi from '@/domains/competition/api/eventsApi';
+import { cmsPublicApi, type MapNodeResponse } from '@/domains/cms/public/api/cmsPublicApi';
 
 type LoadState = 'loading' | 'ready' | 'error';
 

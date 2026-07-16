@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import type { Certificate } from '@/src/shared/types';
-import { searchStudentsApi, issueStudentCertificateApi } from '@/src/domains/learning/academics/api/academicApi';
-import { adminGetRegistrations, type BackendEventRegistration } from '@/src/domains/competition/api/eventsApi';
+import type { Certificate } from '@/shared/types';
+import { searchStudentsApi, issueStudentCertificateApi } from '@/domains/learning/academics/api/academicApi';
+import { adminGetRegistrations, type BackendEventRegistration } from '@/domains/competition/api/eventsApi';
 
 export default function EventIssuePanel({ mode, templates, onRefresh, onError }: {
   mode: 'event' | 'tournament' | 'workshop';

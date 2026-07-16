@@ -1,6 +1,6 @@
 import { ActiveTab } from '../../shared/types';
 import BrandLogo from './BrandLogo';
-import { useBranding } from '@/src/shared/hooks/useBranding';
+import { useBranding } from '@/shared/hooks/useBranding';
 
 interface FooterProps { onNavigate: (tab: ActiveTab) => void; }
 

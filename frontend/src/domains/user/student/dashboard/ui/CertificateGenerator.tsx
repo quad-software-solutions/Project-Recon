@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Award, Download, Shield, CheckCircle2, Trophy, Star, Loader2, ExternalLink } from 'lucide-react';
-import { fetchStudentCertificatesApi, downloadCertificateReportPdf } from '@/src/domains/learning/academics/api/academicApi';
-import type { StudentCertificate } from '@/src/shared/types';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import { fetchStudentCertificatesApi, downloadCertificateReportPdf } from '@/domains/learning/academics/api/academicApi';
+import type { StudentCertificate } from '@/shared/types';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 interface Props { studentId?: string | null }
 

@@ -4,8 +4,8 @@ import {
   fetchClassesApi,
   fetchAttendanceSessionsApi,
   fetchAttendanceRecordsApi,
-} from '@/src/domains/learning/academics/api/academicApi';
-import type { AcademicClass, Enrollment, StudentProfile } from '@/src/shared/types';
+} from '@/domains/learning/academics/api/academicApi';
+import type { AcademicClass, Enrollment, StudentProfile } from '@/shared/types';
 
 export type TeacherClassOption = { id: string; name: string };
 

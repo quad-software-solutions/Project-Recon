@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, UserPlus, Users, Mail, Phone, Shield, CheckCircle2, ArrowRight } from 'lucide-react';
-import { StudentProfile, UserProfile } from '@/src/shared/types';
-import { fetchStudentsApi, admitStudentApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
-import { branchesApi } from '@/src/domains/user/shared/api/adminApi';
-import { cacheStudentId } from '@/src/domains/user/student/api/studentContext';
+import { StudentProfile, UserProfile } from '@/shared/types';
+import { fetchStudentsApi, admitStudentApi, fetchClassesApi } from '@/domains/learning/academics/api/academicApi';
+import { branchesApi } from '@/domains/user/shared/api/adminApi';
+import { cacheStudentId } from '@/domains/user/student/api/studentContext';
 
 export default function AdmissionsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [students, setStudents] = useState<StudentProfile[]>([]);

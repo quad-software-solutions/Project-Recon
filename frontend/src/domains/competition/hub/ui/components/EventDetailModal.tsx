@@ -1,8 +1,8 @@
 import { Trophy, GraduationCap, X, Calendar, MapPin, Users, Shield, Lock, DollarSign, Swords } from 'lucide-react';
-import { UserProfile, type Tournament, type Workshop } from '@/src/shared/types';
+import { UserProfile, type Tournament, type Workshop } from '@/shared/types';
 import EventRegisterButton from '../../../shared/EventRegisterButton';
 import { REGISTRATION_MODE_LABELS } from '../../../shared/eventRegistrationUtils';
-import { statusBadge } from '@/src/shared/utils/status';
+import { statusBadge } from '@/shared/utils/status';
 
 export default function EventDetailModal({ event, onClose, currentUser, isRegistered, onRegister, onViewFull, onNavigateLogin }: {
   event: Tournament | Workshop;

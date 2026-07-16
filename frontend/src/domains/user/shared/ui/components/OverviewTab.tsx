@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { FileText, CheckCircle2, Award, Users, Calendar, Building, Sparkles, BookOpen } from 'lucide-react';
-import { Certificate, StudentCertificate, StudentProfile } from '@/src/shared/types';
+import { Certificate, StudentCertificate, StudentProfile } from '@/shared/types';
 
 export default function OverviewTab({ templates, activeTemplates, issuedCerts, recentCerts, uniqueStudents, students }: {
   templates: Certificate[];

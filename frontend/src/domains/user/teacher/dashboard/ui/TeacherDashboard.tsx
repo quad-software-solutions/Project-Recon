@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, CheckCircle2, DollarSign, RefreshCw, Loader2, AlertCircle, User, GraduationCap, Clock, Target } from 'lucide-react';
-import { UserProfile, Enrollment, StudentProfile } from '@/src/shared/types';
-import { AppLayout } from '@/src/shared/ui/AppLayout';
-import { NavItem } from '@/src/shared/ui/Sidebar';
-import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
-import InlineAlert from '@/src/shared/ui/InlineAlert';
-import PageSpinner from '@/src/shared/ui/PageSpinner';
-import EmptyState from '@/src/shared/ui/EmptyState';
+import { UserProfile, Enrollment, StudentProfile } from '@/shared/types';
+import { AppLayout } from '@/shared/ui/AppLayout';
+import { NavItem } from '@/shared/ui/Sidebar';
+import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
+import InlineAlert from '@/shared/ui/InlineAlert';
+import PageSpinner from '@/shared/ui/PageSpinner';
+import EmptyState from '@/shared/ui/EmptyState';
 import { getTeacherCommandCenter, type TeacherSectionId } from '../teacherCommandCenter';
-import AdminAccount from '@/src/domains/user/shared/ui/AdminAccount';
+import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
 import {
   loadTeacherDashboardData,
   loadClassRoster,
   type TeacherClassOption,
-} from '@/src/domains/user/teacher/api/teacherData';
+} from '@/domains/user/teacher/api/teacherData';
 
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';
@@ -21,10 +21,10 @@ import PerformanceMetrics from './PerformanceMetrics';
 import ActivityFeed from './ActivityFeed';
 import AttendanceHistory from './AttendanceHistory';
 import Reports from './Reports';
-import LearningMaterialsPanel from '@/src/domains/user/secretary/dashboard/ui/LearningMaterialsPanel';
-import LearningMilestonesManager from '@/src/domains/user/secretary/dashboard/ui/LearningMilestonesManager';
-import { adminGetWorkshops } from '@/src/domains/competition/api/eventsApi';
-import type { BackendWorkshop } from '@/src/domains/competition/api/eventsApi';
+import LearningMaterialsPanel from '@/domains/user/secretary/dashboard/ui/LearningMaterialsPanel';
+import LearningMilestonesManager from '@/domains/user/secretary/dashboard/ui/LearningMilestonesManager';
+import { adminGetWorkshops } from '@/domains/competition/api/eventsApi';
+import type { BackendWorkshop } from '@/domains/competition/api/eventsApi';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
 
@@ -111,7 +111,7 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
   }, [selectedClassId, mode, allEnrollments, allStudents, loading]);
 
   const classActive = classEnrollments.filter(e => e.status === 'ACTIVE').length;
-  const classPending = classEnrollments.filter(e => e.status === 'PENDING_PAYMENT').length;
+  const classPending = classEnrollments.filter(e => e.status === 'PENDING_VERIFICATION').length;
 
   const commandCenter = useMemo(() => getTeacherCommandCenter(activeSection, {
     classStudents: classStudents.length,

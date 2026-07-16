@@ -77,10 +77,10 @@ export interface ConsultancyRequest {
 
 export type ClassType = 'GROUP' | 'INDIVIDUAL';
 export type DurationUnit = 'DAY' | 'WEEK' | 'MONTH';
-export type EnrollmentStatus = 'PENDING_PAYMENT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-export type PaymentMethod = 'CASH' | 'ONLINE';
-export type PaymentProvider = 'CHAPA' | 'STRIPE';
+export type EnrollmentStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+export type VerificationStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
 export type SessionStatus = 'DRAFT' | 'PUBLISHED';
 export type ProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -113,7 +113,8 @@ export interface SubProgram {
   description?: string;
   duration?: number;
   duration_unit?: DurationUnit;
-  fee: number;
+  group_fee: number;
+  individual_fee?: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -151,8 +152,11 @@ export interface Enrollment {
   branch_name?: string;
   enrolled_at: string;
   status: EnrollmentStatus;
-  payment_status?: PaymentStatus;
-  payment_method?: PaymentMethod;
+  verification_status?: VerificationStatus;
+  rejection_reason?: string;
+  enrollment_number?: string;
+  pending_code?: string;
+  transferred_from?: string;
   remarks?: string;
   created_at: string;
   updated_at: string;
@@ -185,10 +189,15 @@ export interface EnrollmentPayment {
   sub_program_name?: string;
   amount: number;
   payment_method: PaymentMethod;
-  payment_provider?: PaymentProvider;
   transaction_reference?: string;
+  bank_name?: string;
+  transfer_reference?: string;
+  attachment?: string;
   payment_date?: string;
   status: PaymentStatus;
+  verified_by?: string;
+  verified_at?: string;
+  verification_notes?: string;
   created_at: string;
   updated_at: string;
 }

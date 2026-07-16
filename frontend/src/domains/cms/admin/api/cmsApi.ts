@@ -1,4 +1,4 @@
-import { http } from '@/src/shared/api/http';
+import { http } from '@/shared/api/http';
 import type {
   HeroBanner as ModelHeroBanner,
   NewsArticle,

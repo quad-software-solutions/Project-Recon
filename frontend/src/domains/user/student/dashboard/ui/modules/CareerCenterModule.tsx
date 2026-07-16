@@ -3,14 +3,14 @@ import { motion } from 'motion/react';
 import {
   Briefcase, GraduationCap, Send, Loader2, Award, BookOpen, MessageSquare,
 } from 'lucide-react';
-import { getWorkshops } from '@/src/domains/competition/api/competitionApi';
-import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
+import { getWorkshops } from '@/domains/competition/api/competitionApi';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
 import EmptyState from '../../../shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 import CertificateGenerator from '../CertificateGenerator';
-import type { UserProfile, Workshop } from '@/src/shared/types';
+import type { UserProfile, Workshop } from '@/shared/types';
 
 interface Props {
   studentId: string;

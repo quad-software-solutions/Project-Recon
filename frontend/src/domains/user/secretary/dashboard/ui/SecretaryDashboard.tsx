@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search } from 'lucide-react';
-import { UserProfile } from '@/src/shared/types';
-import { AppLayout } from '@/src/shared/ui/AppLayout';
-import { NavItem } from '@/src/shared/ui/Sidebar';
-import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
-import InlineAlert from '@/src/shared/ui/InlineAlert';
-import AdminAccount from '@/src/domains/user/shared/ui/AdminAccount';
-import RegistrationManager from '@/src/domains/competition/admin/RegistrationManager';
+import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search, ArrowRightLeft } from 'lucide-react';
+import { UserProfile } from '@/shared/types';
+import { AppLayout } from '@/shared/ui/AppLayout';
+import { NavItem } from '@/shared/ui/Sidebar';
+import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
+import InlineAlert from '@/shared/ui/InlineAlert';
+import PermissionDenied from '@/shared/ui/PermissionDenied';
+import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
+import RegistrationManager from '@/domains/competition/admin/RegistrationManager';
+import TransferRequestsPanel from '@/domains/user/shared/ui/TransferRequestsPanel';
 import {
   fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentCertificatesApi,
   fetchCertificateTemplatesApi, fetchEnrollmentPeriodsApi,
-} from '@/src/domains/learning/academics/api/academicApi';
+} from '@/domains/learning/academics/api/academicApi';
 import {
   getSecretaryCommandCenter,
   type SecretarySectionId,
@@ -22,7 +24,7 @@ import AdmissionsPanel from './AdmissionsPanel';
 import EnrollmentsPanel from './EnrollmentsPanel';
 import PaymentsPanel from './PaymentsPanel';
 import ReportsPanel from './ReportsPanel';
-import CertificateManager from '@/src/domains/user/shared/ui/CertificateManager';
+import CertificateManager from '@/domains/user/shared/ui/CertificateManager';
 import CertificateTemplateManager from './CertificateTemplateManager';
 import EnrollmentPeriodsPanel from './EnrollmentPeriodsPanel';
 import StudentDetailPanel from './StudentDetailPanel';
@@ -35,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'admissions', label: 'Admissions', icon: UserPlus, group: 'admissions' },
   { id: 'students', label: 'Student Details', icon: Search, group: 'admissions' },
   { id: 'enrollments', label: 'Enrollments', icon: Users, group: 'admissions' },
+  { id: 'transfers', label: 'Branch Transfers', icon: ArrowRightLeft, group: 'admissions' },
   { id: 'periods', label: 'Enrollment Periods', icon: Calendar, group: 'admissions' },
   { id: 'certificates', label: 'Certificates', icon: Award, group: 'academic' },
   { id: 'templates', label: 'Cert. Templates', icon: Award, group: 'academic' },
@@ -87,7 +90,7 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
 
       const today = new Date().toISOString().slice(0, 10);
       setHubStats({
-        pendingPayments: enrollments.filter(e => e.status === 'PENDING_PAYMENT').length,
+        pendingPayments: enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length,
         activeEnrollments: enrollments.filter(e => e.status === 'ACTIVE').length,
         todayPayments: payments.filter(p => p.payment_date?.startsWith(today)).length,
         certificatesIssued: certificates.length,
@@ -110,6 +113,7 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
       case 'overview': return <Overview />;
       case 'admissions': return <AdmissionsPanel currentUser={currentUser} />;
       case 'enrollments': return <EnrollmentsPanel currentUser={currentUser} />;
+      case 'transfers': return <TransferRequestsPanel />;
       case 'payments': return <PaymentsPanel />;
       case 'certificates': return <CertificateManager currentUserRole={currentUser.role} />;
       case 'templates': return <CertificateTemplateManager />;
@@ -118,6 +122,7 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
       case 'event-registrations': return <RegistrationManager />;
       case 'reports': return <ReportsPanel currentUser={currentUser} />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
+      default: return <PermissionDenied title="Section not found" message="This secretary section does not exist or is no longer available." />;
     }
   };
 

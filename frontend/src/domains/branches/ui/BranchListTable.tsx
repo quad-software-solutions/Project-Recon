@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { Building, MapPin, Edit3, UserPlus, Search, Loader2 } from 'lucide-react';
-import type { BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+import type { BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchStatusActions } from './BranchStatusActions';
 
 interface Props {

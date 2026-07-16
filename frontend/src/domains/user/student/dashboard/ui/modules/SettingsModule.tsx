@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Moon, Sun, Bell, Globe, Eye, Monitor, Check } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import { updateUserApi } from '@/src/domains/user/shared/api/adminApi';
+import type { UserProfile } from '@/shared/types';
+import { updateUserApi } from '@/domains/user/shared/api/adminApi';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
 
@@ -175,14 +175,15 @@ export default function SettingsModule({ currentUser, onUserUpdate }: Props) {
 
         {tab === 'notifications' && (
           <div className="divide-y divide-slate-100">
+            <p className="text-xs text-slate-500 pb-3">
+              These preferences are stored on this device only. There is no server-side notification inbox yet.
+            </p>
             <Toggle checked={settings.emailNotifications} onChange={v => update({ emailNotifications: v })}
-              label="Email notifications" description="Receive updates via email" />
-            <Toggle checked={settings.pushNotifications} onChange={v => update({ pushNotifications: v })}
-              label="In-app notifications" description="Show notifications in the dashboard" />
+              label="Email updates" description="Prefer email reminders when the platform sends them" />
             <Toggle checked={settings.academicAlerts} onChange={v => update({ academicAlerts: v })}
-              label="Academic alerts" description="Grades, assignments, and course updates" />
+              label="Academic alerts" description="Prefer alerts about grades and course updates" />
             <Toggle checked={settings.eventAlerts} onChange={v => update({ eventAlerts: v })}
-              label="Event alerts" description="Tournament and event reminders" />
+              label="Event alerts" description="Prefer reminders about tournaments and events" />
           </div>
         )}
 

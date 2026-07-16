@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Award, FileText, Eye, Image, RotateCcw, Shield, CheckCircle2, Upload } from 'lucide-react';
-import { Certificate } from '@/src/shared/types';
-import { fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi, setCertificateTemplateActiveApi, fetchSubProgramsApi, decodeBodyWithSignatory } from '@/src/domains/learning/academics/api/academicApi';
+import { Certificate } from '@/shared/types';
+import { fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi, setCertificateTemplateActiveApi, fetchSubProgramsApi, decodeBodyWithSignatory } from '@/domains/learning/academics/api/academicApi';
 
 interface TemplateForm {
   sub_program: string;

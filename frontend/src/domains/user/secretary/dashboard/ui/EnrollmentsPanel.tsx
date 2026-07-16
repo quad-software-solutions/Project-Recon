@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Enrollment, StudentProfile, AcademicClass, UserProfile } from '@/src/shared/types';
-import { fetchEnrollmentsPaginatedApi, fetchStudentsApi, fetchClassesApi, enrollStudentApi, cancelEnrollmentApi, completeEnrollmentApi, searchStudentsApi, createCashPaymentApi } from '@/src/domains/learning/academics/api/academicApi';
+import { Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign, Shield, ChevronLeft, ChevronRight, ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { Enrollment, StudentProfile, AcademicClass, UserProfile } from '@/shared/types';
+import {
+  fetchEnrollmentsPaginatedApi, fetchStudentsApi, fetchClassesApi, enrollStudentApi,
+  cancelEnrollmentApi, completeEnrollmentApi, searchStudentsApi, recordPaymentApi,
+  rejectPaymentApi, setUnderReviewApi, moveEnrollmentApi, switchSubProgramApi,
+} from '@/domains/learning/academics/api/academicApi';
 
 const PAGE_SIZE = 20;
 
 const statusBadge = (s: string) => {
   if (s === 'ACTIVE') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'PENDING_PAYMENT') return 'bg-amber-100 text-amber-700';
+  if (s === 'PENDING_VERIFICATION') return 'bg-amber-100 text-amber-700';
   if (s === 'CANCELLED') return 'bg-red-100 text-red-600';
   if (s === 'COMPLETED') return 'bg-brand-blue/10 text-brand-blue';
+  if (s === 'REJECTED') return 'bg-red-100 text-red-600';
   return 'bg-slate-100 text-slate-500';
 };
 
@@ -33,17 +38,19 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const [studentResults, setStudentResults] = useState<StudentProfile[]>([]);
   const [searching, setSearching] = useState(false);
   const [form, setForm] = useState({ student: '', enrolled_class: '', remarks: '' });
+  const [classAction, setClassAction] = useState<{ enrollment: Enrollment; mode: 'move' | 'switch' } | null>(null);
+  const [targetClassId, setTargetClassId] = useState('');
+  const [classActionBusy, setClassActionBusy] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const loadData = useCallback((p = 1) => {
     setLoading(true);
     setError(null);
-    const isSecretary = currentUser?.role === 'Secretary';
     Promise.allSettled([
       fetchEnrollmentsPaginatedApi(p, PAGE_SIZE),
       fetchStudentsApi(),
-      isSecretary ? Promise.resolve([]) : fetchClassesApi(),
+      fetchClassesApi().catch(() => []),
     ]).then(([enr, stu, cls]) => {
       if (enr.status === 'fulfilled') {
         setEnrollments(enr.value.results || []);
@@ -100,19 +107,46 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setSubmitting(true);
     setError(null);
     try {
-      await createCashPaymentApi({
+      await recordPaymentApi({
         enrollment: showPayment.id,
         amount: paymentForm.amount,
+        payment_method: 'CASH',
         payment_date: paymentForm.payment_date || undefined,
       });
       setEnrollments(prev => prev.map(e =>
-        e.id === showPayment.id ? { ...e, status: 'ACTIVE' as any, payment_status: 'PAID' as any, payment_method: 'CASH' as any } : e
+        e.id === showPayment.id ? { ...e, status: 'ACTIVE' as any, verification_status: 'VERIFIED' as any } : e
       ));
       setShowPayment(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to record payment');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openClassAction = (enrollment: Enrollment, mode: 'move' | 'switch') => {
+    setClassAction({ enrollment, mode });
+    setTargetClassId('');
+  };
+
+  const handleClassAction = async () => {
+    if (!classAction || !targetClassId) return;
+    setClassActionBusy(true);
+    setError(null);
+    try {
+      if (classAction.mode === 'move') {
+        const updated = await moveEnrollmentApi(classAction.enrollment.id, { target_class: targetClassId });
+        setEnrollments(prev => prev.map(e => e.id === updated.id ? updated : e));
+      } else {
+        await switchSubProgramApi(classAction.enrollment.id, { target_class: targetClassId });
+      }
+      setClassAction(null);
+      setTargetClassId('');
+      loadData(page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Failed to ${classAction.mode} enrollment`);
+    } finally {
+      setClassActionBusy(false);
     }
   };
 
@@ -150,9 +184,10 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
 
   const statusCounts = useMemo(() => ({
     ACTIVE: enrollments.filter(e => e.status === 'ACTIVE').length,
-    PENDING_PAYMENT: enrollments.filter(e => e.status === 'PENDING_PAYMENT').length,
+    PENDING_VERIFICATION: enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length,
     COMPLETED: enrollments.filter(e => e.status === 'COMPLETED').length,
     CANCELLED: enrollments.filter(e => e.status === 'CANCELLED').length,
+    REJECTED: enrollments.filter(e => e.status === 'REJECTED').length,
   }), [enrollments]);
 
   const exportCsv = () => {
@@ -199,17 +234,19 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
           <option value="all">All Status</option>
           <option value="ACTIVE">Active</option>
-          <option value="PENDING_PAYMENT">Pending Payment</option>
+          <option value="PENDING_VERIFICATION">Pending Verification</option>
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
+          <option value="REJECTED">Rejected</option>
         </select>
       </div>
 
       <div className="flex items-center gap-3 text-[10px] text-slate-500">
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Active ({statusCounts.ACTIVE})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Pending ({statusCounts.PENDING_PAYMENT})</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Pending ({statusCounts.PENDING_VERIFICATION})</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-brand-blue" /> Completed ({statusCounts.COMPLETED})</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Cancelled ({statusCounts.CANCELLED})</span>
+        {statusCounts.REJECTED > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600" /> Rejected ({statusCounts.REJECTED})</span>}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -236,13 +273,17 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => setSelected(e)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details"><Eye className="w-3.5 h-3.5" /></button>
-                      {e.status === 'PENDING_PAYMENT' && (
+                      {e.status === 'PENDING_VERIFICATION' && (
                         <button onClick={() => { setPaymentForm({ amount: '', payment_date: new Date().toISOString().slice(0, 10) }); setShowPayment(e); }} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Record cash payment"><DollarSign className="w-3.5 h-3.5" /></button>
                       )}
                       {e.status === 'ACTIVE' && (
-                        <button onClick={() => handleComplete(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark completed"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                        <>
+                          <button onClick={() => openClassAction(e, 'move')} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Move to another class"><ArrowRightLeft className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openClassAction(e, 'switch')} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Switch sub-program"><RefreshCw className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleComplete(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark completed"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                        </>
                       )}
-                      {(e.status === 'ACTIVE' || e.status === 'PENDING_PAYMENT') && (
+                      {(e.status === 'ACTIVE' || e.status === 'PENDING_VERIFICATION') && (
                         <button onClick={() => handleCancel(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel enrollment"><X className="w-3.5 h-3.5" /></button>
                       )}
                     </div>
@@ -327,6 +368,50 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                 className="bg-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
                 {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
                 {submitting ? 'Recording...' : 'Confirm Payment'}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Move / Switch class modal */}
+      {classAction && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setClassAction(null)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-base text-slate-900">
+                {classAction.mode === 'move' ? 'Move to class' : 'Switch sub-program'}
+              </h3>
+              <button onClick={() => setClassAction(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Student: <span className="font-medium text-slate-700">{classAction.enrollment.student_name || classAction.enrollment.student_email}</span>
+              <br />
+              Current: <span className="font-medium text-slate-700">{classAction.enrollment.class_name || '—'}</span>
+            </p>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Target class</label>
+              {classes.length === 0 ? (
+                <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-400">No classes available</div>
+              ) : (
+                <select value={targetClassId} onChange={e => setTargetClassId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                  <option value="">Select class...</option>
+                  {classes
+                    .filter(c => c.id !== (classAction.enrollment as { enrolled_class?: string }).enrolled_class)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>
+                    ))}
+                </select>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+              <button onClick={() => setClassAction(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+              <button onClick={handleClassAction} disabled={classActionBusy || !targetClassId}
+                className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                {classActionBusy && <Loader2 className="w-3 h-3 animate-spin" />}
+                {classActionBusy ? 'Saving...' : classAction.mode === 'move' ? 'Move' : 'Switch'}
               </button>
             </div>
           </motion.div>

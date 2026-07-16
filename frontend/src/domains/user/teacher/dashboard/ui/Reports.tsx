@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import {
   downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf,
   downloadProgressReportPdf, downloadClassReportPdf
-} from '@/src/domains/learning/academics/api/academicApi';
+} from '@/domains/learning/academics/api/academicApi';
 
 interface Props {
   classId?: string;

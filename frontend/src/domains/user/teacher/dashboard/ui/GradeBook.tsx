@@ -4,7 +4,7 @@ import {
   Trophy, Download, Settings, Sliders, MessageSquare, History, Clock, ArrowUpDown, Users, Target, GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { StudentProfile } from '@/src/shared/types';
+import { StudentProfile } from '@/shared/types';
 
 interface SubScores {
   scores: number[];

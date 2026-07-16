@@ -1,11 +1,11 @@
-import type { DashboardSignal } from '@/src/shared/ui/DashboardCommandCenter';
+import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   LayoutDashboard, UserPlus, Users, DollarSign, Award, Calendar,
   FileText, Search, Shield,
 } from 'lucide-react';
 
 export type SecretarySectionId =
-  | 'overview' | 'admissions' | 'enrollments' | 'payments' | 'certificates'
+  | 'overview' | 'admissions' | 'enrollments' | 'transfers' | 'payments' | 'certificates'
   | 'templates' | 'reports' | 'periods'
   | 'students' | 'event-registrations' | 'account';
 
@@ -87,6 +87,18 @@ export function getSecretaryCommandCenter(
           { label: 'Pending', value: String(pendingPayments), detail: 'payment due', icon: DollarSign, tone: pendingPayments ? 'amber' : 'slate' },
           { label: 'Periods', value: String(periods), detail: 'open periods', icon: Calendar, tone: 'blue' },
           { label: 'Certificates', value: String(certificatesIssued), detail: 'issued', icon: Award, tone: 'slate' },
+        ],
+      };
+
+    case 'transfers':
+      return {
+        title: 'Branch Transfers',
+        subtitle: 'Review and approve student branch transfer requests.',
+        signals: [
+          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: Users, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingPayments), detail: 'payment due', icon: DollarSign, tone: pendingPayments ? 'amber' : 'slate' },
+          { label: 'Periods', value: String(periods), detail: 'open periods', icon: Calendar, tone: 'blue' },
+          { label: 'Today', value: String(todayPayments), detail: 'payments today', icon: DollarSign, tone: 'slate' },
         ],
       };
 

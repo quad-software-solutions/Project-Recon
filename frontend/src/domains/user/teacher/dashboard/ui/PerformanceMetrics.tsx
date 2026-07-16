@@ -2,7 +2,7 @@ import React from 'react';
 import { BarChart3, TrendingUp, Users, Award, AlertTriangle, Zap, BookOpen, Target, Star, BrainCircuit } from 'lucide-react';
 import { motion } from 'motion/react';
 
-import { StudentProfile, Enrollment } from '@/src/shared/types';
+import { StudentProfile, Enrollment } from '@/shared/types';
 
 interface Props {
   students: StudentProfile[];
@@ -12,7 +12,7 @@ interface Props {
 export default function PerformanceMetrics({ students, enrollments }: Props) {
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
   const completedEnrollments = enrollments.filter(e => e.status === 'COMPLETED');
-  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
   const cancelledEnrollments = enrollments.filter(e => e.status === 'CANCELLED');
 
   const enrollmentCompletionRate = enrollments.length > 0

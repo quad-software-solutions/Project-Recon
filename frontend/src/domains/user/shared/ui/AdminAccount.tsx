@@ -5,10 +5,10 @@ import {
   Lock, Key, Smartphone, Eye, EyeOff, AlertCircle, Check, RefreshCw,
   ShieldCheck, Award, Zap, TrendingUp, BookOpen, Star, CheckCircle2
 } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import { updateUserProfile } from '@/src/shared/utils/storage';
-import { updateUserApi } from '@/src/domains/user/shared/api/adminApi';
-import { securityApi } from '@/src/domains/auth/login/api/securityApi';
+import type { UserProfile } from '@/shared/types';
+import { updateUserProfile } from '@/shared/utils/storage';
+import { updateUserApi } from '@/domains/user/shared/api/adminApi';
+import { securityApi } from '@/domains/auth/login/api/securityApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
 interface Props {

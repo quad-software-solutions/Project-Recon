@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Building, RefreshCw, Plus } from 'lucide-react';
-import { branchesApi, assignmentsApi, type BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+import { branchesApi, assignmentsApi, type BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchListTable } from './BranchListTable';
 import { BranchFormModal, type BranchFormData } from './BranchFormModal';
 import { BranchDetailPanel } from './BranchDetailPanel';

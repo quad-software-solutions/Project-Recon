@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, X, Package, Building2, Plus, ArrowRight, TrendingUp,
+  Download, ArrowUpDown, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { storeAdminApi, type InventoryPayload, type InventoryTransferPayload } from '../api/storeAdminApi';
 import { branchesApi } from '@/domains/user/shared/api/adminApi';
@@ -12,6 +13,8 @@ import {
   isLowStock,
 } from '@/domains/store/utils/inventoryDisplay';
 import { cn } from '@/shared/utils/cn';
+
+const PAGE_SIZE = 25;
 
 interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
@@ -60,6 +63,9 @@ export default function InventoryManager({ addToast }: Props) {
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [sortField, setSortField] = useState<'product' | 'branch' | 'quantity' | 'minQty'>('product');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [page, setPage] = useState(0);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<InventoryPayload>(emptyInventory());
@@ -180,16 +186,75 @@ export default function InventoryManager({ addToast }: Props) {
 
   const lowStockItems = items.filter(isLowStock);
   const hasActiveFilters = Boolean(search || branchFilter || lowStockOnly);
-  const filtered = items.filter(i => {
-    const name = getInventoryProductName(i).toLowerCase();
-    const sku = getInventoryProductSku(i).toLowerCase();
-    const branchName = (i.branch_name || '').toLowerCase();
-    const q = search.toLowerCase();
-    const matchesSearch = !q || name.includes(q) || sku.includes(q) || branchName.includes(q);
-    const matchesBranch = !branchFilter || i.branch === branchFilter;
-    const matchesLowStock = !lowStockOnly || isLowStock(i);
-    return matchesSearch && matchesBranch && matchesLowStock;
-  });
+
+  const filtered = useMemo(() => {
+    let result = items.filter(i => {
+      const name = getInventoryProductName(i).toLowerCase();
+      const sku = getInventoryProductSku(i).toLowerCase();
+      const branchName = (i.branch_name || '').toLowerCase();
+      const q = search.toLowerCase();
+      const matchesSearch = !q || name.includes(q) || sku.includes(q) || branchName.includes(q);
+      const matchesBranch = !branchFilter || i.branch === branchFilter;
+      const matchesLowStock = !lowStockOnly || isLowStock(i);
+      return matchesSearch && matchesBranch && matchesLowStock;
+    });
+
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'product':
+          cmp = getInventoryProductName(a).localeCompare(getInventoryProductName(b));
+          break;
+        case 'branch':
+          cmp = (a.branch_name || '').localeCompare(b.branch_name || '');
+          break;
+        case 'quantity':
+          cmp = a.quantity - b.quantity;
+          break;
+        case 'minQty':
+          cmp = a.minimum_quantity - b.minimum_quantity;
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [items, search, branchFilter, lowStockOnly, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageItems = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
+
+  const exportCSV = () => {
+    const header = 'Branch,Product,SKU,Quantity,Minimum Quantity,Status';
+    const rows = filtered.map(i => {
+      const name = getInventoryProductName(i);
+      const sku = getInventoryProductSku(i);
+      const status = isLowStock(i) ? (i.quantity === 0 ? 'OUT' : 'LOW') : 'OK';
+      return `"${i.branch_name || ''}","${name}","${sku}",${i.quantity},${i.minimum_quantity},"${status}"`;
+    });
+    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inventory_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    addToast('CSV exported', 'success');
+  };
+
+  const summaryTotalQty = items.reduce((s, i) => s + i.quantity, 0);
+  const summaryBranches = new Set(items.map(i => i.branch)).size;
 
   const actionDisabled =
     actioning ||
@@ -198,6 +263,13 @@ export default function InventoryManager({ addToast }: Props) {
       (!(parseInt(action.quantity, 10) >= 1))) ||
     (action.type === 'correct' && action.newQuantity === '') ||
     (action.type === 'transfer' && (!action.toBranch || !action.product || !action.branch));
+
+  const SortIcon = ({ field }: { field: typeof sortField }) => (
+    <ArrowUpDown className={cn(
+      'w-3 h-3 ml-1 transition-opacity',
+      sortField === field ? 'opacity-100 text-brand-blue' : 'opacity-30',
+    )} />
+  );
 
   return (
     <div className="bg-white rounded-xl border border-brand-border overflow-hidden">
@@ -217,10 +289,31 @@ export default function InventoryManager({ addToast }: Props) {
             </p>
           </div>
         </div>
-        <button onClick={openCreate}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15">
-          <Plus className="w-4 h-4" /> New Record
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={exportCSV} disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:text-brand-ink hover:bg-slate-50 disabled:opacity-40 transition-colors">
+            <Download className="w-4 h-4" /> Export
+          </button>
+          <button onClick={openCreate}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15">
+            <Plus className="w-4 h-4" /> New Record
+          </button>
+        </div>
+      </div>
+
+      {/* Summary strip */}
+      <div className="grid grid-cols-4 gap-px bg-brand-border/30">
+        {[
+          { label: 'Total Records', value: items.length, color: 'text-brand-ink' },
+          { label: 'Total Quantity', value: summaryTotalQty.toLocaleString(), color: 'text-brand-blue' },
+          { label: 'Low Stock Items', value: lowStockItems.length, color: lowStockItems.length > 0 ? 'text-red-600' : 'text-emerald-600' },
+          { label: 'Branches', value: summaryBranches, color: 'text-brand-ink' },
+        ].map(s => (
+          <div key={s.label} className="bg-white px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-muted/70">{s.label}</p>
+            <p className={cn('text-lg font-bold', s.color)}>{s.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Filters */}
@@ -232,14 +325,14 @@ export default function InventoryManager({ addToast }: Props) {
               type="text"
               placeholder="Search by product, SKU, or branch..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
               className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue placeholder:text-brand-muted/60"
             />
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <select
               value={branchFilter}
-              onChange={e => setBranchFilter(e.target.value)}
+              onChange={e => { setBranchFilter(e.target.value); setPage(0); }}
               className="flex-1 sm:w-auto px-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
             >
               <option value="">All Branches</option>
@@ -249,7 +342,7 @@ export default function InventoryManager({ addToast }: Props) {
               <input
                 type="checkbox"
                 checked={lowStockOnly}
-                onChange={e => setLowStockOnly(e.target.checked)}
+                onChange={e => { setLowStockOnly(e.target.checked); setPage(0); }}
                 className="rounded border-brand-border text-brand-blue focus:ring-brand-blue/20"
               />
               <span className="text-xs font-medium text-brand-muted">Low stock only</span>
@@ -294,79 +387,119 @@ export default function InventoryManager({ addToast }: Props) {
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            <AnimatePresence>
-              {filtered.map(item => {
-                const productName = getInventoryProductName(item);
-                const productSku = getInventoryProductSku(item);
-                const stockPercent = item.minimum_quantity > 0
-                  ? Math.min((item.quantity / item.minimum_quantity) * 100, 200)
-                  : 100;
-                const isLow = isLowStock(item);
-                const isCritical = item.quantity === 0;
-                return (
-                  <motion.div
-                    key={item.id}
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="p-4 rounded-xl border transition-all duration-150 hover:shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2.5">
-                          <h4 className="text-sm font-semibold text-brand-ink truncate">{productName}</h4>
-                          {isCritical && (
-                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">OUT</span>
-                          )}
-                          {isLow && !isCritical && (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">LOW</span>
-                          )}
-                          {!isLow && (
-                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">OK</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-brand-muted">
-                          <span className="flex items-center gap-1">
-                            <Building2 className="w-3 h-3" /> {item.branch_name}
-                          </span>
-                          {productSku && <span>SKU: {productSku}</span>}
-                        </div>
+          <>
+            <div className="grid grid-cols-12 gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-brand-muted/70 border-b border-brand-border/30 mb-2">
+              <button className="col-span-4 flex items-center text-left" onClick={() => toggleSort('product')}>
+                Product <SortIcon field="product" />
+              </button>
+              <button className="col-span-3 flex items-center text-left" onClick={() => toggleSort('branch')}>
+                Branch <SortIcon field="branch" />
+              </button>
+              <button className="col-span-2 flex items-center justify-end" onClick={() => toggleSort('quantity')}>
+                Qty <SortIcon field="quantity" />
+              </button>
+              <button className="col-span-2 flex items-center justify-end" onClick={() => toggleSort('minQty')}>
+                Min <SortIcon field="minQty" />
+              </button>
+              <div className="col-span-1" />
+            </div>
 
-                        {/* Stock Bar */}
-                        <div className="mt-2.5 flex items-center gap-3">
-                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-all duration-500",
-                                isCritical ? "bg-red-500" : isLow ? "bg-amber-400" : "bg-emerald-400"
-                              )}
-                              style={{ width: `${Math.min(stockPercent, 100)}%` }}
-                            />
-                          </div>
-                          <span className={cn(
-                            "text-xs font-bold whitespace-nowrap",
-                            isCritical ? "text-red-600" : isLow ? "text-amber-700" : "text-emerald-600"
-                          )}>
-                            {item.quantity} / {item.minimum_quantity} min
-                          </span>
+            <div className="space-y-1">
+              <AnimatePresence>
+                {pageItems.map(item => {
+                  const productName = getInventoryProductName(item);
+                  const productSku = getInventoryProductSku(item);
+                  const stockPercent = item.minimum_quantity > 0
+                    ? Math.min((item.quantity / item.minimum_quantity) * 100, 200)
+                    : 100;
+                  const isLow = isLowStock(item);
+                  const isCritical = item.quantity === 0;
+                  return (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="grid grid-cols-12 gap-3 items-center p-3 rounded-lg border border-transparent hover:border-brand-border/50 hover:bg-slate-50/50 transition-all duration-150"
+                    >
+                      <div className="col-span-4 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-brand-ink truncate">{productName}</span>
+                          {isCritical && <span className="shrink-0 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">OUT</span>}
+                          {isLow && !isCritical && <span className="shrink-0 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">LOW</span>}
+                          {!isLow && <span className="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">OK</span>}
                         </div>
+                        {productSku && <p className="text-[11px] font-mono text-brand-muted/70 truncate">{productSku}</p>}
                       </div>
+                      <div className="col-span-3 flex items-center gap-1.5 text-sm text-brand-muted">
+                        <Building2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{item.branch_name}</span>
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <span className={cn(
+                          "text-sm font-bold tabular-nums",
+                          isCritical ? "text-red-600" : isLow ? "text-amber-700" : "text-brand-ink"
+                        )}>
+                          {item.quantity}
+                        </span>
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <span className="text-sm text-brand-muted tabular-nums">{item.minimum_quantity}</span>
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <button
+                          onClick={() => openAction(item)}
+                          className="p-1.5 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-blue-50 transition-colors"
+                          title="Action"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
 
-                      <button
-                        onClick={() => openAction(item)}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-blue bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors mt-0.5"
-                      >
-                        Action
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between pt-4 mt-4 border-t border-brand-border/30">
+              <p className="text-xs text-brand-muted">
+                Showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="p-1.5 rounded-lg border border-brand-border text-brand-muted hover:text-brand-ink hover:bg-slate-50 disabled:opacity-30 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i).slice(
+                  Math.max(0, safePage - 2),
+                  Math.min(totalPages, safePage + 3),
+                ).map(i => (
+                  <button
+                    key={i}
+                    onClick={() => setPage(i)}
+                    className={cn(
+                      'w-8 h-8 rounded-lg text-xs font-semibold transition-colors',
+                      i === safePage ? 'bg-brand-blue text-white' : 'text-brand-muted hover:text-brand-ink hover:bg-slate-50',
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={safePage >= totalPages - 1}
+                  className="p-1.5 rounded-lg border border-brand-border text-brand-muted hover:text-brand-ink hover:bg-slate-50 disabled:opacity-30 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

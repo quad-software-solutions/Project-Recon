@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal } from '@/src/shared/ui/Modal';
-import type { BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+import { Modal } from '@/shared/ui/Modal';
+import type { BranchResponse } from '@/domains/user/shared/api/adminApi';
 
 export interface BranchFormData {
   name: string;

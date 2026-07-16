@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { TrendingUp, TrendingDown, DollarSign, Users, BarChart3, PieChart, ArrowUpRight, Loader2 } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
-import type { Enrollment, EnrollmentPayment, Program, StudentProfile } from '@/src/shared/types';
+import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi } from '@/domains/learning/academics/api/academicApi';
+import type { Enrollment, EnrollmentPayment, Program, StudentProfile } from '@/shared/types';
 
 export default function AnalyticsDashboard() {
   const [students, setStudents] = useState<StudentProfile[]>([]);

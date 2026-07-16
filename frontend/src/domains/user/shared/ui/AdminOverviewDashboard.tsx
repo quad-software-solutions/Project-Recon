@@ -9,8 +9,8 @@ import {
 import { fetchAllUsersApi, branchesApi, resolveRole, type AdminUserResponse, type BranchResponse } from '../api/adminApi';
 import {
   fetchProgramsApi, fetchClassesApi, fetchEnrollmentsApi, fetchPaymentsApi,
-} from '@/src/domains/learning/academics/api/academicApi';
-import LiveLeaderboardWidget from '@/src/domains/competition/shared/LiveLeaderboardWidget';
+} from '@/domains/learning/academics/api/academicApi';
+import LiveLeaderboardWidget from '@/domains/competition/shared/LiveLeaderboardWidget';
 
 type StatCard = {
   label: string;
@@ -290,7 +290,6 @@ export default function AdminOverviewDashboard() {
             <RoleDistributionBar label="Managers" count={usersByRole['Manager'] || 0} total={totalUsers} color="bg-amber-500" />
             <RoleDistributionBar label="Secretaries" count={usersByRole['Secretary'] || 0} total={totalUsers} color="bg-rose-500" />
             <RoleDistributionBar label="Admins" count={usersByRole['Admin'] || 0} total={totalUsers} color="bg-red-500" />
-            <RoleDistributionBar label="Students (Other)" count={usersByRole['Parent'] || 0} total={totalUsers} color="bg-sky-500" />
           </div>
         </div>
 

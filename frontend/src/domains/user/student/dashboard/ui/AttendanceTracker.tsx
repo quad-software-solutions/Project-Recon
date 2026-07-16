@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Loader2, ShieldOff, Download } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/src/domains/learning/academics/api/academicApi';
-import type { AttendanceSession } from '@/src/shared/types';
+import { fetchEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/domains/learning/academics/api/academicApi';
+import type { AttendanceSession } from '@/shared/types';
 
 interface Props { studentId: string }
 

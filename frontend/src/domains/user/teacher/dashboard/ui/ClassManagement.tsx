@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Users, Search, X, CheckCircle2, Clock, UserCheck, AlertCircle, Calendar, Loader2, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
-import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
 
-import { StudentProfile, Enrollment, AttendanceSession } from '@/src/shared/types';
+import { StudentProfile, Enrollment, AttendanceSession } from '@/shared/types';
 
 interface AttendanceSessionExtended extends AttendanceSession {
   records_count?: number;

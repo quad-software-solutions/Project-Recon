@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Loader2, CheckCircle2 } from 'lucide-react';
-import type { Certificate, StudentProfile } from '@/src/shared/types';
-import { searchStudentsApi, issueStudentCertificateApi } from '@/src/domains/learning/academics/api/academicApi';
+import type { Certificate, StudentProfile } from '@/shared/types';
+import { searchStudentsApi, issueStudentCertificateApi } from '@/domains/learning/academics/api/academicApi';
 import EventIssuePanel from './EventIssuePanel';
 
 export default function IssueTab({ templates, students, onRefresh, canManage, onError }: {

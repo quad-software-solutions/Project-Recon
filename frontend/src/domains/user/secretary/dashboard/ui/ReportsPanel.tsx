@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { FileText, Users, BookOpen, DollarSign, Award, Download, Loader2 } from 'lucide-react';
-import { Enrollment, EnrollmentPayment, StudentProfile, StudentCertificate, AcademicClass, UserProfile } from '@/src/shared/types';
+import { Enrollment, EnrollmentPayment, StudentProfile, StudentCertificate, AcademicClass, UserProfile } from '@/shared/types';
 import {
   fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi,
   fetchClassesApi, fetchProgramsApi, fetchSubProgramsApi,
@@ -9,8 +9,8 @@ import {
   downloadAttendanceReportPdf, downloadProgressReportPdf,
   downloadCertificateReportPdf, downloadClassReportPdf,
   downloadSubProgramReportPdf, downloadProgramReportPdf
-} from '@/src/domains/learning/academics/api/academicApi';
-import type { Program, SubProgram } from '@/src/shared/types';
+} from '@/domains/learning/academics/api/academicApi';
+import type { Program, SubProgram } from '@/shared/types';
 
 export default function ReportsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -65,7 +65,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
   const totalPaid = payments.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount), 0);
   const activeStudents = students.filter(s => s.is_active);
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
-  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
   const cashPayments = payments.filter(p => p.payment_method === 'CASH');
 
   const doDownload = async (key: string, fn: () => Promise<void>) => {
@@ -275,7 +275,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
                   <td className="px-4 py-2.5 text-xs text-slate-700">{e.class_name || e.sub_program_name || '—'}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-500 hidden sm:table-cell">{e.enrolled_at?.slice(0, 10) || '—'}</td>
                   <td className="px-4 py-2.5 text-center">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-brand-blue/10 text-brand-blue' : 'bg-red-100 text-red-600'}`}>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-brand-blue/10 text-brand-blue' : 'bg-red-100 text-red-600'}`}>
                       {e.status.replace('_', ' ')}
                     </span>
                   </td>

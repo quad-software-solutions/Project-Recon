@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import * as eventsApi from '../../competition/api/eventsApi';
 import type { BackendEvent } from '../../competition/api/eventsApi';
-import { Modal } from '@/src/shared/ui/Modal';
+import { Modal } from '@/shared/ui/Modal';
 
 const defaultForm = {
   title: '', description: '', location: '', event_type: 'GENERAL' as eventsApi.EventType,

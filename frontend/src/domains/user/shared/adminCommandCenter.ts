@@ -1,14 +1,15 @@
-import type { DashboardSignal } from '@/src/shared/ui/DashboardCommandCenter';
+import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
   Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch,
+  ShoppingBag, DollarSign,
 } from 'lucide-react';
 
 export type AdminSectionId =
   | 'overview' | 'users' | 'roles' | 'academics' | 'classes' | 'staff-attendance'
   | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events'
   | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops'
-  | 'event-registrations' | 'certificates';
+  | 'event-registrations' | 'certificates' | 'store' | 'transfers' | 'bank-accounts';
 
 export interface AdminHubStats {
   totalUsers: number;
@@ -178,6 +179,42 @@ export function getAdminCommandCenter(
           { label: 'Active', value: String(activeUsers), detail: 'active users', icon: Users, tone: 'emerald' },
           { label: 'Enrollments', value: String(activeEnrollments), detail: 'recent changes', icon: ClipboardList, tone: 'slate' },
           { label: 'Payments', value: String(paidPayments), detail: 'transactions', icon: Award, tone: 'amber' },
+        ],
+      };
+
+    case 'store':
+      return {
+        title: 'Store & Inventory',
+        subtitle: 'Product catalog, inventory, orders, and payment verification.',
+        signals: [
+          { label: 'Students', value: String(students), detail: 'potential customers', icon: ShoppingBag, tone: 'blue' },
+          { label: 'Paid', value: String(paidPayments), detail: 'store revenue', icon: DollarSign, tone: 'emerald' },
+          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: UserPlus, tone: 'slate' },
+          { label: 'Programs', value: String(programs), detail: 'related offers', icon: BookOpen, tone: 'amber' },
+        ],
+      };
+
+    case 'transfers':
+      return {
+        title: 'Branch Transfers',
+        subtitle: 'Review and approve student branch transfer requests.',
+        signals: [
+          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: ClipboardList, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingEnrollments), detail: 'awaiting payment', icon: UserPlus, tone: pendingEnrollments ? 'amber' : 'slate' },
+          { label: 'Students', value: String(students), detail: 'registered', icon: Users, tone: 'blue' },
+          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
+        ],
+      };
+
+    case 'bank-accounts':
+      return {
+        title: 'Bank Accounts',
+        subtitle: 'Payment destination accounts for transfers and store checkout.',
+        signals: [
+          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'blue' },
+          { label: 'Paid', value: String(paidPayments), detail: 'completed payments', icon: DollarSign, tone: 'emerald' },
+          { label: 'Students', value: String(students), detail: 'payers', icon: Users, tone: 'slate' },
+          { label: 'Programs', value: String(programs), detail: 'fee programs', icon: BookOpen, tone: 'amber' },
         ],
       };
 

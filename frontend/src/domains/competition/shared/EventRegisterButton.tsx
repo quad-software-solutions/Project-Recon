@@ -1,5 +1,5 @@
 import { CheckCircle2, Lock, Shield, User } from 'lucide-react';
-import type { Tournament, Workshop, UserProfile } from '@/src/shared/types';
+import type { Tournament, Workshop, UserProfile } from '@/shared/types';
 import { getRegistrationEligibility } from './eventRegistrationUtils';
 
 interface EventRegisterButtonProps {

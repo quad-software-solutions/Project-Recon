@@ -3,14 +3,14 @@ import { motion } from 'motion/react';
 import {
   BookOpen, Award, Calendar, ChevronRight, Clock, Loader2, FileText, Download, Trophy
 } from 'lucide-react';
-import { UserProfile } from '@/src/shared/types';
-import { getUpcomingEvents } from '@/src/domains/competition/api/eventsApi';
+import { UserProfile } from '@/shared/types';
+import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
 import {
   fetchLearningMaterialsApi,
   downloadEnrollmentReportPdf,
   downloadProgressReportPdf,
   downloadAttendanceReportPdf,
-} from '@/src/domains/learning/academics/api/academicApi';
+} from '@/domains/learning/academics/api/academicApi';
 
 type SectionId = 'overview' | 'account' | 'attendance' | 'progress' | 'events' | 'resources' | 'certificates' | 'leaderboard' | 'registrations' | 'feedback';
 

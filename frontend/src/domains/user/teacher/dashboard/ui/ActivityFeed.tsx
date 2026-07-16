@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Activity, CheckCircle2, Edit3, DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import {
   fetchEnrollmentsApi,
-  fetchPaymentsApi,
+  fetchPaymentsListApi,
   fetchAttendanceSessionsApi,
-} from '@/src/domains/learning/academics/api/academicApi';
+} from '@/domains/learning/academics/api/academicApi';
 
 const ICON_MAP: Record<string, { icon: typeof CheckCircle2; bg: string; color: string }> = {
   ENROLLMENT: { icon: CheckCircle2, bg: 'bg-blue-100', color: 'text-blue-600' },
@@ -48,7 +48,7 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
       return;
     }
 
-    Promise.all([fetchEnrollmentsApi(), fetchPaymentsApi()])
+    Promise.all([fetchEnrollmentsApi(), fetchPaymentsListApi()])
       .then(([enr, pay]) => {
         const enrollments = Array.isArray(enr) ? enr : [];
         const payments = Array.isArray(pay) ? pay : [];

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Target, BookOpen, Archive, Filter, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { LearningMilestone, UserProfile } from '@/src/shared/types';
-import { fetchMilestonesApi, createMilestoneApi, updateMilestoneApi, archiveMilestoneApi, fetchSubProgramsApi, fetchClassesApi } from '@/src/domains/learning/academics/api/academicApi';
+import { LearningMilestone, UserProfile } from '@/shared/types';
+import { fetchMilestonesApi, createMilestoneApi, updateMilestoneApi, archiveMilestoneApi, fetchSubProgramsApi, fetchClassesApi } from '@/domains/learning/academics/api/academicApi';
 
 const defaultForm = {
   sub_program: '', title: '', description: '', scope_class: '',

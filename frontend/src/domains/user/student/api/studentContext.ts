@@ -1,6 +1,6 @@
-import { fetchStudentCertificatesApi } from '@/src/domains/learning/academics/api/academicApi';
-import { getMyRegistrations } from '@/src/domains/competition/api/eventsApi';
-import { getCachedStudentId, setCachedStudentId, studentIdKey } from '@/src/shared/utils/storage';
+import { fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
+import { getMyRegistrations } from '@/domains/competition/api/eventsApi';
+import { getCachedStudentId, setCachedStudentId, studentIdKey } from '@/shared/utils/storage';
 
 /** Resolve academic student UUID for the logged-in student (existing API only). */
 export async function resolveStudentId(email: string, cachedId?: string): Promise<string | null> {

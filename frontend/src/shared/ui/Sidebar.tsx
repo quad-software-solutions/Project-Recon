@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { LogOut, X, Menu, PanelLeftClose, PanelLeft, Search } from 'lucide-react';
 import BrandLogo from './BrandLogo';
-import { useBranding } from '@/src/shared/hooks/useBranding';
+import { useBranding } from '@/shared/hooks/useBranding';
 
 export interface NavItem {
   id: string;

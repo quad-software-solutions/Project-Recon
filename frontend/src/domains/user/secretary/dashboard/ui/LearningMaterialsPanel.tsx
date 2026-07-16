@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, BookOpen, FileText, Download, Trash2, ExternalLink, Filter } from 'lucide-react';
-import { LearningMaterial, UserProfile } from '@/src/shared/types';
-import { fetchLearningMaterialsApi, createLearningMaterialApi, updateLearningMaterialApi, deleteLearningMaterialApi, downloadLearningMaterialApi, fetchSubProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { LearningMaterial, UserProfile } from '@/shared/types';
+import { fetchLearningMaterialsApi, createLearningMaterialApi, updateLearningMaterialApi, deleteLearningMaterialApi, downloadLearningMaterialApi, fetchSubProgramsApi } from '@/domains/learning/academics/api/academicApi';
 
 const defaultForm = {
   sub_program: '', title: '', description: '', file_url: '', material_type: 'DOCUMENT',

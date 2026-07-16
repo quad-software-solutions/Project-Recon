@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw } from 'lucide-react';
-import { AcademicClass } from '@/src/shared/types';
-import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi } from '@/src/domains/learning/academics/api/academicApi';
-import { fetchAllUsersApi, resolveRole, branchesApi } from '@/src/domains/user/shared/api/adminApi';
+import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split } from 'lucide-react';
+import { AcademicClass } from '@/shared/types';
+import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllUsersApi, resolveRole, branchesApi } from '@/domains/user/shared/api/adminApi';
 
 const defaultForm = {
   sub_program: '', branch: '', instructor: '', name: '', class_type: 'GROUP', class_period: '', capacity: '', start_date: '', end_date: '',
@@ -26,6 +26,8 @@ export default function ClassManagerPanel() {
   const [form, setForm] = useState(defaultForm);
   const [assigning, setAssigning] = useState<{ classId: string; instructor: string } | null>(null);
   const [assignSaving, setAssignSaving] = useState(false);
+  const [splitting, setSplitting] = useState<{ sourceId: string; targetClass: string; count: string } | null>(null);
+  const [splitSaving, setSplitSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -113,6 +115,29 @@ export default function ClassManagerPanel() {
       setError(e instanceof Error ? e.message : 'Failed to assign instructor');
     } finally {
       setAssignSaving(false);
+    }
+  };
+
+  const handleSplit = async () => {
+    if (!splitting?.targetClass || !splitting.count) return;
+    const count = Number(splitting.count);
+    if (!Number.isFinite(count) || count < 1) {
+      setError('Enter a valid number of enrollments to move');
+      return;
+    }
+    setSplitSaving(true);
+    setError(null);
+    try {
+      await splitClassApi(splitting.sourceId, {
+        target_class: splitting.targetClass,
+        count,
+      });
+      setSplitting(null);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to split class');
+    } finally {
+      setSplitSaving(false);
     }
   };
 
@@ -220,6 +245,7 @@ export default function ClassManagerPanel() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => setAssigning({ classId: c.id, instructor: (c as any).instructor || '' })} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title="Assign Instructor"><UserCheck className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setSplitting({ sourceId: c.id, targetClass: '', count: '' })} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50" title="Split class"><Split className="w-3.5 h-3.5" /></button>
                       <button onClick={() => openEdit(c)} className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50" title="Edit"><BookOpen className="w-3.5 h-3.5" /></button>
                       <button onClick={() => toggleActive(c)} className={`p-1 rounded-lg ${c.is_active !== false ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={c.is_active !== false ? 'Deactivate' : 'Activate'}>
                         {c.is_active !== false ? <X className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -363,6 +389,57 @@ export default function ClassManagerPanel() {
                     className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {assignSaving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {assignSaving ? 'Assigning...' : 'Assign'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+
+        {splitting && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSplitting(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm">
+                <div className="flex items-center justify-between p-4 border-b border-brand-border">
+                  <h3 className="font-bold text-base text-slate-900">Split Class</h3>
+                  <button onClick={() => setSplitting(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-slate-500">Move a number of enrollments from this class into another active class.</p>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Target class</label>
+                    <select
+                      value={splitting.targetClass}
+                      onChange={e => setSplitting(p => p ? { ...p, targetClass: e.target.value } : null)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    >
+                      <option value="">Select target...</option>
+                      {classes.filter(c => c.id !== splitting.sourceId && c.is_active !== false).map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Enrollments to move</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={splitting.count}
+                      onChange={e => setSplitting(p => p ? { ...p, count: e.target.value } : null)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                      placeholder="e.g. 5"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
+                  <button onClick={() => setSplitting(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                  <button onClick={handleSplit} disabled={splitSaving || !splitting.targetClass || !splitting.count}
+                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                    {splitSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {splitSaving ? 'Splitting...' : 'Split'}
                   </button>
                 </div>
               </div>

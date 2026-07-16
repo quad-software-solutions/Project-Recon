@@ -4,8 +4,8 @@ import {
   Lock, Eye, EyeOff, Mail, ArrowRight,
   ShieldCheck, Sparkles, Info
 } from 'lucide-react';
-import { UserProfile } from '@/src/shared/types';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import { UserProfile } from '@/shared/types';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 import slide1 from '@/assets/slider/faj.jpg';
 import slide2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';

@@ -1,5 +1,4 @@
 export const ORDER_STATUSES = [
-  'PENDING_PAYMENT',
   'PAID',
   'PREPARING',
   'READY_FOR_PICKUP',
@@ -11,7 +10,6 @@ export const ORDER_STATUSES = [
 export type OrderStatusCode = (typeof ORDER_STATUSES)[number];
 
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatusCode, OrderStatusCode[]> = {
-  PENDING_PAYMENT: ['PAID'],
   PAID: ['PREPARING', 'CANCELLED', 'REFUNDED'],
   PREPARING: ['READY_FOR_PICKUP', 'CANCELLED'],
   READY_FOR_PICKUP: ['COMPLETED', 'CANCELLED'],
@@ -21,7 +19,6 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatusCode, OrderStatusCode[]
 };
 
 const LABELS: Record<string, string> = {
-  PENDING_PAYMENT: 'Pending Payment',
   PAID: 'Paid',
   PREPARING: 'Preparing',
   READY_FOR_PICKUP: 'Ready for Pickup',
@@ -31,7 +28,6 @@ const LABELS: Record<string, string> = {
 };
 
 const TONES: Record<string, string> = {
-  PENDING_PAYMENT: 'bg-amber-50 text-amber-800 border-amber-200',
   PAID: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
   PREPARING: 'bg-brand-blue/5 text-brand-blue-dark border-brand-border',
   READY_FOR_PICKUP: 'bg-emerald-50 text-emerald-800 border-emerald-200',

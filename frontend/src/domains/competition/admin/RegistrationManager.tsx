@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, Loader2, AlertCircle, Users, CheckCircle, XCircle, Eye, Send, CreditCard, Trophy, GraduationCap, Calendar, BarChart3, TrendingUp, UserPlus, Clock } from 'lucide-react';
+import { Search, X, Loader2, AlertCircle, Users, CheckCircle, XCircle, Eye, Send, CreditCard, Trophy, GraduationCap, Calendar, BarChart3, TrendingUp, UserPlus, Clock, Shield } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendEventRegistration, RegistrationStatus } from '../api/eventsApi';
 
@@ -15,6 +15,9 @@ export default function RegistrationManager() {
   const [teamName, setTeamName] = useState('');
   const [showTeamNameModal, setShowTeamNameModal] = useState(false);
   const [pendingConvertId, setPendingConvertId] = useState<string | null>(null);
+  const [verifyNotes, setVerifyNotes] = useState('');
+  const [rejectNotes, setRejectNotes] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
   const load = (status?: string) => {
     setLoading(true);
@@ -73,6 +76,29 @@ export default function RegistrationManager() {
     } catch (err: any) { setError(`Payment failed: ${err.message}`); }
   };
 
+  const handleVerifyPayment = async () => {
+    if (!selected) return;
+    try {
+      await eventsApi.adminVerifyPayment(selected.id, { verification_notes: verifyNotes || undefined });
+      setVerifyNotes('');
+      const updated = await eventsApi.adminGetRegistration(selected.id);
+      setSelected(updated);
+      load();
+    } catch (err: any) { setError(`Verification failed: ${err.message}`); }
+  };
+
+  const handleRejectPayment = async () => {
+    if (!selected || !rejectNotes.trim()) return;
+    try {
+      await eventsApi.adminRejectPayment(selected.id, { verification_notes: rejectNotes });
+      setRejectNotes('');
+      setShowRejectModal(false);
+      const updated = await eventsApi.adminGetRegistration(selected.id);
+      setSelected(updated);
+      load();
+    } catch (err: any) { setError(`Rejection failed: ${err.message}`); }
+  };
+
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
       PENDING: 'bg-amber-100 text-amber-700', APPROVED: 'bg-emerald-100 text-emerald-700',
@@ -83,8 +109,10 @@ export default function RegistrationManager() {
 
   const payStatusBadge = (s: string) => {
     const map: Record<string, string> = {
-      PENDING: 'bg-amber-100 text-amber-700', PAID: 'bg-emerald-100 text-emerald-700',
-      FAILED: 'bg-red-100 text-red-700', CANCELLED: 'bg-slate-100 text-slate-500', REFUNDED: 'bg-purple-100 text-purple-700',
+      PENDING_VERIFICATION: 'bg-amber-100 text-amber-700',
+      VERIFIED: 'bg-emerald-100 text-emerald-700',
+      REJECTED: 'bg-red-100 text-red-700',
+      CANCELLED: 'bg-slate-100 text-slate-500',
     };
     return map[s] || 'bg-slate-100 text-slate-600';
   };
@@ -246,12 +274,20 @@ export default function RegistrationManager() {
                   </div>
                 )}
 
-                {selected.registration_status === 'APPROVED' && selected.payment_status === 'PENDING' && (
+                {selected.registration_status === 'APPROVED' && selected.payment_status === 'PENDING_VERIFICATION' && (
                   <div className="bg-slate-50 rounded-xl p-4">
                     <h4 className="font-bold text-xs text-slate-700 mb-3">Record Cash Payment</h4>
                     <div className="flex items-center gap-2">
                       <input type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} placeholder="Amount" className="flex-1 px-3 py-2 bg-white border border-brand-border rounded-lg text-xs" />
-                      <button onClick={handleCashPayment} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> Pay</button>
+                      <button onClick={handleCashPayment} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> Pay Cash</button>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={handleVerifyPayment} className="flex-1 px-3 py-2 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center justify-center gap-1">
+                        <Shield className="w-3 h-3" /> Verify Payment
+                      </button>
+                      <button onClick={() => setShowRejectModal(true)} className="flex-1 px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 flex items-center justify-center gap-1">
+                        <XCircle className="w-3 h-3" /> Reject Payment
+                      </button>
                     </div>
                   </div>
                 )}
@@ -280,6 +316,28 @@ export default function RegistrationManager() {
                 <button onClick={handleConvertWithTeamName} disabled={!teamName.trim()}
                   className="flex-1 px-4 py-2 bg-purple-500 text-white text-xs font-bold rounded-xl hover:bg-purple-600 disabled:opacity-50 flex items-center justify-center gap-1.5">
                   <Send className="w-3.5 h-3.5" /> Convert
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showRejectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRejectModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 z-10">
+              <h3 className="font-black text-lg text-slate-900 mb-2">Reject Payment</h3>
+              <p className="text-xs text-slate-500 mb-4">Provide a reason for rejecting this payment.</p>
+              <textarea value={rejectNotes} onChange={e => setRejectNotes(e.target.value)} placeholder="Rejection reason *" autoFocus
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red mb-4" rows={3} />
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowRejectModal(false)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-200">Cancel</button>
+                <button onClick={handleRejectPayment} disabled={!rejectNotes.trim()}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <XCircle className="w-3.5 h-3.5" /> Reject Payment
                 </button>
               </div>
             </motion.div>

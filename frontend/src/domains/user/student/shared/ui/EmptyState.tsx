@@ -1,1 +1,1 @@
-export { default } from '@/src/shared/ui/EmptyState';
+export { default } from '@/shared/ui/EmptyState';

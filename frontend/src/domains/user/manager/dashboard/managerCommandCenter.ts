@@ -1,7 +1,7 @@
-import type { DashboardSignal } from '@/src/shared/ui/DashboardCommandCenter';
+import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   Activity, UserPlus, Award, BookOpen, Calendar, Building, DollarSign,
-  BarChart3, ShoppingBag, Handshake, Trophy, Users, Bell, MessageSquare,
+  BarChart3, Handshake, Trophy, Users, Bell, MessageSquare,
   Edit3,
 } from 'lucide-react';
 
@@ -9,7 +9,7 @@ export type ManagerSectionId =
   | 'overview' | 'analytics' | 'academic-catalog' | 'classes' | 'staff-attendance'
   | 'sponsors' | 'store' | 'events' | 'tournaments' | 'tournament-teams'
   | 'matches' | 'workshops' | 'participants' | 'announcements' | 'communications'
-  | 'payments' | 'walkin' | 'reports' | 'schools' | 'enrollments'
+  | 'payments' | 'walkin' | 'reports' | 'schools' | 'enrollments' | 'transfers'
   | 'event-registrations' | 'certificates' | 'account';
 
 export interface ManagerHubStats {
@@ -31,7 +31,7 @@ export function getManagerCommandCenter(
   section: ManagerSectionId,
   stats: ManagerHubStats,
 ): CommandCenterConfig | null {
-  if (section === 'account') return null;
+  if (section === 'account' || section === 'store') return null;
 
   const { students, activeEnrollments, pendingPayments, paidPayments, programs, loading } = stats;
 
@@ -150,18 +150,6 @@ export function getManagerCommandCenter(
           { label: 'Active', value: String(activeEnrollments), detail: 'enrolled users', icon: Users, tone: 'emerald' },
           { label: 'Programs', value: String(programs), detail: 'programs to promote', icon: BookOpen, tone: 'slate' },
           { label: 'Pending', value: String(pendingPayments), detail: 'follow-ups', icon: MessageSquare, tone: 'amber' },
-        ],
-      };
-
-    case 'store':
-      return {
-        title: 'Store & Inventory',
-        subtitle: 'Product catalog and inventory management.',
-        signals: [
-          { label: 'Students', value: String(students), detail: 'potential customers', icon: ShoppingBag, tone: 'blue' },
-          { label: 'Paid', value: String(paidPayments), detail: 'store revenue', icon: DollarSign, tone: 'emerald' },
-          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: UserPlus, tone: 'slate' },
-          { label: 'Programs', value: String(programs), detail: 'related offers', icon: BookOpen, tone: 'amber' },
         ],
       };
 

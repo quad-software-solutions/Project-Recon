@@ -1,1 +1,1 @@
-export { default, CardSkeleton, GridSkeleton } from '@/src/shared/ui/LoadingSkeleton';
+export { default, CardSkeleton, GridSkeleton } from '@/shared/ui/LoadingSkeleton';

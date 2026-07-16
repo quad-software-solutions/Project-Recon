@@ -3,8 +3,8 @@ import { motion } from 'motion/react';
 import {
   ArrowLeft, ArrowUpDown, Calendar, Filter, Loader2, MapPin, RotateCcw, Search, ShieldAlert, Tag, X,
 } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import * as eventsApi from '@/src/domains/competition/api/eventsApi';
+import type { UserProfile } from '@/shared/types';
+import * as eventsApi from '@/domains/competition/api/eventsApi';
 
 type SortId =
   | 'start_asc'

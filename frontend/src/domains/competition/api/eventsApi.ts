@@ -1,5 +1,5 @@
-import { http } from '@/src/shared/api/http';
-import { fetchAllPages, type PaginatedResponse } from '@/src/shared/api/pagination';
+import { http } from '@/shared/api/http';
+import { fetchAllPages, type PaginatedResponse } from '@/shared/api/pagination';
 
 /* ─── Backend-Matching Types ─── */
 
@@ -9,7 +9,7 @@ export type EventType = 'GENERAL' | 'TOURNAMENT' | 'WORKSHOP';
 export type RegistrationMode = 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
 export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
+export type PaymentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED' | 'CANCELLED';
 export type WorkshopLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 export type SideType = 'SIDE_A' | 'SIDE_B';
 
@@ -145,7 +145,7 @@ export interface BackendEventRegistration {
   public_phone?: string | null;
   public_organization?: string | null;
   registration_status: RegistrationStatus;
-  payment_status: PaymentStatus;
+  payment_status: string;
   registered_at: string;
   approved_at?: string | null;
   cancelled_at?: string | null;
@@ -168,14 +168,22 @@ export interface BackendStanding {
 export interface BackendEventPayment {
   id: string;
   registration: string;
-  registration_event_title?: string;
-  registration_student_email?: string;
+  registration_id?: string;
+  event_title?: string;
+  student_name?: string;
+  student_email?: string;
   amount: string;
   payment_method: string;
-  payment_provider?: string | null;
   transaction_reference?: string | null;
+  bank_name?: string;
+  attachment?: string;
   payment_date?: string | null;
   status: PaymentStatus;
+  verified_by?: string | null;
+  verified_by_name?: string;
+  verified_by_email?: string;
+  verified_at?: string | null;
+  verification_notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -273,10 +281,6 @@ export function getMyRegistrations() {
 
 export function cancelMyRegistration(id: string) {
   return http.post<BackendEventRegistration>(`${BASE}/my-registrations/${id}/cancel/`, {});
-}
-
-export function verifyEventPayment(reference: string) {
-  return http.post<BackendEventPayment>(`${BASE}/payments/online/verify/`, { reference });
 }
 
 /* ═══ ADMIN - EVENTS ═══ */
@@ -507,10 +511,18 @@ export function adminConvertRegistrationToTeam(id: string, teamName?: string) {
 
 /* ═══ ADMIN - PAYMENTS ═══ */
 
-export function adminRecordCashPayment(registrationId: string, data: { amount: string; transaction_reference?: string; payment_date?: string }) {
+export function adminRecordCashPayment(registrationId: string, data: { amount: string; payment_date?: string }) {
   return http.post(`${BASE}/admin/registrations/${registrationId}/pay/cash/`, data);
 }
 
-export function adminInitializeOnlinePayment(registrationId: string, data: { amount: string }) {
-  return http.post(`${BASE}/admin/registrations/${registrationId}/pay/initialize/`, data);
+export function adminVerifyPayment(registrationId: string, data?: { verification_notes?: string }) {
+  return http.post(`${BASE}/admin/registrations/${registrationId}/verify-payment/`, data || {});
+}
+
+export function adminRejectPayment(registrationId: string, data: { verification_notes: string }) {
+  return http.post(`${BASE}/admin/registrations/${registrationId}/reject-payment/`, data);
+}
+
+export function adminListPayments(params?: { event?: string; status?: string }) {
+  return http.get<BackendEventPayment[]>(`${BASE}/admin/payments/`, { params });
 }

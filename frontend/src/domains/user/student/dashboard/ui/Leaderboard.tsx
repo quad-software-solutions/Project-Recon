@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Trophy, Medal, TrendingUp, RefreshCw, Users, Search, Award, Star, Loader2 } from 'lucide-react';
-import { getPublicTeams, type PublicTeamEntry } from '@/src/domains/competition/api/competitionApi';
+import { getPublicTeams, type PublicTeamEntry } from '@/domains/competition/api/competitionApi';
 
 function RankIcon({ rank }: { rank: number }) {
   if (rank === 1) return <Trophy className="w-5 h-5 text-amber-500" />;

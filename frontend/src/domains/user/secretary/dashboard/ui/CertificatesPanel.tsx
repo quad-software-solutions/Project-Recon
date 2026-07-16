@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Award, Download, Shield, FileText, Users, Calendar } from 'lucide-react';
-import { StudentCertificate, StudentProfile, Certificate } from '@/src/shared/types';
-import { fetchStudentCertificatesApi, fetchStudentsApi, fetchCertificateTemplatesApi, issueStudentCertificateApi, searchStudentsApi, fetchEnrollmentsApi } from '@/src/domains/learning/academics/api/academicApi';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import { StudentCertificate, StudentProfile, Certificate } from '@/shared/types';
+import { fetchStudentCertificatesApi, fetchStudentsApi, fetchCertificateTemplatesApi, issueStudentCertificateApi, searchStudentsApi, fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 export default function CertificatesPanel() {
   const [certs, setCerts] = useState<StudentCertificate[]>([]);

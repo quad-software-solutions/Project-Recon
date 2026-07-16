@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor, Image, Globe, Upload } from 'lucide-react';
-import { saveBranding, resetBranding } from '@/src/shared/hooks/useBranding';
+import { saveBranding, resetBranding } from '@/shared/hooks/useBranding';
 
 const STORAGE_KEY = 'ethio-cms-branding';
 

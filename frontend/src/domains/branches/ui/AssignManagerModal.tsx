@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal } from '@/src/shared/ui/Modal';
+import { Modal } from '@/shared/ui/Modal';
 import { Loader2 } from 'lucide-react';
 
 interface UserOption {

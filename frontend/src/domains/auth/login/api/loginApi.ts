@@ -1,8 +1,8 @@
 import { http } from '../../../../shared/api/http';
 import type { UserProfile } from '../../../../shared/types';
 import type { LoginCredentials, AuthResponse } from '../../model/types';
-import { setTokens, getRefreshToken, clearTokens } from '@/src/shared/utils/auth';
-import { getOrCreateDeviceId, getCachedStudentId, setCachedStudentId } from '@/src/shared/utils/storage';
+import { setTokens, getRefreshToken, clearTokens } from '@/shared/utils/auth';
+import { getOrCreateDeviceId, getCachedStudentId, setCachedStudentId } from '@/shared/utils/storage';
 
 /**
  * Custom error thrown when login fails because the user's email is not verified.

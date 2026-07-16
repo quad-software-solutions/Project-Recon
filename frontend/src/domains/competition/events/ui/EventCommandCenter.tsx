@@ -9,15 +9,15 @@ import {
   Youtube, Podcast, Radio, Tv, MonitorPlay, ListVideo, Timer,
   Cpu, Swords, Hash, Wrench, Zap, ChevronRight, Activity as ActivityIcon, User, LogOut, Loader2, AlertCircle, Lock, Trash2
 } from 'lucide-react';
-import { UserProfile, VexRobot, VexMatchRecord, VexTeam, StudentAward } from '@/src/shared/types';
+import { UserProfile, VexRobot, VexMatchRecord, VexTeam, StudentAward } from '@/shared/types';
 import * as eventsApi from '../../api/eventsApi';
 import MatchManager from '../../admin/MatchManager';
 import TeamManager from '../../admin/TeamManager';
 import VexRulesPanel from '../../shared/VexRulesPanel';
 
 
-import { AppLayout } from '@/src/shared/ui/AppLayout';
-import { NavItem } from '@/src/shared/ui/Sidebar';
+import { AppLayout } from '@/shared/ui/AppLayout';
+import { NavItem } from '@/shared/ui/Sidebar';
 
 type SectionId = 'overview' | 'create' | 'events' | 'teams' | 'matches' | 'judging' | 'brackets' | 'media' | 'sponsors' | 'reports' | 'vex-overview' | 'vex-robots' | 'vex-awards' | 'vex-matches' | 'vex-notebook';
 

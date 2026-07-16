@@ -20,10 +20,12 @@ export interface UserProfile {
   profile_picture?: string;
   date_of_birth?: string;
   gender?: string;
-  role: 'Student' | 'Instructor' | 'Admin' | 'Manager' | 'Parent' | 'EventManager' | 'Secretary';
+  role: 'Student' | 'Instructor' | 'Admin' | 'Manager' | 'Secretary';
   bio?: string;
-  xpPoints: number;
-  badges: string[];
+  /** @deprecated No backend XP system — kept for type compatibility only */
+  xpPoints?: number;
+  /** @deprecated No backend badges system — kept for type compatibility only */
+  badges?: string[];
   referralCode?: string;
   subscriptionTier?: 'free' | 'explorer' | 'pro' | 'school';
   childName?: string;
@@ -31,7 +33,7 @@ export interface UserProfile {
   studentId?: string;
 }
 
-export type ActiveTab = 'home' | 'about' | 'store' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center' | 'forgot-password' | 'reset-password';
+export type ActiveTab = 'home' | 'about' | 'store' | 'store-orders' | 'store-order-detail' | 'dashboard' | 'login' | 'register' | 'registration' | 'simulator' | 'competitions' | 'community' | 'consultancy' | 'command-center' | 'forgot-password' | 'reset-password';
 
 export interface SubscriptionTier {
   id: 'free' | 'explorer' | 'pro' | 'school';
@@ -45,49 +47,8 @@ export interface SubscriptionTier {
   maxStudents?: number;
 }
 
-export interface AppNotification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'alert';
-  timestamp: string;
-  read: boolean;
-  actionUrl?: string;
-  icon?: string;
-}
-
-export * from '../../domains/forum/model/types';
 export * from '../../domains/learning/model/types';
 export * from '../../domains/competition/model/types';
-
-export interface Referral {
-  id: string;
-  referrerCode: string;
-  refereeName: string;
-  refereeEmail: string;
-  status: 'pending' | 'enrolled' | 'rewarded';
-  date: string;
-  reward: string;
-}
-
-export interface LeaderboardEntry {
-  rank: number;
-  name: string;
-  school: string;
-  xp: number;
-  badges: number;
-  streak: number;
-  avatar: string;
-  trend: 'up' | 'down' | 'same';
-  program: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
 
 export type PartnerTier = 'platinum' | 'gold' | 'silver' | 'bronze' | 'community';
 export type PartnerType = 'financial' | 'in-kind' | 'media' | 'educational' | 'venue';

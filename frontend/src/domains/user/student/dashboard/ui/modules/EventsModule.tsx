@@ -4,12 +4,12 @@ import {
   Calendar, Trophy, ClipboardList, Search, Loader2, MapPin, Clock,
   XCircle, RefreshCw,
 } from 'lucide-react';
-import type { UserProfile, Tournament, Workshop } from '@/src/shared/types';
+import type { UserProfile, Tournament, Workshop } from '@/shared/types';
 import {
   getUpcomingEvents, getTournaments, getMyRegistrations,
-} from '@/src/domains/competition/api/competitionApi';
-import { cancelMyRegistration, type BackendEventRegistration } from '@/src/domains/competition/api/eventsApi';
-import EventRegistrationModal from '@/src/domains/competition/shared/EventRegistrationModal';
+} from '@/domains/competition/api/competitionApi';
+import { cancelMyRegistration, type BackendEventRegistration } from '@/domains/competition/api/eventsApi';
+import EventRegistrationModal from '@/domains/competition/shared/EventRegistrationModal';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
 import EmptyState from '../../../shared/ui/EmptyState';

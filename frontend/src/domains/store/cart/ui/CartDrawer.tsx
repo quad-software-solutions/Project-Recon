@@ -4,14 +4,20 @@ import {
   ShoppingBag, X, Plus, Minus, Trash2, CheckCircle2, Loader, Building2, Package, AlertCircle,
   CreditCard,
 } from 'lucide-react';
-import type { PendingOrder, ShoppingCart } from '@/domains/store/model/types';
+import type { PendingOrder, ShoppingCart, StorePaymentMethod } from '@/domains/store/model/types';
 import { UserProfile } from '@/shared/types';
 import checkout from '@/domains/store/checkout/api/checkoutApi';
-import { verifyPayment } from '@/domains/store/payments/api/paymentApi';
 import { Button } from '@/shared/ui/Button';
 import { PriceDisplay } from '@/domains/store/ui/PriceDisplay';
 import { formatMoney } from '@/domains/store/utils/formatMoney';
-import { navigateStore } from '@/domains/store/utils/catalog';
+import { navigateStore, storePendingOrderPath } from '@/domains/store/utils/catalog';
+
+const PAYMENT_METHODS: { value: StorePaymentMethod; label: string }[] = [
+  { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+  { value: 'MOBILE_MONEY', label: 'Mobile money' },
+  { value: 'CASH', label: 'Cash (pay at branch)' },
+  { value: 'CHEQUE', label: 'Cheque' },
+];
 
 interface CartDrawerProps {
   cartOpen: boolean;
@@ -46,9 +52,12 @@ export default function CartDrawer({
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<StorePaymentMethod>('BANK_TRANSFER');
+  const [bankName, setBankName] = useState('');
+  const [transactionRef, setTransactionRef] = useState('');
+  const [includePayment, setIncludePayment] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
-  const [verifyStatus, setVerifyStatus] = useState<string | null>(null);
 
   const total = cart?.total || 0;
   const items = cart?.items || [];
@@ -68,17 +77,6 @@ export default function CartDrawer({
       setBranchId(branchOptions[0].id);
     }
   }, [branchOptions, branchId]);
-
-  useEffect(() => {
-    if (!cartOpen) return;
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get('reference') || params.get('tx_ref') || params.get('trxref');
-    if (reference && reference.startsWith('STORE-')) {
-      verifyPayment(reference)
-        .then((payment) => setVerifyStatus(payment.status))
-        .catch(() => setVerifyStatus('FAILED'));
-    }
-  }, [cartOpen]);
 
   const handleCheckoutSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -103,7 +101,12 @@ export default function CartDrawer({
         return;
       }
     }
-
+    if (includePayment && paymentMethod !== 'CASH') {
+      if (!transactionRef.trim()) {
+        setFormError('Transaction reference is required for this payment method.');
+        return;
+      }
+    }
     setCheckoutLoading(true);
     try {
       const order = await checkout({
@@ -112,6 +115,14 @@ export default function CartDrawer({
           guest_name: guestName.trim(),
           guest_email: guestEmail.trim(),
           guest_phone: guestPhone.trim() || undefined,
+        }),
+        ...(includePayment && {
+          payment: {
+            amount: total,
+            payment_method: paymentMethod,
+            transaction_reference: transactionRef.trim() || undefined,
+            bank_name: bankName.trim() || undefined,
+          },
         }),
       });
       setPendingOrder(order);
@@ -129,6 +140,10 @@ export default function CartDrawer({
     setGuestName('');
     setGuestEmail('');
     setGuestPhone('');
+    setPaymentMethod('BANK_TRANSFER');
+    setBankName('');
+    setTransactionRef('');
+    setIncludePayment(true);
     setFormError(null);
     setPendingOrder(null);
   };
@@ -173,16 +188,6 @@ export default function CartDrawer({
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-              {verifyStatus && (
-                <div className={`rounded-xl border p-3 text-sm ${
-                  verifyStatus === 'PAID' || verifyStatus === 'paid'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-amber-50 border-amber-200 text-amber-800'
-                }`}>
-                  <p className="font-medium">Payment verification: {verifyStatus}</p>
-                </div>
-              )}
-
               {checkoutStep === 'success' && pendingOrder ? (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="py-8">
                   <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-5">
@@ -190,7 +195,9 @@ export default function CartDrawer({
                   </div>
                   <h3 className="font-bold text-xl text-brand-ink mb-1 text-center">Checkout created</h3>
                   <p className="text-sm text-brand-muted mb-6 text-center leading-relaxed max-w-xs mx-auto">
-                    Complete payment to confirm your order. This pending checkout expires after 30 minutes.
+                    {includePayment
+                      ? 'Payment evidence submitted. Staff will verify and confirm your order.'
+                      : 'Complete payment and contact the store with your reference. This pending checkout expires after 30 minutes.'}
                   </p>
                   <div className="space-y-3 rounded-[var(--radius-card)] border border-brand-border bg-brand-surface/60 p-4 text-sm">
                     <div className="flex justify-between gap-3">
@@ -218,6 +225,17 @@ export default function CartDrawer({
                     )}
                   </div>
                   <div className="mt-6 flex flex-col gap-2">
+                    <Button
+                      onClick={() => {
+                        resetCheckout();
+                        onClose();
+                        navigateStore(storePendingOrderPath(pendingOrder.id));
+                      }}
+                      size="lg"
+                      variant="secondary"
+                    >
+                      View details
+                    </Button>
                     {currentUser && (
                       <Button
                         onClick={() => {
@@ -330,6 +348,61 @@ export default function CartDrawer({
                       <span className="font-semibold text-brand-ink">Total</span>
                       <PriceDisplay amount={total} size="md" />
                     </div>
+                  </div>
+
+                  <div className="rounded-xl border border-brand-border p-4 space-y-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-brand-ink cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includePayment}
+                        onChange={(e) => setIncludePayment(e.target.checked)}
+                        className="rounded border-brand-border"
+                      />
+                      Submit payment evidence now
+                    </label>
+                    {includePayment && (
+                      <>
+                        <div>
+                          <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Payment method</label>
+                          <select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value as StorePaymentMethod)}
+                            className="form-input w-full"
+                            required
+                          >
+                            {PAYMENT_METHODS.map((m) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {paymentMethod !== 'CASH' && (
+                          <>
+                            <div>
+                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Bank / provider</label>
+                              <input
+                                value={bankName}
+                                onChange={(e) => setBankName(e.target.value)}
+                                className="form-input w-full"
+                                placeholder="e.g. Commercial Bank of Ethiopia"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Transaction reference</label>
+                              <input
+                                value={transactionRef}
+                                onChange={(e) => setTransactionRef(e.target.value)}
+                                className="form-input w-full"
+                                placeholder="Transfer / receipt reference"
+                                required
+                              />
+                            </div>
+                          </>
+                        )}
+                        <p className="text-[11px] text-brand-muted leading-relaxed">
+                          Amount submitted: {formatMoney(total)}. Staff will verify before fulfilling the order.
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   {formError && (

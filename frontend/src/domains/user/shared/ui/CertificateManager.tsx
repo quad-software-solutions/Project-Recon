@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, X, Activity, FileText, UserPlus, Award } from 'lucide-react';
-import type { Certificate, StudentCertificate, StudentProfile } from '@/src/shared/types';
+import type { Certificate, StudentCertificate, StudentProfile } from '@/shared/types';
 import {
    fetchCertificateTemplatesApi, fetchSubProgramsApi, fetchStudentCertificatesApi,
    fetchStudentsApi,
- } from '@/src/domains/learning/academics/api/academicApi';
+ } from '@/domains/learning/academics/api/academicApi';
 
 import OverviewTab from './components/OverviewTab';
 import TemplatesTab from './components/TemplatesTab';

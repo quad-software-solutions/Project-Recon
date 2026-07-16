@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
-  AlertCircle, ArrowLeft, CheckCircle2, DollarSign, Loader2, Lock, Shield, User, X,
+  AlertCircle, ArrowLeft, CheckCircle2, CreditCard, DollarSign, Loader2, Lock, Shield, User, X,
 } from 'lucide-react';
-import type { Tournament, Workshop, UserProfile } from '@/src/shared/types';
+import type { Tournament, Workshop, UserProfile } from '@/shared/types';
 import { registerForEvent, type PublicRegistrationData } from '../api/competitionApi';
-import { cacheStudentId } from '@/src/domains/user/student/api/studentContext';
+import { cacheStudentId } from '@/domains/user/student/api/studentContext';
 import {
   formatRegistrationDeadline,
   getRegistrationEligibility,
@@ -39,6 +39,9 @@ export default function EventRegistrationModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState<'eligibility' | 'details' | 'confirm'>('eligibility');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE'>('BANK_TRANSFER');
+  const [transactionReference, setTransactionReference] = useState('');
+  const [bankName, setBankName] = useState('');
 
   const isStudentMode = eligibility.canRegister && eligibility.mode === 'student';
 
@@ -97,11 +100,21 @@ export default function EventRegistrationModal({
 
     const validationError = validateDetails();
     if (validationError) { setError(validationError); return; }
+    if (event.paymentRequired && paymentMethod !== 'CASH' && !transactionReference.trim()) {
+      setError('Transaction reference is required for manual payment.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
     try {
-      const payload = isStudentMode ? {} : regForm;
+      const payment = event.paymentRequired ? {
+        amount: event.registrationFee || '0',
+        payment_method: paymentMethod,
+        transaction_reference: transactionReference.trim() || undefined,
+        bank_name: bankName.trim() || undefined,
+      } : undefined;
+      const payload = isStudentMode ? { payment } : { ...regForm, payment };
       const result = await registerForEvent(event.id, payload as PublicRegistrationData);
       if (currentUser?.email && result?.student) {
         cacheStudentId(currentUser.email, result.student);
@@ -299,6 +312,26 @@ export default function EventRegistrationModal({
                     <p className="mt-3 text-[11px] text-slate-500">
                       Student registrations will be linked to your account automatically.
                     </p>
+                  )}
+                  {event.paymentRequired && (
+                    <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                      <p className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5" /> Manual payment · {event.registrationFee || 'Required'} Birr
+                      </p>
+                      <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                        <option value="BANK_TRANSFER">Bank transfer</option>
+                        <option value="MOBILE_MONEY">Mobile money</option>
+                        <option value="CHEQUE">Cheque</option>
+                        <option value="CASH">Cash</option>
+                      </select>
+                      {paymentMethod !== 'CASH' && (
+                        <input value={transactionReference} onChange={e => setTransactionReference(e.target.value)} placeholder="Transaction reference *" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                      )}
+                      {paymentMethod === 'BANK_TRANSFER' && (
+                        <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank name (optional)" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                      )}
+                      <p className="text-[11px] text-slate-500">Your registration remains pending until staff verify the payment.</p>
+                    </div>
                   )}
                 </div>
               ) : null}

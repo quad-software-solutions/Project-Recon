@@ -2,7 +2,7 @@ import React, { ReactNode, useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Sidebar, NavItem } from './Sidebar';
 import { TopNavbar } from './TopNavbar';
-import { getSidebarCollapsed, setSidebarCollapsed as persistSidebarCollapsed } from '@/src/shared/utils/storage';
+import { getSidebarCollapsed, setSidebarCollapsed as persistSidebarCollapsed } from '@/shared/utils/storage';
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => {

@@ -7,7 +7,7 @@ import {
   Medal, Swords, ChevronRight, Tv, RotateCcw,
   Maximize2, Minimize2, RefreshCw,
 } from 'lucide-react';
-import { UserProfile, type Tournament, type Workshop } from '@/src/shared/types';
+import { UserProfile, type Tournament, type Workshop } from '@/shared/types';
 import {
   getTournaments, getWorkshops,
   getMyRegistrations,
@@ -23,7 +23,7 @@ import { REGISTRATION_MODE_LABELS } from '../../shared/eventRegistrationUtils';
 import HubSkeleton from './components/HubSkeleton';
 import EventDetailModal from './components/EventDetailModal';
 import MatchViewOverlay from './components/MatchViewOverlay';
-import { statusBadge } from '@/src/shared/utils/status';
+import { statusBadge } from '@/shared/utils/status';
 
 interface CompetitionHubProps {
   currentUser?: UserProfile | null;

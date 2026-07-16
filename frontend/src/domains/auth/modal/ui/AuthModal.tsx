@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, User, ShieldCheck, Info, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
-import { useBranding } from '@/src/shared/hooks/useBranding';
-import { UserProfile } from '@/src/shared/types';
-import { http } from '@/src/shared/api/http';
+import BrandLogo from '@/shared/ui/BrandLogo';
+import { useBranding } from '@/shared/hooks/useBranding';
+import { UserProfile } from '@/shared/types';
+import { http } from '@/shared/api/http';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -161,7 +161,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
           <p className="text-xs text-slate-500 mt-1.5 font-medium">
             {mode === 'login' 
               ? 'Access your virtual lab console & program registries.' 
-              : 'Sign up to enroll in VEX Leagues, earn XP, and track certifications.'}
+              : 'Sign up to enroll in programs, events, and track certifications.'}
           </p>
         </div>
 

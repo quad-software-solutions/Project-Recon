@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { MessageCircle, Megaphone, Headphones, Loader2, ChevronRight } from 'lucide-react';
-import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
 import EmptyState from '../../../shared/ui/EmptyState';

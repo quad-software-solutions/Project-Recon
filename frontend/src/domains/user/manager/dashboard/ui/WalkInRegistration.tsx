@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck, Loader2 } from 'lucide-react';
-import { registerApi } from '@/src/domains/auth/register/api/registerApi';
+import { registerApi } from '@/domains/auth/register/api/registerApi';
 import { fetchProgramsApi, fetchSubProgramsApi } from '../../../../learning/academics/api/academicApi';
-import type { Program, SubProgram } from '@/src/shared/types';
+import type { Program, SubProgram } from '@/shared/types';
 
 export default function WalkInRegistration() {
   const [step, setStep] = useState<1 | 2>(1);
@@ -106,7 +106,7 @@ export default function WalkInRegistration() {
         parentPhone: formData.parentPhone,
         parentEmail: formData.parentEmail,
         selectedCourses: selectedCoursesList,
-        paymentMethod: 'chapa',
+        paymentMethod: 'CASH',
         total: grandTotal,
       });
       setIsSuccess(true);

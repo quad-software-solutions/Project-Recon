@@ -3,10 +3,10 @@ import { motion } from 'motion/react';
 import {
   AlertCircle, ArrowLeft, Calendar, CheckCircle2, Clock, Loader2, RotateCcw, ShieldAlert, Trophy, Zap,
 } from 'lucide-react';
-import { getMatchDetail } from '@/src/domains/competition/api/matchApi';
-import type { MatchDetail } from '@/src/domains/competition/api/matchMappers';
-import { sidesFromMatch } from '@/src/domains/competition/shared/VexAllianceDisplay';
-import VexMatchArena from '@/src/domains/competition/shared/VexMatchArena';
+import { getMatchDetail } from '@/domains/competition/api/matchApi';
+import type { MatchDetail } from '@/domains/competition/api/matchMappers';
+import { sidesFromMatch } from '@/domains/competition/shared/VexAllianceDisplay';
+import VexMatchArena from '@/domains/competition/shared/VexMatchArena';
 
 interface PublicMatchPageProps {
   matchId: string;

@@ -26,7 +26,7 @@ function tabFromPath(path: string): ActiveTab {
 function pathFromTab(tab: ActiveTab, currentUser: UserProfile | null): string {
   if (tab === 'store-order-detail') return '/store/orders'; // Default path for the tab, we'll handle param separately
   if (tab === 'store-orders') return '/store/orders';
-  if (tab === 'dashboard' && (currentUser?.role === 'Manager' || currentUser?.role === 'EventManager')) return '/manager';
+  if (tab === 'dashboard' && currentUser?.role === 'Manager') return '/manager';
   return tab === 'home' ? '/' : `/${tab}`;
 }
 

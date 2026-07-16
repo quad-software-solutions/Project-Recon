@@ -48,7 +48,7 @@ const PERMISSIONS: Record<string, { label: string; permissions: string[] }> = {
     permissions: [
       'Create & manage courses',
       'Grade students & track progress',
-      'Moderate forum content',
+      'Manage learning materials',
       'Create announcements',
       'View student analytics',
     ],
@@ -57,9 +57,9 @@ const PERMISSIONS: Record<string, { label: string; permissions: string[] }> = {
     label: 'Student',
     permissions: [
       'Access enrolled courses',
-      'Participate in forums & discussions',
+      'Register for events & workshops',
       'Shop in the store',
-      'View certificates & achievements',
+      'View certificates',
       'Track personal progress',
     ],
   },
@@ -104,8 +104,8 @@ export default function RolesPermissionsPanel() {
     { key: 'super_admin', label: 'Admin', plural: 'Admins', weight: 'high', icon: Shield, desc: 'Full system access. Manage users, branches, settings, and all platform resources.' },
     { key: 'branch_manager', label: 'Manager', plural: 'Managers', weight: 'high', icon: Building, desc: 'Manage branch operations, users, registrations, and local content.' },
     { key: 'secretary', label: 'Secretary', plural: 'Secretaries', weight: 'mid', icon: ClipboardList, desc: 'Handle admissions, enrollments, payments, certificates, and daily operations.' },
-    { key: 'instructor', label: 'Instructor', plural: 'Instructors', weight: 'mid', icon: GraduationCap, desc: 'Create and manage courses, grade students, moderate forum content.' },
-    { key: 'student', label: 'Student', plural: 'Students', weight: 'low', icon: Users, desc: 'Access courses, participate in forums, shop in store, view certificates.' },
+    { key: 'instructor', label: 'Instructor', plural: 'Instructors', weight: 'mid', icon: GraduationCap, desc: 'Create and manage courses, grade students, and track progress.' },
+    { key: 'student', label: 'Student', plural: 'Students', weight: 'low', icon: Users, desc: 'Access courses, events, store, and certificates.' },
   ] as const;
 
   const getUsersByRole = (roleKey: string) =>

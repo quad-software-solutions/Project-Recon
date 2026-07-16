@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, CreditCard, Loader2 } from 'lucide-react';
-import { fetchPaymentsApi, fetchEnrollmentsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { fetchPaymentsApi, fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
 
 export default function PaymentTracker() {
   const [payments, setPayments] = useState<any[]>([]);
@@ -23,7 +23,7 @@ export default function PaymentTracker() {
   const totalRevenue = paid.reduce((s, p) => s + Number(p.amount), 0);
   const cashPayments = payments.filter(p => p.payment_method === 'CASH');
   const totalCash = cashPayments.reduce((s, p) => s + (p.status === 'PAID' ? Number(p.amount) : 0), 0);
-  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
 
   return (

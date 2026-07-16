@@ -1,21 +1,22 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  User, Home, GraduationCap, Briefcase, Calendar, Bell, Megaphone,
+  User, Home, GraduationCap, Briefcase, Calendar, Megaphone,
   MessageCircle, FileText, Settings, Loader2,
 } from 'lucide-react';
-import { UserProfile, Enrollment } from '@/src/shared/types';
+import { UserProfile, Enrollment } from '@/shared/types';
 import {
   fetchStudentsApi, fetchEnrollmentsApi, fetchStudentCertificatesApi,
-} from '@/src/domains/learning/academics/api/academicApi';
-import { getMyRegistrations } from '@/src/domains/competition/api/competitionApi';
-import { getUnreadCount } from '@/src/domains/notification/model/notificationApi';
-import { cacheStudentId } from '@/src/domains/user/student/api/studentContext';
-import { getCachedStudentId } from '@/src/shared/utils/storage';
-import { AppLayout } from '@/src/shared/ui/AppLayout';
-import { NavItem } from '@/src/shared/ui/Sidebar';
-import DashboardCommandCenter from '@/src/shared/ui/DashboardCommandCenter';
-import InlineAlert from '@/src/shared/ui/InlineAlert';
-import AdminAccount from '@/src/domains/user/shared/ui/AdminAccount';
+} from '@/domains/learning/academics/api/academicApi';
+import { getMyRegistrations } from '@/domains/competition/api/competitionApi';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
+import { cacheStudentId } from '@/domains/user/student/api/studentContext';
+import { getCachedStudentId } from '@/shared/utils/storage';
+import { AppLayout } from '@/shared/ui/AppLayout';
+import { NavItem } from '@/shared/ui/Sidebar';
+import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
+import InlineAlert from '@/shared/ui/InlineAlert';
+import PermissionDenied from '@/shared/ui/PermissionDenied';
+import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
 import {
   getSectionCommandCenter,
   type StudentSectionId,
@@ -26,7 +27,6 @@ import DashboardHome, { type HomeNavigateTarget } from './DashboardHome';
 import AcademicsModule from './modules/AcademicsModule';
 import CareerCenterModule from './modules/CareerCenterModule';
 import EventsModule from './modules/EventsModule';
-import NotificationsPage from './modules/NotificationsPage';
 import AnnouncementsPage from './modules/AnnouncementsPage';
 import MessagingModule from './modules/MessagingModule';
 import CertificateGenerator from './CertificateGenerator';
@@ -45,9 +45,8 @@ function buildNavItems(): NavItem[] {
     { id: 'certificates', label: 'Certificates', icon: FileText, group: 'academic' },
     { id: 'career', label: 'Career Center', icon: Briefcase, group: 'career' },
     { id: 'events', label: 'Events', icon: Calendar, group: 'competition' },
-    { id: 'notifications', label: 'Notifications', icon: Bell, group: 'communication' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'communication' },
-    { id: 'messaging', label: 'Messages', icon: MessageCircle, group: 'communication' },
+    { id: 'messaging', label: 'Support', icon: MessageCircle, group: 'communication' },
     { id: 'account', label: 'My Account', icon: User, group: 'system' },
     { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
   ];
@@ -67,7 +66,7 @@ async function applyEnrollments(
   setters.setEnrolledCount(list.length);
   setters.setActiveCount(list.filter(e => e.status === 'ACTIVE').length);
   setters.setCompletedCount(list.filter(e => e.status === 'COMPLETED').length);
-  setters.setPendingCount(list.filter(e => e.status === 'PENDING_PAYMENT').length);
+  setters.setPendingCount(list.filter(e => e.status === 'PENDING_VERIFICATION').length);
 }
 
 export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }: StudentDashboardProps) {
@@ -79,9 +78,9 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   const [completedCount, setCompletedCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [certificateCount, setCertificateCount] = useState(0);
   const [eventRegCount, setEventRegCount] = useState(0);
+  const [announcementCount, setAnnouncementCount] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const enrollmentSetters = useMemo(() => ({
@@ -96,14 +95,14 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   }, [enrollmentSetters]);
 
   const loadSupplementaryStats = useCallback(async (sid?: string) => {
-    const [certs, regs, unread] = await Promise.all([
+    const [certs, regs, news] = await Promise.all([
       fetchStudentCertificatesApi(sid).catch(() => []),
       getMyRegistrations().catch(() => []),
-      getUnreadCount().catch(() => 0),
+      cmsPublicApi.getNews({ limit: '50' }).catch(() => ({ results: [] as { id: string }[] })),
     ]);
     setCertificateCount(certs.length);
     setEventRegCount(regs.filter(r => r.registration_status !== 'CANCELLED').length);
-    setUnreadCount(unread);
+    setAnnouncementCount(news?.results?.length ?? 0);
   }, []);
 
   useEffect(() => {
@@ -131,7 +130,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return;
       }
 
-      const students = await fetchStudentsApi().catch(() => [] as import('@/src/shared/types').StudentProfile[]);
+      const students = await fetchStudentsApi().catch(() => [] as import('@/shared/types').StudentProfile[]);
       const match = students.find(st => st.user === currentUser.id || st.email === currentUser.email);
       if (match) {
         await tryLoadForId(match.id);
@@ -154,26 +153,16 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
     return () => { cancelled = true; };
   }, [currentUser.id, currentUser.email, currentUser.studentId, loadEnrollmentsFor, loadSupplementaryStats]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      getUnreadCount().then(setUnreadCount).catch(() => {});
-    }, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
   const hubStats: StudentHubStats = useMemo(() => ({
     activeCount,
     enrolledCount,
     completedCount,
     pendingCount,
-    unreadCount,
-    xpPoints: currentUser.xpPoints,
-    badgeCount: currentUser.badges.length,
     certificateCount,
     eventRegCount,
-    announcementCount: 0,
+    announcementCount,
     loading: studentLoading,
-  }), [activeCount, enrolledCount, completedCount, pendingCount, unreadCount, currentUser, certificateCount, eventRegCount, studentLoading]);
+  }), [activeCount, enrolledCount, completedCount, pendingCount, certificateCount, eventRegCount, announcementCount, studentLoading]);
 
   const commandCenter = getSectionCommandCenter(activeSection, hubStats);
 
@@ -194,7 +183,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
               <User className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p className="text-sm font-medium">Student profile not found.</p>
               <p className="text-xs mt-2 text-slate-500">
-                You can still browse events, announcements, and notifications. Contact administration to link your academic profile.
+                You can still browse events and announcements. Contact administration to link your academic profile.
               </p>
             </div>
           )}
@@ -220,8 +209,6 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return <CareerCenterModule studentId={studentId!} currentUser={currentUser} />;
       case 'events':
         return <EventsModule currentUser={currentUser} studentId={studentId ?? ''} />;
-      case 'notifications':
-        return <NotificationsPage />;
       case 'announcements':
         return <AnnouncementsPage />;
       case 'messaging':
@@ -230,6 +217,8 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return <CertificateGenerator studentId={studentId!} />;
       case 'settings':
         return <SettingsModule currentUser={currentUser} onUserUpdate={onUserUpdate} />;
+      default:
+        return <PermissionDenied title="Section not found" message="This student section does not exist or is no longer available." />;
     }
   };
 
@@ -250,18 +239,6 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
       topNavbar={{
         title: activeLabel,
         subtitle: 'Student Dashboard',
-        actions: unreadCount > 0 ? (
-          <button
-            onClick={() => setActiveSection('notifications')}
-            className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-            aria-label={`${unreadCount} unread notifications`}
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          </button>
-        ) : undefined,
       }}
       onLogout={onLogout}
     >

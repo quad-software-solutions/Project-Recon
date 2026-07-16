@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Building, MapPin, Mail, Phone, Calendar, Clock, UserPlus, X } from 'lucide-react';
-import type { BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+import type { BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchStatusActions } from './BranchStatusActions';
 
 interface Props {

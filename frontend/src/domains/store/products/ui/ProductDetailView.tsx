@@ -83,11 +83,6 @@ export function ProductDetailView({
     return () => { cancelled = true; };
   }, [productId]);
 
-  const related = useMemo(
-    () => (product ? relatedProducts(catalog, product, 4) : []),
-    [catalog, product],
-  );
-
   const images = useMemo(() => {
     if (!product) return [];
     const all = product.images?.length
@@ -97,6 +92,21 @@ export function ProductDetailView({
         : [];
     return all;
   }, [product]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (images.length <= 1) return;
+      if (e.key === 'ArrowLeft') setActiveImageIdx((i) => Math.max(0, i - 1));
+      if (e.key === 'ArrowRight') setActiveImageIdx((i) => Math.min(images.length - 1, i + 1));
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [images.length]);
+
+  const related = useMemo(
+    () => (product ? relatedProducts(catalog, product, 4) : []),
+    [catalog, product],
+  );
 
   const selectedStock = availability.find((a) => a.branch === selectedBranch);
 

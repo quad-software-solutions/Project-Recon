@@ -1,4 +1,4 @@
-import type { UserProfile } from '@/src/shared/types';
+import type { UserProfile } from '@/shared/types';
 
 /** Centralized localStorage keys — do not duplicate these strings elsewhere. */
 export const STORAGE_KEYS = {
@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   DEVICE_ID: 'device_id',
   CMS_BRANDING: 'ethio-cms-branding',
   STUDENT_SETTINGS: 'student_settings',
+  STORE_CART_BRANCH: 'store_cart_branch',
 } as const;
 
 export function studentIdKey(email: string): string {
@@ -63,6 +64,18 @@ export function updateUserProfile(partial: Partial<UserProfile>): UserProfile | 
 
 export function clearUserProfile(): void {
   safeRemove(STORAGE_KEYS.USER_PROFILE);
+}
+
+export function getStoreCartBranch(): string | null {
+  return safeGet(STORAGE_KEYS.STORE_CART_BRANCH);
+}
+
+export function setStoreCartBranch(branchId: string): void {
+  safeSet(STORAGE_KEYS.STORE_CART_BRANCH, branchId);
+}
+
+export function clearStoreCartBranch(): void {
+  safeRemove(STORAGE_KEYS.STORE_CART_BRANCH);
 }
 
 export function getCachedStudentId(email: string): string | null {

@@ -5,8 +5,8 @@ import {
   ChevronDown, FileText, RefreshCw, X, Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchAttendanceSessionsApi } from '@/src/domains/learning/academics/api/academicApi';
-import { AttendanceSession } from '@/src/shared/types';
+import { fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
+import { AttendanceSession } from '@/shared/types';
 
 interface AttendanceSessionExtended extends AttendanceSession {
   records_count?: number;

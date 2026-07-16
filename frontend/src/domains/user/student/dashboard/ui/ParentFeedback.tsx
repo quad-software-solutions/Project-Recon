@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, Send, CheckCircle2, Clock, AlertTriangle, ThumbsUp, Shield, Loader2 } from 'lucide-react';
-import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 
 type TicketCategory = 'academic' | 'safety' | 'facility' | 'general' | 'appreciation';
 
 interface Ticket {
   id: number;
-  parentName: string;
+  requesterName: string;
   category: TicketCategory;
   subject: string;
   message: string;
@@ -46,7 +46,7 @@ export default function ParentFeedback() {
       });
       const newTicket: Ticket = {
         id: Date.now(),
-        parentName: formName.trim(),
+        requesterName: formName.trim(),
         category: formCategory,
         subject: formSubject.trim(),
         message: formMessage.trim(),
@@ -68,9 +68,9 @@ export default function ParentFeedback() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="font-bold text-xl text-slate-900">Parent / Guardian Feedback</h3>
+          <h3 className="font-bold text-xl text-slate-900">Contact Support</h3>
           <p className="text-xs text-slate-500 mt-1">
-            Submit complaints, comments, or appreciation regarding your child's experience
+            Submit complaints, comments, or appreciation about your learning experience
           </p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
@@ -120,7 +120,7 @@ export default function ParentFeedback() {
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Parent / Guardian Name</label>
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Your Name</label>
                   <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Mrs. Tigist A."
                     className="w-full bg-slate-50 border border-brand-border-light rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                 </div>
