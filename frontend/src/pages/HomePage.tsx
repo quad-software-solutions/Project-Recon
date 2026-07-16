@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, BookOpen, Globe, Trophy, ArrowUpRight,
   Globe2, Send, Loader, CheckCircle2,
-  ChevronRight, Sparkles
+  ChevronRight, Sparkles, Target, Eye
 } from 'lucide-react';
 import Hero from '../domains/learning/programs/ui/Hero';
 import DemoSlider from '../domains/learning/programs/ui/DemoSlider';
@@ -160,56 +160,96 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         </div>
       </motion.section>
 
-      {aboutUs.length > 0 && (
-        <section className="section-shell py-20" id="about-us">
-          <div className="max-w-5xl mx-auto px-6 md:px-12">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      {aboutUs.filter((a: AboutUsResponse) => a.is_active).length > 0 && (() => {
+        const aboutEntry = aboutUs.find((a: AboutUsResponse) => a.slug === 'about') || aboutUs[0];
+        const missionEntry = aboutUs.find((a: AboutUsResponse) => a.slug === 'mission');
+        const visionEntry = aboutUs.find((a: AboutUsResponse) => a.slug === 'vision');
+        const extraEntries = aboutUs.filter((a: AboutUsResponse) =>
+          a.id !== aboutEntry?.id &&
+          a.id !== missionEntry?.id &&
+          a.id !== visionEntry?.id
+        );
+
+        return (
+          <section className="section-shell py-20" id="about-us">
+            <div className="max-w-6xl mx-auto px-6 md:px-12">
               <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-                className="space-y-6"
+                className="text-center mb-14"
               >
                 <span className="eyebrow">About Us</span>
-                <h2 className="font-display font-bold text-slate-950 tracking-tight text-3xl md:text-4xl">
-                  {aboutUs[0].title}
+                <h2 className="font-display font-bold text-slate-950 tracking-tight mt-2 text-3xl md:text-4xl">
+                  {aboutEntry?.title || 'Who We Are'}
                 </h2>
-                <p className="font-sans text-sm text-brand-muted-dark leading-relaxed">
-                  {aboutUs[0].content || aboutUs[0].description}
+                <p className="font-sans text-sm text-brand-muted-dark mt-3 max-w-2xl mx-auto leading-relaxed">
+                  {aboutEntry?.content || aboutEntry?.description}
                 </p>
-                {aboutUs.length > 1 && (
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    {aboutUs.slice(1, 3).map((item) => (
-                      <div key={item.id} className="bg-white rounded-card p-5 border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all">
-                        <h4 className="font-display font-bold text-slate-900 text-sm mb-1">{item.title}</h4>
-                        <p className="text-xs text-brand-muted-dark leading-relaxed line-clamp-3">{item.content || item.description}</p>
+              </motion.div>
+
+              {(missionEntry || visionEntry) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                  {missionEntry && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -30 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5 }}
+                      className="relative group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/5 to-brand-blue/10 rounded-2xl transform group-hover:scale-105 transition-transform duration-500" />
+                      <div className="relative bg-white rounded-2xl p-8 border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all h-full">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-blue to-blue-600 flex items-center justify-center mb-5 shadow-lg shadow-brand-blue/20">
+                          <Target className="w-7 h-7 text-white" />
+                        </div>
+                        <h3 className="font-display font-bold text-xl text-slate-900 mb-3">{missionEntry.title}</h3>
+                        <p className="text-sm text-brand-muted-dark leading-relaxed">{missionEntry.content || missionEntry.description}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="relative"
-              >
-                <div className="aspect-square rounded-2xl bg-gradient-to-br from-brand-blue/10 via-brand-red/5 to-brand-blue/5 border border-brand-border-light/60 flex items-center justify-center p-8">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-brand-blue to-brand-red flex items-center justify-center">
-                      <Users className="w-10 h-10 text-white" />
-                    </div>
-                    <p className="font-display font-bold text-slate-900 text-lg">{stats.students_trained}+</p>
-                    <p className="text-xs text-brand-muted-dark">Students Trained</p>
-                  </div>
+                    </motion.div>
+                  )}
+                  {visionEntry && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 30 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5 }}
+                      className="relative group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-brand-red/5 to-brand-red/10 rounded-2xl transform group-hover:scale-105 transition-transform duration-500" />
+                      <div className="relative bg-white rounded-2xl p-8 border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all h-full">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-red to-red-600 flex items-center justify-center mb-5 shadow-lg shadow-brand-red/20">
+                          <Eye className="w-7 h-7 text-white" />
+                        </div>
+                        <h3 className="font-display font-bold text-xl text-slate-900 mb-3">{visionEntry.title}</h3>
+                        <p className="text-sm text-brand-muted-dark leading-relaxed">{visionEntry.content || visionEntry.description}</p>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
-              </motion.div>
+              )}
+
+              {extraEntries.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {extraEntries.map((item, i) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.4, delay: Math.min(i * 0.1, 0.4) }}
+                      className="bg-white rounded-xl p-6 border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all"
+                    >
+                      <h4 className="font-display font-bold text-slate-900 text-sm mb-2">{item.title}</h4>
+                      <p className="text-xs text-brand-muted-dark leading-relaxed line-clamp-4">{item.content || item.description}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        );
+      })()}
 
       <section className="border-y border-brand-border/70 bg-white/90 py-10 overflow-hidden relative shadow-premium-sm" id="sponsor-banner">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#25338d]/5 to-transparent animate-glow-shift opacity-50" />
