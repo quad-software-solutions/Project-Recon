@@ -6,5 +6,10 @@ python-magic
 djangorestframework
 djangorestframework-simplejwt
 drf-spectacular
+django-anymail
+django-cors-headers
+django-filter
+whitenoise
+django-storages
 requests
 reportlab>=4.0,<5.0
