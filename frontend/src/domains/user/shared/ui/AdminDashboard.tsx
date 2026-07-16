@@ -38,6 +38,7 @@ import RolesPermissionsPanel from './RolesPermissionsPanel';
 import EnrollmentsPanel from '@/domains/user/secretary/dashboard/ui/EnrollmentsPanel';
 import TransferRequestsPanel from './TransferRequestsPanel';
 import BankAccountsPanel from './BankAccountsPanel';
+import StoreDashboard from '@/domains/store/admin/ui/StoreDashboard';
 import {
   getAdminCommandCenter,
   type AdminSectionId,

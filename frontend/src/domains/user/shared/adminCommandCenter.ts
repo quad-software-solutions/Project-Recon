@@ -10,6 +10,7 @@ export type AdminSectionId =
   | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events'
   | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops'
   | 'event-registrations' | 'certificates' | 'store'
+  | 'transfers' | 'bank-accounts'
   | 'announcements' | 'communications';
 
 export interface AdminHubStats {

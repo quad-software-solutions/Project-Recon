@@ -11,7 +11,8 @@ export type ManagerSectionId =
   | 'events' | 'tournaments' | 'tournament-teams'
   | 'matches' | 'workshops' | 'announcements' | 'communications'
   | 'payments' | 'walkin' | 'reports' | 'schools' | 'enrollments'
-  | 'event-registrations' | 'certificates' | 'account';
+  | 'event-registrations' | 'certificates' | 'account'
+  | 'transfers';
 
 export interface ManagerHubStats {
   students: number;

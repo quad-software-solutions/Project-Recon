@@ -46,6 +46,8 @@ const ADMIN_SECTION_ACCESS: Record<AdminSectionId, (u: UserProfile) => boolean> 
   account: () => true,
   announcements: canManageAnnouncements,
   communications: canManageContactRequests,
+  transfers: canManageAcademicCatalog,
+  'bank-accounts': canManageAccounts,
 };
 
 const MANAGER_SECTION_ACCESS: Record<ManagerSectionId, (u: UserProfile) => boolean> = {
@@ -66,6 +68,7 @@ const MANAGER_SECTION_ACCESS: Record<ManagerSectionId, (u: UserProfile) => boole
   matches: canManageEvents,
   workshops: canManageEvents,
   'event-registrations': canManageEvents,
+  transfers: canManageAcademicCatalog,
   announcements: canViewAnnouncements,
   communications: canManageContactRequests,
   sponsors: isSuperAdminOrBranchManager,
