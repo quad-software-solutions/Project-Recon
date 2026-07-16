@@ -3,11 +3,9 @@
 # Academic Application Database Design
 ## Part 1 — Academic Foundation
 
-**Status:** 🔒 LOCKED
+**Status:** LOCKED
 
 **Application:** `academic`
-
-> This document defines the database design for the foundational academic models. It intentionally excludes services, APIs, serializers, permissions, and implementation details.
 
 ---
 
@@ -20,75 +18,39 @@ This document covers the following models:
 - SubProgram
 - Class
 
-Future parts will cover:
-
-- Enrollment
-- Enrollment Period
-- Enrollment Payment
-- Attendance Session
-- Attendance Record
-- Learning Progress
-- Learning Materials
-- Certificates
-
 ---
 
-# 2. Database Design Principles
-
-The Academic database follows these principles.
-
-## Simplicity
-
-The schema should model the institute's workflow without unnecessary abstraction.
-
----
-
-## Normalization
-
-Duplicate data should be avoided whenever practical.
-
----
-
-## Business First
-
-The schema reflects how the institute currently operates rather than forcing generic LMS concepts.
-
----
-
-## Django Conventions
-
-Whenever Django already provides a clean solution, it should be used instead of custom implementations.
-
----
-
-## Future Expandability
-
-Future features must be added without redesigning existing models.
-
----
-
-# 3. Entity Relationship Overview
+# 2. Entity Relationship Overview
 
 ```text
+User
+ │
+ │ 1
+ ▼
+Student
+ │
+ │ 1
+ ▼
+Enrollment
+
 Program
-    │
-    │ 1
-    │
-    ▼
+ │
+ │ 1
+ ▼
 SubProgram
-    │
-    ├──────────────┐
-    │              │
-    ▼              ▼
+ │
+ ├──────────────┐
+ │              │
+ ▼              ▼
 Class      LearningMaterial
-    │
-    ▼
+ │
+ ▼
 Enrollment
 ```
 
 ---
 
-# 4. Student
+# 3. Student
 
 ## Purpose
 
@@ -102,73 +64,17 @@ Authentication remains in the Accounts application.
 
 ## Ownership
 
-Owned by:
-
-Academic App
+Owned by: Academic App
 
 ---
 
 ## Relationships
 
-```text
-User
-
-1
-
-↓
-
-1
-
-Student
 ```
-
-Student
-
-```text
-1
-
-↓
-
-∞
-
-Enrollment
+User (1) → (1) Student
+Student (1) → (∞) Enrollment
+Branch (1) → (∞) Student
 ```
-
-Student
-
-```text
-1
-
-↓
-
-∞
-
-Student Progress
-```
-
-Student
-
-```text
-1
-
-↓
-
-∞
-
-Student Certificate
-```
-
----
-
-## Important Notes
-
-A Student is created only once.
-
-The Student remains throughout the learner's academic lifetime.
-
-Future enrollments reuse the same Student profile.
-
----
 
 ## Database Fields
 
@@ -178,63 +84,46 @@ Future enrollments reuse the same Student profile.
 | user | OneToOne | Yes | Accounts.User |
 | branch | ForeignKey | Yes | Current home branch |
 | date_joined | Date | Yes | Admission date |
+| guardian_name | String | No | Optional guardian info |
+| guardian_phone | String | No | Optional guardian phone |
+| guardian_email | Email | No | Optional guardian email |
 | is_active | Boolean | Yes | Academic status |
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
-
----
 
 ## Indexes
 
 - user
 - branch
 - is_active
-
----
+- date_joined
 
 ## Constraints
 
 - One User → One Student
 
----
-
 ## Delete Policy
 
-Student records are never physically deleted.
-
-Only deactivated.
+Student records are never physically deleted. Only deactivated.
 
 ---
 
-# 5. Program
+# 4. Program
 
 ## Purpose
 
 Represents the highest academic category.
 
-Examples
-
-- Robotics
-- Programming
-- Languages
+Examples: Robotics, Programming, Languages
 
 ---
 
 ## Relationships
 
-Program
-
-```text
-1
-
-↓
-
-∞
-
-SubProgram
 ```
-
----
+Program (1) → (∞) SubProgram
+Program (1) → (∞) EnrollmentPeriod
+```
 
 ## Database Fields
 
@@ -250,111 +139,37 @@ SubProgram
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Constraints
 
-Program names must be unique.
-
-Slug must be unique.
-
-At least one learning type must be enabled.
-
----
+- Program names must be unique.
+- Slug must be unique.
+- At least one learning type must be enabled (validated in `clean()`).
 
 ## Delete Policy
 
-Programs cannot be deleted once referenced.
-
-Deactivate instead.
+Programs cannot be deleted once referenced. Deactivate instead.
 
 ---
 
-# 6. SubProgram
+# 5. SubProgram
 
 ## Purpose
 
-Represents an individual subject inside a Program.
-
-Students ultimately study SubPrograms.
+Represents an individual subject inside a Program. Students ultimately study SubPrograms.
 
 ---
 
 ## Relationships
 
-Program
-
-```text
-1
-
-↓
-
-∞
-
-SubProgram
 ```
-
-SubProgram
-
-```text
-1
-
-↓
-
-∞
-
-Class
+Program (1) → (∞) SubProgram
+SubProgram (1) → (∞) Class
+SubProgram (1) → (∞) LearningMaterial
+SubProgram (1) → (∞) LearningMilestone
+SubProgram (1) → (∞) EnrollmentPeriod
+SubProgram (1) → (1) Certificate
+SubProgram (1) → (∞) StudentCertificate
 ```
-
-SubProgram
-
-```text
-1
-
-↓
-
-∞
-
-Learning Material
-```
-
-SubProgram
-
-```text
-1
-
-↓
-
-∞
-
-Learning Milestone
-```
-
-SubProgram
-
-```text
-1
-
-↓
-
-1
-
-Certificate
-```
-
-SubProgram
-
-```text
-1
-
-↓
-
-∞
-
-Enrollment Period
-```
-
----
 
 ## Database Fields
 
@@ -366,125 +181,63 @@ Enrollment Period
 | slug | String | Yes | URL friendly |
 | description | Text | No | Optional |
 | duration | PositiveInteger | No | Optional duration value |
-| duration_unit | Choice | No | Days / Weeks / Months |
-| fee | Decimal | Yes | One-time enrollment fee |
+| duration_unit | Choice | No | Day / Week / Month |
+| group_fee | Decimal | Yes | Fee for group enrollment |
+| individual_fee | Decimal | No | Fee for individual enrollment |
 | is_active | Boolean | Yes | Visibility |
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Duration Units
 
-```text
+```
 DAY
-
 WEEK
-
 MONTH
 ```
 
----
-
 ## Constraints
 
-Program + Name must be unique.
-
-Program + Slug must be unique.
-
-Fee cannot be negative.
-
----
+- Program + Name must be unique.
+- Program + Slug must be unique.
+- Fees cannot be negative.
 
 ## Delete Policy
 
-Cannot be deleted after enrollment exists.
-
-Deactivate instead.
+Cannot be deleted after enrollment exists. Deactivate instead.
 
 ---
 
-# 7. Class
+# 6. Class
 
 ## Purpose
 
-Represents an actual teaching class.
-
-Students enroll into Classes.
-
-Classes belong to one SubProgram.
-
----
+Represents an actual teaching class. Students enroll into Classes. Classes belong to one SubProgram.
 
 ## Supported Types
 
-```text
+```
 GROUP
-
 INDIVIDUAL
 ```
 
 ## Supported Periods
 
-```text
-FULL DAY
-
-HALF DAY
 ```
-
----
+FULL_DAY
+HALF_DAY
+```
 
 ## Relationships
 
-SubProgram
-
-```text
-1
-
-↓
-
-∞
-
-Class
 ```
-
-Branch
-
-```text
-1
-
-↓
-
-∞
-
-Class
+SubProgram (1) → (∞) Class
+Branch (1) → (∞) Class
+Instructor(User) (1) → (∞) Class
+Class (1) → (∞) Enrollment
+Class (1) → (∞) AttendanceSession
+Class (1) → (∞) LearningMilestone (scope_class, nullable)
 ```
-
-Instructor(User)
-
-```text
-1
-
-↓
-
-∞
-
-Class
-```
-
-Class
-
-```text
-1
-
-↓
-
-∞
-
-Enrollment
-```
-
----
 
 ## Database Fields
 
@@ -496,7 +249,7 @@ Enrollment
 | instructor | ForeignKey | Yes | Accounts.User |
 | name | String | Yes | Human-readable class name |
 | class_type | Choice | Yes | Group / Individual |
-| class_period | Choice | no | Half Day / Full Day |
+| class_period | Choice | No | Half Day / Full Day |
 | capacity | PositiveInteger | No | Required for Group |
 | start_date | Date | No | Optional |
 | end_date | Date | No | Optional |
@@ -504,21 +257,11 @@ Enrollment
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Capacity Rules
 
-GROUP
+GROUP — Capacity must be greater than zero.
 
-Capacity must be greater than zero.
-
----
-
-INDIVIDUAL
-
-Capacity is always one.
-
----
+INDIVIDUAL — Capacity is always one (enforced by service layer).
 
 ## Constraints
 
@@ -527,83 +270,40 @@ Capacity is always one.
 - Instructor must be a Teacher.
 - Individual Classes always have capacity of one.
 - Group Classes require positive capacity.
-- Class type must be supported by the parent Program.
-
----
 
 ## Delete Policy
 
-Classes with enrollments cannot be deleted.
-
-Deactivate instead.
+Classes with enrollments cannot be deleted. Deactivate instead.
 
 ---
 
-# 8. Shared Enumerations
+# 7. Shared Enumerations
 
 ## Class Type
 
-```text
+```
 GROUP
-
 INDIVIDUAL
 ```
 
-## Class Periods
+## Class Period
 
-```text
-FULL DAY
-
-HALF DAY
 ```
----
+FULL_DAY
+HALF_DAY
+```
 
 ## Duration Unit
 
-```text
+```
 DAY
-
 WEEK
-
 MONTH
 ```
 
 ---
 
-# 9. Summary Relationships
-
-```text
-User
- │
- │ 1
- ▼
-Student
- │
- │ 1
- ▼
-Enrollment
-
-
-Program
- │
- │ 1
- ▼
-SubProgram
- │
- ├───────────────┐
- │               │
- ▼               ▼
-Class      LearningMaterial
- │
- ▼
-Enrollment
-```
-
----
-
-# 10. Locked Decisions
-
-The following decisions are finalized.
+# 8. Locked Decisions
 
 - Student is permanently linked to one User.
 - Student profiles are never duplicated.
@@ -615,11 +315,7 @@ The following decisions are finalized.
 - Classes support both Group and Individual learning.
 - Individual Classes always have capacity of one.
 - Programs, SubPrograms, Students, and Classes use soft deletion through deactivation.
-- Future academic modules (Attendance Sessions, Attendance Records, Progress, Materials, Certificates) attach to existing models without redesign.
 
 ---
 
-# Status
-
-**🔒 LOCKED**
-
+**Status:** LOCKED

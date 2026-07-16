@@ -3,11 +3,9 @@
 # Academic Application Database Design
 ## Part 2 — Enrollment & Academic Operations
 
-**Status:** 🔒 LOCKED
+**Status:** LOCKED
 
 **Application:** `academic`
-
-> This document defines the database design for the operational models of the Academic application. It focuses only on database architecture and intentionally excludes services, APIs, permissions, and implementation.
 
 ---
 
@@ -28,7 +26,6 @@ This document covers:
 ```text
 Student
     │
-    │ 1
     ▼
 Enrollment
     │
@@ -57,103 +54,17 @@ EnrollmentPeriod
 
 Enrollment represents a student's participation in a Class.
 
-A Student may have many enrollments throughout their academic journey.
-
-Every enrollment belongs to exactly one Class.
-
-Every enrollment belongs to exactly one Student.
-
-Every enrollment owns exactly one Enrollment Payment.
-
----
-
 ## Relationships
 
-```text
-Student
-
-1
-
-↓
-
-∞
-
-Enrollment
 ```
-
-```text
-Class
-
-1
-
-↓
-
-∞
-
-Enrollment
+Student (1) → (∞) Enrollment
+Class (1) → (∞) Enrollment
+Enrollment (1) → (1) EnrollmentPayment
+Enrollment (1) → (∞) AttendanceRecord
+Enrollment (1) → (∞) StudentProgress
+Enrollment (1) → (∞) BranchTransferRequest
+Enrollment (1) → (0..1) Enrollment (transferred_from, self-referential)
 ```
-
-```text
-Enrollment
-
-1
-
-↓
-
-1
-
-Enrollment Payment
-```
-
-```text
-Enrollment
-
-1
-
-↓
-
-∞
-
-Attendance Record
-```
-
-```text
-Attendance Session
-
-1
-
-↓
-
-∞
-
-Attendance Record
-```
-
-```text
-Class
-
-1
-
-↓
-
-∞
-
-Attendance Session
-```
-
-```text
-Enrollment
-
-1
-
-↓
-
-∞
-
-Student Progress
-```
-
----
 
 ## Database Fields
 
@@ -161,63 +72,56 @@ Student Progress
 |---------|------|----------|------|
 | id | UUID | Yes | Primary Key |
 | student | ForeignKey | Yes | Student |
-| class | ForeignKey | Yes | Teaching Class |
+| enrolled_class | ForeignKey | Yes | Teaching Class |
 | enrolled_at | DateTime | Yes | Enrollment date |
 | status | Choice | Yes | Enrollment lifecycle |
+| enrollment_number | String | No | Generated on payment approval |
+| pending_code | String | No | Generated on self-service enrollment |
+| verification_status | Choice | No | SUBMITTED / UNDER_REVIEW |
+| rejection_reason | Text | No | Rejection explanation |
+| transferred_from | ForeignKey(self) | No | Source enrollment in switch |
 | remarks | Text | No | Optional notes |
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Enrollment Status
 
-```text
-PENDING_PAYMENT
-
+```
+PENDING_VERIFICATION
 ACTIVE
-
 COMPLETED
-
 CANCELLED
+REJECTED
 ```
 
----
+## Verification Status
+
+```
+SUBMITTED
+UNDER_REVIEW
+```
 
 ## Constraints
 
-A Student may enroll in multiple Classes.
-
-A Class may contain multiple Students.
-
-One Enrollment belongs to exactly one Student.
-
-One Enrollment belongs to exactly one Class.
-
-Only one active enrollment should exist for the same Student and Class.
-
----
+- A Student may enroll in multiple Classes.
+- A Class may contain multiple Students.
+- Only one non-cancelled enrollment per Student and Class.
+- `enrollment_number` and `pending_code` are each unique.
 
 ## Indexes
 
 - student
-- class
+- enrolled_class
 - status
 - enrolled_at
+- enrollment_number
+- pending_code
 
-Composite:
-
-```text
-(student, class)
-```
-
----
+Composite: (student, enrolled_class)
 
 ## Delete Policy
 
-Enrollment records are never physically deleted.
-
-Cancelled enrollments remain for historical reporting.
+Enrollment records are never physically deleted. Cancelled/rejected enrollments remain for historical reporting.
 
 ---
 
@@ -225,53 +129,15 @@ Cancelled enrollments remain for historical reporting.
 
 ## Purpose
 
-Controls when students are allowed to enroll into specific Programs and Sub Programs.
-
-Enrollment periods primarily apply to Group Classes.
-
-Individual Classes remain available for enrollment at any time.
-
----
+Controls when students are allowed to enroll into specific Programs and SubPrograms. Primarily applies to Group Classes.
 
 ## Relationships
 
-```text
-Branch
-
-1
-
-↓
-
-∞
-
-Enrollment Period
 ```
-
-```text
-Program
-
-1
-
-↓
-
-∞
-
-Enrollment Period
+Branch (1) → (∞) EnrollmentPeriod
+Program (1) → (∞) EnrollmentPeriod
+SubProgram (1) → (∞) EnrollmentPeriod
 ```
-
-```text
-SubProgram
-
-1
-
-↓
-
-∞
-
-Enrollment Period
-```
-
----
 
 ## Database Fields
 
@@ -282,6 +148,7 @@ Enrollment Period
 | program | ForeignKey | Yes | Program |
 | sub_program | ForeignKey | Yes | Sub Program |
 | class_type | Choice | Yes | Group / Individual |
+| class_period | Choice | No | Half Day / Full Day |
 | title | String | Yes | Administrative label |
 | start_date | Date | Yes | Opening date |
 | end_date | Date | Yes | Closing date |
@@ -289,84 +156,20 @@ Enrollment Period
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
-## Class Type
-
-```text
-GROUP
-
-INDIVIDUAL
-```
-
----
-
 ## Business Scope
 
-Enrollment Period belongs to:
-
-- Branch
-- Program
-- Sub Program
-- Class Type
-
-This allows each branch to manage independent enrollment windows.
-
----
+Enrollment Period belongs to: Branch + Program + SubProgram + Class Type. This allows each branch to manage independent enrollment windows.
 
 ## Constraints
 
-Program and Sub Program must match.
-
-End Date must be greater than Start Date.
-
-Only active periods are considered during enrollment.
-
-Active enrollment periods must not overlap for the same:
-
-```text
-Branch
-
-+
-
-Program
-
-+
-
-Sub Program
-
-+
-
-Class Type
-```
-
-(Enforced by the service layer.)
-
----
-
-## Indexes
-
-- branch
-- program
-- sub_program
-- class_type
-- is_active
-- start_date
-- end_date
-
-Composite:
-
-```text
-(branch, program, sub_program, class_type)
-```
-
----
+- Program and SubProgram must match.
+- End Date must be greater than Start Date.
+- Only active periods are considered during enrollment.
+- Active periods must not overlap for the same (Branch, Program, SubProgram, Class Type) combination.
 
 ## Delete Policy
 
-Enrollment Periods are never deleted after use.
-
-Inactive periods remain for historical reference.
+Enrollment Periods are never deleted after use. Inactive periods remain for historical reference.
 
 ---
 
@@ -374,27 +177,14 @@ Inactive periods remain for historical reference.
 
 ## Purpose
 
-Represents the one-time payment associated with an Enrollment.
-
-Payments are enrollment-specific rather than generic.
-
----
+Represents the one-time payment associated with an Enrollment. Supports cash, bank transfer, and online verification workflows.
 
 ## Relationships
 
-```text
-Enrollment
-
-1
-
-↓
-
-1
-
-Enrollment Payment
 ```
-
----
+Enrollment (1) → (1) EnrollmentPayment
+EnrollmentPayment (1) → (0..1) User (verified_by)
+```
 
 ## Database Fields
 
@@ -404,86 +194,46 @@ Enrollment Payment
 | enrollment | OneToOne | Yes | Enrollment |
 | amount | Decimal | Yes | Paid amount |
 | payment_method | Choice | Yes | Cash / Online |
-| payment_provider | Choice | No | Chapa / Stripe |
 | transaction_reference | String | No | External reference |
+| bank_name | String | No | Bank name for transfers |
+| transfer_reference | String | No | Transfer slip reference |
+| attachment | File | No | Payment proof upload |
 | payment_date | DateTime | No | Payment completion |
 | status | Choice | Yes | Payment status |
+| verified_by | ForeignKey | No | Accounts.User who verified |
+| verified_at | DateTime | No | When verified |
+| verification_notes | Text | No | Admin notes |
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Payment Method
 
-```text
+```
 CASH
-
-ONLINE
+BANK_TRANSFER
+TELEBIRR
 ```
-
----
-
-## Payment Provider
-
-```text
-CHAPA
-
-STRIPE
-```
-
-Provider is only required when:
-
-```text
-payment_method = ONLINE
-```
-
----
 
 ## Payment Status
 
-```text
+```
 PENDING
-
-PAID
-
+PENDING_VERIFICATION
+VERIFIED
 FAILED
-
 REFUNDED
-
 CANCELLED
 ```
 
----
-
 ## Constraints
 
-Every Enrollment owns one Payment.
-
-Payment amount must be greater than zero.
-
-Payment Provider is required only for Online payments.
-
-Cash payments never require transaction references.
-
-Online payments should store the provider transaction reference.
-
----
-
-## Indexes
-
-- enrollment
-- status
-- payment_method
-- payment_provider
-- payment_date
-
----
+- Every Enrollment owns one Payment.
+- Payment amount must be greater than zero.
+- Non-cash payments require transaction_reference, bank_name + transfer_reference, or attachment.
 
 ## Delete Policy
 
-Payments are permanent financial records.
-
-Physical deletion is not allowed.
+Payments are permanent financial records. Physical deletion is not allowed.
 
 ---
 
@@ -491,102 +241,37 @@ Physical deletion is not allowed.
 
 ## Purpose
 
-Represents one teaching session for a Class.
-
-A session is created once per class meeting.
-
----
-
-## Business Context
-
-Attendance is recorded per Class Session.
-
-Teachers create one Attendance Session for each class meeting.
-
-Students are then marked within that session.
-
-This supports both Group and Individual classes without requiring different models.
-
-For Individual classes, each Attendance Session simply contains one Attendance Record.
-
----
-
-## Examples
-
-- Robotics Class A, July 7, 2026, Topic: Sensors
-- Python Evening Class, July 10, 2026, Topic: Functions
-
----
+Represents one teaching session for a Class. Created once per class meeting.
 
 ## Relationships
 
-```text
-Class
-
-1
-
-↓
-
-∞
-
-Attendance Session
 ```
-
-```text
-Attendance Session
-
-1
-
-↓
-
-∞
-
-Attendance Record
+Class (1) → (∞) AttendanceSession
+AttendanceSession (1) → (∞) AttendanceRecord
+AttendanceSession (1) → (1) User (recorded_by)
 ```
-
----
 
 ## Database Fields
 
 | Field | Type | Required | Notes |
 |---------|------|----------|------|
 | id | UUID | Yes | Primary Key |
-| class | ForeignKey | Yes | Teaching Class |
+| enrolled_class | ForeignKey | Yes | Teaching Class |
 | session_date | Date | Yes | Class meeting date |
 | topic | String | No | Optional session topic |
 | recorded_by | ForeignKey | Yes | Instructor who recorded |
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Constraints
 
 - Every Attendance Session belongs to one Class.
-- Session Date is required.
-- Recorded By must be an Instructor.
-
----
-
-## Indexes
-
-- class
-- session_date
-- recorded_by
-
-Composite:
-
-```text
-(class, session_date)
-```
-
----
+- One session per Class per day (unique constraint).
+- Recorded By must be an Instructor for that Class.
 
 ## Delete Policy
 
-Attendance Sessions should never be physically deleted.
-
-Corrections should update or void the session.
+Attendance Sessions should never be physically deleted. Corrections should update or void the session.
 
 ---
 
@@ -596,35 +281,12 @@ Corrections should update or void the session.
 
 Represents one student's attendance for a specific Attendance Session.
 
----
-
 ## Relationships
 
-```text
-Attendance Session
-
-1
-
-↓
-
-∞
-
-Attendance Record
 ```
-
-```text
-Enrollment
-
-1
-
-↓
-
-∞
-
-Attendance Record
+AttendanceSession (1) → (∞) AttendanceRecord
+Enrollment (1) → (∞) AttendanceRecord
 ```
-
----
 
 ## Database Fields
 
@@ -638,51 +300,24 @@ Attendance Record
 | created_at | DateTime | Yes | Audit |
 | updated_at | DateTime | Yes | Audit |
 
----
-
 ## Attendance Record Status
 
-```text
+```
 PRESENT
-
 ABSENT
-
 LATE
-
 EXCUSED
 ```
 
----
-
 ## Constraints
 
-- Every Attendance Record belongs to one Attendance Session.
-- Every Attendance Record belongs to one Enrollment.
-- Only one Attendance Record may exist for the same (Attendance Session, Enrollment) combination.
-- Attendance Record cannot exist without an Attendance Session.
-- Attendance Record cannot exist without an Enrollment.
-
----
-
-## Indexes
-
-- attendance_session
-- enrollment
-- status
-
-Composite:
-
-```text
-(attendance_session, enrollment)
-```
-
----
+- One record per Enrollment per Session (unique constraint).
+- Record cannot exist without an Attendance Session.
+- Record cannot exist without an Enrollment.
 
 ## Delete Policy
 
-Attendance Records should never be physically deleted.
-
-Corrections should update the existing record.
+Attendance Records should never be physically deleted. Corrections should update the existing record.
 
 ---
 
@@ -690,128 +325,71 @@ Corrections should update the existing record.
 
 ## Enrollment Status
 
-```text
-PENDING_PAYMENT
-
-ACTIVE
-
-COMPLETED
-
-CANCELLED
 ```
-
----
+PENDING_VERIFICATION
+ACTIVE
+COMPLETED
+CANCELLED
+REJECTED
+```
 
 ## Payment Method
 
-```text
+```
 CASH
-
-ONLINE
+BANK_TRANSFER
+TELEBIRR
 ```
-
----
-
-## Payment Provider
-
-```text
-CHAPA
-
-STRIPE
-```
-
----
 
 ## Payment Status
 
-```text
+```
 PENDING
-
-PAID
-
+PENDING_VERIFICATION
+VERIFIED
 FAILED
-
 REFUNDED
-
 CANCELLED
 ```
 
----
-
 ## Attendance Record Status
 
-```text
+```
 PRESENT
-
 ABSENT
-
 LATE
-
 EXCUSED
 ```
 
----
-
 ## Class Type
 
-```text
+```
 GROUP
-
 INDIVIDUAL
 ```
 
----
+## Class Period
 
-# 9. Summary Relationships
-
-```text
-Student
-    │
-    ▼
-Enrollment
-    ├──────────────────────┐
-    │                      │
-    ▼                      ▼
-Attendance Record   EnrollmentPayment
-    ▲
-    │
-Attendance Session
-    ▲
-    │
-Class
-
-Branch
-    │
-    ▼
-EnrollmentPeriod
-         ▲
-         │
-Program ─┼─ SubProgram
+```
+FULL_DAY
+HALF_DAY
 ```
 
 ---
 
-# 10. Locked Decisions
-
-The following decisions are finalized.
+# 9. Locked Decisions
 
 - Every Student may have multiple Enrollments.
-- Every Enrollment belongs to one Student.
-- Every Enrollment belongs to one Class.
-- Every Enrollment owns exactly one Enrollment Payment.
-- Enrollment Payments represent one-time payments only.
-- Online payments support multiple providers through the external payment integration configuration.
-- Cash payments are recorded manually by the Secretary.
-- Enrollment Periods are scoped by Branch, Program, Sub Program, and Class Type.
+- Every Enrollment has one Payment.
+- Online enrollments use a verification workflow (PENDING_VERIFICATION → UNDER_REVIEW → VERIFIED/REJECTED).
+- Enrollment number is generated on payment approval.
+- Pending code is generated on self-service submission.
+- Enrollment Periods are scoped by Branch, Program, SubProgram, Class Type, and Class Period.
 - Group enrollments require an active Enrollment Period.
 - Individual enrollments are not restricted by Enrollment Periods.
 - Attendance is recorded per Class Session through Attendance Sessions.
-- Attendance Sessions are created once per class meeting.
-- Attendance Records belong to an Attendance Session and reference the student's Enrollment.
-- Attendance Sessions, Attendance Records, Payments, Enrollment Periods, and Enrollments are retained for historical purposes and are not physically deleted.
+- Attendance Records are permanent.
 
 ---
 
-# Status
-
-**🔒 LOCKED**
+**Status:** LOCKED

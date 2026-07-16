@@ -3,11 +3,9 @@
 # Academic Application Database Design
 ## Part 4 — Global Database Rules & Final Specification
 
-**Status:** 🔒 LOCKED
+**Status:** LOCKED
 
 **Application:** `academic`
-
-> This document finalizes the Academic application's database design by defining global database rules, relationship policies, indexing strategy, foreign key behaviors, enumerations, and the complete entity relationship architecture.
 
 ---
 
@@ -18,11 +16,11 @@ This document finalizes the database design by defining:
 - Complete Relationship Matrix
 - Foreign Key Behaviors
 - Delete Policies
-- Cascade Rules
-- Database Constraints
+- Unique Constraints
 - Global Index Strategy
+- Staff Attendance Models
+- Branch Transfer Request Model
 - Shared Enumerations
-- Final Entity Relationship Diagram
 
 ---
 
@@ -34,56 +32,50 @@ This document finalizes the database design by defining:
                   ┌──────────────┴──────────────┐
                   │                             │
                   ▼                             ▼
-              Student                     Instructor
-                  │
+              Student                     Instructor (via User FK)
                   │
                   ▼
               Enrollment
            ┌─────┴──────────────────┐
            │                        │
            ▼                        ▼
-  Attendance Record        Enrollment Payment
+  Attendance Record        EnrollmentPayment
            ▲
            │
   Attendance Session
            ▲
            │
            Class
-                                   
-           Student Progress
+
+           StudentProgress
            ▲
            │
-  Learning Milestone
+  LearningMilestone
            ▲
            │
-       Sub Program
+       SubProgram
      ┌────┼───────────────┬───────────────┐
      │                    │               │
      ▼                    ▼               ▼
-  Program          Learning Material   Certificate
+  Program          LearningMaterial   Certificate
                                              │
                                              ▼
-                                   Student Certificate
+                                   StudentCertificate
 
 Branch
  │
  ├──────────────► Student
  ├──────────────► Class
- └──────────────► Enrollment Period
+ ├──────────────► EnrollmentPeriod
+ └──────────────► StaffAttendanceSession
 
-Program
+StaffAttendanceSession
  │
- ├──────────────► Sub Program
- └──────────────► Enrollment Period
+ └──────────────► StaffAttendanceRecord
 
-Sub Program
+Enrollment
  │
- ├──────────────► Class
- ├──────────────► Learning Material
- ├──────────────► Learning Milestone
- ├──────────────► Certificate
- ├──────────────► Enrollment Period
- └──────────────► Student Certificate
+ └──────────────► BranchTransferRequest
 ```
 
 ---
@@ -94,159 +86,93 @@ Sub Program
 |---------|-------|-------------|
 | User | Student | One to One |
 | Branch | Student | One to Many |
-| Program | Sub Program | One to Many |
-| Sub Program | Class | One to Many |
 | Branch | Class | One to Many |
-| Instructor | Class | One to Many |
+| Branch | EnrollmentPeriod | One to Many |
+| Branch | StaffAttendanceSession | One to Many |
+| Program | SubProgram | One to Many |
+| Program | EnrollmentPeriod | One to Many |
+| SubProgram | Class | One to Many |
+| SubProgram | LearningMaterial | One to Many |
+| SubProgram | LearningMilestone | One to Many |
+| SubProgram | Certificate | One to One |
+| SubProgram | EnrollmentPeriod | One to Many |
+| SubProgram | StudentCertificate | One to Many |
+| User (Instructor) | Class | One to Many |
+| User (recorded_by) | AttendanceSession | One to Many |
+| User (uploaded_by) | LearningMaterial | One to Many |
+| User (updated_by) | StudentProgress | One to Many |
+| User (issued_by) | StudentCertificate | One to Many |
+| User (verified_by) | EnrollmentPayment | One to Many |
+| User (requested_by) | BranchTransferRequest | One to Many |
+| User (approved_by) | BranchTransferRequest | One to Many |
+| User (created_by) | StaffAttendanceSession | One to Many |
+| User (staff_member) | StaffAttendanceRecord | One to Many |
 | Student | Enrollment | One to Many |
+| Student | StudentCertificate | One to Many |
 | Class | Enrollment | One to Many |
-| Enrollment | Enrollment Payment | One to One |
-| Enrollment | Attendance Record | One to Many |
-| Class | Attendance Session | One to Many |
-| Attendance Session | Attendance Record | One to Many |
-| Enrollment | Student Progress | One to Many |
-| Sub Program | Learning Milestone | One to Many |
-| Learning Milestone | Student Progress | One to Many |
-| Sub Program | Learning Material | One to Many |
-| Instructor | Learning Material | One to Many |
-| Sub Program | Certificate | One to One |
-| Certificate | Student Certificate | One to Many |
-| Student | Student Certificate | One to Many |
-| Branch | Enrollment Period | One to Many |
-| Program | Enrollment Period | One to Many |
-| Sub Program | Enrollment Period | One to Many |
+| Class | AttendanceSession | One to Many |
+| Class | LearningMilestone | One to Many (scope_class, nullable) |
+| Enrollment | EnrollmentPayment | One to One |
+| Enrollment | AttendanceRecord | One to Many |
+| Enrollment | StudentProgress | One to Many |
+| Enrollment | BranchTransferRequest | One to Many |
+| Enrollment | Enrollment (self) | One to Many (transferred_from) |
+| AttendanceSession | AttendanceRecord | One to Many |
+| LearningMilestone | StudentProgress | One to Many |
+| Certificate | StudentCertificate | One to Many |
+| StaffAttendanceSession | StaffAttendanceRecord | One to Many (CASCADE) |
 
 ---
 
 # 4. Foreign Key Behaviors
 
-## Student
+All foreign keys use `PROTECT` except where noted.
 
-| Parent | On Delete |
-|---------|-----------|
-| User | PROTECT |
-| Branch | PROTECT |
-
----
-
-## Program
-
-No parent relationships.
-
----
-
-## Sub Program
-
-| Parent | On Delete |
-|---------|-----------|
-| Program | PROTECT |
-
----
-
-## Class
-
-| Parent | On Delete |
-|---------|-----------|
-| Branch | PROTECT |
-| Sub Program | PROTECT |
-| Instructor | PROTECT |
-
----
-
-## Enrollment
-
-| Parent | On Delete |
-|---------|-----------|
-| Student | PROTECT |
-| Class | PROTECT |
-
----
-
-## Enrollment Period
-
-| Parent | On Delete |
-|---------|-----------|
-| Branch | PROTECT |
-| Program | PROTECT |
-| Sub Program | PROTECT |
-
----
-
-## Enrollment Payment
-
-| Parent | On Delete |
-|---------|-----------|
-| Enrollment | PROTECT |
-
----
-
-## Attendance Session
-
-| Parent | On Delete |
-|---------|-----------|
-| Class | PROTECT |
-| Recorded By | PROTECT |
-
----
-
-## Attendance Record
-
-| Parent | On Delete |
-|---------|-----------|
-| Attendance Session | PROTECT |
-| Enrollment | PROTECT |
-
----
-
-## Learning Milestone
-
-| Parent | On Delete |
-|---------|-----------|
-| Sub Program | PROTECT |
-
----
-
-## Student Progress
-
-| Parent | On Delete |
-|---------|-----------|
-| Enrollment | PROTECT |
-| Learning Milestone | PROTECT |
-| Updated By | PROTECT |
-
----
-
-## Learning Material
-
-| Parent | On Delete |
-|---------|-----------|
-| Sub Program | PROTECT |
-| Uploaded By | PROTECT |
-
----
-
-## Certificate
-
-| Parent | On Delete |
-|---------|-----------|
-| Sub Program | PROTECT |
-
----
-
-## Student Certificate
-
-| Parent | On Delete |
-|---------|-----------|
-| Student | PROTECT |
-| Certificate | PROTECT |
-| Sub Program | PROTECT |
-| Issued By | PROTECT |
+| Model | Parent | On Delete |
+|---------|-------|-----------|
+| Student | User | PROTECT |
+| Student | Branch | PROTECT |
+| SubProgram | Program | PROTECT |
+| Class | SubProgram | PROTECT |
+| Class | Branch | PROTECT |
+| Class | User (instructor) | PROTECT |
+| Enrollment | Student | PROTECT |
+| Enrollment | Class | PROTECT |
+| Enrollment | Enrollment (transferred_from) | SET_NULL |
+| EnrollmentPayment | Enrollment | PROTECT |
+| EnrollmentPayment | User (verified_by) | PROTECT |
+| EnrollmentPeriod | Branch | PROTECT |
+| EnrollmentPeriod | Program | PROTECT |
+| EnrollmentPeriod | SubProgram | PROTECT |
+| AttendanceSession | Class | PROTECT |
+| AttendanceSession | User (recorded_by) | PROTECT |
+| AttendanceRecord | AttendanceSession | PROTECT |
+| AttendanceRecord | Enrollment | PROTECT |
+| LearningMilestone | SubProgram | PROTECT |
+| LearningMilestone | Class (scope) | PROTECT |
+| StudentProgress | Enrollment | PROTECT |
+| StudentProgress | LearningMilestone | PROTECT |
+| StudentProgress | User (updated_by) | PROTECT |
+| LearningMaterial | SubProgram | PROTECT |
+| LearningMaterial | User (uploaded_by) | PROTECT |
+| Certificate | SubProgram | PROTECT |
+| StudentCertificate | Student | PROTECT |
+| StudentCertificate | Certificate | PROTECT |
+| StudentCertificate | SubProgram | PROTECT |
+| StudentCertificate | User (issued_by) | PROTECT |
+| StaffAttendanceSession | Branch | PROTECT |
+| StaffAttendanceSession | User (created_by) | PROTECT |
+| StaffAttendanceRecord | StaffAttendanceSession | **CASCADE** |
+| StaffAttendanceRecord | User (staff_member) | PROTECT |
+| BranchTransferRequest | Enrollment | **CASCADE** |
+| BranchTransferRequest | Branch (from/to) | PROTECT |
+| BranchTransferRequest | Class (target) | PROTECT |
+| BranchTransferRequest | User (requested_by) | PROTECT |
+| BranchTransferRequest | User (approved_by) | PROTECT |
 
 ---
 
 # 5. Delete Policy
-
-The Academic application preserves historical academic records.
 
 The following records are **never physically deleted**:
 
@@ -260,16 +186,21 @@ The following records are **never physically deleted**:
 
 These records form part of the permanent academic history.
 
----
-
 The following configuration records should be deactivated instead of deleted:
 
 - Program
 - Sub Program
 - Class
-- Learning Material
+- Learning Material (soft delete via is_active)
+- Learning Milestone (soft delete via is_active)
 - Certificate
 - Enrollment Period
+- StaffAttendanceSession (soft delete via is_active)
+
+The following may be hard-deleted:
+
+- StaffAttendanceRecord (only while session is DRAFT)
+- BranchTransferRequest
 
 ---
 
@@ -277,138 +208,85 @@ The following configuration records should be deactivated instead of deleted:
 
 ## Student
 
-```text
+```
 user
 ```
 
-```text
-student_number
-```
-
----
-
 ## Program
 
-```text
-name
 ```
-
-```text
+name
 slug
 ```
 
----
+## SubProgram
 
-## Sub Program
-
-```text
-(program, name)
 ```
-
-```text
+(program, name)
 (program, slug)
 ```
-
----
 
 ## Class
 
 No additional uniqueness constraint.
 
----
-
 ## Enrollment
 
-```text
-(student, class)
+```
+(student, enrolled_class) — only one non-cancelled enrollment
 ```
 
-Only one enrollment per student for a specific class.
+## EnrollmentPeriod
 
----
+Active periods must not overlap for the same (branch, program, sub_program, class_type). Enforced by service layer.
 
-## Enrollment Period
+## EnrollmentPayment
 
-Active periods must not overlap for the same:
-
-```text
-(branch,
-program,
-sub_program,
-class_type)
 ```
-
-This rule is enforced by the service layer.
-
----
-
-## Enrollment Payment
-
-```text
 enrollment
 ```
 
-One payment per enrollment.
+## AttendanceSession
 
----
-
-## Attendance Session
-
-```text
-(class,
-session_date)
+```
+(enrolled_class, session_date)
 ```
 
-One session per class per day.
+## AttendanceRecord
 
----
-
-## Attendance Record
-
-```text
-(attendance_session,
-enrollment)
+```
+(attendance_session, enrollment)
 ```
 
-One record per enrollment per session.
+## LearningMilestone
 
----
-
-## Learning Milestone
-
-```text
-(sub_program,
-title)
+```
+(sub_program, scope_class, title)
 ```
 
----
+## StudentProgress
 
-## Student Progress
-
-```text
-(enrollment,
-milestone)
 ```
-
----
+(enrollment, milestone)
+```
 
 ## Certificate
 
-```text
+```
 sub_program
 ```
 
----
+## StudentCertificate
 
-## Student Certificate
-
-```text
+```
 certificate_number
+(student, sub_program)
 ```
 
-```text
-(student,
-sub_program)
+## StaffAttendanceRecord
+
+```
+(session, staff_member)
 ```
 
 ---
@@ -416,367 +294,257 @@ sub_program)
 # 7. Global Index Strategy
 
 ## Student
-
-- student_number
-- user
-- branch
-
----
+- user, branch, is_active, date_joined
 
 ## Program
+- slug, is_active
 
-- slug
-- is_active
-
----
-
-## Sub Program
-
-- program
-- slug
-- is_active
-
----
+## SubProgram
+- program, slug, is_active
 
 ## Class
-
-- branch
-- sub_program
-- instructor
-- class_type
-- is_active
-
----
+- branch, sub_program, instructor, class_type, is_active
 
 ## Enrollment
+- student, enrolled_class, status, enrolled_at, enrollment_number, pending_code
 
-- student
-- class
-- status
-- enrolled_at
+## EnrollmentPeriod
+- branch, program, sub_program, class_type, is_active, start_date, end_date
 
----
+## EnrollmentPayment
+- enrollment, payment_method, status, payment_date, transaction_reference
 
-## Enrollment Period
+## AttendanceSession
+- enrolled_class, session_date, recorded_by
 
-- branch
-- program
-- sub_program
-- class_type
-- is_active
-- start_date
-- end_date
+## AttendanceRecord
+- attendance_session, enrollment, status
 
----
+## LearningMilestone
+- sub_program, is_active
 
-## Enrollment Payment
+## StudentProgress
+- enrollment, milestone, status
 
-- enrollment
-- payment_method
-- payment_provider
-- status
-
----
-
-## Attendance Session
-
-- class
-- session_date
-
----
-
-## Attendance Record
-
-- attendance_session
-- enrollment
-- status
-
----
-
-## Learning Milestone
-
-- sub_program
-
----
-
-## Student Progress
-
-- enrollment
-- milestone
-- status
-
----
-
-## Learning Material
-
-- sub_program
-- uploaded_by
-- is_active
-
----
+## LearningMaterial
+- sub_program, uploaded_by, material_type, is_active
 
 ## Certificate
+- sub_program, is_active
 
-- sub_program
+## StudentCertificate
+- student, certificate, sub_program, certificate_number
+
+## StaffAttendanceSession
+- branch, date, status, is_active
+
+## StaffAttendanceRecord
+- session, staff_member, status
+
+## BranchTransferRequest
+- enrollment, status, from_branch, to_branch
 
 ---
 
-## Student Certificate
+# 8. Staff Attendance
 
-- student
-- sub_program
-- certificate_number
+## Purpose
+
+Tracks daily attendance for non-teaching staff (secretaries, managers, instructors).
+
+## StaffAttendanceSession
+
+A DRAFT session is created per branch per day. Once finalized, it is PUBLISHED.
+
+### Fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | Primary Key |
+| branch | ForeignKey | Branch |
+| date | Date | Attendance date |
+| status | Choice | DRAFT / PUBLISHED |
+| notes | Text | Optional |
+| created_by | ForeignKey | User who created |
+| is_active | Boolean | Soft delete flag |
+| created_at | DateTime | Audit |
+| updated_at | DateTime | Audit |
+
+## StaffAttendanceRecord
+
+### Fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | Primary Key |
+| session | ForeignKey(CASCADE) | Parent session |
+| staff_member | ForeignKey | User |
+| status | Choice | PRESENT / ABSENT / LATE / EXCUSED |
+| notes | Text | Optional |
+| created_at | DateTime | Audit |
+| updated_at | DateTime | Audit |
+
+## Status (Session)
+
+```
+DRAFT
+PUBLISHED
+```
+
+## Rules
+
+- Only DRAFT sessions can be modified.
+- Publishing locks the session.
+- Records are CASCADE-deleted with the session.
 
 ---
 
-# 8. Shared Enumerations
+# 9. Branch Transfer Request
+
+## Purpose
+
+Manages requests to transfer an active enrollment from one branch to another.
+
+## Fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | Primary Key |
+| enrollment | ForeignKey(CASCADE) | Source enrollment |
+| from_branch | ForeignKey | Current branch |
+| to_branch | ForeignKey | Target branch |
+| target_class | ForeignKey | Class in target branch |
+| requested_by | ForeignKey | Who requested |
+| approved_by | ForeignKey | Who approved (nullable) |
+| status | Choice | PENDING / APPROVED / REJECTED |
+| rejection_reason | Text | Reason if rejected |
+| created_at | DateTime | Audit |
+| approved_at | DateTime | Nullable |
+
+## Status
+
+```
+PENDING
+APPROVED
+REJECTED
+```
+
+## Rules
+
+- Enrollment must be active.
+- Source and target branches must differ.
+- Target class must belong to target branch.
+- Target class must have capacity.
+- No duplicate pending request for same enrollment.
+- Approval cancels old enrollment and creates a new one in the target class.
+
+---
+
+# 10. Shared Enumerations
 
 ## Class Type
 
-```text
+```
 GROUP
-
 INDIVIDUAL
 ```
 
----
+## Class Period
+
+```
+FULL_DAY
+HALF_DAY
+```
 
 ## Enrollment Status
 
-```text
-PENDING_PAYMENT
-
+```
+PENDING_VERIFICATION
 ACTIVE
-
 COMPLETED
-
 CANCELLED
+REJECTED
 ```
 
----
+## Verification Status
+
+```
+SUBMITTED
+UNDER_REVIEW
+```
 
 ## Payment Method
 
-```text
+```
 CASH
-
-ONLINE
+BANK_TRANSFER
+TELEBIRR
 ```
-
----
-
-## Payment Provider
-
-```text
-CHAPA
-
-STRIPE
-```
-
-Future providers may be added without changing the Academic schema.
-
----
 
 ## Payment Status
 
-```text
+```
 PENDING
-
-PAID
-
+PENDING_VERIFICATION
+VERIFIED
 FAILED
-
 REFUNDED
-
 CANCELLED
 ```
 
----
-
 ## Attendance Record Status
 
-```text
+```
 PRESENT
-
 ABSENT
-
 LATE
-
 EXCUSED
 ```
 
----
-
 ## Progress Status
 
-```text
+```
 NOT_STARTED
-
 IN_PROGRESS
-
 COMPLETED
 ```
 
----
-
 ## Material Type
 
-```text
+```
 PDF
-
 PPT
-
 PPTX
-
 DOC
-
 DOCX
-
 IMAGE
-
 ZIP
-
 OTHER
 ```
 
----
-
 ## Duration Unit
 
-```text
+```
 DAY
-
 WEEK
-
 MONTH
+```
+
+## Session Status (Staff Attendance)
+
+```
+DRAFT
+PUBLISHED
+```
+
+## Transfer Status
+
+```
+PENDING
+APPROVED
+REJECTED
 ```
 
 ---
 
-# 9. Global Database Rules
-
-## Student
-
-A Student profile can only be created through the Admission workflow.
-
-Student profiles are never duplicated.
-
----
-
-## Enrollment
-
-Every Enrollment belongs to exactly one Student and one Class.
-
-Every Enrollment owns exactly one Enrollment Payment.
-
-Students may have unlimited Enrollments throughout their academic history.
-
----
-
-## Enrollment Period
-
-Enrollment Periods are scoped by:
-
-- Branch
-- Program
-- Sub Program
-- Class Type
-
-Only Group classes require an active Enrollment Period.
-
----
-
-## Attendance Session
-
-Attendance Sessions represent one teaching session for a Class.
-
-Sessions are created once per class meeting.
-
----
-
-## Attendance Record
-
-Attendance Records represent one student's attendance for a specific Attendance Session.
-
-Attendance Records belong to an Attendance Session and reference the student's Enrollment.
-
-Attendance Records are permanent.
-
----
-
-## Student Progress
-
-Progress belongs to an Enrollment.
-
-Repeating the same Sub Program creates a new progress history.
-
----
-
-## Learning Materials
-
-Materials belong directly to Sub Programs.
-
-Students only access materials for enrolled Sub Programs.
-
-Academic staff may view all materials.
-
----
-
-## Certificates
-
-Each Sub Program owns one Certificate template.
-
-Issued Student Certificates store both:
-
-- Certificate template
-- Sub Program
-
-This preserves historical accuracy even if templates change.
-
----
-
-## Reports
-
-Student Reports are generated dynamically.
-
-Reports are **never stored** in the database.
-
----
-
-# 10. Performance Strategy
-
-The Academic database is optimized for:
-
-- Student lookup
-- Enrollment lookup
-- Class roster generation
-- Attendance session creation and recording
-- Certificate generation
-- Academic report generation
-- Material retrieval
-
-Indexes are designed around these common operations.
-
----
-
-# 11. Final Locked Decisions
-
-The following architectural decisions are finalized:
-
-- UUID primary keys are used for all models.
-- Historical academic records are immutable.
-- Soft deactivation is preferred over physical deletion for configurable data.
-- Enrollment is the central entity of the Academic domain.
-- Student Progress belongs to Enrollment rather than Student.
-- Enrollment Payment is owned by Enrollment.
-- Learning Materials belong directly to Sub Programs.
-- Certificate templates and issued certificates are separate entities.
-- Issued certificates are immutable and permanently retained.
-- Reports are generated dynamically rather than stored.
-- External integrations (payment providers, email, storage, etc.) remain outside the Academic application.
-
----
-
-# Status
-
-**🔒 LOCKED**
+**Status:** LOCKED
