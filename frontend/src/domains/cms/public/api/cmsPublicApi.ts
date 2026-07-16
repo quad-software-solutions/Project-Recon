@@ -32,6 +32,9 @@ export interface AboutUsResponse {
   description: string;
   /** Alias for UI components that expect `content` */
   content?: string;
+  image: string | null;
+  mission: string;
+  vision: string;
   is_active: boolean;
 }
 
@@ -82,7 +85,7 @@ export const cmsPublicApi = {
   },
   getAboutUsDetail: async (slug: string) => {
     const row = await http.get<AboutUsResponse>(`/cms/about/${slug}/`);
-    return { ...row, content: row.description };
+    return { ...row, content: row.description, image: row.image ?? '' };
   },
   getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
   /** No backend endpoint — returns empty list for compatibility */

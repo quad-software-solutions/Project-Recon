@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
-  Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch, RefreshCw,
-  ShoppingBag, ArrowRightLeft, Building2,
+  Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch, RefreshCw, ShoppingCart,
+  Bell, MessageSquare,
 } from 'lucide-react';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
@@ -21,7 +21,8 @@ import MatchManager from '@/domains/competition/admin/MatchManager';
 import WorkshopManager from '@/domains/competition/admin/WorkshopManager';
 import RegistrationManager from '@/domains/competition/admin/RegistrationManager';
 import CertificateManager from '@/domains/user/shared/ui/CertificateManager';
-import StoreDashboard from '@/domains/store/admin/ui/StoreDashboard';
+import AnnouncementsManager from '@/domains/user/manager/dashboard/ui/AnnouncementsManager';
+import CommunicationsCenter from '@/domains/user/manager/dashboard/ui/CommunicationsCenter';
 import type { UserProfile } from '@/shared/types';
 import {
   fetchEnrollmentsApi, fetchPaymentsApi, fetchProgramsApi, fetchClassesApi,
@@ -43,7 +44,11 @@ import {
   type AdminHubStats,
 } from '../adminCommandCenter';
 import { summarizeSettled } from '@/shared/utils/storage';
-import { hasPermission, type Permission } from '@/shared/auth/permissions';
+import {
+  filterAdminNavItems,
+  resolveAdminSection,
+  canAccessAdminSection,
+} from '@/shared/auth/dashboardAccess';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
@@ -86,6 +91,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'workshops', label: 'Workshops', icon: GraduationCap, group: 'competition' },
   { id: 'event-registrations', label: 'Event Registrations', icon: UserPlus, group: 'competition' },
   { id: 'cms', label: 'Content Manager', icon: LayoutDashboard, group: 'content' },
+  { id: 'announcements', label: 'Announcements', icon: Bell, group: 'communication' },
+  { id: 'communications', label: 'Communications', icon: MessageSquare, group: 'communication' },
   { id: 'branches', label: 'Branches', icon: GitBranch, group: 'content' },
   { id: 'store', label: 'Store & Inventory', icon: ShoppingBag, group: 'finances' },
   { id: 'bank-accounts', label: 'Bank Accounts', icon: Building2, group: 'finances' },
@@ -104,12 +111,17 @@ const pageTitle: Record<string, string> = {
   workshops: 'Workshop Management', 'event-registrations': 'Event Registrations',
   certificates: 'Certificate Management',
   audit: 'Audit Logs',
-  cms: 'Content Management', account: 'My Account',
-  store: 'Store & Inventory',
+  store: 'Store Management',
+  cms: 'Content Management',
+  announcements: 'Announcements',
+  communications: 'Communications',
+  account: 'My Account',
 };
 
 export default function AdminDashboard({ currentUser, onLogout }: Props) {
-  const [activeSection, setActiveSection] = useState<AdminSectionId>('overview');
+  const [activeSection, setActiveSection] = useState<AdminSectionId>(() =>
+    resolveAdminSection(currentUser, 'overview'),
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hubStats, setHubStats] = useState<AdminHubStats>({
@@ -172,16 +184,12 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
   useEffect(() => { refreshSignals(); }, [refreshSignals]);
 
   const navItems = useMemo(
-    () => ALL_NAV_ITEMS.filter((item) => {
-      const permission = SECTION_PERMISSION[item.id as AdminSectionId];
-      return !permission || hasPermission(currentUser, permission);
-    }),
+    () => filterAdminNavItems(currentUser, NAV_ITEMS),
     [currentUser],
   );
 
-  const canAccessSection = useCallback((section: AdminSectionId) => {
-    const permission = SECTION_PERMISSION[section];
-    return !permission || hasPermission(currentUser, permission);
+  const handleSectionChange = useCallback((id: string) => {
+    setActiveSection(resolveAdminSection(currentUser, id as AdminSectionId));
   }, [currentUser]);
 
   const commandCenter = useMemo(
@@ -190,32 +198,43 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
   );
 
   const renderPage = () => {
-    if (!canAccessSection(activeSection)) {
-      return <PermissionDenied />;
+    if (!canAccessAdminSection(currentUser, activeSection)) {
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+          You do not have access to this section.
+        </div>
+      );
     }
+
     switch (activeSection) {
-      case 'overview': return <AdminOverviewDashboard />;
-      case 'users': return <UserManagementPanel title="User Management" />;
-      case 'roles': return <RolesPermissionsPanel />;
+      case 'overview': return (
+        <AdminOverviewDashboard onNavigate={handleSectionChange} />
+      );
+      case 'users': return <UserManagementPanel title="User Management" currentUser={currentUser} />;
+      case 'roles': return <RolesPermissionsPanel currentUser={currentUser} />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
       case 'classes': return <ClassManagerPanel />;
-      case 'staff-attendance': return <StaffAttendanceManager />;
-      case 'branches': return <BranchSectionShell />;
-      case 'audit': return <SystemLogs />;
+      case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
+      case 'branches': return <BranchSectionShell currentUser={currentUser} />;
+      case 'audit': return <SystemLogs currentUser={currentUser} />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
-      case 'registrations': return <EnrollmentsPanel currentUser={currentUser} />;
-      case 'transfers': return <TransferRequestsPanel />;
-      case 'bank-accounts': return <BankAccountsPanel canManage />;
-      case 'events': return <EventManager onNavigate={(section) => setActiveSection(section as AdminSectionId)} />;
+      case 'registrations': return <AdminRegistrationsPanel />;
+      case 'events': return <EventManager currentUser={currentUser} onNavigate={(section) => handleSectionChange(section)} />;
       case 'tournaments': return <TournamentManager />;
       case 'tournament-teams': return <TeamManager />;
       case 'matches': return <MatchManager />;
       case 'workshops': return <WorkshopManager />;
       case 'event-registrations': return <RegistrationManager />;
-      case 'certificates': return <CertificateManager currentUserRole={currentUser.role} />;
-      case 'store': return <StoreDashboard currentUser={currentUser} />;
-      case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard /></div>;
-      default: return <PermissionDenied title="Section not found" message="This admin section does not exist or is no longer available." />;
+      case 'certificates': return <CertificateManager currentUser={currentUser} />;
+      case 'store': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><StoreDashboard currentUser={currentUser} /></div>;
+      case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard currentUser={currentUser} /></div>;
+      case 'announcements': return <AnnouncementsManager />;
+      case 'communications': return <CommunicationsCenter currentUser={currentUser} />;
+      default: return (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-sm text-slate-600">
+          Section not found.
+        </div>
+      );
     }
   };
 
@@ -224,7 +243,7 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       sidebar={{
         items: navItems,
         activeSection,
-        onSectionChange: (id) => setActiveSection(id as AdminSectionId),
+        onSectionChange: handleSectionChange,
         title: 'Admin Panel',
         icon: Shield,
         accentColor: 'blue',

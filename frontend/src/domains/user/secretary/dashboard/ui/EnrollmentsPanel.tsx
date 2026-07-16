@@ -79,7 +79,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     const timer = setTimeout(() => {
       searchStudentsApi(studentSearch).then(res => {
         setStudentResults(Array.isArray(res) ? res : []);
-      }).catch(() => {}).finally(() => setSearching(false));
+      }).catch(() => setStudentResults([])).finally(() => setSearching(false));
     }, 300);
     return () => clearTimeout(timer);
   }, [studentSearch]);
@@ -87,7 +87,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const handleCancel = async (id: string) => {
     try {
       await cancelEnrollmentApi(id);
-      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'CANCELLED' as any } : e));
+      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'CANCELLED' as const } : e));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to cancel enrollment');
     }
@@ -96,7 +96,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const handleComplete = async (id: string) => {
     try {
       await completeEnrollmentApi(id);
-      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'COMPLETED' as any } : e));
+      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'COMPLETED' as const } : e));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to complete enrollment');
     }
@@ -114,7 +114,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         payment_date: paymentForm.payment_date || undefined,
       });
       setEnrollments(prev => prev.map(e =>
-        e.id === showPayment.id ? { ...e, status: 'ACTIVE' as any, verification_status: 'VERIFIED' as any } : e
+        e.id === showPayment.id ? { ...e, status: 'ACTIVE' as const, payment_status: 'PAID' as const, payment_method: 'CASH' as const } : e
       ));
       setShowPayment(null);
     } catch (e) {

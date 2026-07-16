@@ -168,11 +168,22 @@ class PublicEndpointTest(CMSApiTestCase):
     def test_list_about(self):
         response = self.client.get(f"{self.base_url}/about/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIsInstance(data, list)
+        if data:
+            item = data[0]
+            self.assertIn("image", item)
+            self.assertIn("mission", item)
+            self.assertIn("vision", item)
 
     def test_retrieve_about_by_slug(self):
         response = self.client.get(f"{self.base_url}/about/{self.about.slug}/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()["slug"], "about-us")
+        data = response.json()
+        self.assertEqual(data["slug"], "about-us")
+        self.assertIn("image", data)
+        self.assertIn("mission", data)
+        self.assertIn("vision", data)
 
     def test_list_faqs(self):
         response = self.client.get(f"{self.base_url}/faqs/")
@@ -351,10 +362,40 @@ class AdminSuperAdminTest(CMSApiTestCase):
     def test_create_about_admin(self):
         response = self.client.post(
             f"{self.base_url}/admin/about/",
-            {"title": "New Section", "slug": "new-section", "description": "Desc"},
+            {
+                "title": "New Section",
+                "slug": "new-section",
+                "description": "Desc",
+                "mission": "Our mission",
+                "vision": "Our vision",
+            },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertEqual(data["mission"], "Our mission")
+        self.assertEqual(data["vision"], "Our vision")
+
+    def test_create_about_admin_with_image(self):
+        temp_image = tempfile.NamedTemporaryFile(suffix=".png")
+        image = Image.new("RGB", (100, 100))
+        image.save(temp_image, format="PNG")
+        temp_image.seek(0)
+        response = self.client.post(
+            f"{self.base_url}/admin/about/",
+            {
+                "title": "Image About",
+                "slug": "image-about",
+                "description": "Desc",
+                "mission": "M",
+                "vision": "V",
+                "image": temp_image,
+            },
+            format="multipart",
+        )
+        temp_image.close()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()["title"], "Image About")
 
     def test_list_faqs_admin(self):
         response = self.client.get(f"{self.base_url}/admin/faqs/")

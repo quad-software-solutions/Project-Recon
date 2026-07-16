@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Users, Search, Filter, Plus, X, Loader2, AlertCircle, CheckCircle,
-  ChevronDown, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar
+  Users, Search, Plus, X, Loader2, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar, Lock
 } from 'lucide-react';
 import {
   fetchUsersApi, fetchAllUsersApi, toggleUserStatusApi, archiveUserApi,
@@ -10,6 +9,8 @@ import {
   type AdminUserResponse, type BranchResponse, type PaginatedResponse,
 } from '../api/adminApi';
 import { ErrorModal } from '@/shared/ui/ErrorModal';
+import type { UserProfile } from '@/shared/types';
+import { canManageAccounts } from '@/shared/auth/permissions';
 
 const ROLE_BADGE: Record<string, string> = {
   Admin: 'bg-purple-50 text-purple-600',
@@ -34,7 +35,13 @@ function resolveRole(u: AdminUserResponse): string {
   return 'Student';
 }
 
-export default function UserManagementPanel({ title = 'User Management' }: { title?: string }) {
+interface Props {
+  title?: string;
+  currentUser: UserProfile;
+}
+
+export default function UserManagementPanel({ title = 'User Management', currentUser }: Props) {
+  const canManage = canManageAccounts(currentUser);
   const [data, setData] = useState<PaginatedResponse<AdminUserResponse> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -183,9 +190,11 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="font-bold text-lg text-slate-900">{title}</h2>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-blue-600 text-white text-sm font-extrabold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg self-start">
-          <Plus className="w-4 h-4" /> Add Staff
-        </button>
+        {canManage && (
+          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-blue-600 text-white text-sm font-extrabold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg self-start">
+            <Plus className="w-4 h-4" /> Add Staff
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -214,7 +223,7 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
         </select>
       </div>
 
-      {selectedUserIds.size > 0 && (
+      {selectedUserIds.size > 0 && canManage && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-blue-800">{selectedUserIds.size} users selected</span>
           <div className="flex gap-2">
@@ -224,34 +233,45 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
         </div>
       )}
 
+      {!canManage && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 flex items-center gap-2">
+          <Lock className="w-4 h-4 shrink-0" />
+          <span>Viewing users only. User management requires Super Admin access.</span>
+        </div>
+      )}
+
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="w-10 px-4 py-2.5 text-center">
-                  <input type="checkbox" checked={filtered.length > 0 && selectedUserIds.size === filtered.length} onChange={toggleAll} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                </th>
+                {canManage && (
+                  <th className="w-10 px-4 py-2.5 text-center">
+                    <input type="checkbox" checked={filtered.length > 0 && selectedUserIds.size === filtered.length} onChange={toggleAll} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                  </th>
+                )}
                 <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">User</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase hidden md:table-cell">Contact</th>
                 <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Role</th>
                 <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-                <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
+                <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">{canManage ? 'Actions' : ''}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={canManage ? 6 : 5} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-xs text-slate-400">No users found</td></tr>
+                <tr><td colSpan={canManage ? 6 : 5} className="px-4 py-12 text-center text-xs text-slate-400">No users found</td></tr>
               ) : filtered.map(u => {
                 const role = resolveRole(u);
                 const st = STATUS_STYLE(u.status);
                 return (
                   <tr key={u.id} className="even:bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
-                    <td className="px-4 py-3 text-center">
-                      <input type="checkbox" checked={selectedUserIds.has(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-center">
+                        <input type="checkbox" checked={selectedUserIds.has(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-bold text-slate-600">
@@ -285,37 +305,39 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
                         <button onClick={() => setViewingUser(u)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors">
                           <Eye className="w-3.5 h-3.5" /> View
                         </button>
-                        <div className="relative" ref={actionMenuRef}>
-                          <button onClick={(e) => { e.stopPropagation(); setActionMenuUserId(actionMenuUserId === u.id ? null : u.id); }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </button>
-                          <AnimatePresence>
-                            {actionMenuUserId === u.id && (
-                              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg border border-slate-200 shadow-lg z-10 py-1 overflow-hidden">
-                                <button onClick={() => { setActionMenuUserId(null); setEditingUser({ ...u }); }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 transition-colors">
-                                  <Edit3 className="w-3.5 h-3.5 text-amber-500" /> Edit
-                                </button>
-                                <button onClick={() => { setActionMenuUserId(null); handleToggle(u); }} disabled={toggling === u.id}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50">
-                                  {toggling === u.id
-                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    : u.status === 'Active'
-                                      ? <UserX className="w-3.5 h-3.5 text-emerald-500" />
-                                      : <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                                  }
-                                  {u.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                </button>
-                                <button onClick={() => { setActionMenuUserId(null); setConfirmArchive(u); }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors">
-                                  <Archive className="w-3.5 h-3.5" /> Archive
-                                </button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
+                        {canManage && (
+                          <div className="relative" ref={actionMenuRef}>
+                            <button onClick={(e) => { e.stopPropagation(); setActionMenuUserId(actionMenuUserId === u.id ? null : u.id); }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </button>
+                            <AnimatePresence>
+                              {actionMenuUserId === u.id && (
+                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                  className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg border border-slate-200 shadow-lg z-10 py-1 overflow-hidden">
+                                  <button onClick={() => { setActionMenuUserId(null); setEditingUser({ ...u }); }}
+                                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 transition-colors">
+                                    <Edit3 className="w-3.5 h-3.5 text-amber-500" /> Edit
+                                  </button>
+                                  <button onClick={() => { setActionMenuUserId(null); handleToggle(u); }} disabled={toggling === u.id}
+                                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50">
+                                    {toggling === u.id
+                                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      : u.status === 'Active'
+                                        ? <UserX className="w-3.5 h-3.5 text-emerald-500" />
+                                        : <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                                    }
+                                    {u.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                  <button onClick={() => { setActionMenuUserId(null); setConfirmArchive(u); }}
+                                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors">
+                                    <Archive className="w-3.5 h-3.5" /> Archive
+                                  </button>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -512,23 +534,27 @@ export default function UserManagementPanel({ title = 'User Management' }: { tit
               {/* Action Bar */}
               <div className="flex items-center justify-between p-6 border-t border-slate-100 bg-slate-50/50">
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => { setViewingUser(null); setEditingUser({ ...viewingUser }); }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
-                    <Edit3 className="w-3.5 h-3.5" /> Edit User
-                  </button>
-                  <button onClick={() => handleToggle(viewingUser)}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors shadow-sm ${
-                      viewingUser.status === 'Active'
-                        ? 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'
-                        : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                    }`}>
-                    {viewingUser.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
-                    {viewingUser.status === 'Active' ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button onClick={() => { setViewingUser(null); setConfirmArchive(viewingUser); }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm">
-                    <Archive className="w-3.5 h-3.5" /> Archive
-                  </button>
+                  {canManage && (
+                    <>
+                      <button onClick={() => { setViewingUser(null); setEditingUser({ ...viewingUser }); }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+                        <Edit3 className="w-3.5 h-3.5" /> Edit User
+                      </button>
+                      <button onClick={() => handleToggle(viewingUser)}
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors shadow-sm ${
+                          viewingUser.status === 'Active'
+                            ? 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'
+                            : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                        }`}>
+                        {viewingUser.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                        {viewingUser.status === 'Active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button onClick={() => { setViewingUser(null); setConfirmArchive(viewingUser); }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm">
+                        <Archive className="w-3.5 h-3.5" /> Archive
+                      </button>
+                    </>
+                  )}
                 </div>
                 <button onClick={() => setViewingUser(null)}
                   className="px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">

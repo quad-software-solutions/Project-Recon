@@ -5,10 +5,11 @@ import type { Toast } from './CmsDashboard';
 
 interface Props { addToast: (msg: string, type: 'success' | 'error') => void }
 
-const STATUS_ICONS: Record<string, React.ElementType> = { pending: Clock, resolved: Check, archived: X };
-const STATUS_LABELS: Record<string, string> = { pending: 'New', resolved: 'Processed', archived: 'Archived' };
+const STATUS_ICONS: Record<string, React.ElementType> = { pending: Clock, 'in-progress': Clock, resolved: Check, archived: X };
+const STATUS_LABELS: Record<string, string> = { pending: 'New', 'in-progress': 'In Progress', resolved: 'Processed', archived: 'Archived' };
 const STATUS_TONES: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 border-amber-100',
+  'in-progress': 'bg-blue-50 text-blue-700 border-blue-100',
   resolved: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   archived: 'bg-slate-100 text-slate-500 border-slate-200',
 };

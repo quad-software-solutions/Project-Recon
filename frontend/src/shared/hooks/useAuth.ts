@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { clearTokens } from '@/shared/utils/auth';
-import { getUserProfile, setUserProfile, clearUserProfile } from '@/shared/utils/storage';
+import { getUserProfile, setUserProfile, clearUserProfile, clearSessionStorage } from '@/shared/utils/storage';
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getUserProfile());
@@ -29,6 +29,7 @@ export function useAuth() {
       // Even if backend call fails, still clear local state
     }
     clearTokens();
+    clearSessionStorage();
     setCurrentUser(null);
   };
 

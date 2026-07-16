@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck, Loader2, Lock } from 'lucide-react';
 import { registerApi } from '@/domains/auth/register/api/registerApi';
 import { fetchProgramsApi, fetchSubProgramsApi } from '../../../../learning/academics/api/academicApi';
-import type { Program, SubProgram } from '@/shared/types';
+import type { Program, SubProgram, UserProfile } from '@/shared/types';
+import { isSuperAdminOrBranchManager } from '@/shared/auth/permissions';
 
-export default function WalkInRegistration() {
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function WalkInRegistration({ currentUser }: Props) {
+  const canManage = isSuperAdminOrBranchManager(currentUser);
   const [step, setStep] = useState<1 | 2>(1);
   const [formData, setFormData] = useState({
     name: '', studentEmail: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: ''
@@ -123,6 +129,20 @@ export default function WalkInRegistration() {
     setStep(1);
     setIsSuccess(false);
   };
+
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">Walk-in registration is only available to Super Admin and Branch Manager roles.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (

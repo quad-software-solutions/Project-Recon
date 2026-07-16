@@ -24,7 +24,7 @@ export default function FaqManager({ addToast }: Props) {
   const load = async () => {
     setLoading(true);
     try { setItems(await api.getAll<Faq>('faqs')); }
-    catch { setItems([]); }
+    catch { setItems([]); addToast('Failed to load FAQs', 'error'); }
     setLoading(false);
   };
 

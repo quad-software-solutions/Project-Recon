@@ -2,7 +2,7 @@ import { http } from '../../../../shared/api/http';
 import type { UserProfile } from '../../../../shared/types';
 import type { LoginCredentials, AuthResponse } from '../../model/types';
 import { setTokens, getRefreshToken, clearTokens } from '@/shared/utils/auth';
-import { getOrCreateDeviceId, getCachedStudentId, setCachedStudentId } from '@/shared/utils/storage';
+import { clearSessionStorage, getOrCreateDeviceId, getCachedStudentId, setCachedStudentId } from '@/shared/utils/storage';
 
 /**
  * Custom error thrown when login fails because the user's email is not verified.
@@ -172,6 +172,14 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
         date_of_birth: userData.date_of_birth || '',
         gender: userData.gender || '',
         role,
+        assignments: userData.assignments.map(a => ({
+          id: a.id,
+          branch_id: a.branch_id,
+          branch_name: a.branch_name,
+          role: a.role,
+          is_primary: a.is_primary,
+          is_active: a.is_active,
+        })),
         xpPoints: 0,
         badges: [],
       };
@@ -225,6 +233,7 @@ export async function logoutApi(): Promise<void> {
     }
   }
   clearTokens();
+  clearSessionStorage();
 }
 
 /**
@@ -312,6 +321,14 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
         email: userData.email,
         name: userData.full_name || `${userData.first_name} ${userData.last_name}`.trim() || userData.email.split('@')[0],
         role,
+        assignments: userData.assignments.map(a => ({
+          id: a.id,
+          branch_id: a.branch_id,
+          branch_name: a.branch_name,
+          role: a.role,
+          is_primary: a.is_primary,
+          is_active: a.is_active,
+        })),
         xpPoints: 0,
         badges: [],
       };

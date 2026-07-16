@@ -24,7 +24,7 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
     setLoading(true);
     const isSecretary = currentUser?.role === 'Secretary';
     Promise.allSettled([
-      isSecretary ? Promise.resolve([]) : fetchMilestonesApi(''),
+      isSecretary ? Promise.resolve([]) : fetchMilestonesApi(),
       fetchSubProgramsApi(),
       isSecretary ? Promise.resolve([]) : fetchClassesApi(),
     ]).then(([m, sp, c]) => {

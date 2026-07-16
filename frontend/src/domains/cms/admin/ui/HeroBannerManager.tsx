@@ -34,7 +34,7 @@ export default function HeroBannerManager({ addToast }: Props) {
     try {
       const data = await api.getAll<HeroBanner>('hero-banners');
       setItems(data);
-    } catch { setItems([]); }
+    } catch { setItems([]); addToast('Failed to load banners', 'error'); }
     setLoading(false);
   };
 

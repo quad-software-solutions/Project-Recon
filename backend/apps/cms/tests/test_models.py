@@ -96,8 +96,20 @@ class AboutUsModelTest(TestCase):
             title="Our Mission",
             slug="our-mission",
             description="Mission description",
+            mission="Our mission is to teach STEM",
+            vision="A world of innovators",
         )
         self.assertEqual(str(about), "Our Mission")
+        self.assertEqual(about.mission, "Our mission is to teach STEM")
+        self.assertEqual(about.vision, "A world of innovators")
+        self.assertFalse(about.image)
+
+    def test_default_mission_vision_blank(self):
+        about = AboutUs.objects.create(
+            title="Minimal", slug="minimal", description="Desc",
+        )
+        self.assertEqual(about.mission, "")
+        self.assertEqual(about.vision, "")
 
     def test_unique_slug(self):
         AboutUs.objects.create(title="One", slug="same", description="A")

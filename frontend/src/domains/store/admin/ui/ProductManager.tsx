@@ -15,9 +15,9 @@ interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const emptyForm = () => ({
-  category: '', name: '', slug: '', short_description: '', description: '',
-  sku: '', barcode: '', price: '' as unknown as number, weight: '' as unknown as number, is_active: true,
+const emptyForm = (): ProductPayload => ({
+  category: '', name: '', short_description: '', description: '',
+  sku: '', barcode: '', price: 0, weight: 0, is_active: true,
 });
 
 function slugify(text: string): string {
@@ -43,10 +43,6 @@ export default function ProductManager({ addToast }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [initialBranch, setInitialBranch] = useState('');
-  const [initialQuantity, setInitialQuantity] = useState<number | ''>('');
-  const [initialMinQuantity, setInitialMinQuantity] = useState<number | ''>('');
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -81,46 +77,25 @@ export default function ProductManager({ addToast }: Props) {
 
   const openEdit = (item: Product) => {
     setForm({
-      category: item.category, name: item.name, slug: item.slug,
-      short_description: item.short_description || '', description: item.description || '',
-      sku: item.sku, barcode: item.barcode || '', price: item.price as unknown as number,
-      weight: item.weight as unknown as number, is_active: item.is_active,
+      category: item.category, name: item.name, short_description: item.short_description,
+      description: item.description, sku: item.sku, barcode: item.barcode, price: item.price,
+      weight: item.weight, is_active: item.is_active,
     });
     setEditing(item.id);
     setFormError(null);
     setShowModal(true);
   };
 
-  const updateForm = (patch: Partial<ReturnType<typeof emptyForm>>) => {
-    setForm(p => ({ ...p, ...patch }));
-  };
-
-  const handleSave = async (retrySlug?: string) => {
+  const handleSave = async () => {
     setFormError(null);
     if (!form.name.trim()) { setFormError('Product name is required.'); return; }
     if (!form.category) { setFormError('Please select a category.'); return; }
     if (!form.sku.trim()) { setFormError('SKU is required.'); return; }
-    const price = Number(form.price);
-    if (!(price > 0)) { setFormError('Price must be greater than zero.'); return; }
-
-    const baseSlug = slugify(form.name);
-    const payload: ProductPayload = {
-      category: form.category,
-      name: form.name.trim(),
-      slug: retrySlug || form.slug || baseSlug || uniqueSlug('product'),
-      short_description: form.short_description.trim(),
-      description: form.description.trim(),
-      sku: form.sku.trim(),
-      barcode: form.barcode.trim(),
-      price,
-      weight: form.weight ? Number(form.weight) : 0,
-      is_active: form.is_active,
-    };
-
+    if (!(Number(form.price) > 0)) { setFormError('Price must be greater than zero.'); return; }
     setSaving(true);
     try {
       if (editing) {
-        await storeAdminApi.products.update(editing, payload);
+        await storeAdminApi.products.update(editing, form);
         addToast('Product updated successfully', 'success');
         setShowModal(false);
         fetchItems();
@@ -154,8 +129,8 @@ export default function ProductManager({ addToast }: Props) {
 
   const handleDelete = async (id: string) => {
     try {
-      await storeAdminApi.products.archive(id);
-      addToast('Product archived', 'success');
+      await storeAdminApi.products.delete(id);
+      addToast('Product deleted', 'success');
       setDeleteConfirm(null);
       fetchItems();
     } catch (e: any) {
@@ -163,7 +138,7 @@ export default function ProductManager({ addToast }: Props) {
     }
   };
 
-  const toggleActive = async (item: Product) => {
+  const handleActivateToggle = async (item: Product) => {
     try {
       if (item.is_active) {
         await storeAdminApi.products.deactivate(item.id);

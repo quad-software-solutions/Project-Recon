@@ -93,31 +93,13 @@ export interface OrderReportRow {
   total_value?: number;
 }
 
-export interface InventoryReportRow {
-  branch_id: string;
-  branch_name: string;
-  product_id: string;
-  product_name: string;
-  sku: string;
-  category: string;
-  quantity: number;
-  minimum_quantity: number;
-}
-
-export interface BranchSalesReportRow {
-  period: string | null;
-  branch_id: string;
-  branch_name: string;
-  order_count: number;
-  total_revenue: number;
-}
-
 export const storeAdminApi = {
   categories: {
     list: () => http.get<ProductCategory[]>(`${PREFIX}/categories/`),
     get: (id: string) => http.get<ProductCategory>(`${PREFIX}/categories/${id}/`),
     create: (data: CategoryPayload) => http.post<ProductCategory>(`${PREFIX}/categories/`, data),
     update: (id: string, data: Partial<CategoryPayload>) => http.patch<ProductCategory>(`${PREFIX}/categories/${id}/`, data),
+    delete: (id: string) => http.delete<void>(`${PREFIX}/categories/${id}/`),
     activate: (id: string) => http.post<void>(`${PREFIX}/categories/${id}/activate/`, {}),
     deactivate: (id: string) => http.post<void>(`${PREFIX}/categories/${id}/deactivate/`, {}),
   },

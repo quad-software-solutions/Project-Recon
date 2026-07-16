@@ -242,16 +242,7 @@ export default function StoreTab({ openCart }: StoreTabProps) {
                 <ShoppingCart className="w-4 h-4 mr-2 inline" />
                 Cart{cartItemCount > 0 ? ` (${cartItemCount})` : ''}
               </Button>
-              {currentUser && (
-                <Button
-                  variant="ghost"
-                  className="text-white/60 bg-white/[0.06] backdrop-blur-md border border-white/15 hover:bg-white/15 hover:text-white w-full sm:w-auto"
-                  onClick={() => navigateStore('/store/orders')}
-                >
-                  My orders
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -272,18 +263,6 @@ export default function StoreTab({ openCart }: StoreTabProps) {
           )}
         </button>
       </div>
-
-      {/* Category Showcase */}
-      {!selectedCategory && !debouncedSearch && categories.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-4">
-          <SectionHeader
-            eyebrow="Departments"
-            title="Browse by Category"
-            description={`${categories.length} product categories`}
-          />
-          <CategoryShowcase categories={categories} loading={categoriesLoading} onSelect={handleCategoryChip} />
-        </section>
-      )}
 
       {/* Catalog */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">

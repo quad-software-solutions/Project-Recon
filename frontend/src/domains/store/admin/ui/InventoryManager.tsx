@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, X, Package, Building2, Plus, ArrowRight, TrendingUp,
@@ -13,8 +13,6 @@ import {
   isLowStock,
 } from '@/domains/store/utils/inventoryDisplay';
 import { cn } from '@/shared/utils/cn';
-
-const PAGE_SIZE = 25;
 
 interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
@@ -63,9 +61,6 @@ export default function InventoryManager({ addToast }: Props) {
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
-  const [sortField, setSortField] = useState<'product' | 'branch' | 'quantity' | 'minQty'>('product');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(0);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<InventoryPayload>(emptyInventory());
