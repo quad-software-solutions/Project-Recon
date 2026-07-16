@@ -39,13 +39,13 @@ def create_order_from_pending_order(
     pending_order: PendingOrder, actor=None
 ) -> Order:
     payment = getattr(pending_order, "payment", None)
-    if not payment or payment.status != PaymentStatus.PAID:
+    if not payment or payment.status != PaymentStatus.VERIFIED:
         raise ValidationError(
-            "Cannot create an order from a pending order that is not paid."
+            "Cannot create an order from a pending order whose payment is not verified."
         )
 
     existing = Order.objects.filter(
-        payment_reference=pending_order.payment_reference
+        payment_reference=payment.transaction_reference or str(payment.id)
     ).first()
     if existing:
         return existing
@@ -57,7 +57,7 @@ def create_order_from_pending_order(
             order_number=order_number,
             user=pending_order.user,
             branch=pending_order.branch,
-            payment_reference=pending_order.payment_reference or "",
+            payment_reference=payment.transaction_reference or str(payment.id),
             subtotal=pending_order.subtotal,
             total=pending_order.total,
             status=OrderStatus.PAID,
@@ -126,22 +126,6 @@ def change_order_status(
         )
 
     previous_status = order.status
-
-    if new_status == OrderStatus.REFUNDED:
-        from apps.store.models.payment import StorePayment
-        from apps.store.services.payment_service import refund_store_payment
-
-        try:
-            store_payment = StorePayment.objects.get(
-                transaction_reference=order.payment_reference
-            )
-            refund_store_payment(store_payment, actor=actor)
-        except StorePayment.DoesNotExist:
-            logger.warning(
-                "No payment record found for refund. order=%s ref=%s",
-                order.order_number,
-                order.payment_reference,
-            )
 
     with transaction.atomic():
         order.status = new_status

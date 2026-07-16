@@ -8,17 +8,15 @@ from apps.store.models.product import Product
 
 
 class OrderStatus(models.TextChoices):
-    PENDING_PAYMENT = "PENDING_PAYMENT"
-    PAID = "PAID"
-    PREPARING = "PREPARING"
-    READY_FOR_PICKUP = "READY_FOR_PICKUP"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    REFUNDED = "REFUNDED"
+    PAID = "PAID", "Paid"
+    PREPARING = "PREPARING", "Preparing"
+    READY_FOR_PICKUP = "READY_FOR_PICKUP", "Ready for Pickup"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+    REFUNDED = "REFUNDED", "Refunded"
 
 
 ORDER_STATUS_TRANSITIONS = {
-    OrderStatus.PENDING_PAYMENT: [OrderStatus.PAID],
     OrderStatus.PAID: [OrderStatus.PREPARING, OrderStatus.CANCELLED, OrderStatus.REFUNDED],
     OrderStatus.PREPARING: [OrderStatus.READY_FOR_PICKUP, OrderStatus.CANCELLED],
     OrderStatus.READY_FOR_PICKUP: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
@@ -39,13 +37,13 @@ class Order(models.Model):
     branch = models.ForeignKey(
         Branch, on_delete=models.CASCADE, related_name="store_orders"
     )
-    payment_reference = models.CharField(max_length=255, unique=True, db_index=True)
+    payment_reference = models.CharField(max_length=255, blank=True, default="", db_index=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     total = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,
-        default=OrderStatus.PENDING_PAYMENT,
+        default=OrderStatus.PAID,
         db_index=True,
     )
     paid_at = models.DateTimeField()

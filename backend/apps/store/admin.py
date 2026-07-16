@@ -70,9 +70,18 @@ class PendingOrderItemAdmin(admin.ModelAdmin):
 
 @admin.register(StorePayment)
 class StorePaymentAdmin(admin.ModelAdmin):
-    list_display = ("transaction_reference", "pending_order", "amount", "status", "payment_provider", "payment_date")
+    list_display = (
+        "transaction_reference",
+        "pending_order",
+        "amount",
+        "payment_method",
+        "status",
+        "verified_by",
+        "payment_date",
+        "created_at",
+    )
     search_fields = ("transaction_reference",)
-    list_filter = ("status",)
+    list_filter = ("status", "payment_method")
 
 
 @admin.register(Order)

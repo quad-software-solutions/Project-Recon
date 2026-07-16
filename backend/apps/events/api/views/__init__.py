@@ -63,9 +63,9 @@ from .registration import (
 )
 from .payment import (
     AdminCashPaymentView,
-    AdminOnlinePaymentInitializeView,
-    OnlinePaymentVerifyView,
-    OnlinePaymentWebhookView,
+    AdminPaymentListView,
+    AdminPaymentRejectView,
+    AdminPaymentVerifyView,
 )
 
 __all__ = [
@@ -117,7 +117,7 @@ __all__ = [
     "AdminRegistrationCancelView",
     "AdminRegistrationConvertTeamView",
     "AdminCashPaymentView",
-    "AdminOnlinePaymentInitializeView",
-    "OnlinePaymentVerifyView",
-    "OnlinePaymentWebhookView",
+    "AdminPaymentListView",
+    "AdminPaymentVerifyView",
+    "AdminPaymentRejectView",
 ]

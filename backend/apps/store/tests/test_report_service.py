@@ -39,7 +39,7 @@ def _create_paid_order(user, branch, category, items_data):
         pending_order=pending,
         amount=pending.total,
         transaction_reference=f"STORE-rpt-{user.pk}-{pending.pk}",
-        status=PaymentStatus.PAID,
+        status="VERIFIED",
     )
     pending.payment_reference = payment.transaction_reference
     pending.save(update_fields=["payment_reference"])
@@ -208,7 +208,7 @@ class SalesReportTest(TestCase):
             pending_order=pending,
             amount=30,
             transaction_reference=f"STORE-sls-{paid_at.timestamp()}",
-            status=PaymentStatus.PAID,
+            status="VERIFIED",
         )
         pending.payment_reference = payment.transaction_reference
         pending.save(update_fields=["payment_reference"])

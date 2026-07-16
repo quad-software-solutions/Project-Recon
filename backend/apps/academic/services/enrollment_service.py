@@ -1,20 +1,57 @@
-import uuid
 from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
-from apps.academic.constants import EnrollmentStatus
-from apps.academic.models import Enrollment, Student, EnrollmentPeriod
+from apps.academic.constants import (
+    ClassType,
+    EnrollmentStatus,
+    PaymentMethod,
+    PaymentStatus,
+    VerificationStatus,
+)
+from apps.academic.models import (
+    AttendanceRecord, Enrollment, EnrollmentPeriod, EnrollmentPayment,
+    Student, StudentProgress,
+)
 from apps.academic.models.class_model import Class as ClassModel
-from apps.academic.constants import ClassType
-from apps.academic.services.payment_service import initialize_online_payment
 from apps.accounts.services import user_service
 from apps.shared.audit.services import log_action
 
 
-REFERENCE_PATTERN = r"^ENROLL-[a-f0-9]{8}-[a-f0-9]{12}$"
+def _generate_enrollment_number(branch_code: str, year: int) -> str:
+    prefix = f"ENR-{year}-"
+    last = Enrollment.objects.filter(
+        enrollment_number__startswith=prefix
+    ).order_by("enrollment_number").last()
+    if last:
+        seq = int(last.enrollment_number.split("-")[-1]) + 1
+    else:
+        seq = 1
+    return f"{prefix}{seq:06d}"
+
+
+def _generate_pending_code(year: int) -> str:
+    prefix = f"ENR-P-{year}-"
+    last = Enrollment.objects.filter(
+        pending_code__startswith=prefix
+    ).order_by("pending_code").last()
+    if last:
+        seq = int(last.pending_code.split("-")[-1]) + 1
+    else:
+        seq = 1
+    return f"{prefix}{seq:06d}"
+
+
+def _resolve_fee(enrolled_class) -> int:
+    if enrolled_class.class_type == ClassType.GROUP:
+        return enrolled_class.sub_program.group_fee
+    fee = enrolled_class.sub_program.individual_fee
+    if fee is None:
+        raise ValidationError("Individual fee is not set for this sub-program.")
+    return fee
 
 
 def get_enrollment_or_404(pk):
@@ -56,7 +93,7 @@ def _validate_class_capacity(enrolled_class):
         return
     active_count = Enrollment.objects.filter(
         enrolled_class=enrolled_class,
-        status__in=[EnrollmentStatus.PENDING_PAYMENT, EnrollmentStatus.ACTIVE],
+        status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
     ).count()
     if enrolled_class.capacity and active_count >= enrolled_class.capacity:
         raise ValidationError("Class has reached maximum capacity.")
@@ -69,7 +106,7 @@ def enroll_student(actor, *, student, enrolled_class, remarks=""):
     existing = Enrollment.objects.filter(
         student=student,
         enrolled_class=enrolled_class,
-        status__in=[EnrollmentStatus.PENDING_PAYMENT, EnrollmentStatus.ACTIVE],
+        status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
     ).exists()
     if existing:
         raise ValidationError("Student is already enrolled in this class.")
@@ -78,7 +115,7 @@ def enroll_student(actor, *, student, enrolled_class, remarks=""):
         enrollment = Enrollment(
             student=student,
             enrolled_class=enrolled_class,
-            status=EnrollmentStatus.PENDING_PAYMENT,
+            status=EnrollmentStatus.PENDING_VERIFICATION,
             remarks=remarks,
         )
         enrollment.full_clean()
@@ -99,8 +136,11 @@ def online_enrollment(
     *,
     user=None,
     enrolled_class,
-    callback_url,
-    return_url=None,
+    payment_method,
+    transaction_reference="",
+    bank_name="",
+    transfer_reference="",
+    attachment=None,
     email=None,
     first_name=None,
     last_name=None,
@@ -121,6 +161,13 @@ def online_enrollment(
                 "Email, first name, last name, and password are required for new students."
             )
 
+    if payment_method != PaymentMethod.CASH:
+        if not transaction_reference and not attachment:
+            raise ValidationError(
+                "At least a transaction reference or payment attachment "
+                "is required for non-cash payments."
+            )
+
     _validate_enrollment_period(enrolled_class)
     _validate_class_capacity(enrolled_class)
 
@@ -128,10 +175,12 @@ def online_enrollment(
         existing = Enrollment.objects.filter(
             student=student,
             enrolled_class=enrolled_class,
-            status__in=[EnrollmentStatus.PENDING_PAYMENT, EnrollmentStatus.ACTIVE],
+            status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
         ).exists()
         if existing:
             raise ValidationError("Already enrolled in this class.")
+
+    amount = _resolve_fee(enrolled_class)
 
     with transaction.atomic():
         if not (user and user.is_authenticated):
@@ -158,36 +207,36 @@ def online_enrollment(
             existing = Enrollment.objects.filter(
                 student=student,
                 enrolled_class=enrolled_class,
-                status__in=[EnrollmentStatus.PENDING_PAYMENT, EnrollmentStatus.ACTIVE],
+                status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
             ).exists()
             if existing:
                 raise ValidationError("Already enrolled in this class.")
 
+        year = date.today().year
+        pending_code = _generate_pending_code(year)
+
         enrollment = Enrollment(
             student=student,
             enrolled_class=enrolled_class,
-            status=EnrollmentStatus.PENDING_PAYMENT,
+            status=EnrollmentStatus.PENDING_VERIFICATION,
+            pending_code=pending_code,
+            verification_status=VerificationStatus.SUBMITTED,
         )
         enrollment.full_clean()
         enrollment.save()
 
-        reference = f"ENROLL-{enrollment.id.hex[:8]}-{uuid.uuid4().hex[:12]}"
-
-        amount = enrolled_class.sub_program.fee
-        payment, checkout_url = initialize_online_payment(
-            actor=None,
+        payment = EnrollmentPayment(
             enrollment=enrollment,
             amount=amount,
-            reference=reference,
-            callback_url=callback_url,
-            return_url=return_url,
-            customer={
-                "email": student.user.email,
-                "first_name": student.user.first_name,
-                "last_name": student.user.last_name,
-                "phone_number": student.user.phone_number or "",
-            },
+            payment_method=payment_method,
+            transaction_reference=transaction_reference,
+            bank_name=bank_name,
+            transfer_reference=transfer_reference,
+            attachment=attachment,
+            status=PaymentStatus.PENDING,
         )
+        payment.full_clean()
+        payment.save()
 
     log_action(
         actor=student.user if user else None,
@@ -197,12 +246,14 @@ def online_enrollment(
         branch=enrolled_class.branch,
     )
 
-    return enrollment, checkout_url
+    # TODO: send submitted email with pending_code
+
+    return enrollment
 
 
 def cancel_enrollment(actor, enrollment):
     if enrollment.status not in [
-        EnrollmentStatus.PENDING_PAYMENT,
+        EnrollmentStatus.PENDING_VERIFICATION,
         EnrollmentStatus.ACTIVE,
     ]:
         raise ValidationError(
@@ -241,3 +292,233 @@ def complete_enrollment(actor, enrollment):
     )
 
     return enrollment
+
+
+def move_enrollment(actor, *, enrollment, target_class):
+    if enrollment.status != EnrollmentStatus.ACTIVE:
+        raise ValidationError("Only active enrollments can be moved.")
+
+    if not target_class.is_active:
+        raise ValidationError("Target class is not active.")
+
+    source_class = enrollment.enrolled_class
+    if source_class.branch_id != target_class.branch_id:
+        raise ValidationError("Cannot move enrollment to a different branch.")
+
+    if target_class.class_type == ClassType.GROUP:
+        if target_class.capacity:
+            active_count = Enrollment.objects.filter(
+                enrolled_class=target_class,
+                status=EnrollmentStatus.ACTIVE,
+            ).count()
+            if active_count >= target_class.capacity:
+                raise ValidationError("Target class has reached maximum capacity.")
+
+        _validate_enrollment_period(target_class)
+
+    duplicate = Enrollment.objects.filter(
+        student=enrollment.student,
+        enrolled_class=target_class,
+        status=EnrollmentStatus.ACTIVE,
+    ).exclude(pk=enrollment.pk).exists()
+    if duplicate:
+        raise ValidationError("Student already has an active enrollment in the target class.")
+
+    with transaction.atomic():
+        old_class_name = str(source_class)
+        enrollment.enrolled_class = target_class
+        enrollment.save(update_fields=["enrolled_class", "updated_at"])
+
+    log_action(
+        actor=actor,
+        action="enrollment.moved",
+        resource_type="Enrollment",
+        resource_id=enrollment.id,
+        branch=source_class.branch,
+        details={
+            "old_class": old_class_name,
+            "new_class": str(target_class),
+            "old_class_id": str(source_class.id),
+            "new_class_id": str(target_class.id),
+        },
+    )
+
+    return enrollment
+
+
+def bulk_move_enrollments(actor, *, source_class, target_class, enrollment_ids=None, count=None):
+    if not enrollment_ids and not count:
+        raise ValidationError("Provide either enrollment_ids or count.")
+    if enrollment_ids and count:
+        raise ValidationError("Provide either enrollment_ids or count, not both.")
+
+    if not target_class.is_active:
+        raise ValidationError("Target class is not active.")
+
+    if source_class.branch_id != target_class.branch_id:
+        raise ValidationError("Cannot move enrollments to a different branch.")
+
+    if target_class.class_type == ClassType.GROUP and target_class.capacity:
+        _validate_enrollment_period(target_class)
+
+    if enrollment_ids:
+        enrollments_to_move = Enrollment.objects.filter(
+            pk__in=enrollment_ids,
+            enrolled_class=source_class,
+            status=EnrollmentStatus.ACTIVE,
+        )
+    else:
+        enrollments_to_move = Enrollment.objects.filter(
+            enrolled_class=source_class,
+            status=EnrollmentStatus.ACTIVE,
+        ).order_by("enrolled_at")[:count]
+
+    if not enrollments_to_move.exists():
+        raise ValidationError("No active enrollments found to move.")
+
+    if target_class.capacity:
+        current_count = Enrollment.objects.filter(
+            enrolled_class=target_class,
+            status=EnrollmentStatus.ACTIVE,
+        ).count()
+        if current_count + enrollments_to_move.count() > target_class.capacity:
+            raise ValidationError(
+                "Target class does not have enough capacity for all enrollments."
+            )
+
+    for e in enrollments_to_move:
+        duplicate = Enrollment.objects.filter(
+            student=e.student,
+            enrolled_class=target_class,
+            status=EnrollmentStatus.ACTIVE,
+        ).exclude(pk=e.pk).exists()
+        if duplicate:
+            raise ValidationError(
+                f"Student {e.student.id} already has an active enrollment in the target class."
+            )
+
+    with transaction.atomic():
+        moved_ids = list(enrollments_to_move.values_list("id", flat=True))
+        Enrollment.objects.filter(id__in=moved_ids).update(
+            enrolled_class=target_class
+        )
+
+    log_action(
+        actor=actor,
+        action="enrollment.bulk_moved",
+        resource_type="Class",
+        resource_id=source_class.id,
+        branch=source_class.branch,
+        details={
+            "count": len(moved_ids),
+            "old_class_id": str(source_class.id),
+            "new_class_id": str(target_class.id),
+            "old_class": str(source_class),
+            "new_class": str(target_class),
+            "enrollment_ids": [str(eid) for eid in moved_ids],
+        },
+    )
+
+    return Enrollment.objects.filter(id__in=moved_ids).select_related(
+        "student__user", "enrolled_class__sub_program"
+    )
+
+
+def switch_subprogram(actor, *, current_enrollment, target_class):
+    if current_enrollment.status != EnrollmentStatus.ACTIVE:
+        raise ValidationError("Only active enrollments can switch subprograms.")
+
+    if not target_class.is_active:
+        raise ValidationError("Target class is not active.")
+
+    if target_class.branch_id != current_enrollment.enrolled_class.branch_id:
+        raise ValidationError("Cannot switch to a class in a different branch.")
+
+    if target_class.class_type == ClassType.GROUP:
+        _validate_enrollment_period(target_class)
+        if target_class.capacity:
+            active_count = Enrollment.objects.filter(
+                enrolled_class=target_class,
+                status=EnrollmentStatus.ACTIVE,
+            ).count()
+            if active_count >= target_class.capacity:
+                raise ValidationError("Target class has reached maximum capacity.")
+
+    duplicate = Enrollment.objects.filter(
+        student=current_enrollment.student,
+        enrolled_class=target_class,
+        status=EnrollmentStatus.ACTIVE,
+    ).exclude(pk=current_enrollment.pk).exists()
+    if duplicate:
+        raise ValidationError("Student already has an active enrollment in the target class.")
+
+    old_amount = _resolve_fee(current_enrollment.enrolled_class)
+    new_amount = _resolve_fee(target_class)
+    amount_due = max(0, new_amount - old_amount)
+
+    with transaction.atomic():
+        old_enrollment_pk = current_enrollment.pk
+        current_enrollment.status = EnrollmentStatus.CANCELLED
+        current_enrollment.save(update_fields=["status", "updated_at"])
+
+        year = date.today().year
+        enrollment_number = _generate_enrollment_number(
+            target_class.branch.code, year
+        )
+
+        new_enrollment = Enrollment(
+            student=current_enrollment.student,
+            enrolled_class=target_class,
+            status=EnrollmentStatus.ACTIVE,
+            enrollment_number=enrollment_number,
+            transferred_from=current_enrollment,
+        )
+        new_enrollment.full_clean()
+        new_enrollment.save()
+
+        if amount_due > 0:
+            notes = "Subprogram switch — difference"
+        else:
+            notes = "Subprogram switch — no fee change"
+
+        EnrollmentPayment.objects.create(
+            enrollment=new_enrollment,
+            amount=amount_due,
+            status=PaymentStatus.PAID,
+            verified_by=actor,
+            verified_at=timezone.now(),
+            verification_notes=notes,
+        )
+
+        AttendanceRecord.objects.filter(enrollment=current_enrollment).update(
+            enrollment=new_enrollment
+        )
+        StudentProgress.objects.filter(enrollment=current_enrollment).update(
+            enrollment=new_enrollment
+        )
+
+    log_action(
+        actor=actor,
+        action="enrollment.subprogram_switched",
+        resource_type="Enrollment",
+        resource_id=new_enrollment.id,
+        branch=target_class.branch,
+        details={
+            "old_enrollment_id": str(old_enrollment_pk),
+            "new_enrollment_id": str(new_enrollment.id),
+            "old_class_id": str(current_enrollment.enrolled_class_id),
+            "new_class_id": str(target_class.id),
+            "amount_due": str(amount_due),
+        },
+    )
+
+    return new_enrollment, amount_due
+
+
+def get_all_related_enrollments(enrollment):
+    chain = [enrollment]
+    current = enrollment
+    while current.transferred_from:
+        current = current.transferred_from
+        chain.insert(0, current)
+    return chain

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from apps.events.models import EventRegistration, Tournament
+from apps.events.models import EventPayment, EventRegistration, Tournament
+from apps.events.api.serializers.payment import PaymentEvidenceSerializer
 
 
 class PublicRegistrationSerializer(serializers.Serializer):
@@ -8,10 +9,12 @@ class PublicRegistrationSerializer(serializers.Serializer):
     public_email = serializers.EmailField()
     public_phone = serializers.CharField(max_length=50)
     public_organization = serializers.CharField(max_length=255, required=False, allow_null=True, allow_blank=True)
+    payment = PaymentEvidenceSerializer(required=False, allow_null=True)
 
 
 class StudentRegistrationSerializer(serializers.Serializer):
     student = serializers.UUIDField(required=False)
+    payment = PaymentEvidenceSerializer(required=False, allow_null=True)
 
 
 class RegistrationAdminSerializer(serializers.ModelSerializer):
@@ -19,6 +22,7 @@ class RegistrationAdminSerializer(serializers.ModelSerializer):
     student_email = serializers.EmailField(source="student.user.email", read_only=True, default=None)
     student_name = serializers.SerializerMethodField()
     tournament = serializers.SerializerMethodField()
+    payment_info = serializers.SerializerMethodField()
 
     class Meta:
         model = EventRegistration
@@ -35,6 +39,7 @@ class RegistrationAdminSerializer(serializers.ModelSerializer):
             "public_organization",
             "registration_status",
             "payment_status",
+            "payment_info",
             "registered_at",
             "approved_at",
             "cancelled_at",
@@ -58,6 +63,14 @@ class RegistrationAdminSerializer(serializers.ModelSerializer):
         try:
             return str(obj.event.tournament.id)
         except Tournament.DoesNotExist:
+            return None
+
+    def get_payment_info(self, obj):
+        try:
+            payment = obj.payment
+            from apps.events.api.serializers.payment import EventPaymentSerializer
+            return EventPaymentSerializer(payment).data
+        except EventPayment.DoesNotExist:
             return None
 
 

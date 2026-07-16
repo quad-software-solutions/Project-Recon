@@ -650,13 +650,10 @@ class StoreApiTestCase(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["id"], order_id)
 
-    # --- Payment Endpoints ---
+    # --- Payment Evidence Endpoints ---
 
-    def test_payment_verify_valid(self):
-        from unittest.mock import patch
-
+    def test_evidence_submit_creates_pending_verification(self):
         from apps.store.services.branch_inventory_service import add_inventory
-        from apps.store.services.checkout_service import checkout
         from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
 
         add_inventory(self.branch, self.product, 10)
@@ -664,57 +661,235 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(user=self.student)
         add_to_cart(cart, self.product, self.branch, 2)
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-test-ref-verify",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            order = checkout(cart, self.branch)
-
-        payment = order.payment
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "success",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 199.98,
-                "currency": "ETB",
-            }
-            resp = self.client.post(
-                f"{self.base_url}/payments/verify/",
-                {"reference": payment.transaction_reference},
-                format="json",
-            )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(resp.data["transaction_reference"], payment.transaction_reference)
-
-    def test_payment_verify_invalid_reference(self):
         resp = self.client.post(
-            f"{self.base_url}/payments/verify/",
-            {"reference": "invalid-ref"},
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 199.98,
+                    "payment_method": "BANK_TRANSFER",
+                    "transaction_reference": "TXN-EVIDENCE",
+                    "bank_name": "Test Bank",
+                },
+            },
             format="json",
         )
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        pending_id = resp.data["id"]
+        from apps.store.models.pending_order import PendingOrder
+        pending = PendingOrder.objects.get(pk=pending_id)
+        payment = pending.payment
+        self.assertEqual(payment.status, "PENDING_VERIFICATION")
+        self.assertEqual(float(payment.amount), 199.98)
+        self.assertEqual(payment.transaction_reference, "TXN-EVIDENCE")
 
-    def test_payment_verify_not_found(self):
-        resp = self.client.post(
-            f"{self.base_url}/payments/verify/",
-            {"reference": "STORE-abc12345-def123456789"},
-            format="json",
-        )
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_payment_webhook_with_tx_ref(self):
-        from unittest.mock import patch
-
+    def test_evidence_submit_missing_payment_skips_creation(self):
         from apps.store.services.branch_inventory_service import add_inventory
-        from apps.store.services.checkout_service import checkout
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn("payment", resp.data)
+
+    def test_evidence_submit_unauthenticated_raises_error(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="anon-evid")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Guest",
+                "guest_email": "guest@test.com",
+                "payment": {
+                    "amount": 99.99,
+                    "payment_method": "MOBILE_MONEY",
+                    "transaction_reference": "MM-TEST",
+                },
+            },
+            format="json",
+            **{"HTTP_X_SESSION_KEY": "anon-evid"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        pending_id = resp.data["id"]
+        from apps.store.models.pending_order import PendingOrder
+        pending = PendingOrder.objects.get(pk=pending_id)
+        self.assertEqual(pending.payment.status, "PENDING_VERIFICATION")
+
+
+    # --- Admin Payment Endpoints ---
+
+    def test_admin_payment_list(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+        self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 99.99,
+                    "payment_method": "BANK_TRANSFER",
+                    "transaction_reference": "TX-LIST",
+                },
+            },
+            format="json",
+        )
+
+        self._auth(self.super_admin)
+        resp = self.client.get(f"{self.base_url}/admin/payments/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["status"], "PENDING_VERIFICATION")
+
+    def test_admin_payment_list_filters_by_status(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+        self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 99.99,
+                    "payment_method": "BANK_TRANSFER",
+                    "transaction_reference": "TX-FILTER",
+                },
+            },
+            format="json",
+        )
+        self._auth(self.super_admin)
+        resp = self.client.get(
+            f"{self.base_url}/admin/payments/?status=VERIFIED"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data), 0)
+
+    def test_admin_payment_list_forbidden_for_student(self):
+        self._auth(self.student)
+        resp = self.client.get(f"{self.base_url}/admin/payments/")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_payment_verify(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 199.98,
+                    "payment_method": "BANK_TRANSFER",
+                    "transaction_reference": "TXN-VERIFY-API",
+                },
+            },
+            format="json",
+        )
+        pending_id = resp.data["id"]
+
+        self._auth(self.super_admin)
+        resp = self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/verify/",
+            {"verification_notes": "Approved"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["status"], "VERIFIED")
+        self.assertEqual(resp.data["verification_notes"], "Approved")
+
+        from apps.store.models.order import Order
+        order = Order.objects.get(payment_reference="TXN-VERIFY-API")
+        self.assertEqual(order.status, "PAID")
+
+    def test_admin_payment_reject(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 99.99,
+                    "payment_method": "MOBILE_MONEY",
+                    "transaction_reference": "MM-REJECT",
+                },
+            },
+            format="json",
+        )
+        pending_id = resp.data["id"]
+
+        self._auth(self.super_admin)
+        resp = self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/reject/",
+            {"verification_notes": "Fake transaction"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["status"], "REJECTED")
+
+    def test_admin_payment_reject_requires_notes(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 99.99,
+                    "payment_method": "BANK_TRANSFER",
+                    "transaction_reference": "TX-REQNOTES",
+                },
+            },
+            format="json",
+        )
+        pending_id = resp.data["id"]
+
+        self._auth(self.super_admin)
+        resp = self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/reject/",
+            {"verification_notes": ""},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_admin_payment_cash(self):
+        from apps.store.services.branch_inventory_service import add_inventory
         from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
 
         add_inventory(self.branch, self.product, 10)
@@ -722,81 +897,69 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(user=self.student)
         add_to_cart(cart, self.product, self.branch, 2)
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-test-ref-webhook",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            order = checkout(cart, self.branch)
-
-        payment = order.payment
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "success",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 199.98,
-                "currency": "ETB",
-            }
-            resp = self.client.post(
-                f"{self.base_url}/payments/webhook/",
-                {"tx_ref": payment.transaction_reference},
-                format="json",
-            )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(resp.data["status"], "success")
-
-    def test_payment_webhook_missing_reference(self):
         resp = self.client.post(
-            f"{self.base_url}/payments/webhook/",
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
             format="json",
         )
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        pending_id = resp.data["id"]
+
+        self._auth(self.super_admin)
+        resp = self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/cash/",
+            {"amount": 199.98},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["status"], "VERIFIED")
+        self.assertEqual(resp.data["payment_method"], "CASH")
+
+        from apps.store.models.order import Order
+        order = Order.objects.get(payment_reference=str(resp.data["id"]))
+        self.assertEqual(order.status, "PAID")
+
+    def test_admin_payment_endpoints_forbidden_for_student(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        pending_id = resp.data["id"]
+
+        self._auth(self.student)
+        for url in [
+            f"/api/v1/store/admin/pending-orders/{pending_id}/verify/",
+            f"/api/v1/store/admin/pending-orders/{pending_id}/reject/",
+            f"/api/v1/store/admin/pending-orders/{pending_id}/cash/",
+        ]:
+            resp = self.client.post(url, {"verification_notes": "test" if "reject" in url else "", "amount": 10}, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN, msg=url)
 
     # --- Admin Order Endpoints ---
 
     def _create_paid_pending_order(self):
-        from unittest.mock import patch
+        from decimal import Decimal
 
         from apps.store.models.pending_order import PendingOrder
         from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.checkout_service import checkout
+        from apps.store.services.payment_service import record_cash_payment
         from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
 
         add_inventory(self.branch, self.product, 10)
         cart = get_or_create_cart(user=self.student)
         add_to_cart(cart, self.product, self.branch, 2)
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-order-test-ref",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            from apps.store.services.checkout_service import checkout
-            order = checkout(cart, self.branch)
+        order = checkout(cart, self.branch)
 
-        payment = order.payment
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "success",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 199.98,
-                "currency": "ETB",
-            }
-            from apps.store.services.payment_service import verify_store_payment
-            verify_store_payment(payment.transaction_reference)
+        record_cash_payment(order, amount=Decimal("199.98"), actor=self.super_admin)
         return PendingOrder.objects.get(pk=order.pk)
 
     def test_admin_order_list(self):
@@ -811,9 +974,13 @@ class StoreApiTestCase(APITestCase):
         resp = self.client.get(f"{self.base_url}/admin/orders/")
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def _get_order_from_pending(self, pending):
+        payment = pending.payment
+        return Order.objects.get(payment_reference=payment.transaction_reference or str(payment.id))
+
     def test_admin_order_detail(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
+        order = self._get_order_from_pending(pending)
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/orders/{order.pk}/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -821,7 +988,7 @@ class StoreApiTestCase(APITestCase):
 
     def test_admin_order_status_change(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
+        order = self._get_order_from_pending(pending)
         self._auth(self.super_admin)
         resp = self.client.post(
             f"{self.base_url}/admin/orders/{order.pk}/status/",
@@ -833,7 +1000,7 @@ class StoreApiTestCase(APITestCase):
 
     def test_admin_order_status_invalid_transition(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
+        order = self._get_order_from_pending(pending)
         self._auth(self.super_admin)
         resp = self.client.post(
             f"{self.base_url}/admin/orders/{order.pk}/status/",
@@ -844,9 +1011,8 @@ class StoreApiTestCase(APITestCase):
 
     def test_admin_order_status_forbidden(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
         resp = self.client.post(
-            f"{self.base_url}/admin/orders/{order.pk}/status/",
+            f"{self.base_url}/admin/orders/{self._get_order_from_pending(pending).pk}/status/",
             {"status": "PREPARING"},
             format="json",
         )
@@ -856,7 +1022,7 @@ class StoreApiTestCase(APITestCase):
 
     def test_user_order_list(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
+        order = self._get_order_from_pending(pending)
         self._auth(self.student)
         resp = self.client.get(f"{self.base_url}/orders/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -869,7 +1035,7 @@ class StoreApiTestCase(APITestCase):
 
     def test_user_order_detail(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
+        order = self._get_order_from_pending(pending)
         self._auth(self.student)
         resp = self.client.get(f"{self.base_url}/orders/{order.pk}/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -877,16 +1043,14 @@ class StoreApiTestCase(APITestCase):
 
     def test_user_order_detail_not_owner(self):
         pending = self._create_paid_pending_order()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
+        order = self._get_order_from_pending(pending)
         self._auth(self.branch_manager)
         resp = self.client.get(f"{self.base_url}/orders/{order.pk}/")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
     # --- Inventory Deduction (cross-cutting) ---
 
-    def test_payment_verify_deducts_inventory(self):
-        from unittest.mock import patch
-
+    def test_cash_payment_deducts_inventory(self):
         from apps.store.models import BranchInventory
         from apps.store.services.branch_inventory_service import add_inventory
         from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
@@ -896,50 +1060,26 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(user=self.student)
         add_to_cart(cart, self.product, self.branch, 3)
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-deduct-ref",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            resp = self.client.post(
-                f"{self.base_url}/cart/checkout/",
-                {"branch": str(self.branch.pk)},
-                format="json",
-            )
-            pending_id = resp.data["id"]
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        pending_id = resp.data["id"]
 
-        from apps.store.models.pending_order import PendingOrder
-        pending = PendingOrder.objects.get(pk=pending_id)
-        payment = pending.payment
-
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "success",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 299.97,
-                "currency": "ETB",
-            }
-            self.client.post(
-                f"{self.base_url}/payments/verify/",
-                {"reference": payment.transaction_reference},
-                format="json",
-            )
+        self._auth(self.super_admin)
+        self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/cash/",
+            {"amount": 299.97},
+            format="json",
+        )
 
         inv = BranchInventory.objects.get(branch=self.branch, product=self.product)
         self.assertEqual(inv.quantity, 7)
 
-    # --- Admin Refund / Cancel Endpoints ---
+    # --- Admin Cancel / Refund Endpoints ---
 
     def test_admin_cancel_order_via_status(self):
-        from unittest.mock import patch
-
         from apps.store.models import BranchInventory
         from apps.store.services.branch_inventory_service import add_inventory
         from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
@@ -949,46 +1089,21 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(user=self.student)
         add_to_cart(cart, self.product, self.branch, 2)
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-cancel-test-ref",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            resp = self.client.post(
-                f"{self.base_url}/cart/checkout/",
-                {"branch": str(self.branch.pk)},
-                format="json",
-            )
-            pending_id = resp.data["id"]
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        pending_id = resp.data["id"]
 
-        from apps.store.models.pending_order import PendingOrder
-        pending = PendingOrder.objects.get(pk=pending_id)
-        payment = pending.payment
-
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "success",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 199.98,
-                "currency": "ETB",
-            }
-            self.client.post(
-                f"{self.base_url}/payments/verify/",
-                {"reference": payment.transaction_reference},
-                format="json",
-            )
-
-        pending.refresh_from_db()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
         self._auth(self.super_admin)
+        self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/cash/",
+            {"amount": 199.98},
+            format="json",
+        )
 
+        order = Order.objects.latest("created_at")
         resp = self.client.post(
             f"{self.base_url}/admin/orders/{order.pk}/status/",
             {"status": "CANCELLED", "notes": "Admin cancelled"},
@@ -1001,8 +1116,6 @@ class StoreApiTestCase(APITestCase):
         self.assertEqual(inv.quantity, 10)
 
     def test_admin_refund_order_via_status(self):
-        from unittest.mock import patch
-
         from apps.store.models import BranchInventory
         from apps.store.services.branch_inventory_service import add_inventory
         from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
@@ -1012,64 +1125,26 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(user=self.student)
         add_to_cart(cart, self.product, self.branch, 2)
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-refund-api-ref",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            resp = self.client.post(
-                f"{self.base_url}/cart/checkout/",
-                {"branch": str(self.branch.pk)},
-                format="json",
-            )
-            pending_id = resp.data["id"]
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        pending_id = resp.data["id"]
 
-        from apps.store.models.pending_order import PendingOrder
-        pending = PendingOrder.objects.get(pk=pending_id)
-        payment = pending.payment
-
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "success",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 199.98,
-                "currency": "ETB",
-            }
-            self.client.post(
-                f"{self.base_url}/payments/verify/",
-                {"reference": payment.transaction_reference},
-                format="json",
-            )
-
-        pending.refresh_from_db()
-        order = Order.objects.get(payment_reference=pending.payment_reference)
         self._auth(self.super_admin)
+        self.client.post(
+            f"{self.base_url}/admin/pending-orders/{pending_id}/cash/",
+            {"amount": 199.98},
+            format="json",
+        )
 
-        with patch(
-            "apps.shared.payment.payment_service.refund_payment"
-        ) as mock_refund:
-            mock_refund.return_value = {
-                "status": "success",
-                "provider": "chapa",
-                "provider_status": "success",
-                "reference": payment.transaction_reference,
-                "provider_refund_id": "PROVIDER-API-REFUND",
-                "amount": 199.98,
-                "currency": "ETB",
-                "raw": {},
-            }
-            resp = self.client.post(
-                f"{self.base_url}/admin/orders/{order.pk}/status/",
-                {"status": "REFUNDED", "notes": "Admin refund"},
-                format="json",
-            )
+        order = Order.objects.latest("created_at")
+        resp = self.client.post(
+            f"{self.base_url}/admin/orders/{order.pk}/status/",
+            {"status": "REFUNDED", "notes": "Admin refund"},
+            format="json",
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["status"], "REFUNDED")
 

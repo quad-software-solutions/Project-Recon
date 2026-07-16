@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.academic.models import Student
-from apps.events.constants import EventType, RegistrationStatus
+from apps.events.constants import EventType, PaymentStatus, RegistrationStatus
 from apps.events.models import Event, EventRegistration, Tournament, TournamentTeam
 from apps.events.services.validators import RegistrationValidator, TournamentTeamValidator
 from apps.shared.audit.services import log_action
@@ -62,7 +62,8 @@ def register_for_event(event_id, data: dict, actor=None) -> EventRegistration:
         data: Dictionary with registration data. For public registrations:
               'public_full_name', 'public_email', 'public_phone', optional
               'public_organization'. For student registrations: 'student'
-              (UUID or Student instance).
+              (UUID or Student instance). May include 'payment' dict with
+              evidence fields when payment is required.
         actor: Optional User performing the action.
 
     Returns:
@@ -82,10 +83,29 @@ def register_for_event(event_id, data: dict, actor=None) -> EventRegistration:
     RegistrationValidator.validate_capacity(event)
     RegistrationValidator.validate_event_visibility(event)
 
+    payment_data = data.pop("payment", None)
+    RegistrationValidator.validate_payment_evidence(event, payment_data)
+
     student = data.pop("student", None)
     if student:
-        return _register_student(event, student, data, actor)
-    return _register_public(event, data, actor)
+        registration = _register_student(event, student, data, actor)
+    else:
+        registration = _register_public(event, data, actor)
+
+    if payment_data:
+        from apps.events.services.event_payment_service import submit_payment_evidence
+
+        submit_payment_evidence(
+            registration=registration,
+            amount=payment_data.get("amount"),
+            payment_method=payment_data.get("payment_method"),
+            transaction_reference=payment_data.get("transaction_reference", ""),
+            bank_name=payment_data.get("bank_name", ""),
+            attachment=payment_data.get("attachment"),
+            actor=actor,
+        )
+
+    return registration
 
 
 def _register_student(event, student, data: dict, actor=None) -> EventRegistration:
@@ -174,7 +194,8 @@ def approve_registration(registration: EventRegistration, actor=None) -> EventRe
         Updated EventRegistration instance.
 
     Raises:
-        ValidationError: If registration is not in PENDING status.
+        ValidationError: If registration is not in PENDING status,
+                         or if payment is required but not verified.
     """
     from django.utils import timezone
 
@@ -182,6 +203,13 @@ def approve_registration(registration: EventRegistration, actor=None) -> EventRe
         raise ValidationError(
             f"Cannot approve a registration with status '{registration.registration_status}'."
         )
+
+    if registration.event.payment_required:
+        if registration.payment_status != PaymentStatus.VERIFIED:
+            raise ValidationError(
+                "Cannot approve a registration with unverified payment. "
+                "Please verify the payment first using the verify-payment endpoint."
+            )
 
     RegistrationValidator.validate_capacity(registration.event)
 
@@ -209,11 +237,18 @@ def reject_registration(registration: EventRegistration, actor=None) -> EventReg
         Updated EventRegistration instance.
 
     Raises:
-        ValidationError: If registration is not in PENDING status.
+        ValidationError: If registration is not in PENDING status
+                         or payment is already verified.
     """
     if registration.registration_status != RegistrationStatus.PENDING:
         raise ValidationError(
             f"Cannot reject a registration with status '{registration.registration_status}'."
+        )
+
+    if registration.payment_status == PaymentStatus.VERIFIED:
+        raise ValidationError(
+            "Cannot reject a registration with a verified payment. "
+            "Please process a refund externally and cancel the payment first."
         )
 
     with transaction.atomic():

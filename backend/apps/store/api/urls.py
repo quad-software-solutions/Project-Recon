@@ -18,6 +18,11 @@ from apps.store.api.views import (
     AdminOrderListView,
     AdminOrderReportView,
     AdminOrderStatusView,
+    AdminPaymentCashView,
+    AdminPaymentListView,
+    AdminPaymentRejectView,
+    AdminPaymentVerifyView,
+    PaymentEvidenceSubmitView,
     AdminProductActivateView,
     AdminProductArchiveView,
     AdminProductDeactivateView,
@@ -37,8 +42,6 @@ from apps.store.api.views import (
     CartItemRemoveView,
     CartItemUpdateView,
     CheckoutView,
-    PaymentVerifyView,
-    PaymentWebhookView,
     PendingOrderDetailView,
     PublicBranchInventoryListView,
     PublicCategoryDetailView,
@@ -99,14 +102,30 @@ urlpatterns = [
         name="store-pending-order-detail",
     ),
     path(
-        "payments/verify/",
-        PaymentVerifyView.as_view(),
-        name="store-payments-verify",
+        "pending-orders/<uuid:pending_order_pk>/evidence/",
+        PaymentEvidenceSubmitView.as_view(),
+        name="store-payment-evidence-submit",
+    ),
+    # Admin - Payments
+    path(
+        "admin/payments/",
+        AdminPaymentListView.as_view(),
+        name="store-admin-payment-list",
     ),
     path(
-        "payments/webhook/",
-        PaymentWebhookView.as_view(),
-        name="store-payments-webhook",
+        "admin/pending-orders/<uuid:pending_order_pk>/verify/",
+        AdminPaymentVerifyView.as_view(),
+        name="store-admin-payment-verify",
+    ),
+    path(
+        "admin/pending-orders/<uuid:pending_order_pk>/reject/",
+        AdminPaymentRejectView.as_view(),
+        name="store-admin-payment-reject",
+    ),
+    path(
+        "admin/pending-orders/<uuid:pending_order_pk>/cash/",
+        AdminPaymentCashView.as_view(),
+        name="store-admin-payment-cash",
     ),
     # Admin - Categories
     path(

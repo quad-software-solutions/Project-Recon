@@ -1189,7 +1189,7 @@ class EventPaymentApiTest(EventApiTestCase):
         event = self._make_registerable_event()
         reg_id = self._create_registration_for_admin(event)
         reg = EventRegistration.objects.get(id=reg_id)
-        reg.registration_status = RegistrationStatus.APPROVED
+        reg.registration_status = RegistrationStatus.PENDING
         reg.save(update_fields=["registration_status"])
         return reg
 
@@ -1206,9 +1206,9 @@ class EventPaymentApiTest(EventApiTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["amount"], "100.00")
         self.assertEqual(response.data["payment_method"], "CASH")
-        self.assertEqual(response.data["status"], "PAID")
+        self.assertEqual(response.data["status"], "VERIFIED")
         reg.refresh_from_db()
-        self.assertEqual(reg.payment_status, "PAID")
+        self.assertEqual(reg.payment_status, "VERIFIED")
 
     def test_cash_payment_branch_manager(self):
         self._auth(self.branch_manager)
@@ -1261,156 +1261,7 @@ class EventPaymentApiTest(EventApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    # --- Online Payment Initialization ---
 
-    @override_settings(CHAPA_SECRET_KEY="test-secret-key")
-    def test_initialize_online_payment_super_admin(self):
-        from unittest.mock import patch
-
-        self._auth(self.super_admin)
-        reg = self._create_approved_registration()
-        valid_ref = f"EVENT-{reg.id.hex[:8]}-{uuid.uuid4().hex[:12]}"
-        with patch(
-            "apps.events.services.event_payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "status": "success",
-                "reference": valid_ref,
-                "checkout_url": "https://checkout.chapa.co/pay/test",
-                "amount": 200.00,
-                "currency": "ETB",
-                "raw": {},
-            }
-            response = self.client.post(
-                f"{self.base_url}/admin/registrations/{reg.id}/pay/initialize/",
-                {
-                    "amount": 200.00,
-                    "callback_url": "https://example.com/callback",
-                },
-                format="json",
-            )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn("checkout_url", response.data)
-        self.assertEqual(response.data["payment"]["amount"], "200.00")
-
-    def test_initialize_online_payment_student_forbidden(self):
-        self._auth(self.student)
-        reg = self._create_approved_registration()
-        response = self.client.post(
-            f"{self.base_url}/admin/registrations/{reg.id}/pay/initialize/",
-            {
-                "amount": 200.00,
-                "callback_url": "https://example.com/callback",
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_initialize_online_payment_missing_callback(self):
-        self._auth(self.super_admin)
-        reg = self._create_approved_registration()
-        response = self.client.post(
-            f"{self.base_url}/admin/registrations/{reg.id}/pay/initialize/",
-            {"amount": 200.00},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    # --- Verify Online Payment ---
-
-    @override_settings(CHAPA_SECRET_KEY="test-secret-key")
-    def test_verify_online_payment_success(self):
-        from unittest.mock import patch
-
-        self._auth(self.super_admin)
-        reg = self._create_approved_registration()
-        valid_ref = f"EVENT-{reg.id.hex[:8]}-{uuid.uuid4().hex[:12]}"
-        with patch(
-            "apps.events.services.event_payment_service.shared_initialize_payment"
-        ) as mock_init, patch(
-            "apps.events.services.event_payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "status": "success",
-                "reference": valid_ref,
-                "checkout_url": "https://checkout.chapa.co/pay/test",
-                "amount": 200.00,
-                "currency": "ETB",
-                "raw": {},
-            }
-            self.client.post(
-                f"{self.base_url}/admin/registrations/{reg.id}/pay/initialize/",
-                {
-                    "amount": 200.00,
-                    "callback_url": "https://example.com/callback",
-                },
-                format="json",
-            )
-            mock_verify.return_value = {
-                "provider": "chapa",
-                "status": "success",
-                "reference": valid_ref,
-                "amount": 200.00,
-                "currency": "ETB",
-                "raw": {},
-            }
-            response = self.client.post(
-                f"{self.base_url}/payments/online/verify/",
-                {"reference": valid_ref},
-                format="json",
-            )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "PAID")
-
-    def test_verify_online_payment_invalid_reference(self):
-        response = self.client.post(
-            f"{self.base_url}/payments/online/verify/",
-            {"reference": "BAD-REF"},
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_verify_online_payment_missing_reference(self):
-        response = self.client.post(
-            f"{self.base_url}/payments/online/verify/",
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    # --- Webhook ---
-
-    @override_settings(CHAPA_SECRET_KEY="test-secret-key")
-    def test_webhook_success(self):
-        from unittest.mock import patch
-
-        with patch(
-            "apps.events.services.event_payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "provider": "chapa",
-                "status": "success",
-                "reference": "EVENT-ref",
-                "amount": 100.00,
-                "currency": "ETB",
-                "raw": {},
-            }
-            response = self.client.post(
-                f"{self.base_url}/payments/online/webhook/",
-                {"tx_ref": "EVENT-ref"},
-                format="json",
-            )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "ok")
-
-    def test_webhook_empty_body(self):
-        response = self.client.post(
-            f"{self.base_url}/payments/online/webhook/",
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "ok")
 
 
 class PublicTournamentApiTest(EventApiTestCase):

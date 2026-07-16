@@ -1,6 +1,4 @@
 import logging
-import re
-from uuid import uuid4
 
 from django.db import transaction
 from django.utils import timezone
@@ -8,23 +6,10 @@ from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.events.constants import PaymentMethod, PaymentStatus
 from apps.events.models import EventPayment, EventRegistration
+from apps.events.services.registration_service import approve_registration, reject_registration
 from apps.shared.audit.services import log_action
-from apps.shared.payment.exceptions import PaymentError
-from apps.shared.payment.payment_service import (
-    initialize_payment as shared_initialize_payment,
-    verify_payment as shared_verify_payment,
-)
 
 logger = logging.getLogger(__name__)
-
-REFERENCE_PATTERN = re.compile(r"^EVENT-[a-f0-9]{8}-[a-f0-9]{12}$")
-
-
-def _generate_reference(registration_id):
-    """Generate a unique payment reference for event registrations."""
-    reg_hex = registration_id.hex[:8]
-    rand_hex = uuid4().hex[:12]
-    return f"EVENT-{reg_hex}-{rand_hex}"
 
 
 def get_payment_or_404(pk):
@@ -41,59 +26,114 @@ def get_payment_or_404(pk):
         return EventPayment.objects.select_related(
             "registration__event",
             "registration__student__user",
+            "verified_by",
         ).get(id=pk)
     except EventPayment.DoesNotExist:
         raise NotFound("Payment not found.")
 
 
-def get_payment_by_reference(reference):
-    """
-    Retrieve an EventPayment by transaction reference or raise NotFound.
-
-    Args:
-        reference: Transaction reference string.
-
-    Returns:
-        EventPayment instance with related registration, event, and student.
-    """
-    try:
-        return EventPayment.objects.select_related(
-            "registration__event",
-            "registration__student__user",
-        ).get(transaction_reference=reference)
-    except EventPayment.DoesNotExist:
-        raise NotFound("Payment not found.")
-
-
-def list_payments(registration_id=None, status=None):
+def list_payments(registration_id=None, status=None, event_id=None):
     """
     Return payments, optionally filtered.
 
     Args:
         registration_id: Optional registration UUID to filter by.
         status: Optional payment status to filter by.
+        event_id: Optional event UUID to filter by.
 
     Returns:
         QuerySet of EventPayment objects.
     """
     qs = EventPayment.objects.select_related(
-        "registration__event", "registration__student__user"
+        "registration__event", "registration__student__user", "verified_by"
     ).all()
     if registration_id:
         qs = qs.filter(registration_id=registration_id)
     if status:
         qs = qs.filter(status=status)
+    if event_id:
+        qs = qs.filter(registration__event_id=event_id)
     return qs
 
 
-def record_cash_payment(registration_id, amount, actor=None, payment_date=None):
+def submit_payment_evidence(
+    registration,
+    amount,
+    payment_method,
+    transaction_reference="",
+    bank_name="",
+    attachment=None,
+    actor=None,
+):
     """
-    Record a cash payment for a registration.
+    Submit payment evidence for a registration, creating a payment
+    record in PENDING_VERIFICATION status.
 
     Args:
-        registration_id: EventRegistration UUID (or instance).
+        registration: EventRegistration instance.
         amount: Decimal payment amount.
+        payment_method: PaymentMethod enum value.
+        transaction_reference: Optional transaction reference string.
+        bank_name: Optional bank name string.
+        attachment: Optional uploaded file.
         actor: Optional User performing the action.
+
+    Returns:
+        Created EventPayment instance.
+
+    Raises:
+        ValidationError: If registration already has a payment or
+                         business rules are violated.
+    """
+    if not isinstance(registration, EventRegistration):
+        try:
+            registration = EventRegistration.objects.select_related("event").get(
+                id=registration
+            )
+        except EventRegistration.DoesNotExist:
+            raise NotFound("Registration not found.")
+
+    if hasattr(registration, "payment"):
+        raise ValidationError("This registration already has a payment record.")
+
+    if amount <= 0:
+        raise ValidationError("Payment amount must be greater than zero.")
+
+    with transaction.atomic():
+        payment = EventPayment(
+            registration=registration,
+            amount=amount,
+            payment_method=payment_method,
+            transaction_reference=transaction_reference or "",
+            bank_name=bank_name or "",
+            attachment=attachment,
+            status=PaymentStatus.PENDING_VERIFICATION,
+        )
+        payment.full_clean()
+        payment.save()
+
+        registration.payment_status = PaymentStatus.PENDING_VERIFICATION
+        registration.save(update_fields=["payment_status", "updated_at"])
+
+        log_action(
+            actor=actor,
+            action="payment.evidence_submitted",
+            resource_type="EventPayment",
+            resource_id=payment.id,
+        )
+
+    return payment
+
+
+def record_cash_payment(registration, amount, actor=None, payment_date=None):
+    """
+    Record a cash payment for a registration.
+    Cash payments are directly marked as VERIFIED.
+
+    Args:
+        registration: EventRegistration instance (or UUID).
+        amount: Decimal payment amount.
+        actor: User performing the action (required for verification).
         payment_date: Optional datetime of payment.
 
     Returns:
@@ -103,15 +143,13 @@ def record_cash_payment(registration_id, amount, actor=None, payment_date=None):
         ValidationError: If registration already has a payment or rules violated.
         NotFound: If registration not found.
     """
-    if not isinstance(registration_id, EventRegistration):
+    if not isinstance(registration, EventRegistration):
         try:
             registration = EventRegistration.objects.select_related("event").get(
-                id=registration_id
+                id=registration
             )
         except EventRegistration.DoesNotExist:
             raise NotFound("Registration not found.")
-    else:
-        registration = registration_id
 
     if hasattr(registration, "payment"):
         raise ValidationError("This registration already has a payment record.")
@@ -119,24 +157,29 @@ def record_cash_payment(registration_id, amount, actor=None, payment_date=None):
     if amount <= 0:
         raise ValidationError("Payment amount must be greater than zero.")
 
+    now = timezone.now()
+
     with transaction.atomic():
         payment = EventPayment(
             registration=registration,
             amount=amount,
             payment_method=PaymentMethod.CASH,
-            payment_provider=None,
-            status=PaymentStatus.PAID,
-            payment_date=payment_date or timezone.now(),
+            status=PaymentStatus.VERIFIED,
+            payment_date=payment_date or now,
+            verified_by=actor,
+            verified_at=now,
         )
         payment.full_clean()
         payment.save()
 
-        registration.payment_status = PaymentStatus.PAID
+        registration.payment_status = PaymentStatus.VERIFIED
         registration.save(update_fields=["payment_status", "updated_at"])
+
+        approve_registration(registration, actor=actor)
 
         log_action(
             actor=actor,
-            action="payment.cash_created",
+            action="payment.cash_recorded",
             resource_type="EventPayment",
             resource_id=payment.id,
         )
@@ -144,164 +187,108 @@ def record_cash_payment(registration_id, amount, actor=None, payment_date=None):
     return payment
 
 
-def initialize_online_payment(
-    registration_id,
-    amount,
-    callback_url,
-    customer,
-    actor=None,
-    return_url=None,
-):
+def verify_payment(registration, actor, verification_notes=""):
     """
-    Initialize an online payment for a registration.
+    Verify a pending payment, marking it as VERIFIED and approving
+    the associated registration.
 
     Args:
-        registration_id: EventRegistration UUID (or instance).
-        amount: Decimal payment amount.
-        callback_url: URL for the payment provider to send webhook notifications.
-        customer: Dict with customer info (email, first_name, last_name, etc.).
-        actor: Optional User performing the action.
-        return_url: Optional URL to redirect user after payment.
-
-    Returns:
-        Tuple of (EventPayment instance, checkout_url string).
-
-    Raises:
-        ValidationError: If registration already has a payment or initialization fails.
-        NotFound: If registration not found.
-    """
-    if not isinstance(registration_id, EventRegistration):
-        try:
-            registration = EventRegistration.objects.select_related(
-                "event", "student__user"
-            ).get(id=registration_id)
-        except EventRegistration.DoesNotExist:
-            raise NotFound("Registration not found.")
-    else:
-        registration = registration_id
-
-    if hasattr(registration, "payment"):
-        raise ValidationError("This registration already has a payment record.")
-
-    if amount <= 0:
-        raise ValidationError("Payment amount must be greater than zero.")
-
-    reference = _generate_reference(registration.id)
-
-    with transaction.atomic():
-        payment = EventPayment(
-            registration=registration,
-            amount=amount,
-            payment_method=PaymentMethod.ONLINE,
-            transaction_reference=reference,
-            status=PaymentStatus.PENDING,
-        )
-        payment.save()
-
-        try:
-            result = shared_initialize_payment(
-                amount=amount,
-                currency="ETB",
-                reference=reference,
-                callback_url=callback_url,
-                customer=customer,
-                return_url=return_url,
-            )
-        except PaymentError as e:
-            payment.status = PaymentStatus.FAILED
-            payment.save(update_fields=["status"])
-            raise ValidationError(f"Payment initialization failed: {e}")
-
-        payment.payment_provider = result["provider"]
-        payment.transaction_reference = result["reference"]
-        payment.save(update_fields=["payment_provider", "transaction_reference"])
-
-        log_action(
-            actor=actor,
-            action="payment.online_initialized",
-            resource_type="EventPayment",
-            resource_id=payment.id,
-        )
-
-    return payment, result["checkout_url"]
-
-
-def verify_online_payment(*, reference):
-    """
-    Verify an online payment after provider callback.
-
-    Args:
-        reference: Transaction reference string.
+        registration: EventRegistration instance.
+        actor: User performing the verification.
+        verification_notes: Optional notes from the verifier.
 
     Returns:
         Updated EventPayment instance.
 
     Raises:
-        ValidationError: If reference invalid, payment not in PENDING state,
-                         or verification fails.
+        ValidationError: If payment is not in PENDING_VERIFICATION status.
+        NotFound: If payment not found.
     """
-    if not REFERENCE_PATTERN.match(reference):
-        raise ValidationError("Invalid payment reference format.")
+    if not hasattr(registration, "payment"):
+        raise NotFound("No payment record found for this registration.")
 
-    payment = get_payment_by_reference(reference)
-    registration = payment.registration
+    payment = registration.payment
 
-    if payment.status == PaymentStatus.PAID:
-        return payment
+    if payment.status != PaymentStatus.PENDING_VERIFICATION:
+        raise ValidationError(
+            f"Cannot verify a payment with status '{payment.status}'. "
+            "Only PENDING_VERIFICATION payments can be verified."
+        )
 
-    if payment.status != PaymentStatus.PENDING:
-        raise ValidationError(f"Cannot verify payment in status '{payment.status}'.")
-
-    try:
-        result = shared_verify_payment(reference)
-    except PaymentError as e:
-        logger.error("Payment verification infrastructure error: %s", e)
-        raise ValidationError("Payment verification temporarily unavailable.")
-
-    if result["amount"] is not None and result["amount"] != payment.amount:
-        payment.status = PaymentStatus.FAILED
-        payment.save(update_fields=["status"])
-        raise ValidationError("Payment amount mismatch detected.")
+    now = timezone.now()
 
     with transaction.atomic():
-        if result["status"] == "success":
-            payment.status = PaymentStatus.PAID
-            payment.payment_date = timezone.now()
-            payment.payment_provider = result.get("provider", payment.payment_provider)
-            payment.save()
+        payment.status = PaymentStatus.VERIFIED
+        payment.verified_by = actor
+        payment.verified_at = now
+        if verification_notes:
+            payment.verification_notes = verification_notes
+        payment.save()
 
-            registration.payment_status = PaymentStatus.PAID
-            registration.save(update_fields=["payment_status", "updated_at"])
+        registration.payment_status = PaymentStatus.VERIFIED
+        registration.save(update_fields=["payment_status", "updated_at"])
 
-            log_action(
-                actor=None,
-                action="payment.verified_success",
-                resource_type="EventPayment",
-                resource_id=payment.id,
-                details={"reference": reference},
-            )
+        approve_registration(registration, actor=actor)
 
-        elif result["status"] in ("failed", "cancelled"):
-            payment.status = PaymentStatus.FAILED
-            payment.save(update_fields=["status"])
+        log_action(
+            actor=actor,
+            action="payment.verified",
+            resource_type="EventPayment",
+            resource_id=payment.id,
+        )
 
-            log_action(
-                actor=None,
-                action="payment.verified_failed",
-                resource_type="EventPayment",
-                resource_id=payment.id,
-                details={
-                    "reference": reference,
-                    "provider_status": result.get("provider_status"),
-                },
-            )
+    return payment
 
-        else:
-            logger.info(
-                "Payment %s still pending after verification. reference=%s status=%s",
-                payment.id,
-                reference,
-                result["status"],
-            )
+
+def reject_payment(registration, actor, verification_notes):
+    """
+    Reject a pending payment, marking it as REJECTED and rejecting
+    the associated registration.
+
+    Args:
+        registration: EventRegistration instance.
+        actor: User performing the rejection.
+        verification_notes: Required notes explaining the rejection.
+
+    Returns:
+        Updated EventPayment instance.
+
+    Raises:
+        ValidationError: If payment is not in PENDING_VERIFICATION status
+                         or no notes provided.
+        NotFound: If payment not found.
+    """
+    if not hasattr(registration, "payment"):
+        raise NotFound("No payment record found for this registration.")
+
+    payment = registration.payment
+
+    if payment.status != PaymentStatus.PENDING_VERIFICATION:
+        raise ValidationError(
+            f"Cannot reject a payment with status '{payment.status}'. "
+            "Only PENDING_VERIFICATION payments can be rejected."
+        )
+
+    if not verification_notes:
+        raise ValidationError("Verification notes are required when rejecting a payment.")
+
+    with transaction.atomic():
+        payment.status = PaymentStatus.REJECTED
+        payment.verified_by = actor
+        payment.verified_at = timezone.now()
+        payment.verification_notes = verification_notes
+        payment.save()
+
+        registration.payment_status = PaymentStatus.REJECTED
+        registration.save(update_fields=["payment_status", "updated_at"])
+
+        reject_registration(registration, actor=actor)
+
+        log_action(
+            actor=actor,
+            action="payment.rejected",
+            resource_type="EventPayment",
+            resource_id=payment.id,
+        )
 
     return payment

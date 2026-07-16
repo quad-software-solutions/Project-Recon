@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.academic.constants import PaymentMethod
 from apps.academic.models import Enrollment
 
 
@@ -29,6 +30,10 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "branch_name",
             "enrolled_at",
             "status",
+            "enrollment_number",
+            "pending_code",
+            "verification_status",
+            "rejection_reason",
             "payment_status",
             "payment_method",
             "remarks",
@@ -40,6 +45,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "student_name", "student_email", "class_name", "class_type",
             "sub_program_name", "program_name", "branch_name",
             "payment_status", "payment_method",
+            "enrollment_number", "pending_code", "verification_status",
+            "rejection_reason",
         ]
 
 
@@ -63,6 +70,10 @@ class EnrollmentListSerializer(serializers.ModelSerializer):
             "sub_program_name",
             "enrolled_at",
             "status",
+            "enrollment_number",
+            "pending_code",
+            "verification_status",
+            "rejection_reason",
             "payment_status",
             "payment_method",
             "remarks",
@@ -77,8 +88,6 @@ class EnrollStudentSerializer(serializers.Serializer):
 
 class OnlineEnrollmentSerializer(serializers.Serializer):
     enrolled_class = serializers.UUIDField()
-    callback_url = serializers.URLField()
-    return_url = serializers.URLField(required=False, allow_null=True)
 
     email = serializers.EmailField(required=False)
     first_name = serializers.CharField(max_length=100, required=False)
@@ -88,3 +97,20 @@ class OnlineEnrollmentSerializer(serializers.Serializer):
     guardian_name = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
     guardian_phone = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
     guardian_email = serializers.EmailField(required=False, allow_blank=True, default="")
+
+    payment_method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    transaction_reference = serializers.CharField(required=False, allow_blank=True, default="")
+    bank_name = serializers.CharField(required=False, allow_blank=True, default="")
+    transfer_reference = serializers.CharField(required=False, allow_blank=True, default="")
+    attachment = serializers.FileField(required=False, allow_null=True)
+
+    def validate(self, data):
+        method = data.get("payment_method")
+        tx_ref = data.get("transaction_reference", "")
+        attachment = data.get("attachment")
+        if method != PaymentMethod.CASH and not tx_ref and not attachment:
+            raise serializers.ValidationError(
+                "At least a transaction reference or payment attachment "
+                "is required for non-cash payments."
+            )
+        return data

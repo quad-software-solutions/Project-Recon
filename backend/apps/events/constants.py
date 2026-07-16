@@ -52,18 +52,14 @@ class RegistrationStatus(models.TextChoices):
 
 
 class PaymentStatus(models.TextChoices):
-    PENDING = "PENDING", "Pending"
-    PAID = "PAID", "Paid"
-    FAILED = "FAILED", "Failed"
+    PENDING_VERIFICATION = "PENDING_VERIFICATION", "Pending Verification"
+    VERIFIED = "VERIFIED", "Verified"
+    REJECTED = "REJECTED", "Rejected"
     CANCELLED = "CANCELLED", "Cancelled"
-    REFUNDED = "REFUNDED", "Refunded"
 
 
 class PaymentMethod(models.TextChoices):
     CASH = "CASH", "Cash"
-    ONLINE = "ONLINE", "Online"
-
-
-class PaymentProvider(models.TextChoices):
-    CHAPA = "CHAPA", "Chapa"
-    STRIPE = "STRIPE", "Stripe"
+    BANK_TRANSFER = "BANK_TRANSFER", "Bank Transfer"
+    MOBILE_MONEY = "MOBILE_MONEY", "Mobile Money"
+    CHEQUE = "CHEQUE", "Cheque"

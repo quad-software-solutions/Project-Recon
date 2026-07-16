@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 
 from apps.academic.constants import ClassPeriod, ClassType
@@ -6,6 +7,13 @@ from apps.academic.models import Class
 
 def get_class_or_404(pk):
     return get_object_or_404(Class.objects.select_related("sub_program", "branch", "instructor"), pk=pk)
+
+
+def get_active_class_or_404(pk):
+    klass = get_class_or_404(pk)
+    if not klass.is_active:
+        raise ValidationError("Target class is not active.")
+    return klass
 
 
 def list_classes():

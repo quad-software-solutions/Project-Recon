@@ -6,8 +6,13 @@ from apps.academic.models import SubProgram
 class SubProgramSerializer(serializers.ModelSerializer):
     program_name = serializers.CharField(source="program.name", read_only=True)
 
-    def validate_fee(self, value):
+    def validate_group_fee(self, value):
         if value < 0:
+            raise serializers.ValidationError("Fee cannot be negative.")
+        return value
+
+    def validate_individual_fee(self, value):
+        if value is not None and value < 0:
             raise serializers.ValidationError("Fee cannot be negative.")
         return value
 
@@ -22,7 +27,8 @@ class SubProgramSerializer(serializers.ModelSerializer):
             "description",
             "duration",
             "duration_unit",
-            "fee",
+            "group_fee",
+            "individual_fee",
             "is_active",
             "created_at",
             "updated_at",
@@ -41,7 +47,8 @@ class SubProgramListSerializer(serializers.ModelSerializer):
             "program_name",
             "name",
             "slug",
-            "fee",
+            "group_fee",
+            "individual_fee",
             "is_active",
             "created_at",
         ]

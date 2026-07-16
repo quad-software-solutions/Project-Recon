@@ -46,12 +46,12 @@ from apps.events.api.views import (
     AdminRegistrationCancelView,
     AdminRegistrationConvertTeamView,
     AdminCashPaymentView,
-    AdminOnlinePaymentInitializeView,
+    AdminPaymentVerifyView,
+    AdminPaymentRejectView,
+    AdminPaymentListView,
     EventRegisterView,
     MyRegistrationListView,
     MyRegistrationCancelView,
-    OnlinePaymentVerifyView,
-    OnlinePaymentWebhookView,
 )
 
 urlpatterns = [
@@ -252,18 +252,18 @@ urlpatterns = [
         name="events-admin-registration-pay-cash",
     ),
     path(
-        "admin/registrations/<uuid:pk>/pay/initialize/",
-        AdminOnlinePaymentInitializeView.as_view(),
-        name="events-admin-registration-pay-initialize",
+        "admin/registrations/<uuid:pk>/verify-payment/",
+        AdminPaymentVerifyView.as_view(),
+        name="events-admin-registration-verify-payment",
     ),
     path(
-        "payments/online/verify/",
-        OnlinePaymentVerifyView.as_view(),
-        name="events-payments-online-verify",
+        "admin/registrations/<uuid:pk>/reject-payment/",
+        AdminPaymentRejectView.as_view(),
+        name="events-admin-registration-reject-payment",
     ),
     path(
-        "payments/online/webhook/",
-        OnlinePaymentWebhookView.as_view(),
-        name="events-payments-online-webhook",
+        "admin/payments/",
+        AdminPaymentListView.as_view(),
+        name="events-admin-payment-list",
     ),
 ]

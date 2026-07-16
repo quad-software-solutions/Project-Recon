@@ -8,11 +8,11 @@ from django.test import TestCase, override_settings
 
 from apps.academic.constants import (
     ClassType, ClassPeriod, AttendanceStatus, SessionStatus,
-    EnrollmentStatus, PaymentMethod, PaymentProvider, PaymentStatus,
+    EnrollmentStatus, PaymentMethod, PaymentStatus, VerificationStatus,
     ProgressStatus, MaterialType,
 )
 from apps.academic.models import (
-    Program, SubProgram, Class, Student, EnrollmentPeriod,
+    BranchTransferRequest, Program, SubProgram, Class, Student, EnrollmentPeriod,
     StaffAttendanceSession, StaffAttendanceRecord, Enrollment, EnrollmentPayment,
     AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress,
 )
@@ -47,12 +47,23 @@ from apps.academic.services.enrollment_service import (
     list_enrollments,
 )
 from apps.academic.services.payment_service import (
-    create_cash_payment,
-    initialize_online_payment,
-    verify_online_payment,
+    record_payment,
+    reject_payment,
+    set_under_review,
     list_payments,
     get_payment_or_404,
-    get_payment_by_reference,
+)
+from apps.academic.services.enrollment_service import (
+    get_all_related_enrollments,
+    move_enrollment,
+    bulk_move_enrollments,
+    switch_subprogram,
+)
+from apps.academic.services.transfer_service import (
+    approve_transfer,
+    list_transfer_requests,
+    reject_transfer,
+    request_transfer,
 )
 from apps.accounts.models import Branch, User, UserAssignment
 from apps.accounts.constants import Roles
@@ -120,11 +131,11 @@ class SubProgramServiceTest(TestCase):
             program=self.program,
             name="Python",
             slug="python",
-            fee=500.00,
+            group_fee=500.00, individual_fee=500.00,
         )
         self.assertEqual(sub.name, "Python")
         self.assertEqual(sub.program, self.program)
-        self.assertEqual(sub.fee, 500.00)
+        self.assertEqual(sub.group_fee, 500.00)
         self.assertTrue(sub.is_active)
 
     def test_create_sub_program_with_duration(self):
@@ -132,7 +143,7 @@ class SubProgramServiceTest(TestCase):
             program=self.program,
             name="Scratch",
             slug="scratch",
-            fee=300.00,
+            group_fee=300.00, individual_fee=300.00,
             duration=12,
             duration_unit="WEEK",
         )
@@ -145,40 +156,40 @@ class SubProgramServiceTest(TestCase):
                 program=self.program,
                 name="Invalid",
                 slug="invalid",
-                fee=100.00,
+                group_fee=100.00, individual_fee=100.00,
                 duration_unit="YEAR",
             )
 
     def test_duplicate_sub_program_name_in_same_program(self):
         program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         with self.assertRaises(Exception):
             program_service.create_sub_program(
-                program=self.program, name="Python", slug="python-2", fee=500.00
+                program=self.program, name="Python", slug="python-2", group_fee=500.00, individual_fee=500.00
             )
 
     def test_list_sub_programs(self):
         program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         program_service.create_sub_program(
-            program=self.program, name="Java", slug="java", fee=600.00
+            program=self.program, name="Java", slug="java", group_fee=600.00, individual_fee=600.00
         )
         subs = program_service.list_sub_programs()
         self.assertEqual(subs.count(), 2)
 
     def test_update_sub_program(self):
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
-        updated = program_service.update_sub_program(sub, name="Advanced Python", fee=700.00)
+        updated = program_service.update_sub_program(sub, name="Advanced Python", group_fee=700.00, individual_fee=700.00)
         self.assertEqual(updated.name, "Advanced Python")
-        self.assertEqual(updated.fee, 700.00)
+        self.assertEqual(updated.group_fee, 700.00)
 
     def test_activate_deactivate_sub_program(self):
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         program_service.deactivate_sub_program(sub)
         sub.refresh_from_db()
@@ -194,15 +205,15 @@ class SubProgramServiceTest(TestCase):
                 program=self.program,
                 name="Bad",
                 slug="bad",
-                fee=-100.00,
+                group_fee=-100.00, individual_fee=-100.00,
             )
 
     def test_update_sub_program_negative_fee_raises_error(self):
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         with self.assertRaises(DjangoValidationError):
-            program_service.update_sub_program(sub, fee=-50.00)
+            program_service.update_sub_program(sub, group_fee=-50.00, individual_fee=-50.00)
 
 
 class ClassServiceTest(TestCase):
@@ -219,7 +230,7 @@ class ClassServiceTest(TestCase):
             name="Programming", slug="programming"
         )
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
 
     def test_create_group_class(self):
@@ -429,7 +440,7 @@ class EnrollmentPeriodServiceTest(TestCase):
             name="Programming", slug="programming"
         )
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         self.period = create_enrollment_period(
             actor=None,
@@ -624,7 +635,8 @@ class EnrollmentServiceTest(TestCase):
             name="Programming", slug="programming", supports_group=True, supports_individual=True,
         )
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+            program=self.program, name="Python", slug="python",
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.student_user = user_service.create_student_user(
             "student@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
@@ -680,7 +692,7 @@ class EnrollmentServiceTest(TestCase):
         )
         self.assertEqual(enrollment.student, self.student)
         self.assertEqual(enrollment.enrolled_class, self.individual_class)
-        self.assertEqual(enrollment.status, EnrollmentStatus.PENDING_PAYMENT)
+        self.assertEqual(enrollment.status, EnrollmentStatus.PENDING_VERIFICATION)
 
     def test_enroll_student_group_with_active_period(self):
         enrollment = enroll_student(
@@ -688,7 +700,7 @@ class EnrollmentServiceTest(TestCase):
             student=self.student,
             enrolled_class=self.group_class,
         )
-        self.assertEqual(enrollment.status, EnrollmentStatus.PENDING_PAYMENT)
+        self.assertEqual(enrollment.status, EnrollmentStatus.PENDING_VERIFICATION)
 
     def test_enroll_student_group_without_period_raises(self):
         deactivate_enrollment_period(None, self.enrollment_period)
@@ -770,14 +782,202 @@ class EnrollmentServiceTest(TestCase):
         enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
         self.assertEqual(list_enrollments().count(), 1)
 
+    def test_move_enrollment_success(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
 
-@override_settings(PAYMENT_PROVIDER="chapa")
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Target Class", class_type=ClassType.INDIVIDUAL,
+        )
+        moved = move_enrollment(self.instructor, enrollment=enrollment, target_class=target_class)
+        moved.refresh_from_db()
+        self.assertEqual(moved.enrolled_class.pk, target_class.pk)
+
+    def test_move_enrollment_non_active_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Target", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            move_enrollment(self.instructor, enrollment=enrollment, target_class=target_class)
+
+    def test_move_enrollment_inactive_target_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Inactive Target", class_type=ClassType.INDIVIDUAL,
+        )
+        class_service.deactivate_class(target_class)
+        with self.assertRaises(DjangoValidationError):
+            move_enrollment(self.instructor, enrollment=enrollment, target_class=target_class)
+
+    def test_move_enrollment_different_branch_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+
+        other_branch = Branch.objects.create(name="Other", code="OB02")
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=other_branch, instructor=self.instructor,
+            name="Other Branch Class", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            move_enrollment(self.instructor, enrollment=enrollment, target_class=target_class)
+
+    def test_move_enrollment_to_full_group_class_raises(self):
+        other_user = user_service.create_student_user(
+            "othermove@test.com", "Other", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(other_user)
+        other_student = Student.objects.create(
+            user=other_user, branch=self.branch, date_joined=date.today(),
+        )
+
+        full_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Full Group", class_type=ClassType.GROUP, capacity=1,
+        )
+        ep = create_enrollment_period(
+            actor=None, branch=self.branch, program=self.program,
+            sub_program=self.sub_program, class_type=ClassType.GROUP,
+            class_period=ClassPeriod.FULL_DAY, title="Move Period",
+            start_date=date.today() - timedelta(days=10),
+            end_date=date.today() + timedelta(days=30),
+        )
+        filler = enroll_student(
+            actor=self.instructor, student=other_student, enrolled_class=full_class,
+        )
+        filler.status = EnrollmentStatus.ACTIVE
+        filler.save()
+
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+
+        with self.assertRaises(DjangoValidationError):
+            move_enrollment(self.instructor, enrollment=enrollment, target_class=full_class)
+
+    def test_move_enrollment_duplicate_in_target_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Target Dup", class_type=ClassType.INDIVIDUAL,
+        )
+        duplicate_enrollment = Enrollment.objects.create(
+            student=self.student, enrolled_class=target_class,
+            status=EnrollmentStatus.ACTIVE,
+        )
+
+        with self.assertRaises(DjangoValidationError):
+            move_enrollment(self.instructor, enrollment=enrollment, target_class=target_class)
+
+    def test_bulk_move_enrollments_by_ids(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Bulk Target", class_type=ClassType.INDIVIDUAL,
+        )
+        moved = bulk_move_enrollments(
+            self.instructor, source_class=self.individual_class,
+            target_class=target_class, enrollment_ids=[enrollment.pk],
+        )
+        self.assertEqual(len(moved), 1)
+        self.assertEqual(moved[0].pk, enrollment.pk)
+        moved[0].refresh_from_db()
+        self.assertEqual(moved[0].enrolled_class.pk, target_class.pk)
+
+    def test_bulk_move_enrollments_by_count(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Bulk Count Target", class_type=ClassType.INDIVIDUAL,
+        )
+        moved = bulk_move_enrollments(
+            self.instructor, source_class=self.individual_class,
+            target_class=target_class, count=1,
+        )
+        self.assertEqual(len(moved), 1)
+
+    def test_bulk_move_enrollments_no_args_raises(self):
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Bulk No Args", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            bulk_move_enrollments(
+                self.instructor, source_class=self.individual_class,
+                target_class=target_class,
+            )
+
+    def test_bulk_move_enrollments_both_args_raises(self):
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Bulk Both Args", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            bulk_move_enrollments(
+                self.instructor, source_class=self.individual_class,
+                target_class=target_class, enrollment_ids=[], count=1,
+            )
+
+    def test_bulk_move_enrollments_inactive_target_raises(self):
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Bulk Inactive", class_type=ClassType.INDIVIDUAL,
+        )
+        class_service.deactivate_class(target_class)
+        with self.assertRaises(DjangoValidationError):
+            bulk_move_enrollments(
+                self.instructor, source_class=self.individual_class,
+                target_class=target_class, count=1,
+            )
+
+    def test_bulk_move_enrollments_different_branch_raises(self):
+        other_branch = Branch.objects.create(name="Other Branch", code="OB03")
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=other_branch, instructor=self.instructor,
+            name="Bulk Diff Branch", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            bulk_move_enrollments(
+                self.instructor, source_class=self.individual_class,
+                target_class=target_class, count=1,
+            )
+
+    def test_bulk_move_enrollments_no_active_enrollments_raises(self):
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Bulk No Active", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            bulk_move_enrollments(
+                self.instructor, source_class=self.individual_class,
+                target_class=target_class, count=1,
+            )
+
+
 class PaymentServiceTest(TestCase):
     def setUp(self):
         self.branch = Branch.objects.create(name="Main Branch", code="MB01")
         self.program = program_service.create_program(name="Programming", slug="programming")
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+            program=self.program, name="Python", slug="python",
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.student_user = user_service.create_student_user(
             "student@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
@@ -797,110 +997,87 @@ class PaymentServiceTest(TestCase):
             actor=self.instructor, student=self.student, enrolled_class=self.klass,
         )
 
-    def test_create_cash_payment(self):
-        payment = create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
+    def test_record_payment_cash(self):
+        payment = record_payment(
+            self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"),
+            payment_method=PaymentMethod.CASH,
+        )
         self.assertEqual(payment.payment_method, PaymentMethod.CASH)
         self.assertEqual(payment.status, PaymentStatus.PAID)
-        self.assertIsNotNone(payment.payment_date)
+        self.assertEqual(payment.verified_by, self.instructor)
+        self.assertIsNotNone(payment.verified_at)
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, EnrollmentStatus.ACTIVE)
+        self.assertEqual(self.enrollment.verification_status, VerificationStatus.VERIFIED)
+        self.assertIsNotNone(self.enrollment.enrollment_number)
+
+    def test_record_payment_bank_transfer(self):
+        payment = record_payment(
+            self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"),
+            payment_method=PaymentMethod.BANK_TRANSFER,
+            transaction_reference="TXN-12345", bank_name="CBE",
+        )
+        self.assertEqual(payment.bank_name, "CBE")
+        self.assertEqual(payment.transaction_reference, "TXN-12345")
+        self.assertEqual(payment.status, PaymentStatus.PAID)
         self.enrollment.refresh_from_db()
         self.assertEqual(self.enrollment.status, EnrollmentStatus.ACTIVE)
 
-    def test_create_cash_payment_wrong_amount_raises(self):
-        with self.assertRaises(Exception):
-            self.enrollment.status = EnrollmentStatus.ACTIVE
-            self.enrollment.save()
-            create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
-
-    def test_create_cash_payment_twice_raises(self):
-        create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
-        with self.assertRaises(Exception):
-            create_cash_payment(self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"))
-
-    @patch("apps.academic.services.payment_service.shared_initialize_payment")
-    def test_initialize_online_payment(self, mock_init):
-        mock_init.return_value = {
-            "provider": "chapa", "status": "success", "provider_status": "success",
-            "reference": "ENROLL-abcd1234-abcdef123456", "provider_transaction_id": "tx_123",
-            "amount": Decimal("500.00"), "currency": "ETB",
-            "checkout_url": "https://checkout.chapa.co/pay/test", "raw": {},
-        }
-        payment, checkout_url = initialize_online_payment(
-            actor=self.instructor,
-            enrollment=self.enrollment,
-            amount=Decimal("500.00"),
-            reference="ENROLL-abcd1234-abcdef123456",
-            callback_url="https://example.com/webhook",
-            customer={"email": "student@test.com", "first_name": "Test", "last_name": "Student"},
-        )
-        self.assertEqual(payment.payment_method, PaymentMethod.ONLINE)
-        self.assertEqual(payment.status, PaymentStatus.PENDING)
-        self.assertEqual(payment.payment_provider, "chapa")
-        self.assertIn("checkout.chapa.co", checkout_url)
-
-    @patch("apps.academic.services.payment_service.shared_verify_payment")
-    def test_verify_online_payment_success(self, mock_verify):
-        payment = EnrollmentPayment.objects.create(
-            enrollment=self.enrollment,
-            amount=Decimal("500.00"),
-            payment_method=PaymentMethod.ONLINE,
-            payment_provider=PaymentProvider.CHAPA,
-            transaction_reference="ENROLL-abcd1234-abcdef123456",
-            status=PaymentStatus.PENDING,
-        )
-        mock_verify.return_value = {
-            "provider": "chapa", "status": "success", "provider_status": "success",
-            "reference": "ENROLL-abcd1234-abcdef123456", "provider_transaction_id": "tx_123",
-            "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
-        }
-        result = verify_online_payment(reference="ENROLL-abcd1234-abcdef123456")
-        self.assertEqual(result.status, PaymentStatus.PAID)
-        result.enrollment.refresh_from_db()
-        self.assertEqual(result.enrollment.status, EnrollmentStatus.ACTIVE)
-
-    @patch("apps.academic.services.payment_service.shared_verify_payment")
-    def test_verify_online_payment_amount_mismatch_fails(self, mock_verify):
-        payment = EnrollmentPayment.objects.create(
-            enrollment=self.enrollment,
-            amount=Decimal("500.00"),
-            payment_method=PaymentMethod.ONLINE,
-            payment_provider=PaymentProvider.CHAPA,
-            transaction_reference="ENROLL-a9999999-abcdef123456",
-            status=PaymentStatus.PENDING,
-        )
-        mock_verify.return_value = {
-            "provider": "chapa", "status": "success", "provider_status": "success",
-            "reference": "ENROLL-a9999999-abcdef123456", "provider_transaction_id": "tx_999",
-            "amount": Decimal("100.00"), "currency": "ETB", "raw": {},
-        }
-        with self.assertRaises(DjangoValidationError) as ctx:
-            verify_online_payment(reference="ENROLL-a9999999-abcdef123456")
-        self.assertIn("amount mismatch", str(ctx.exception).lower())
-        payment.refresh_from_db()
-        self.assertEqual(payment.status, PaymentStatus.FAILED)
-        payment.enrollment.refresh_from_db()
-        self.assertEqual(payment.enrollment.status, EnrollmentStatus.CANCELLED)
-
-    @patch("apps.academic.services.payment_service.shared_verify_payment")
-    def test_verify_online_payment_failed_status(self, mock_verify):
-        payment = EnrollmentPayment.objects.create(
-            enrollment=self.enrollment,
-            amount=Decimal("500.00"),
-            payment_method=PaymentMethod.ONLINE,
-            payment_provider=PaymentProvider.CHAPA,
-            transaction_reference="ENROLL-a7777777-abcdef123456",
-            status=PaymentStatus.PENDING,
-        )
-        mock_verify.return_value = {
-            "provider": "chapa", "status": "failed", "provider_status": "failed",
-            "reference": "ENROLL-a7777777-abcdef123456", "provider_transaction_id": "tx_777",
-            "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
-        }
-        result = verify_online_payment(reference="ENROLL-a7777777-abcdef123456")
-        self.assertEqual(result.status, PaymentStatus.FAILED)
-
-    def test_verify_invalid_reference_format_raises(self):
+    def test_record_payment_non_cash_missing_evidence_raises(self):
         with self.assertRaises(DjangoValidationError):
-            verify_online_payment(reference="invalid-ref")
+            record_payment(
+                self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"),
+                payment_method=PaymentMethod.MOBILE_MONEY,
+            )
+
+    def test_record_payment_twice_raises(self):
+        record_payment(
+            self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"),
+            payment_method=PaymentMethod.CASH,
+        )
+        with self.assertRaises(DjangoValidationError):
+            record_payment(
+                self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"),
+                payment_method=PaymentMethod.CASH,
+            )
+
+    def test_record_payment_non_pending_enrollment_raises(self):
+        self.enrollment.status = EnrollmentStatus.ACTIVE
+        self.enrollment.save()
+        with self.assertRaises(DjangoValidationError):
+            record_payment(
+                self.instructor, enrollment=self.enrollment, amount=Decimal("500.00"),
+                payment_method=PaymentMethod.CASH,
+            )
+
+    def test_set_under_review(self):
+        self.enrollment.verification_status = VerificationStatus.SUBMITTED
+        self.enrollment.save()
+        result = set_under_review(self.instructor, enrollment=self.enrollment)
+        self.assertEqual(result.verification_status, VerificationStatus.UNDER_REVIEW)
+
+    def test_set_under_review_not_submitted_raises(self):
+        self.enrollment.verification_status = VerificationStatus.VERIFIED
+        self.enrollment.save()
+        with self.assertRaises(DjangoValidationError):
+            set_under_review(self.instructor, enrollment=self.enrollment)
+
+    def test_reject_payment(self):
+        self.enrollment.verification_status = VerificationStatus.SUBMITTED
+        self.enrollment.save()
+        EnrollmentPayment.objects.create(
+            enrollment=self.enrollment, amount=Decimal("500.00"),
+            payment_method=PaymentMethod.BANK_TRANSFER,
+            transaction_reference="TXN-123",
+            status=PaymentStatus.PENDING,
+        )
+        result = reject_payment(
+            self.instructor, enrollment=self.enrollment,
+            rejection_reason="Transaction not found.",
+        )
+        self.assertEqual(result.verification_status, VerificationStatus.REJECTED)
+        self.assertEqual(result.rejection_reason, "Transaction not found.")
+        self.assertEqual(result.status, EnrollmentStatus.REJECTED)
 
     def test_list_payments(self):
         EnrollmentPayment.objects.create(
@@ -917,7 +1094,7 @@ class AttendanceServiceTest(TestCase):
         self.branch = Branch.objects.create(name="Main Branch", code="MB01")
         self.program = Program.objects.create(name="Test Program", slug="test-program")
         self.sub_program = SubProgram.objects.create(
-            program=self.program, name="Test Sub", slug="test-sub", fee=Decimal("500.00"),
+            program=self.program, name="Test Sub", slug="test-sub", group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.manager = user_service.create_staff_user(
             "manager@test.com", "Branch", "Manager", "StrongP@ssw0rd!2026",
@@ -1005,7 +1182,7 @@ class AttendanceServiceTest(TestCase):
         self.assertEqual(record.enrollment, self.enrollment)
 
     def test_record_attendance_inactive_enrollment_raises(self):
-        self.enrollment.status = EnrollmentStatus.PENDING_PAYMENT
+        self.enrollment.status = EnrollmentStatus.PENDING_VERIFICATION
         self.enrollment.save()
         session = attendance_service.create_session(
             actor=self.instructor, enrolled_class=self.klass,
@@ -1100,7 +1277,7 @@ class ProgressServiceTest(TestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Test Sub", slug="test-sub",
-            fee=Decimal("500.00"),
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
 
         self.manager = user_service.create_staff_user(
@@ -1291,7 +1468,7 @@ class ProgressServiceTest(TestCase):
         )
         other_sub = SubProgram.objects.create(
             program=other_program, name="Other Sub", slug="other-sub",
-            fee=Decimal("300.00"),
+            group_fee=Decimal("300.00"), individual_fee=Decimal("300.00"),
         )
         other_milestone = progress_service.create_milestone(
             actor=self.manager, sub_program=other_sub, title="Other Topic",
@@ -1370,7 +1547,7 @@ class LearningMaterialServiceTest(TestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Material Sub", slug="material-sub",
-            fee=Decimal("500.00"),
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.manager = user_service.create_staff_user(
             "manager-mat@test.com", "Branch", "Manager", "StrongP@ssw0rd!2026",
@@ -1465,7 +1642,7 @@ class LearningMaterialServiceTest(TestCase):
         )
         other_sub = SubProgram.objects.create(
             program=other_program, name="Other Sub", slug="other-sub",
-            fee=Decimal("300.00"),
+            group_fee=Decimal("300.00"), individual_fee=Decimal("300.00"),
         )
         with self.assertRaises(DjangoValidationError):
             learning_material_service.upload_material(
@@ -1579,7 +1756,7 @@ class LearningMaterialServiceTest(TestCase):
         )
         other_sub = SubProgram.objects.create(
             program=other_program, name="Hidden Sub", slug="hidden-sub",
-            fee=Decimal("400.00"),
+            group_fee=Decimal("400.00"), individual_fee=Decimal("400.00"),
         )
         other_file = self._create_temp_file()
         learning_material_service.upload_material(
@@ -1610,7 +1787,7 @@ class CertificateServiceTest(TestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Cert Sub", slug="cert-sub",
-            fee=Decimal("500.00"),
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.manager = user_service.create_staff_user(
             "mgr-cert@test.com", "Branch", "Manager", "StrongP@ssw0rd!2026",
@@ -1789,7 +1966,7 @@ class AcademicReportServiceTest(TestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Report Sub", slug="report-sub",
-            fee=Decimal("300.00"),
+            group_fee=Decimal("300.00"), individual_fee=Decimal("300.00"),
         )
         self.instructor = user_service.create_staff_user(
             "rep-instr@test.com", "Report", "Instructor", "StrongP@ssw0rd!2026",
@@ -1875,3 +2052,268 @@ class AcademicReportServiceTest(TestCase):
         from apps.academic.services.academic_report_service import generate_program_report
         pdf = generate_program_report(self.program.id)
         self.assertTrue(pdf.startswith(b"%PDF"))
+
+
+class TransferServiceTest(TestCase):
+    def setUp(self):
+        self.branch_a = Branch.objects.create(name="Branch A", code="BA01")
+        self.branch_b = Branch.objects.create(name="Branch B", code="BB01")
+        self.program = program_service.create_program(
+            name="Programming", slug="programming", supports_group=True, supports_individual=True,
+        )
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python",
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
+        )
+        self.instructor = user_service.create_staff_user(
+            "inst@test.com", "John", "Doe", "StrongP@ssw0rd!2026", self.branch_a,
+        )
+        self.student_user = user_service.create_student_user(
+            "stud@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch_a,
+        )
+        user_service.activate_user(self.student_user)
+        self.student = Student.objects.create(
+            user=self.student_user, branch=self.branch_a, date_joined=date.today(),
+        )
+
+        self.source_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch_a, instructor=self.instructor,
+            name="Source Class", class_type=ClassType.INDIVIDUAL,
+        )
+        self.target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch_b, instructor=self.instructor,
+            name="Target Class", class_type=ClassType.INDIVIDUAL,
+        )
+
+        self.enrollment = enroll_student(
+            None, student=self.student, enrolled_class=self.source_class,
+        )
+        self.enrollment.status = EnrollmentStatus.ACTIVE
+        self.enrollment.save()
+
+    def test_request_transfer_success(self):
+        transfer = request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        self.assertEqual(transfer.status, BranchTransferRequest.TransferStatus.PENDING)
+        self.assertEqual(transfer.enrollment, self.enrollment)
+        self.assertEqual(transfer.from_branch, self.branch_a)
+        self.assertEqual(transfer.to_branch, self.branch_b)
+
+    def test_request_transfer_non_active_enrollment_raises(self):
+        self.enrollment.status = EnrollmentStatus.PENDING_VERIFICATION
+        self.enrollment.save()
+        with self.assertRaises(DjangoValidationError):
+            request_transfer(
+                self.instructor,
+                enrollment=self.enrollment,
+                target_class=self.target_class,
+                to_branch=self.branch_b,
+            )
+
+    def test_request_transfer_same_branch_raises(self):
+        same_branch_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch_a, instructor=self.instructor,
+            name="Same Branch Class", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            request_transfer(
+                self.instructor,
+                enrollment=self.enrollment,
+                target_class=same_branch_class,
+                to_branch=self.branch_a,
+            )
+
+    def test_request_transfer_inactive_target_raises(self):
+        class_service.deactivate_class(self.target_class)
+        with self.assertRaises(DjangoValidationError):
+            request_transfer(
+                self.instructor,
+                enrollment=self.enrollment,
+                target_class=self.target_class,
+                to_branch=self.branch_b,
+            )
+
+    def test_request_transfer_duplicate_pending_raises(self):
+        request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        with self.assertRaises(DjangoValidationError):
+            request_transfer(
+                self.instructor,
+                enrollment=self.enrollment,
+                target_class=self.target_class,
+                to_branch=self.branch_b,
+            )
+
+    def test_approve_transfer_success(self):
+        transfer = request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        new_enrollment, updated = approve_transfer(self.instructor, transfer_request=transfer)
+        self.assertEqual(updated.status, BranchTransferRequest.TransferStatus.APPROVED)
+        self.assertEqual(new_enrollment.status, EnrollmentStatus.ACTIVE)
+        self.assertEqual(new_enrollment.transferred_from, self.enrollment)
+        self.assertIsNotNone(new_enrollment.enrollment_number)
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, EnrollmentStatus.CANCELLED)
+
+    def test_approve_transfer_non_pending_raises(self):
+        transfer = request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        approve_transfer(self.instructor, transfer_request=transfer)
+        with self.assertRaises(DjangoValidationError):
+            approve_transfer(self.instructor, transfer_request=transfer)
+
+    def test_reject_transfer_success(self):
+        transfer = request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        updated = reject_transfer(
+            self.instructor,
+            transfer_request=transfer,
+            rejection_reason="No available slots.",
+        )
+        self.assertEqual(updated.status, BranchTransferRequest.TransferStatus.REJECTED)
+        self.assertEqual(updated.rejection_reason, "No available slots.")
+
+    def test_reject_transfer_non_pending_raises(self):
+        transfer = request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        reject_transfer(self.instructor, transfer_request=transfer, rejection_reason="No reason")
+        with self.assertRaises(DjangoValidationError):
+            reject_transfer(self.instructor, transfer_request=transfer, rejection_reason="Already rejected")
+
+    def test_list_transfer_requests(self):
+        request_transfer(
+            self.instructor,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        transfers = list_transfer_requests()
+        self.assertEqual(transfers.count(), 1)
+
+
+class SwitchSubProgramServiceTest(TestCase):
+    def setUp(self):
+        self.branch = Branch.objects.create(name="Main Branch", code="MB01")
+        self.program = program_service.create_program(
+            name="Programming", slug="programming", supports_group=True, supports_individual=True,
+        )
+        self.sub_program_a = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python",
+            group_fee=Decimal("300.00"), individual_fee=Decimal("300.00"),
+        )
+        self.sub_program_b = program_service.create_sub_program(
+            program=self.program, name="Java", slug="java",
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
+        )
+        self.instructor = user_service.create_staff_user(
+            "inst2@test.com", "John", "Doe", "StrongP@ssw0rd!2026", self.branch,
+        )
+        self.student_user = user_service.create_student_user(
+            "stud2@test.com", "Test", "Student", "StrongP@ssw0rd!2026", self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+
+        self.current_class = class_service.create_class(
+            sub_program=self.sub_program_a, branch=self.branch, instructor=self.instructor,
+            name="Python Group", class_type=ClassType.INDIVIDUAL,
+        )
+        self.target_class = class_service.create_class(
+            sub_program=self.sub_program_b, branch=self.branch, instructor=self.instructor,
+            name="Java Group", class_type=ClassType.INDIVIDUAL,
+        )
+
+        self.enrollment = enroll_student(
+            None, student=self.student, enrolled_class=self.current_class,
+        )
+        self.enrollment.status = EnrollmentStatus.ACTIVE
+        self.enrollment.save()
+
+    def test_switch_subprogram_success(self):
+        new_enrollment, amount_due = switch_subprogram(
+            self.instructor,
+            current_enrollment=self.enrollment,
+            target_class=self.target_class,
+        )
+        self.assertEqual(new_enrollment.status, EnrollmentStatus.ACTIVE)
+        self.assertEqual(new_enrollment.transferred_from, self.enrollment)
+        self.assertIsNotNone(new_enrollment.enrollment_number)
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, EnrollmentStatus.CANCELLED)
+
+    def test_switch_subprogram_fee_difference(self):
+        new_enrollment, amount_due = switch_subprogram(
+            self.instructor,
+            current_enrollment=self.enrollment,
+            target_class=self.target_class,
+        )
+        self.assertEqual(amount_due, 200)
+
+    def test_switch_subprogram_non_active_raises(self):
+        self.enrollment.status = EnrollmentStatus.PENDING_VERIFICATION
+        self.enrollment.save()
+        with self.assertRaises(DjangoValidationError):
+            switch_subprogram(
+                self.instructor,
+                current_enrollment=self.enrollment,
+                target_class=self.target_class,
+            )
+
+    def test_switch_subprogram_inactive_target_raises(self):
+        class_service.deactivate_class(self.target_class)
+        with self.assertRaises(DjangoValidationError):
+            switch_subprogram(
+                self.instructor,
+                current_enrollment=self.enrollment,
+                target_class=self.target_class,
+            )
+
+    def test_switch_subprogram_different_branch_raises(self):
+        other_branch = Branch.objects.create(name="Other", code="OB99")
+        other_class = class_service.create_class(
+            sub_program=self.sub_program_b, branch=other_branch, instructor=self.instructor,
+            name="Other Branch Class", class_type=ClassType.INDIVIDUAL,
+        )
+        with self.assertRaises(DjangoValidationError):
+            switch_subprogram(
+                self.instructor,
+                current_enrollment=self.enrollment,
+                target_class=other_class,
+            )
+
+    def test_get_all_related_enrollments(self):
+        new_enrollment, _ = switch_subprogram(
+            self.instructor,
+            current_enrollment=self.enrollment,
+            target_class=self.target_class,
+        )
+        related = get_all_related_enrollments(new_enrollment)
+        self.assertEqual(len(related), 2)
+        self.assertEqual(related[0], self.enrollment)
+        self.assertEqual(related[1], new_enrollment)

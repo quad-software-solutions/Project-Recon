@@ -43,11 +43,23 @@ class CheckoutView(generics.GenericAPIView):
                 "phone": data.get("guest_phone", ""),
             }
 
+        payment_data = None
+        pd = data.get("payment", {})
+        if pd and pd.get("payment_method"):
+            payment_data = {
+                "amount": pd.get("amount"),
+                "payment_method": pd.get("payment_method"),
+                "transaction_reference": pd.get("transaction_reference", ""),
+                "bank_name": pd.get("bank_name", ""),
+                "attachment": request.FILES.get("payment_attachment"),
+            }
+
         order = checkout(
             cart,
             data["branch"],
             actor=request.user if request.user.is_authenticated else None,
             guest_info=guest_info,
+            payment_data=payment_data,
         )
         return Response(
             PendingOrderSerializer(order).data,

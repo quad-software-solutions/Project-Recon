@@ -621,7 +621,8 @@ def generate_sub_program_report(sub_program_id):
     info_data = [
         ("Name", sub.name),
         ("Program", sub.program.name),
-        ("Fee", str(sub.fee)),
+        ("Group Fee", str(sub.group_fee)),
+        ("Individual Fee", str(sub.individual_fee)),
         ("Duration", f"{sub.duration} {sub.duration_unit}" if sub.duration else "-"),
         ("Status", "Active" if sub.is_active else "Inactive"),
     ]
@@ -711,7 +712,7 @@ def generate_program_report(program_id):
             rows.append(
                 [
                     s.name,
-                    str(s.fee),
+                    f"Group: {s.group_fee}, Individual: {s.individual_fee}",
                     f"{s.duration} {s.duration_unit}" if s.duration else "-",
                     str(class_count),
                     str(total_enrollments),

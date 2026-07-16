@@ -63,7 +63,8 @@ def create_sub_program(
     description="",
     duration=None,
     duration_unit=None,
-    fee,
+    group_fee,
+    individual_fee=None,
 ):
     if duration_unit and duration_unit not in DurationUnit.values:
         raise DjangoValidationError(f"Invalid duration_unit: {duration_unit}")
@@ -78,7 +79,8 @@ def create_sub_program(
         description=description,
         duration=duration,
         duration_unit=duration_unit,
-        fee=fee,
+        group_fee=group_fee,
+        individual_fee=individual_fee,
     )
     sub_program.full_clean()
     sub_program.save()

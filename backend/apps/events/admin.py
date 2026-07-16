@@ -93,7 +93,7 @@ class WorkshopAdmin(admin.ModelAdmin):
 class EventPaymentInline(admin.StackedInline):
     model = EventPayment
     extra = 0
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "created_at", "updated_at", "verified_by", "verified_at")
 
 
 @admin.register(EventRegistration)
@@ -107,7 +107,12 @@ class EventRegistrationAdmin(admin.ModelAdmin):
 
 @admin.register(EventPayment)
 class EventPaymentAdmin(admin.ModelAdmin):
-    list_display = ("registration", "amount", "payment_method", "status", "payment_date", "created_at")
+    list_display = (
+        "registration", "amount", "payment_method", "status",
+        "verified_by", "verified_at", "payment_date", "created_at",
+    )
     list_filter = ("status", "payment_method")
     search_fields = ("transaction_reference", "registration__event__title")
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = (
+        "id", "verified_by", "verified_at", "created_at", "updated_at",
+    )

@@ -8,6 +8,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/accounts/", include("apps.accounts.api.urls")),
     path("api/v1/audit/", include("apps.shared.audit.api.urls")),
+    path("api/v1/", include("apps.shared.bank.api.urls")),
     path("api/v1/cms/", include("apps.cms.api.urls")),
     path("api/v1/academic/", include("apps.academic.api.urls")),
     path("api/v1/events/", include("apps.events.api.urls")),

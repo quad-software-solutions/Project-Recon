@@ -10,6 +10,10 @@ class EventPaymentSerializer(serializers.ModelSerializer):
     student_email = serializers.EmailField(
         source="registration.student.user.email", read_only=True, default=None
     )
+    verified_by_name = serializers.SerializerMethodField()
+    verified_by_email = serializers.EmailField(
+        source="verified_by.email", read_only=True, default=None
+    )
 
     class Meta:
         model = EventPayment
@@ -22,16 +26,22 @@ class EventPaymentSerializer(serializers.ModelSerializer):
             "student_email",
             "amount",
             "payment_method",
-            "payment_provider",
             "transaction_reference",
+            "bank_name",
+            "attachment",
             "status",
             "payment_date",
+            "verified_by",
+            "verified_by_name",
+            "verified_by_email",
+            "verified_at",
+            "verification_notes",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
-            "id", "payment_provider", "transaction_reference", "status",
-            "payment_date", "created_at", "updated_at",
+            "id", "status", "payment_date", "verified_by",
+            "verified_at", "verification_notes", "created_at", "updated_at",
         ]
 
     def get_student_name(self, obj):
@@ -41,17 +51,37 @@ class EventPaymentSerializer(serializers.ModelSerializer):
             return name or user.email
         return obj.registration.public_full_name
 
+    def get_verified_by_name(self, obj):
+        if obj.verified_by:
+            name = f"{obj.verified_by.first_name} {obj.verified_by.last_name}".strip()
+            return name or obj.verified_by.email
+        return None
+
+
+class PaymentEvidenceSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = serializers.ChoiceField(
+        choices=["CASH", "BANK_TRANSFER", "MOBILE_MONEY", "CHEQUE"]
+    )
+    transaction_reference = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
+    bank_name = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
+    attachment = serializers.FileField(required=False, allow_null=True)
+
 
 class CashPaymentSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     payment_date = serializers.DateTimeField(required=False, allow_null=True)
 
 
-class OnlinePaymentInitializeSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    callback_url = serializers.URLField(max_length=500)
-    return_url = serializers.URLField(max_length=500, required=False, allow_null=True, allow_blank=True)
+class PaymentVerifySerializer(serializers.Serializer):
+    verification_notes = serializers.CharField(
+        required=False, allow_blank=True, default=""
+    )
 
 
-class OnlinePaymentVerifySerializer(serializers.Serializer):
-    reference = serializers.CharField(max_length=255)
+class PaymentRejectSerializer(serializers.Serializer):
+    verification_notes = serializers.CharField()

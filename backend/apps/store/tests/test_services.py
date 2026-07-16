@@ -50,8 +50,12 @@ from apps.store.models.payment import StorePayment
 from apps.store.models.pending_order import PendingOrder, PendingOrderItem
 from apps.store.services.checkout_service import checkout
 from apps.store.services.payment_service import (
-    initialize_store_payment,
-    verify_store_payment,
+    get_payment_or_404,
+    list_payments,
+    record_cash_payment,
+    reject_payment,
+    submit_payment_evidence,
+    verify_payment,
 )
 from apps.store.services.order_service import (
     change_order_status,
@@ -670,104 +674,280 @@ class StorePaymentServiceTest(TestCase):
             email="paytest@test.com",
             password="testpass123",
         )
+        self.verifier = User.objects.create_user(
+            email="verifier@test.com",
+            password="testpass123",
+        )
         self.branch = Branch.objects.create(name="Branch", code="BR")
-        self.order = PendingOrder.objects.create(
+        self.category = ProductCategory.objects.create(name="Category")
+        self.product = Product.objects.create(
+            category=self.category, name="Widget", slug="widget", sku="WDG", price=25
+        )
+        from apps.store.services.branch_inventory_service import add_inventory
+        add_inventory(self.branch, self.product, 50)
+        self.pending_order = PendingOrder.objects.create(
             user=self.user,
             branch=self.branch,
             subtotal=100,
             total=100,
             expires_at=timezone.now() + timedelta(minutes=30),
         )
+        PendingOrderItem.objects.create(
+            pending_order=self.pending_order,
+            product=self.product,
+            quantity=2,
+            unit_price=25.00,
+            subtotal=50.00,
+        )
 
-    def test_initialize_payment_creates_record(self):
-        from unittest.mock import patch
+    # --- submit_payment_evidence ---
 
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-test-ref-123",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            payment = initialize_store_payment(
-                self.order,
-                callback_url="https://example.com/webhook/",
-            )
-        self.assertEqual(payment.pending_order, self.order)
+    def test_submit_evidence_creates_pending_verification_payment(self):
+        payment = submit_payment_evidence(
+            pending_order=self.pending_order,
+            amount=100.00,
+            payment_method="BANK_TRANSFER",
+            transaction_reference="TXN-001",
+            bank_name="Bank of Test",
+            actor=self.user,
+        )
+        self.assertEqual(payment.pending_order, self.pending_order)
         self.assertEqual(float(payment.amount), 100.00)
-        self.assertTrue(payment.transaction_reference.startswith("STORE-"))
-        self.assertIsNotNone(payment.id)
+        self.assertEqual(payment.payment_method, "BANK_TRANSFER")
+        self.assertEqual(payment.transaction_reference, "TXN-001")
+        self.assertEqual(payment.bank_name, "Bank of Test")
+        self.assertEqual(payment.status, "PENDING_VERIFICATION")
+        self.assertIsNone(payment.verified_by)
+        self.assertIsNone(payment.verified_at)
 
-    def test_initialize_payment_raises_if_already_exists(self):
-        from unittest.mock import patch
-
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-test-ref-456",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            initialize_store_payment(
-                self.order,
-                callback_url="https://example.com/webhook/",
-            )
-        from rest_framework.exceptions import ValidationError
-
+    def test_submit_evidence_raises_if_payment_exists(self):
+        submit_payment_evidence(
+            pending_order=self.pending_order,
+            amount=100.00,
+            payment_method="MOBILE_MONEY",
+            transaction_reference="MM-001",
+        )
         with self.assertRaises(ValidationError):
-            initialize_store_payment(
-                self.order,
-                callback_url="https://example.com/webhook/",
+            submit_payment_evidence(
+                pending_order=self.pending_order,
+                amount=100.00,
+                payment_method="CASH",
             )
 
-    def test_verify_store_payment_allows_retry_on_pending(self):
-        from unittest.mock import patch
-
-        with patch(
-            "apps.store.services.payment_service.shared_initialize_payment"
-        ) as mock_init:
-            mock_init.return_value = {
-                "provider": "chapa",
-                "reference": "STORE-test-ref-789",
-                "status": "success",
-                "checkout_url": "https://checkout.test/",
-            }
-            initialize_store_payment(
-                self.order,
-                callback_url="https://example.com/webhook/",
+    def test_submit_evidence_zero_amount_raises_error(self):
+        with self.assertRaises(ValidationError):
+            submit_payment_evidence(
+                pending_order=self.pending_order,
+                amount=0,
+                payment_method="BANK_TRANSFER",
             )
-        payment = self.order.payment
-        payment.status = "PENDING"
-        payment.save(update_fields=["status"])
 
-        with patch(
-            "apps.store.services.payment_service.shared_verify_payment"
-        ) as mock_verify:
-            mock_verify.return_value = {
-                "status": "pending",
-                "reference": payment.transaction_reference,
-                "provider": "chapa",
-                "amount": 100.00,
-                "currency": "ETB",
-            }
-            result = verify_store_payment(payment.transaction_reference)
-        self.assertEqual(result.status, "PENDING")
+    def test_submit_evidence_pending_order_not_found_raises_error(self):
+        from uuid import uuid4
+        with self.assertRaises(NotFound):
+            submit_payment_evidence(
+                pending_order=uuid4(),
+                amount=100,
+                payment_method="BANK_TRANSFER",
+            )
 
-    def test_verify_store_payment_invalid_reference(self):
-        from rest_framework.exceptions import ValidationError
+    # --- record_cash_payment ---
 
+    def test_record_cash_creates_verified_payment_and_order(self):
+        payment = record_cash_payment(
+            pending_order=self.pending_order,
+            amount=100.00,
+            actor=self.verifier,
+        )
+        self.assertEqual(payment.pending_order, self.pending_order)
+        self.assertEqual(float(payment.amount), 100.00)
+        self.assertEqual(payment.payment_method, "CASH")
+        self.assertEqual(payment.status, "VERIFIED")
+        self.assertEqual(payment.verified_by, self.verifier)
+        self.assertIsNotNone(payment.verified_at)
+        order = Order.objects.get(payment_reference=str(payment.id))
+        self.assertEqual(order.status, "PAID")
+
+    def test_record_cash_raises_if_payment_exists(self):
+        record_cash_payment(
+            pending_order=self.pending_order,
+            amount=100.00,
+            actor=self.verifier,
+        )
         with self.assertRaises(ValidationError):
-            verify_store_payment("invalid-ref")
+            record_cash_payment(
+                pending_order=self.pending_order,
+                amount=100.00,
+                actor=self.verifier,
+            )
 
-    def test_verify_store_payment_not_found(self):
-        from rest_framework.exceptions import ValidationError
-
+    def test_record_cash_zero_amount_raises_error(self):
         with self.assertRaises(ValidationError):
-            verify_store_payment("STORE-abc12345-def123456789")
+            record_cash_payment(
+                pending_order=self.pending_order,
+                amount=0,
+                actor=self.verifier,
+            )
+
+    # --- verify_payment ---
+
+    def test_verify_payment_creates_order(self):
+        payment = submit_payment_evidence(
+            pending_order=self.pending_order,
+            amount=100.00,
+            payment_method="BANK_TRANSFER",
+            transaction_reference="TXN-VERIFY",
+        )
+        self.assertEqual(payment.status, "PENDING_VERIFICATION")
+        verified_payment = verify_payment(
+            pending_order=self.pending_order,
+            actor=self.verifier,
+            verification_notes="Looks good",
+        )
+        self.assertEqual(verified_payment.status, "VERIFIED")
+        self.assertEqual(verified_payment.verified_by, self.verifier)
+        self.assertIsNotNone(verified_payment.verified_at)
+        self.assertEqual(verified_payment.verification_notes, "Looks good")
+        order = Order.objects.get(payment_reference="TXN-VERIFY")
+        self.assertEqual(order.status, "PAID")
+
+    def test_verify_payment_no_notes_ok(self):
+        submit_payment_evidence(
+            pending_order=self.pending_order,
+            amount=100.00,
+            payment_method="MOBILE_MONEY",
+            transaction_reference="MM-NOTES",
+        )
+        verified_payment = verify_payment(
+            pending_order=self.pending_order,
+            actor=self.verifier,
+        )
+        self.assertEqual(verified_payment.status, "VERIFIED")
+
+    def test_verify_payment_not_pending_raises_error(self):
+        record_cash_payment(
+            pending_order=self.pending_order,
+            amount=100.00,
+            actor=self.verifier,
+        )
+        with self.assertRaises(ValidationError):
+            verify_payment(
+                pending_order=self.pending_order,
+                actor=self.verifier,
+            )
+
+    def test_verify_payment_no_payment_record_raises_error(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        other = PendingOrder.objects.create(
+            user=self.user,
+            branch=self.branch,
+            subtotal=50,
+            total=50,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        with self.assertRaises(NotFound):
+            verify_payment(
+                pending_order=other,
+                actor=self.verifier,
+            )
+
+    # --- reject_payment ---
+
+    def test_reject_payment_cancels_pending_order(self):
+        payment = submit_payment_evidence(
+            pending_order=self.pending_order,
+            amount=100.00,
+            payment_method="BANK_TRANSFER",
+            transaction_reference="TX-REJECT",
+        )
+        rejected_payment = reject_payment(
+            pending_order=self.pending_order,
+            actor=self.verifier,
+            verification_notes="Suspicious transaction",
+        )
+        self.assertEqual(rejected_payment.status, "REJECTED")
+        self.assertEqual(rejected_payment.verified_by, self.verifier)
+        self.assertIsNotNone(rejected_payment.verified_at)
+        self.assertEqual(
+            rejected_payment.verification_notes, "Suspicious transaction"
+        )
+        self.assertFalse(
+            PendingOrder.objects.filter(pk=self.pending_order.pk).exists()
+        )
+
+    def test_reject_payment_requires_notes(self):
+        submit_payment_evidence(
+            pending_order=self.pending_order,
+            amount=100.00,
+            payment_method="MOBILE_MONEY",
+            transaction_reference="MM-NOTES",
+        )
+        with self.assertRaises(ValidationError):
+            reject_payment(
+                pending_order=self.pending_order,
+                actor=self.verifier,
+                verification_notes="",
+            )
+
+    def test_reject_payment_not_pending_raises_error(self):
+        record_cash_payment(
+            pending_order=self.pending_order,
+            amount=100.00,
+            actor=self.verifier,
+        )
+        with self.assertRaises(ValidationError):
+            reject_payment(
+                pending_order=self.pending_order,
+                actor=self.verifier,
+                verification_notes="Already verified",
+            )
+
+    # --- list_payments / get_payment_or_404 ---
+
+    def test_list_payments_returns_all(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        po2 = PendingOrder.objects.create(
+            user=self.user, branch=self.branch,
+            subtotal=50, total=50,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        submit_payment_evidence(
+            pending_order=self.pending_order, amount=100,
+            payment_method="BANK_TRANSFER",
+            transaction_reference="BT-PO1",
+        )
+        submit_payment_evidence(
+            pending_order=po2, amount=50,
+            payment_method="MOBILE_MONEY",
+            transaction_reference="MM-PO2",
+        )
+        self.assertEqual(list_payments().count(), 2)
+
+    def test_list_payments_filters_by_status(self):
+        submit_payment_evidence(
+            pending_order=self.pending_order, amount=100,
+            payment_method="BANK_TRANSFER",
+            transaction_reference="BT-FILTER",
+        )
+        qs = list_payments(status="PENDING_VERIFICATION")
+        self.assertEqual(qs.count(), 1)
+        qs = list_payments(status="VERIFIED")
+        self.assertEqual(qs.count(), 0)
+
+    def test_get_payment_or_404_returns_payment(self):
+        payment = submit_payment_evidence(
+            pending_order=self.pending_order, amount=100,
+            payment_method="CASH",
+        )
+        fetched = get_payment_or_404(payment.pk)
+        self.assertEqual(fetched.pk, payment.pk)
+
+    def test_get_payment_or_404_raises_not_found(self):
+        from uuid import uuid4
+        with self.assertRaises(NotFound):
+            get_payment_or_404(uuid4())
 
 
 class OrderServiceTest(TestCase):
@@ -777,8 +957,6 @@ class OrderServiceTest(TestCase):
         from django.utils import timezone
 
         from apps.accounts.models import Branch, User
-
-        from apps.store.constants import PaymentStatus
 
         self.user = User.objects.create_user(
             email="ordersvc@test.com",
@@ -796,7 +974,7 @@ class OrderServiceTest(TestCase):
             pending_order=self.pending_order,
             amount=115.00,
             transaction_reference="STORE-ordsvc-ref-001",
-            status=PaymentStatus.PAID,
+            status="VERIFIED",
         )
         self.pending_order.payment_reference = "STORE-ordsvc-ref-001"
         self.pending_order.save(update_fields=["payment_reference"])
@@ -838,7 +1016,7 @@ class OrderServiceTest(TestCase):
             pending_order=unpaid,
             amount=50,
             transaction_reference="STORE-ordsvc-unpaid",
-            status="PENDING",
+            status="PENDING_VERIFICATION",
         )
         with self.assertRaises(ValidationError):
             create_order_from_pending_order(unpaid)
@@ -1010,10 +1188,7 @@ class OrderServiceTest(TestCase):
         self.assertEqual(log_entry.action, "ORDER_STATUS_CHANGED")
         self.assertIn("CANCELLED", log_entry.details.get("new_status", ""))
 
-    def test_refund_order_requires_paid_status(self):
-        from apps.store.constants import PaymentStatus
-        from apps.store.models.payment import StorePayment
-
+    def test_refund_order(self):
         category = ProductCategory.objects.create(name="Category")
         product = Product.objects.create(
             category=category, name="Widget", slug="widget", sku="WDG", price=10
@@ -1028,34 +1203,11 @@ class OrderServiceTest(TestCase):
         add_inventory(self.branch, product, 5)
         order = create_order_from_pending_order(self.pending_order)
 
-        StorePayment.objects.filter(
-            transaction_reference="STORE-ordsvc-ref-001"
-        ).update(status=PaymentStatus.PAID)
-
-        from unittest.mock import patch
-
-        with patch(
-            "apps.shared.payment.payment_service.refund_payment"
-        ) as mock_refund:
-            mock_refund.return_value = {
-                "status": "success",
-                "provider": "chapa",
-                "provider_status": "success",
-                "reference": "STORE-ordsvc-ref-001",
-                "provider_refund_id": "PROVIDER-REF-001",
-                "amount": 115.00,
-                "currency": "ETB",
-                "raw": {},
-            }
-            change_order_status(order, OrderStatus.REFUNDED, actor=self.user)
+        change_order_status(order, OrderStatus.REFUNDED, actor=self.user)
 
         updated = get_order_or_404(order.pk)
         self.assertEqual(updated.status, OrderStatus.REFUNDED)
         self.assertIsNotNone(updated.refunded_at)
-        payment = StorePayment.objects.get(transaction_reference="STORE-ordsvc-ref-001")
-        self.assertEqual(payment.status, PaymentStatus.REFUNDED)
-        self.assertIsNotNone(payment.refunded_at)
-        self.assertEqual(payment.refund_reference, "PROVIDER-REF-001")
 
 
 class NotificationServiceTest(TestCase):
@@ -1065,8 +1217,6 @@ class NotificationServiceTest(TestCase):
         from django.utils import timezone
 
         from apps.accounts.models import Branch, User
-
-        from apps.store.constants import PaymentStatus
 
         self.user = User.objects.create_user(
             email="notify@test.com",
@@ -1090,7 +1240,7 @@ class NotificationServiceTest(TestCase):
             pending_order=self.pending_order,
             amount=115.00,
             transaction_reference="STORE-notify-ref",
-            status=PaymentStatus.PAID,
+            status="VERIFIED",
         )
         self.pending_order.payment_reference = "STORE-notify-ref"
         self.pending_order.save(update_fields=["payment_reference"])

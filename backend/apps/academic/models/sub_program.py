@@ -18,7 +18,8 @@ class SubProgram(models.Model):
     duration_unit = models.CharField(
         max_length=10, choices=DurationUnit.choices, null=True, blank=True
     )
-    fee = models.DecimalField(max_digits=10, decimal_places=2)
+    group_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    individual_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -33,8 +34,10 @@ class SubProgram(models.Model):
         ]
 
     def clean(self):
-        if self.fee is not None and self.fee < 0:
-            raise ValidationError({"fee": "Fee cannot be negative."})
+        if self.group_fee < 0:
+            raise ValidationError({"group_fee": "Fee cannot be negative."})
+        if self.individual_fee is not None and self.individual_fee < 0:
+            raise ValidationError({"individual_fee": "Fee cannot be negative."})
 
     def __str__(self):
         return f"{self.program.name} - {self.name}"

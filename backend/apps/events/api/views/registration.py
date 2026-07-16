@@ -48,7 +48,11 @@ class EventRegisterView(generics.CreateAPIView):
     def _public_registration(self, event_id, request):
         serializer = PublicRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        registration = register_for_event(event_id, serializer.validated_data, actor=request.user if request.user.is_authenticated else None)
+        registration = register_for_event(
+            event_id,
+            serializer.validated_data,
+            actor=request.user if request.user.is_authenticated else None,
+        )
         return Response(
             RegistrationAdminSerializer(registration).data,
             status=status.HTTP_201_CREATED,
@@ -57,6 +61,9 @@ class EventRegisterView(generics.CreateAPIView):
     def _student_registration(self, event_id, request):
         student = Student.objects.get(user=request.user)
         data = {"student": str(student.id)}
+        payment_data = request.data.get("payment")
+        if payment_data:
+            data["payment"] = payment_data
         registration = register_for_event(event_id, data, actor=request.user)
         return Response(
             RegistrationAdminSerializer(registration).data,

@@ -34,7 +34,7 @@ class EventRegistration(models.Model):
     payment_status = models.CharField(
         max_length=20,
         choices=PaymentStatus.choices,
-        default=PaymentStatus.PENDING,
+        default=PaymentStatus.PENDING_VERIFICATION,
         db_index=True,
     )
     registered_at = models.DateTimeField(auto_now_add=True, db_index=True)

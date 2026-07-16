@@ -408,33 +408,59 @@ class StorePaymentModelTest(TestCase):
         )
 
     def test_create_payment(self):
+        from apps.store.constants import PaymentMethod
+
         payment = StorePayment.objects.create(
             pending_order=self.order,
             amount=100.00,
+            payment_method=PaymentMethod.BANK_TRANSFER,
             transaction_reference="STORE-abc12345-def123456789",
+            status="PENDING_VERIFICATION",
         )
         self.assertEqual(payment.pending_order, self.order)
         self.assertEqual(float(payment.amount), 100.00)
-        self.assertEqual(payment.status, "PENDING")
-        self.assertEqual(payment.payment_method, "ONLINE")
+        self.assertEqual(payment.status, "PENDING_VERIFICATION")
+        self.assertEqual(payment.payment_method, PaymentMethod.BANK_TRANSFER)
         self.assertIsNotNone(payment.id)
         self.assertIsNotNone(payment.created_at)
-        self.assertIn("STORE-abc12345-def123456789", str(payment))
+        self.assertIn("Payment for", str(payment))
+        self.assertIn("Pending Verification", str(payment))
 
-    def test_payment_refund_fields(self):
-        from apps.store.constants import PaymentStatus
+    def test_payment_status_choices(self):
         from django.utils import timezone
+
+        from apps.store.constants import PaymentMethod
+
         payment = StorePayment.objects.create(
             pending_order=self.order,
             amount=100.00,
-            transaction_reference="STORE-refund-test-ref",
-            status=PaymentStatus.REFUNDED,
-            refunded_at=timezone.now(),
-            refund_reference="PROVIDER-REFUND-001",
+            payment_method=PaymentMethod.CASH,
+            status="VERIFIED",
         )
-        self.assertEqual(payment.status, PaymentStatus.REFUNDED)
-        self.assertIsNotNone(payment.refunded_at)
-        self.assertEqual(payment.refund_reference, "PROVIDER-REFUND-001")
+        self.assertEqual(payment.status, "VERIFIED")
+        self.assertEqual(payment.payment_method, PaymentMethod.CASH)
+
+    def test_payment_verification_fields(self):
+        from django.utils import timezone
+
+        from apps.accounts.models import User
+
+        verifier = User.objects.create_user(
+            email="verifier@test.com", password="testpass123"
+        )
+        payment = StorePayment.objects.create(
+            pending_order=self.order,
+            amount=100.00,
+            payment_method="CASH",
+            status="VERIFIED",
+            verified_by=verifier,
+            verified_at=timezone.now(),
+            verification_notes="Payment confirmed",
+        )
+        self.assertEqual(payment.status, "VERIFIED")
+        self.assertEqual(payment.verified_by, verifier)
+        self.assertIsNotNone(payment.verified_at)
+        self.assertEqual(payment.verification_notes, "Payment confirmed")
 
 
 class OrderModelTest(TestCase):
@@ -506,18 +532,20 @@ class OrderModelTest(TestCase):
         self.assertIsNotNone(history.changed_at)
         self.assertIn("(none) → PAID", str(history))
 
-    def test_order_unique_payment_reference(self):
-        with self.assertRaises(IntegrityError):
-            Order.objects.create(
-                order_number="ORD-BR-2026-000002",
-                user=self.user,
-                branch=self.branch,
-                payment_reference="STORE-pay-ref-001",
-                subtotal=50,
-                total=50,
-                status=OrderStatus.PAID,
-                paid_at=timezone.now(),
-            )
+    def test_order_non_unique_payment_reference(self):
+        Order.objects.create(
+            order_number="ORD-BR-2026-000002",
+            user=self.user,
+            branch=self.branch,
+            payment_reference="STORE-pay-ref-001",
+            subtotal=50,
+            total=50,
+            status=OrderStatus.PAID,
+            paid_at=timezone.now(),
+        )
+        self.assertEqual(
+            Order.objects.filter(payment_reference="STORE-pay-ref-001").count(), 2
+        )
 
     def test_order_cancelled_and_refunded_timestamps(self):
         from django.utils import timezone

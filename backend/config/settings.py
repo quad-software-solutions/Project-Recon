@@ -154,4 +154,3 @@ SPECTACULAR_SETTINGS = {
 
 # ─── Integration configs (provider selection + credentials) ───
 from config.integrations.email import *  # noqa: F401,F403
-from config.integrations.payment import *  # noqa: F401,F403

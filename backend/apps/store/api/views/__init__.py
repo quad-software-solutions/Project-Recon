@@ -45,8 +45,11 @@ from .order import (
     UserOrderListView,
 )
 from .payment import (
-    PaymentVerifyView,
-    PaymentWebhookView,
+    AdminPaymentCashView,
+    AdminPaymentListView,
+    AdminPaymentRejectView,
+    AdminPaymentVerifyView,
+    PaymentEvidenceSubmitView,
 )
 from .shopping_cart import (
     CartAddItemView,
@@ -99,8 +102,11 @@ __all__ = [
     "CartClearView",
     "CheckoutView",
     "PendingOrderDetailView",
-    "PaymentVerifyView",
-    "PaymentWebhookView",
+    "PaymentEvidenceSubmitView",
+    "AdminPaymentListView",
+    "AdminPaymentVerifyView",
+    "AdminPaymentRejectView",
+    "AdminPaymentCashView",
     "AdminOrderListView",
     "AdminOrderDetailView",
     "AdminOrderStatusView",

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.store.constants import PaymentMethod
 from apps.store.models.pending_order import PendingOrder, PendingOrderItem
 
 
@@ -47,6 +48,24 @@ class PendingOrderSerializer(serializers.ModelSerializer):
         ]
 
 
+class PaymentFieldSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    transaction_reference = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
+    bank_name = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Payment amount must be greater than zero."
+            )
+        return value
+
+
 class CheckoutInputSerializer(serializers.Serializer):
     branch = serializers.UUIDField()
     guest_name = serializers.CharField(
@@ -58,6 +77,7 @@ class CheckoutInputSerializer(serializers.Serializer):
     guest_phone = serializers.CharField(
         max_length=20, required=False, allow_blank=True, default=""
     )
+    payment = PaymentFieldSerializer(required=False, allow_null=True)
 
     def validate(self, attrs):
         request = self.context.get("request")

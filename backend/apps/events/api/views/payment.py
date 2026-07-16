@@ -1,25 +1,31 @@
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.events.api.permissions import IsEventRegistrationStaff, IsEventStaff
+from apps.events.api.permissions import IsEventRegistrationStaff
 from apps.events.api.serializers import (
     CashPaymentSerializer,
     EventPaymentSerializer,
-    OnlinePaymentInitializeSerializer,
-    OnlinePaymentVerifySerializer,
+    PaymentRejectSerializer,
+    PaymentVerifySerializer,
 )
 from apps.events.services.event_payment_service import (
-    initialize_online_payment,
+    list_payments,
     record_cash_payment,
-    verify_online_payment,
+    reject_payment,
+    verify_payment,
 )
 from apps.events.services.registration_service import get_registration_or_404
 
 
 @extend_schema_view(
-    post=extend_schema(tags=["Events - Admin - Payments"], summary="Record cash payment", description="Record a cash payment for a registration."),
+    post=extend_schema(
+        tags=["Events - Admin - Payments"],
+        summary="Record cash payment",
+        description="Record a cash payment for a registration. "
+                    "The payment is immediately marked as VERIFIED and the "
+                    "registration is approved.",
+    ),
 )
 class AdminCashPaymentView(generics.CreateAPIView):
     permission_classes = [IsEventRegistrationStaff]
@@ -42,71 +48,86 @@ class AdminCashPaymentView(generics.CreateAPIView):
 
 
 @extend_schema_view(
-    post=extend_schema(tags=["Events - Admin - Payments"], summary="Initialize online payment", description="Initialize an online payment for a registration via the configured payment provider."),
+    post=extend_schema(
+        tags=["Events - Admin - Payments"],
+        summary="Verify payment",
+        description="Verify a pending payment. Marks the payment as VERIFIED "
+                    "and approves the registration.",
+    ),
 )
-class AdminOnlinePaymentInitializeView(generics.CreateAPIView):
-    permission_classes = [IsEventStaff]
+class AdminPaymentVerifyView(generics.CreateAPIView):
+    permission_classes = [IsEventRegistrationStaff]
 
     def create(self, request, *args, **kwargs):
         registration = get_registration_or_404(kwargs["pk"])
         self.check_object_permissions(request, registration)
-        serializer = OnlinePaymentInitializeSerializer(data=request.data)
+        serializer = PaymentVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        customer = {
-            "email": request.user.email,
-            "first_name": request.user.first_name,
-            "last_name": request.user.last_name,
-        }
-
-        payment, checkout_url = initialize_online_payment(
+        payment = verify_payment(
             registration,
-            serializer.validated_data["amount"],
-            callback_url=serializer.validated_data["callback_url"],
-            return_url=serializer.validated_data.get("return_url"),
-            customer=customer,
             actor=request.user,
+            verification_notes=serializer.validated_data.get("verification_notes", ""),
         )
         return Response(
-            {
-                "payment": EventPaymentSerializer(payment).data,
-                "checkout_url": checkout_url,
-            },
-            status=status.HTTP_201_CREATED,
+            EventPaymentSerializer(payment).data,
+            status=status.HTTP_200_OK,
         )
 
 
 @extend_schema_view(
-    post=extend_schema(tags=["Events - Payments"], summary="Verify online payment", description="Verify the status of an online payment using its transaction reference."),
+    post=extend_schema(
+        tags=["Events - Admin - Payments"],
+        summary="Reject payment",
+        description="Reject a pending payment. Marks the payment as REJECTED "
+                    "and rejects the registration. Verification notes are required.",
+    ),
 )
-class OnlinePaymentVerifyView(generics.CreateAPIView):
-    permission_classes = [AllowAny]
+class AdminPaymentRejectView(generics.CreateAPIView):
+    permission_classes = [IsEventRegistrationStaff]
 
     def create(self, request, *args, **kwargs):
-        serializer = OnlinePaymentVerifySerializer(data=request.data)
+        registration = get_registration_or_404(kwargs["pk"])
+        self.check_object_permissions(request, registration)
+        serializer = PaymentRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        payment = verify_online_payment(
-            reference=serializer.validated_data["reference"]
+        payment = reject_payment(
+            registration,
+            actor=request.user,
+            verification_notes=serializer.validated_data["verification_notes"],
         )
-        return Response(EventPaymentSerializer(payment).data)
+        return Response(
+            EventPaymentSerializer(payment).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 @extend_schema_view(
-    post=extend_schema(tags=["Events - Payments"], summary="Payment webhook", description="Webhook endpoint for payment provider callbacks."),
+    get=extend_schema(
+        tags=["Events - Admin - Payments"],
+        summary="List payments",
+        description="Retrieve the payment queue, optionally filtered by event and status. "
+                    "This is the Pending Verification Queue.",
+        parameters=[
+            OpenApiParameter(
+                name="event",
+                description="Filter by event ID",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="status",
+                description="Filter by payment status",
+                required=False,
+                type=str,
+            ),
+        ],
+    ),
 )
-class OnlinePaymentWebhookView(generics.CreateAPIView):
-    permission_classes = [AllowAny]
+class AdminPaymentListView(generics.ListAPIView):
+    permission_classes = [IsEventRegistrationStaff]
+    serializer_class = EventPaymentSerializer
 
-    def create(self, request, *args, **kwargs):
-        reference = (
-            request.data.get("tx_ref")
-            or request.data.get("reference")
-        )
-        if reference:
-            try:
-                verify_online_payment(reference=reference)
-            except Exception as e:
-                logger = __import__("logging").getLogger(__name__)
-                logger.error("Webhook verification error: %s", e)
-
-        return Response({"status": "ok"}, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        event_id = self.request.query_params.get("event")
+        status_filter = self.request.query_params.get("status")
+        return list_payments(event_id=event_id, status=status_filter)

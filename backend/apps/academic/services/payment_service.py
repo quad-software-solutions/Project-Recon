@@ -1,65 +1,28 @@
 import logging
-import re
-from django.utils import timezone
+from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from apps.academic.constants import (
     EnrollmentStatus,
     PaymentMethod,
-    PaymentProvider,
     PaymentStatus,
+    VerificationStatus,
 )
 from apps.academic.models import EnrollmentPayment, Enrollment
+from apps.academic.services.enrollment_service import _generate_enrollment_number
 from apps.shared.audit.services import log_action
-from apps.shared.payment.payment_service import (
-    initialize_payment as shared_initialize_payment,
-    verify_payment as shared_verify_payment,
-)
-from apps.shared.payment.exceptions import PaymentError
 
 logger = logging.getLogger(__name__)
-
-REFERENCE_PATTERN = re.compile(r"^ENROLL-[a-f0-9]{8}-[a-f0-9]{12}$")
-
-
-def _flag_fraud(payment, enrollment, reason):
-    logger.critical(
-        "FRAUD DETECTED: payment=%s enrollment=%s reason=%s",
-        payment.id,
-        enrollment.id,
-        reason,
-    )
-    payment.status = PaymentStatus.FAILED
-    payment.save(update_fields=["status"])
-    enrollment.status = EnrollmentStatus.CANCELLED
-    enrollment.save(update_fields=["status"])
-    log_action(
-        actor=None,
-        action="payment.fraud_detected",
-        resource_type="EnrollmentPayment",
-        resource_id=payment.id,
-        branch=enrollment.enrolled_class.branch,
-        details={"reason": reason},
-    )
 
 
 def get_payment_or_404(pk):
     return get_object_or_404(
         EnrollmentPayment.objects.select_related("enrollment__student__user"),
         pk=pk,
-    )
-
-
-def get_payment_by_reference(reference):
-    return get_object_or_404(
-        EnrollmentPayment.objects.select_related(
-            "enrollment__student__user",
-            "enrollment__enrolled_class__sub_program",
-        ),
-        transaction_reference=reference,
     )
 
 
@@ -70,192 +33,131 @@ def list_payments():
     ).all()
 
 
-def create_cash_payment(actor, *, enrollment, amount, payment_date=None):
+def record_payment(
+    actor, *, enrollment, amount, payment_method, payment_date=None,
+    transaction_reference="", bank_name="", transfer_reference="",
+    attachment=None, verification_notes="",
+):
     enrollment = Enrollment.objects.select_related(
-        "enrolled_class__sub_program"
+        "enrolled_class__sub_program", "enrolled_class__branch"
     ).get(pk=enrollment.pk)
 
-    if enrollment.status != EnrollmentStatus.PENDING_PAYMENT:
+    if enrollment.status != EnrollmentStatus.PENDING_VERIFICATION:
         raise ValidationError(
-            "Cash payments can only be recorded for enrollments pending payment."
+            "Payments can only be recorded for enrollments pending verification."
         )
 
     if hasattr(enrollment, "payment"):
         raise ValidationError("This enrollment already has a payment record.")
 
+    if payment_method != PaymentMethod.CASH:
+        if not transaction_reference and not attachment:
+            raise ValidationError(
+                "At least a transaction reference or payment attachment "
+                "is required for non-cash payments."
+            )
+
     with transaction.atomic():
         payment = EnrollmentPayment(
             enrollment=enrollment,
             amount=amount,
-            payment_method=PaymentMethod.CASH,
-            payment_provider=None,
+            payment_method=payment_method,
+            transaction_reference=transaction_reference,
+            bank_name=bank_name,
+            transfer_reference=transfer_reference,
+            attachment=attachment,
             status=PaymentStatus.PAID,
             payment_date=payment_date or timezone.now(),
+            verified_by=actor,
+            verified_at=timezone.now(),
+            verification_notes=verification_notes,
         )
         payment.full_clean()
         payment.save()
 
+        branch_code = enrollment.enrolled_class.branch.code if hasattr(
+            enrollment.enrolled_class.branch, "code"
+        ) else "GEN"
+        year = timezone.now().year
+        enrollment.enrollment_number = _generate_enrollment_number(branch_code, year)
         enrollment.status = EnrollmentStatus.ACTIVE
-        enrollment.save(update_fields=["status"])
+        enrollment.verification_status = VerificationStatus.VERIFIED
+        enrollment.pending_code = None
+        enrollment.save(
+            update_fields=[
+                "enrollment_number", "status", "verification_status", "pending_code"
+            ]
+        )
 
     log_action(
         actor=actor,
-        action="payment.cash_created",
+        action="payment.recorded",
         resource_type="EnrollmentPayment",
         resource_id=payment.id,
         branch=enrollment.enrolled_class.branch,
     )
 
+    # TODO: send approved email with enrollment_number
+
     return payment
 
 
-def initialize_online_payment(
-    *,
-    actor=None,
-    enrollment,
-    amount,
-    reference,
-    callback_url,
-    return_url=None,
-    customer,
-):
+def reject_payment(actor, *, enrollment, rejection_reason):
     enrollment = Enrollment.objects.select_related(
-        "enrolled_class__sub_program", "student__user"
+        "enrolled_class__branch"
     ).get(pk=enrollment.pk)
 
-    if enrollment.status != EnrollmentStatus.PENDING_PAYMENT:
-        raise ValidationError(
-            "Online payments can only be initialized for enrollments pending payment."
-        )
-
-    if hasattr(enrollment, "payment"):
-        raise ValidationError("This enrollment already has a payment record.")
-
-    if amount <= 0:
-        raise ValidationError("Payment amount must be greater than zero.")
+    if enrollment.verification_status == VerificationStatus.REJECTED:
+        raise ValidationError("Enrollment has already been rejected.")
 
     with transaction.atomic():
-        payment = EnrollmentPayment(
-            enrollment=enrollment,
-            amount=amount,
-            payment_method=PaymentMethod.ONLINE,
-            payment_provider=None,
-            transaction_reference=reference,
-            status=PaymentStatus.PENDING,
+        enrollment.verification_status = VerificationStatus.REJECTED
+        enrollment.rejection_reason = rejection_reason
+        enrollment.status = EnrollmentStatus.REJECTED
+        enrollment.save(
+            update_fields=["verification_status", "rejection_reason", "status", "updated_at"]
         )
-        payment.save()
 
         try:
-            result = shared_initialize_payment(
-                amount=amount,
-                currency="ETB",
-                reference=reference,
-                callback_url=callback_url,
-                customer=customer,
-                return_url=return_url,
-            )
-        except PaymentError as e:
-            payment.status = PaymentStatus.FAILED
-            payment.save(update_fields=["status"])
-            raise ValidationError(f"Payment initialization failed: {e}")
-
-        payment.payment_provider = result["provider"]
-        payment.transaction_reference = result["reference"]
-        payment.save(update_fields=["payment_provider", "transaction_reference"])
+            payment = enrollment.payment
+            payment.status = PaymentStatus.CANCELLED
+            payment.save(update_fields=["status", "updated_at"])
+        except EnrollmentPayment.DoesNotExist:
+            pass
 
     log_action(
         actor=actor,
-        action="payment.online_initialized",
-        resource_type="EnrollmentPayment",
-        resource_id=payment.id,
+        action="payment.rejected",
+        resource_type="Enrollment",
+        resource_id=enrollment.id,
+        branch=enrollment.enrolled_class.branch,
+        details={"reason": rejection_reason},
+    )
+
+    # TODO: send rejection email
+
+    return enrollment
+
+
+def set_under_review(actor, *, enrollment):
+    enrollment = Enrollment.objects.select_related(
+        "enrolled_class__branch"
+    ).get(pk=enrollment.pk)
+
+    if enrollment.verification_status != VerificationStatus.SUBMITTED:
+        raise ValidationError(
+            "Only submitted enrollments can be marked as under review."
+        )
+
+    enrollment.verification_status = VerificationStatus.UNDER_REVIEW
+    enrollment.save(update_fields=["verification_status", "updated_at"])
+
+    log_action(
+        actor=actor,
+        action="payment.under_review",
+        resource_type="Enrollment",
+        resource_id=enrollment.id,
         branch=enrollment.enrolled_class.branch,
     )
 
-    return payment, result["checkout_url"]
-
-
-def verify_online_payment(*, reference):
-    if not REFERENCE_PATTERN.match(reference):
-        raise ValidationError("Invalid payment reference format.")
-
-    payment = get_payment_by_reference(reference)
-    enrollment = payment.enrollment
-
-    if payment.status == PaymentStatus.PAID:
-        return payment
-
-    if payment.status != PaymentStatus.PENDING:
-        raise ValidationError(
-            f"Cannot verify payment in status '{payment.status}'."
-        )
-
-    if enrollment.status != EnrollmentStatus.PENDING_PAYMENT:
-        raise ValidationError(
-            "Enrollment is not in a payable state."
-        )
-
-    try:
-        result = shared_verify_payment(reference)
-    except PaymentError as e:
-        logger.error("Payment verification infrastructure error: %s", e)
-        raise ValidationError("Payment verification temporarily unavailable.")
-
-    if result["amount"] is not None and result["amount"] != payment.amount:
-        _flag_fraud(payment, enrollment, reason="amount_mismatch")
-        raise ValidationError("Payment amount mismatch detected.")
-
-    expected_fee = enrollment.enrolled_class.sub_program.fee
-    if payment.amount != expected_fee:
-        _flag_fraud(payment, enrollment, reason="fee_tampered")
-        raise ValidationError("Payment fee mismatch detected.")
-
-    if result.get("currency") and result["currency"] not in ("ETB",):
-        _flag_fraud(payment, enrollment, reason="currency_mismatch")
-        raise ValidationError("Payment currency mismatch detected.")
-
-    with transaction.atomic():
-        if result["status"] == "success":
-            payment.status = PaymentStatus.PAID
-            payment.payment_date = timezone.now()
-            payment.payment_provider = result.get("provider", payment.payment_provider)
-            payment.save()
-
-            enrollment.status = EnrollmentStatus.ACTIVE
-            enrollment.save(update_fields=["status"])
-
-            if not enrollment.student.user.is_email_verified:
-                user = enrollment.student.user
-                user.is_email_verified = True
-                user.save(update_fields=["is_email_verified"])
-
-            log_action(
-                actor=None,
-                action="payment.verified_success",
-                resource_type="EnrollmentPayment",
-                resource_id=payment.id,
-                branch=enrollment.enrolled_class.branch,
-                details={"reference": reference},
-            )
-
-        elif result["status"] in ("failed", "cancelled"):
-            payment.status = PaymentStatus.FAILED
-            payment.save(update_fields=["status"])
-
-            log_action(
-                actor=None,
-                action="payment.verified_failed",
-                resource_type="EnrollmentPayment",
-                resource_id=payment.id,
-                branch=enrollment.enrolled_class.branch,
-                details={"reference": reference, "provider_status": result.get("provider_status")},
-            )
-
-        else:
-            logger.info(
-                "Payment %s still pending after verification. reference=%s status=%s",
-                payment.id,
-                reference,
-                result["status"],
-            )
-
-    return payment
+    return enrollment

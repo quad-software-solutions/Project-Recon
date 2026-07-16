@@ -1,9 +1,10 @@
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.events.constants import PaymentMethod, PaymentProvider, PaymentStatus
+from apps.events.constants import PaymentMethod, PaymentStatus
 
 
 class EventPayment(models.Model):
@@ -15,29 +16,36 @@ class EventPayment(models.Model):
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=PaymentMethod.choices,
         db_index=True,
     )
-    payment_provider = models.CharField(
-        max_length=10,
-        choices=PaymentProvider.choices,
-        null=True,
-        blank=True,
-    )
     transaction_reference = models.CharField(
         max_length=255,
-        null=True,
         blank=True,
+        default="",
         db_index=True,
+    )
+    bank_name = models.CharField(max_length=255, blank=True, default="")
+    attachment = models.FileField(
+        upload_to="payment_attachments/", null=True, blank=True
     )
     payment_date = models.DateTimeField(null=True, blank=True, db_index=True)
     status = models.CharField(
         max_length=20,
         choices=PaymentStatus.choices,
-        default=PaymentStatus.PENDING,
+        default=PaymentStatus.PENDING_VERIFICATION,
         db_index=True,
     )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="verified_event_payments",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -51,7 +59,9 @@ class EventPayment(models.Model):
     def clean(self):
         if self.amount is not None and self.amount <= 0:
             raise ValidationError({"amount": "Payment amount must be greater than zero."})
-        if self.payment_method == PaymentMethod.ONLINE and not self.payment_provider:
-            raise ValidationError(
-                {"payment_provider": "Payment provider is required for online payments."}
-            )
+        if self.payment_method != PaymentMethod.CASH:
+            if not self.transaction_reference and not self.attachment:
+                raise ValidationError(
+                    "At least a transaction reference or payment attachment "
+                    "is required for non-cash payments."
+                )

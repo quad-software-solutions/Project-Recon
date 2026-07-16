@@ -1,7 +1,6 @@
 import logging
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -14,7 +13,29 @@ from apps.store.services.branch_inventory_service import validate_stock
 logger = logging.getLogger(__name__)
 
 
-def checkout(cart, branch_input, actor=None, guest_info: dict = None) -> PendingOrder:
+def checkout(cart, branch_input, actor=None, guest_info: dict = None, payment_data: dict = None) -> PendingOrder:
+    """
+    Checkout: create a PendingOrder from a shopping cart.
+
+    If payment_data is provided (customer submits evidence during checkout),
+    a StorePayment is created in PENDING_VERIFICATION status.
+
+    Args:
+        cart: ShoppingCart instance.
+        branch_input: Branch UUID or Branch instance.
+        actor: Optional User performing the action.
+        guest_info: Optional dict with guest name/email/phone.
+        payment_data: Optional dict with payment evidence fields
+                      (amount, payment_method, transaction_reference,
+                       bank_name, attachment).
+
+    Returns:
+        Created PendingOrder instance.
+
+    Raises:
+        ValidationError: If cart is empty, products unavailable,
+                         or insufficient stock.
+    """
     items_qs = cart.items.select_related("product__category")
     if not items_qs.exists():
         raise ValidationError("Cannot checkout with an empty cart.")
@@ -70,20 +91,18 @@ def checkout(cart, branch_input, actor=None, guest_info: dict = None) -> Pending
                 subtotal=float(cart_item.product.price) * cart_item.quantity,
             )
 
-        callback_url = getattr(settings, "STORE_PAYMENT_CALLBACK_URL", "")
-        return_url = getattr(settings, "STORE_PAYMENT_RETURN_URL", "")
+        if payment_data:
+            from apps.store.services.payment_service import submit_payment_evidence
 
-        from apps.store.services.payment_service import initialize_store_payment
-
-        try:
-            initialize_store_payment(
+            submit_payment_evidence(
                 pending_order=order,
-                callback_url=callback_url,
-                return_url=return_url,
+                amount=payment_data.get("amount"),
+                payment_method=payment_data.get("payment_method"),
+                transaction_reference=payment_data.get("transaction_reference", ""),
+                bank_name=payment_data.get("bank_name", ""),
+                attachment=payment_data.get("attachment"),
                 actor=actor,
             )
-        except ValidationError as e:
-            logger.warning("Payment initialization failed: %s", e)
 
         cart.items.all().delete()
 

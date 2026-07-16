@@ -11,6 +11,7 @@ from apps.academic.models.learning_milestone import LearningMilestone
 from apps.academic.models.learning_material import LearningMaterial
 from apps.academic.models.student_progress import StudentProgress
 from apps.academic.models.certificate import Certificate, StudentCertificate
+from apps.academic.models.branch_transfer_request import BranchTransferRequest
 
 __all__ = [
     "Program",
@@ -29,4 +30,5 @@ __all__ = [
     "StudentProgress",
     "Certificate",
     "StudentCertificate",
+    "BranchTransferRequest",
 ]

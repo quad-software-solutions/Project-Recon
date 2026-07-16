@@ -125,24 +125,17 @@ class OnlineEnrollmentView(generics.GenericAPIView):
             ClassModel.objects.select_related("sub_program__program", "branch"),
             pk=data.pop("enrolled_class"),
         )
-        callback_url = data.pop("callback_url")
-        return_url = data.pop("return_url", None)
 
         try:
-            enrollment, checkout_url = online_enrollment(
+            enrollment = online_enrollment(
                 user=request.user if request.user.is_authenticated else None,
                 enrolled_class=enrolled_class,
-                callback_url=callback_url,
-                return_url=return_url,
                 **data,
             )
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
 
         return Response(
-            {
-                "enrollment": EnrollmentSerializer(enrollment).data,
-                "checkout_url": checkout_url,
-            },
+            EnrollmentSerializer(enrollment).data,
             status=status.HTTP_201_CREATED,
         )

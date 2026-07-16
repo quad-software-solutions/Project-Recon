@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.events.constants import RegistrationMode, RegistrationStatus
+from apps.events.constants import PaymentMethod, RegistrationMode, RegistrationStatus
 from apps.events.models import Event
 
 
@@ -119,6 +119,38 @@ class RegistrationValidator:
                 qs = qs.exclude(id=exclude_id)
             if qs.exists():
                 raise ValidationError("A registration with this email already exists for this event.")
+
+    @staticmethod
+    def validate_payment_evidence(event, payment_data):
+        """
+        Ensure payment evidence is provided when payment is required.
+
+        Args:
+            event: Event instance.
+            payment_data: Optional dict with payment evidence fields.
+
+        Raises:
+            ValidationError: If payment is required but evidence is missing
+                             or invalid.
+        """
+        if not event.payment_required:
+            return
+
+        if not payment_data:
+            raise ValidationError(
+                "Payment is required for this event. "
+                "Please provide payment evidence."
+            )
+
+        payment_method = payment_data.get("payment_method")
+        if payment_method and payment_method != PaymentMethod.CASH:
+            transaction_reference = payment_data.get("transaction_reference")
+            attachment = payment_data.get("attachment")
+            if not transaction_reference and not attachment:
+                raise ValidationError(
+                    "At least a transaction reference or payment attachment "
+                    "is required for non-cash payments."
+                )
 
     @staticmethod
     def validate_event_visibility(event):
