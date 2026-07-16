@@ -19,3 +19,9 @@ export async function listProducts(filters?: ProductFilters): Promise<Product[]>
 export async function getProduct(id: string): Promise<Product | undefined> {
   return await http.get<Product>(`${BASE}/${id}/`);
 }
+
+export async function getProductBySlug(slug: string): Promise<Product | undefined> {
+  const products = await listProducts({ search: slug });
+  return products.find(p => p.slug === slug || p.name.toLowerCase() === slug.toLowerCase());
+}
+

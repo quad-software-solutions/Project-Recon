@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, Users, Loader2,
-  BarChart3, TrendingUp, TrendingDown, Search, UserCheck, UserX, AlertTriangle, CreditCard,
-  ChevronDown, FileText, RefreshCw, X, Award
+  Calendar, ChevronLeft, ChevronRight, Clock, Users, Loader2,
+  BarChart3, TrendingUp, Search, UserCheck, UserX,
+  ChevronDown, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
@@ -82,16 +82,6 @@ export default function AttendanceHistory({ classId = '' }: Props) {
         total: (s.records_count || s.students_present || 0) + (s.absent_count || 0),
         rate: ((s.records_count || s.students_present || 0) / Math.max(1, (s.records_count || s.students_present || 0) + (s.absent_count || 0))) * 100,
       }));
-  }, [monthSessions]);
-
-  const studentAttendanceRate = useMemo(() => {
-    const studentMap: Record<string, { present: number; total: number; name: string }> = {};
-    monthSessions.forEach(s => {
-      const present = s.records_count || s.students_present || 0;
-      const absent = s.absent_count || 0;
-      const total = present + absent;
-    });
-    return studentMap;
   }, [monthSessions]);
 
   const changeMonth = (delta: number) => {

@@ -31,7 +31,7 @@ export default function AboutUsManager({ addToast }: Props) {
   const load = async () => {
     setLoading(true);
     try { setItems(await api.getAll<AboutUs>('about')); }
-    catch { setItems([]); }
+    catch { setItems([]); addToast('Failed to load about us data', 'error'); }
     setLoading(false);
   };
 
@@ -53,10 +53,7 @@ export default function AboutUsManager({ addToast }: Props) {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!editing?.title?.trim()) errors.title = 'Title is required';
-    if (!editing?.imageUrl?.trim()) errors.imageUrl = 'Image URL is required';
     if (!editing?.content?.trim()) errors.content = 'Content is required';
-    if (!editing?.mission?.trim()) errors.mission = 'Mission is required';
-    if (!editing?.vision?.trim()) errors.vision = 'Vision is required';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -152,7 +149,7 @@ export default function AboutUsManager({ addToast }: Props) {
               <Field label="Title" value={editing.title ?? ''} onChange={v => { setEditing({ ...editing, title: v }); clearError('title'); }} error={formErrors.title} required placeholder="e.g. Our Story, Mission & Vision" />
               <div className="flex items-center gap-2">
                 <div className="flex-1">
-                  <Field label="Image URL" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} required placeholder="e.g. https://example.com/about.jpg" />
+                  <Field label="Image" value={editing.imageUrl ?? ''} onChange={v => { setEditing({ ...editing, imageUrl: v }); clearError('imageUrl'); }} error={formErrors.imageUrl} placeholder="Image URL or upload below" />
                 </div>
                 <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
                 <button type="button" onClick={() => imageInputRef.current?.click()}
@@ -166,8 +163,8 @@ export default function AboutUsManager({ addToast }: Props) {
                 </div>
               )}
               <Textarea label="Content" value={editing.content ?? ''} onChange={v => { setEditing({ ...editing, content: v }); clearError('content'); }} error={formErrors.content} required placeholder="e.g. We are dedicated to empowering the next generation of innovators..." />
-              <Textarea label="Mission" value={editing.mission ?? ''} onChange={v => { setEditing({ ...editing, mission: v }); clearError('mission'); }} error={formErrors.mission} required placeholder="e.g. To inspire and equip students with STEM skills..." />
-              <Textarea label="Vision" value={editing.vision ?? ''} onChange={v => { setEditing({ ...editing, vision: v }); clearError('vision'); }} error={formErrors.vision} required placeholder="e.g. A world where every student has access to quality STEM education..." />
+              <Textarea label="Mission" value={editing.mission ?? ''} onChange={v => { setEditing({ ...editing, mission: v }); clearError('mission'); }} error={formErrors.mission} placeholder="e.g. To inspire and equip students with STEM skills..." />
+              <Textarea label="Vision" value={editing.vision ?? ''} onChange={v => { setEditing({ ...editing, vision: v }); clearError('vision'); }} error={formErrors.vision} placeholder="e.g. A world where every student has access to quality STEM education..." />
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={editing.isActive ?? true} onChange={e => setEditing({ ...editing, isActive: e.target.checked })} className="rounded" />
                 Active

@@ -21,13 +21,14 @@ const PREFIX = '/cms/admin';
 
 const STATUS_TO_BACKEND: Record<string, string> = {
   pending: 'OPEN',
+  'in-progress': 'IN_PROGRESS',
   resolved: 'RESOLVED',
   archived: 'CLOSED',
 };
 
 const STATUS_TO_UI: Record<string, string> = {
   OPEN: 'pending',
-  IN_PROGRESS: 'pending',
+  IN_PROGRESS: 'in-progress',
   RESOLVED: 'resolved',
   CLOSED: 'archived',
 };
@@ -177,11 +178,19 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
     for (const k of keys) {
       if (has(k)) { val = source[k]; break; }
     }
-    // If it's an image field and it's a URL, don't send it to backend to avoid File validation error
-    if (backendKey === 'image' && typeof val === 'string' && val.startsWith('http')) {
+    // Skip image field if null/empty or existing URL (keeps backend value unchanged)
+    if (backendKey === 'image' && (!val || (typeof val === 'string' && val.startsWith('http')))) {
       continue;
     }
     result[backendKey] = val ?? null;
+  }
+
+  // normalize type for news
+  if (endpoint === 'news' && result.type) {
+    result.type = String(result.type).toUpperCase();
+    if (!['NEWS', 'ANNOUNCEMENT'].includes(result.type as string)) {
+      result.type = 'NEWS';
+    }
   }
 
   // slug is a computed field for news and about

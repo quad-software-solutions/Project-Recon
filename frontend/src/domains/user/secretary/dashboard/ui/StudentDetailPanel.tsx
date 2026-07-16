@@ -24,7 +24,7 @@ export default function StudentDetailPanel() {
   const loadStudentDetail = async (student: StudentProfile) => {
     setSelectedStudent(student);
     setDetailLoading(true);
-    const sid = student.id || (student as any).user;
+    const sid = student.id || student.user;
     try {
       const [enr, att, prog, certs] = await Promise.all([
         fetchEnrollmentsApi(sid).catch(() => []),

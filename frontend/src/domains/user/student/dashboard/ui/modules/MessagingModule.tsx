@@ -7,6 +7,7 @@ import TabBar from '../../../shared/ui/TabBar';
 import EmptyState from '../../../shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 import ParentFeedback from '../ParentFeedback';
+import type { UserProfile } from '@/shared/types';
 
 interface NewsItem {
   id: string;
@@ -16,7 +17,11 @@ interface NewsItem {
   category?: string;
 }
 
-export default function MessagingModule() {
+interface Props {
+  currentUser?: UserProfile;
+}
+
+export default function MessagingModule({ currentUser }: Props) {
   const [tab, setTab] = useState('announcements');
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +111,7 @@ export default function MessagingModule() {
               <p className="text-xs text-slate-600 mt-0.5">Submit a support request and our team will get back to you.</p>
             </div>
           </div>
-          <ParentFeedback />
+          <ParentFeedback currentUser={currentUser} />
         </div>
       )}
     </div>

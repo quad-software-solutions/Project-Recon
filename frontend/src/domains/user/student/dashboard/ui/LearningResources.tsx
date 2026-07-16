@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Video, FileText, Code, Download, ExternalLink, Loader2, ShieldOff } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchLearningMaterialsApi } from '@/domains/learning/academics/api/academicApi';
+import { Book, Video, FileText, Code, Download, Loader2 } from 'lucide-react';
+import { fetchLearningMaterialsApi } from '@/domains/learning/academics/api/academicApi';
 import type { LearningMaterial } from '@/shared/types';
 
 const TYPE_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -18,35 +18,19 @@ const DEFAULT_CFG = { icon: Book, color: 'text-slate-600', bg: 'bg-slate-50' };
 
 interface Props { studentId: string }
 
-export default function LearningResources({ studentId }: Props) {
+export default function LearningResources({ studentId: _studentId }: Props) {
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        const enr = await fetchEnrollmentsApi(studentId);
-        const all: LearningMaterial[] = [];
-        for (const e of enr) {
-          try {
-            const m = await fetchLearningMaterialsApi(e.enrolled_class);
-            all.push(...m);
-          } catch {}
-        }
-        if (!cancelled) setMaterials(all);
-      } catch {
-        // Permission denied — try direct materials fetch (student-scoped)
-        try {
-          const mats = await fetchLearningMaterialsApi();
-          if (!cancelled) setMaterials(mats);
-        } catch {}
-      }
-      if (!cancelled) setLoading(false);
-    }
-    load();
+    // Students can list materials; do not call enrollments (403) or class-as-sub_program.
+    fetchLearningMaterialsApi()
+      .then(mats => { if (!cancelled) setMaterials(Array.isArray(mats) ? mats : []); })
+      .catch(() => { if (!cancelled) setMaterials([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [studentId]);
+  }, []);
 
   return (
     <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-border-light/60">

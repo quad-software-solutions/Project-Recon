@@ -1,5 +1,4 @@
 import { fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
-import { getMyRegistrations } from '@/domains/competition/api/eventsApi';
 import { getCachedStudentId, setCachedStudentId, studentIdKey } from '@/shared/utils/storage';
 
 /** Resolve academic student UUID for the logged-in student (existing API only). */
@@ -17,15 +16,6 @@ export async function resolveStudentId(email: string, cachedId?: string): Promis
     }
   } catch {
     /* no certificates yet */
-  }
-
-  try {
-    const regs = await getMyRegistrations();
-    if (regs.length > 0) {
-      return getCachedStudentId(email);
-    }
-  } catch {
-    /* not a student account or not authenticated */
   }
 
   return null;

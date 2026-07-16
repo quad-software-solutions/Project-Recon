@@ -2,14 +2,15 @@ import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
   Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch,
-  ShoppingBag, DollarSign,
+  Bell, MessageSquare,
 } from 'lucide-react';
 
 export type AdminSectionId =
   | 'overview' | 'users' | 'roles' | 'academics' | 'classes' | 'staff-attendance'
   | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events'
   | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops'
-  | 'event-registrations' | 'certificates' | 'store' | 'transfers' | 'bank-accounts';
+  | 'event-registrations' | 'certificates' | 'store'
+  | 'announcements' | 'communications';
 
 export interface AdminHubStats {
   totalUsers: number;
@@ -182,39 +183,27 @@ export function getAdminCommandCenter(
         ],
       };
 
-    case 'store':
+    case 'announcements':
       return {
-        title: 'Store & Inventory',
-        subtitle: 'Product catalog, inventory, orders, and payment verification.',
+        title: 'Announcements',
+        subtitle: 'Internal announcements and institutional updates.',
         signals: [
-          { label: 'Students', value: String(students), detail: 'potential customers', icon: ShoppingBag, tone: 'blue' },
-          { label: 'Paid', value: String(paidPayments), detail: 'store revenue', icon: DollarSign, tone: 'emerald' },
-          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: UserPlus, tone: 'slate' },
-          { label: 'Programs', value: String(programs), detail: 'related offers', icon: BookOpen, tone: 'amber' },
-        ],
-      };
-
-    case 'transfers':
-      return {
-        title: 'Branch Transfers',
-        subtitle: 'Review and approve student branch transfer requests.',
-        signals: [
-          { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: ClipboardList, tone: 'emerald' },
-          { label: 'Pending', value: String(pendingEnrollments), detail: 'awaiting payment', icon: UserPlus, tone: pendingEnrollments ? 'amber' : 'slate' },
-          { label: 'Students', value: String(students), detail: 'registered', icon: Users, tone: 'blue' },
+          { label: 'Users', value: String(totalUsers), detail: 'audience', icon: Users, tone: 'blue' },
+          { label: 'Students', value: String(students), detail: 'recipients', icon: GraduationCap, tone: 'emerald' },
           { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
+          { label: 'Programs', value: String(programs), detail: 'linked', icon: BookOpen, tone: 'amber' },
         ],
       };
 
-    case 'bank-accounts':
+    case 'communications':
       return {
-        title: 'Bank Accounts',
-        subtitle: 'Payment destination accounts for transfers and store checkout.',
+        title: 'Communications',
+        subtitle: 'Contact requests and inbound messages.',
         signals: [
-          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'blue' },
-          { label: 'Paid', value: String(paidPayments), detail: 'completed payments', icon: DollarSign, tone: 'emerald' },
-          { label: 'Students', value: String(students), detail: 'payers', icon: Users, tone: 'slate' },
-          { label: 'Programs', value: String(programs), detail: 'fee programs', icon: BookOpen, tone: 'amber' },
+          { label: 'Users', value: String(totalUsers), detail: 'staff', icon: Users, tone: 'blue' },
+          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
+          { label: 'Active', value: String(activeUsers), detail: 'responders', icon: Shield, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingEnrollments), detail: 'enrollments', icon: MessageSquare, tone: 'amber' },
         ],
       };
 

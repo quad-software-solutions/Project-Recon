@@ -9,6 +9,8 @@ import {
   fetchAuditLogsApi,
   type AuditLogEntry,
 } from '../api/adminApi';
+import type { UserProfile } from '@/shared/types';
+import { canViewAuditLogs } from '@/shared/auth/permissions';
 
 const typeBadge = (action: string) => {
   const a = action.toLowerCase();
@@ -42,7 +44,12 @@ const filterPresets = [
   { id: 'danger', label: 'Danger', icon: AlertTriangle },
 ] as const;
 
-export default function SystemLogs() {
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function SystemLogs({ currentUser }: Props) {
+  const canView = canViewAuditLogs(currentUser);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +114,20 @@ export default function SystemLogs() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (!canView) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">Audit logs are only available to Super Admin users.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

@@ -10,23 +10,30 @@ export default function AnalyticsDashboard() {
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetchStudentsApi().catch(() => []),
-      fetchEnrollmentsApi().catch(() => []),
-      fetchPaymentsApi().catch(() => []),
-      fetchProgramsApi().catch(() => []),
+      fetchStudentsApi(),
+      fetchEnrollmentsApi(),
+      fetchPaymentsApi(),
+      fetchProgramsApi(),
     ]).then(([stu, enr, pay, pro]) => {
       setStudents(stu as StudentProfile[]);
       setEnrollments(enr as Enrollment[]);
       setPayments(pay as EnrollmentPayment[]);
       setPrograms(pro as Program[]);
+    }).catch(() => {
+      setError('Failed to load analytics data. Please try again later.');
     }).finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+  }
+
+  if (error) {
+    return <div className="flex items-center justify-center py-20 text-sm text-red-500">{error}</div>;
   }
 
   const totalRevenue = payments
@@ -92,7 +99,7 @@ export default function AnalyticsDashboard() {
 
   const recentTransactions = payments.slice(0, 10).map(p => ({
     id: p.id || String(Math.random()),
-    student: (p as any).student_name || (p as any).student_email || 'Student',
+    student: p.student_name || 'Student',
     amount: Number(p.amount || 0),
     type: p.payment_type || 'Enrollment',
     date: (p.created_at || p.payment_date || '').slice(0, 10),

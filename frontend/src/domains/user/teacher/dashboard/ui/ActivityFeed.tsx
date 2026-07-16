@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, CheckCircle2, Edit3, DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
+import { Activity, CheckCircle2, DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
 import {
   fetchEnrollmentsApi,
   fetchPaymentsListApi,
@@ -12,14 +12,27 @@ const ICON_MAP: Record<string, { icon: typeof CheckCircle2; bg: string; color: s
   ATTENDANCE: { icon: Calendar, bg: 'bg-green-100', color: 'text-green-600' },
 };
 
+type FeedItem = { icon: typeof CheckCircle2; bg: string; color: string; bold: string; text: string; time: string; ts: number };
+
 interface Props {
   mode?: 'staff' | 'instructor';
   classId?: string;
 }
 
 export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
-  const [items, setItems] = useState<{ icon: typeof CheckCircle2; bg: string; color: string; bold: string; text: string; time: string }[]>([]);
+  const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  function toTs(val: string | undefined | null): number {
+    if (!val) return 0;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
+  function fmtDate(val: string | undefined | null): string {
+    if (!val) return '';
+    return new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
 
   const loadActivity = () => {
     setLoading(true);
@@ -28,7 +41,7 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
       fetchAttendanceSessionsApi(classId || undefined)
         .then(sessions => {
           const arr = Array.isArray(sessions) ? sessions : [];
-          const feed = arr.slice(0, 10).map(s => {
+          const feed: FeedItem[] = arr.slice(0, 10).map(s => {
             const style = ICON_MAP.ATTENDANCE;
             return {
               icon: style.icon,
@@ -36,9 +49,8 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
               color: style.color,
               bold: s.class_name || 'Class',
               text: s.topic || 'Attendance session',
-              time: s.session_date
-                ? new Date(s.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                : 'recent',
+              time: fmtDate(s.session_date),
+              ts: toTs(s.session_date),
             };
           });
           setItems(feed);
@@ -52,7 +64,7 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
       .then(([enr, pay]) => {
         const enrollments = Array.isArray(enr) ? enr : [];
         const payments = Array.isArray(pay) ? pay : [];
-        const feed: typeof items = [];
+        const feed: FeedItem[] = [];
 
         enrollments.slice(0, 5).forEach(e => {
           const s = ICON_MAP.ENROLLMENT;
@@ -60,7 +72,8 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
             icon: s.icon, bg: s.bg, color: s.color,
             bold: e.student_name || 'Student',
             text: `enrolled in ${e.class_name || e.sub_program_name || 'class'}`,
-            time: e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recent',
+            time: fmtDate(e.enrolled_at),
+            ts: toTs(e.enrolled_at),
           });
         });
 
@@ -70,16 +83,12 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
             icon: s.icon, bg: s.bg, color: s.color,
             bold: p.student_name || 'Student',
             text: `${p.status === 'PAID' ? 'completed' : 'initiated'} payment of ${Number(p.amount).toLocaleString()} Birr`,
-            time: p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recent',
+            time: fmtDate(p.payment_date),
+            ts: toTs(p.payment_date),
           });
         });
 
-        feed.sort((a, b) => {
-          const dateA = new Date(a.time).getTime();
-          const dateB = new Date(b.time).getTime();
-          if (!isNaN(dateA) && !isNaN(dateB)) return dateB - dateA;
-          return 0;
-        });
+        feed.sort((a, b) => b.ts - a.ts);
 
         setItems(feed.slice(0, 10));
       })

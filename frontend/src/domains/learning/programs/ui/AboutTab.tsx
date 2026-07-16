@@ -1,22 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Award, 
-  BookOpen, 
   Users, 
-  Target, 
-  Eye,
   MapPin, 
   Sparkles, 
-  ArrowUpRight, 
   Globe, 
   Compass,
-  Cpu, 
-  Shield, 
-  ExternalLink,
-  ChevronRight,
-  TrendingUp,
-  Inbox
+  Target,
+  Eye,
 } from 'lucide-react';
 
 import imgAddis from '@/assets/photo_2026-06-15_14-39-18.jpg';
@@ -49,21 +40,28 @@ export default function AboutTab() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [aboutData, setAboutData] = useState<AboutUsResponse[]>([]);
   const [partners, setPartners] = useState<CmsPartnerResponse[]>([]);
-
+  const [loading, setLoading] = useState(true);
   const [mapNodes, setMapNodes] = useState<MapNode[]>([]);
   const [team, setTeam] = useState<{ name: string; role: string; bio: string; image: string }[]>([]);
 
   useEffect(() => {
-    cmsPublicApi.getAboutUs().then(data => setAboutData(data.filter(a => a.is_active))).catch(() => {});
-    cmsPublicApi.getPartners().then(data => setPartners(data.filter(p => p.is_active))).catch(() => {});
-    cmsPublicApi.getMapNodes().then(data => setMapNodes((Array.isArray(data) ? data : []).filter(n => n.is_active).map(n => ({
-      id: n.id, city: n.city, country: n.country, title: n.title,
-      achievement: n.achievement, x: n.x, y: n.y, lat: n.lat, lng: n.lng,
-      image: n.image, category: n.category as MapNode['category'],
-    })))).catch(() => {});
-    cmsPublicApi.getTeamMembers().then(data => setTeam((Array.isArray(data) ? data : []).filter(m => m.is_active).map(m => ({
-      name: m.name, role: m.role, bio: m.bio, image: m.image,
-    })))).catch(() => {});
+    Promise.all([
+      cmsPublicApi.getAboutUs(),
+      cmsPublicApi.getPartners(),
+      cmsPublicApi.getMapNodes(),
+      cmsPublicApi.getTeamMembers(),
+    ]).then(([aboutRes, partnersRes, nodesRes, teamRes]) => {
+      setAboutData((Array.isArray(aboutRes) ? aboutRes : []).filter(a => a.is_active));
+      setPartners((Array.isArray(partnersRes) ? partnersRes : []).filter(p => p.is_active));
+      setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).filter(n => n.is_active).map(n => ({
+        id: n.id, city: n.city, country: n.country, title: n.title,
+        achievement: n.achievement, x: n.x, y: n.y, lat: n.lat, lng: n.lng,
+        image: n.image, category: n.category as MapNode['category'],
+      })));
+      setTeam((Array.isArray(teamRes) ? teamRes : []).filter(m => m.is_active).map(m => ({
+        name: m.name, role: m.role, bio: m.bio, image: m.image,
+      })));
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   // Dynamically calculate lat/lng depending on mouse coords relative to container
@@ -251,84 +249,118 @@ export default function AboutTab() {
           </div>
         </div>
 
-        {/* Right Side: Text Content */}
+        {/* Right Side: About Content */}
         <div className="w-full lg:w-[35%] flex flex-col items-center lg:items-start text-center lg:text-left mt-4 lg:mt-0">
-          {(() => {
-            const aboutEntry = aboutData.find(matchSlugOrTitle('about')) || aboutData[0];
-            const missionEntry = aboutData.find(matchSlugOrTitle('mission'));
-            const visionEntry = aboutData.find(matchSlugOrTitle('vision'));
-
-            return (
-              <>
-                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#1a2670] bg-blue-50 px-3 py-1 rounded-full border border-blue-100 mb-4 inline-block shadow-sm">
-                  ABOUT ETHIO ROBOTICS:
-                </span>
-
-                {aboutEntry ? (
-                  <div className="mb-6 w-full">
-                    <h2 className="font-display font-bold text-slate-900 tracking-tight leading-tight mb-4 text-[24px] md:text-[30px]">
-                      {aboutEntry.title}
+          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#1a2670] bg-blue-50 px-3 py-1 rounded-full border border-blue-100 mb-4 inline-block shadow-sm">
+            ABOUT ETHIO ROBOTICS:
+          </span>
+          {loading ? (
+            <div className="w-full space-y-4 animate-pulse">
+              <div className="h-8 bg-slate-200 rounded-lg w-3/4" />
+              <div className="h-4 bg-slate-200 rounded w-full" />
+              <div className="h-4 bg-slate-200 rounded w-5/6" />
+              <div className="h-4 bg-slate-200 rounded w-4/6" />
+            </div>
+          ) : aboutData.length > 0 ? (
+            <div className="w-full space-y-8">
+              {aboutData.map((section, idx) => (
+                <div key={section.id} className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden hover:shadow-md transition-shadow">
+                  {section.image && (
+                    <div className="relative h-52 overflow-hidden">
+                      <img src={section.image} alt={section.title}
+                        className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    </div>
+                  )}
+                  <div className="p-5">
+                    <h2 className="font-display font-bold text-slate-900 tracking-tight leading-tight mb-3 text-[22px] md:text-[26px]">
+                      {section.title}
                     </h2>
-                    <div
-                      className="font-sans text-sm md:text-base text-brand-muted-dark leading-relaxed mb-5 about-content"
-                      dangerouslySetInnerHTML={{ __html: aboutEntry.content || aboutEntry.description || '' }}
+                    <div 
+                      className="font-sans text-sm md:text-base text-slate-600 leading-relaxed mb-5 about-content"
+                      dangerouslySetInnerHTML={{ __html: section.content || section.description || '' }}
                     />
-                  </div>
-                ) : (
-                  <p className="font-sans text-sm md:text-base text-brand-muted-dark leading-relaxed mb-5">
-                    Ethio Robotics is a leading organization dedicated to advancing robotics, STEM education, and technological innovation in Ethiopia.
-                  </p>
-                )}
-
-                {/* Mission & Vision Cards */}
-                {(missionEntry || visionEntry) && (
-                  <div className="w-full flex flex-col gap-4 mb-8">
-                    {missionEntry && (
-                      <div className="bg-white rounded-xl p-5 border border-brand-blue/20 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-blue to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-                            <Target className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="font-display font-bold text-slate-900 text-sm mb-1">{missionEntry.title}</h3>
-                            <p className="text-xs text-brand-muted-dark leading-relaxed">{missionEntry.content || missionEntry.description}</p>
+                    <div className="flex flex-col gap-3">
+                      {section.mission && (
+                        <div className="group relative bg-gradient-to-r from-blue-50 to-indigo-50/50 rounded-xl p-4 border border-blue-100/60 hover:border-blue-200 transition-colors">
+                          <div className="flex items-start gap-3">
+                            <div className="shrink-0 w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                              <Target className="w-4 h-4 text-brand-blue" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-0.5">Mission</p>
+                              <p className="text-sm text-slate-700 leading-relaxed">{section.mission}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                    {visionEntry && (
-                      <div className="bg-white rounded-xl p-5 border border-brand-red/20 shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-red to-red-600 flex items-center justify-center shrink-0 shadow-sm">
-                            <Eye className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="font-display font-bold text-slate-900 text-sm mb-1">{visionEntry.title}</h3>
-                            <p className="text-xs text-brand-muted-dark leading-relaxed">{visionEntry.content || visionEntry.description}</p>
+                      )}
+                      {section.vision && (
+                        <div className="group relative bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl p-4 border border-amber-100/60 hover:border-amber-200 transition-colors">
+                          <div className="flex items-start gap-3">
+                            <div className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                              <Eye className="w-4 h-4 text-amber-700" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Vision</p>
+                              <p className="text-sm text-slate-700 leading-relaxed">{section.vision}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                )}
-
-                <div className="font-display font-extrabold tracking-tight text-3xl md:text-4xl leading-none mb-8 text-transparent bg-clip-text bg-gradient-to-r from-[#b5852a] to-[#d6a54a] uppercase drop-shadow-sm">
-                  INNOVATION FIRST
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
+              <h2 className="font-display font-bold text-slate-900 tracking-tight leading-tight mb-5 text-[28px] md:text-[34px]">
+                Who We Are & Our Vision
+              </h2>
+              <p className="font-sans text-sm md:text-base text-slate-600 leading-relaxed mb-4">
+                Ethio Robo Robotics is the premier education-focused organization in Ethiopia specializing in STEM, advanced robotics training, and high-impact competitions. We build the next generation of African innovators by fostering technical skills and leadership.
+              </p>
+              <p className="font-sans text-sm md:text-base text-slate-600 leading-relaxed mb-6">
+                From organizing the landmark <strong>African Robotics Championship (ARC)</strong> to coaching teams for the <strong>USA VEX Robotics Competition</strong> and <strong>ENJOY AI Global</strong>, we bridge the gap between theoretical knowledge and practical hardware execution. Our hands-on curriculums, mentorship programs, and retail toolkits empower students from elementary to university levels.
+              </p>
+              <div className="flex flex-col gap-3">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 rounded-xl p-4 border border-blue-100/60">
+                  <div className="flex items-start gap-3">
+                    <Target className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-0.5">Mission</p>
+                      <p className="text-sm text-slate-700">To inspire and equip the next generation of African innovators with STEM and robotics skills.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl p-4 border border-amber-100/60">
+                  <div className="flex items-start gap-3">
+                    <Eye className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Vision</p>
+                      <p className="text-sm text-slate-700">A world where every African student has access to quality STEM education and robotics training.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="font-display font-extrabold tracking-tight text-3xl md:text-4xl leading-none my-8 text-transparent bg-clip-text bg-gradient-to-r from-[#b5852a] to-[#d6a54a] uppercase drop-shadow-sm">
+            INNOVATION FIRST
+          </div>
 
-                <a
-                  href="#section-newsletter"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('section-newsletter')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="bg-[#25338d] text-white font-sans font-bold text-sm tracking-wide px-8 py-3.5 rounded-xl hover:bg-[#1a2670] transition-all hover:scale-105 duration-300 shadow-md flex items-center gap-2 group cursor-pointer"
-                >
-                  <span>JOIN US</span>
-                </a>
-              </>
-            );
-          })()}
+          <a 
+            href="#section-newsletter"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById('section-newsletter')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="bg-[#25338d] text-white font-sans font-bold text-sm tracking-wide px-8 py-3.5 rounded-xl hover:bg-[#1a2670] transition-all hover:scale-105 duration-300 shadow-md flex items-center gap-2 group cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>JOIN US</span>
+          </a>
         </div>
 
       </div>
@@ -339,7 +371,19 @@ export default function AboutTab() {
           <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Leadership Team</h2>
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Meet the visionary educators and engineers driving Ethio Robotics forward.</p>
         </div>
-        {team.length > 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-pulse">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-slate-200 mb-4" />
+                <div className="h-5 bg-slate-200 rounded w-32 mb-2" />
+                <div className="h-4 bg-slate-200 rounded w-24 mb-3" />
+                <div className="h-4 bg-slate-200 rounded w-full mb-1" />
+                <div className="h-4 bg-slate-200 rounded w-4/5" />
+              </div>
+            ))}
+          </div>
+        ) : team.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {team.map((member, idx) => (
               <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-md transition-all">
@@ -365,20 +409,26 @@ export default function AboutTab() {
             <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Our Partners</h2>
             <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Collaborating with industry leaders to bring world-class STEM education to Ethiopia.</p>
           </div>
-          <div className="flex flex-wrap justify-center gap-12 items-center opacity-70 hover:opacity-100 transition-opacity">
-            {partners.length > 0 ? (
-              partners.map(partner =>
-                  partner.image ? <img key={partner.id} src={partner.image} alt={partner.title} className="h-16 object-contain" /> : null
-                )
-            ) : (
-              <>
-                <img src="https://ethiorobotics.org/images/partners/minstry%20of%20inovation%20and%20technology.png" alt="Ministry of Innovation" className="h-16 object-contain" />
-                <img src="https://ethiorobotics.org/images/partners/vex.webp" alt="VEX Robotics" className="h-16 object-contain" />
-                <img src="https://ethiorobotics.org/images/partners/ethiopian_airlines.png" alt="Ethiopian Airlines" className="h-16 object-contain" />
-                <img src="https://ethiorobotics.org/images/partners/aau.png" alt="Addis Ababa University" className="h-16 object-contain" />
-              </>
-            )}
-          </div>
+          {loading ? (
+            <div className="flex flex-wrap justify-center gap-12 items-center animate-pulse">
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-16 w-32 bg-slate-200 rounded" />)}
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-12 items-center opacity-70 hover:opacity-100 transition-opacity">
+              {partners.length > 0 ? (
+                partners.map(partner =>
+                    partner.image ? <img key={partner.id} src={partner.image} alt={partner.title} className="h-16 object-contain" /> : null
+                  )
+              ) : (
+                <>
+                  <img src="https://ethiorobotics.org/images/partners/minstry%20of%20inovation%20and%20technology.png" alt="Ministry of Innovation" className="h-16 object-contain" />
+                  <img src="https://ethiorobotics.org/images/partners/vex.webp" alt="VEX Robotics" className="h-16 object-contain" />
+                  <img src="https://ethiorobotics.org/images/partners/ethiopian_airlines.png" alt="Ethiopian Airlines" className="h-16 object-contain" />
+                  <img src="https://ethiorobotics.org/images/partners/aau.png" alt="Addis Ababa University" className="h-16 object-contain" />
+                </>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
