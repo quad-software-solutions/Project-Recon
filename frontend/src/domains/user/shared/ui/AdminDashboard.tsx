@@ -218,7 +218,9 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'branches': return <BranchSectionShell currentUser={currentUser} />;
       case 'audit': return <SystemLogs currentUser={currentUser} />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
-      case 'registrations': return <AdminRegistrationsPanel />;
+      case 'registrations': return <EnrollmentsPanel currentUser={currentUser} />;
+      case 'transfers': return <TransferRequestsPanel />;
+      case 'bank-accounts': return <BankAccountsPanel canManage />;
       case 'events': return <EventManager currentUser={currentUser} onNavigate={(section) => handleSectionChange(section)} />;
       case 'tournaments': return <TournamentManager />;
       case 'tournament-teams': return <TeamManager />;
