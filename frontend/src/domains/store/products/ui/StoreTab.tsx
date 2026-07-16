@@ -242,7 +242,7 @@ export default function StoreTab({ openCart }: StoreTabProps) {
                 <ShoppingCart className="w-4 h-4 mr-2 inline" />
                 Cart{cartItemCount > 0 ? ` (${cartItemCount})` : ''}
               </Button>
-            )}
+            </div>
           </div>
         </div>
       </section>
@@ -322,7 +322,7 @@ export default function StoreTab({ openCart }: StoreTabProps) {
                   Clear filters
                 </button>
               )}
-            </div>
+          </div>
 
             {/* Errors */}
             {(error || cartError || cartErrorMessage) && (

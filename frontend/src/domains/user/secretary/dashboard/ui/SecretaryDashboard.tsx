@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search, Megaphone } from 'lucide-react';
+import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search, Megaphone, ArrowRightLeft } from 'lucide-react';
 import { UserProfile } from '@/shared/types';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';

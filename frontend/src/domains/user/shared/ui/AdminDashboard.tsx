@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
   Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch, RefreshCw, ShoppingCart,
-  Bell, MessageSquare,
+  Bell, MessageSquare, ArrowRightLeft, ShoppingBag, Building2,
 } from 'lucide-react';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
@@ -184,7 +184,7 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
   useEffect(() => { refreshSignals(); }, [refreshSignals]);
 
   const navItems = useMemo(
-    () => filterAdminNavItems(currentUser, NAV_ITEMS),
+    () => filterAdminNavItems(currentUser, ALL_NAV_ITEMS),
     [currentUser],
   );
 

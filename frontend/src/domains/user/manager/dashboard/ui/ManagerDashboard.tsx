@@ -5,7 +5,7 @@ import {
   Calendar, Bell, UserPlus, BarChart3, Users, Zap, Award,
   Clock, CheckCircle, CheckCircle2, Activity, Trophy, Building, Download,
   BookOpen, RefreshCw, Monitor, Target, AlertCircle, X,
-  User, Loader2, GraduationCap, TrendingUp, UserCheck, ClipboardList, CreditCard, ClipboardCheck, Receipt, LayoutDashboard
+  User, Loader2, GraduationCap, TrendingUp, UserCheck, ClipboardList, CreditCard, ClipboardCheck, Receipt, LayoutDashboard, ArrowRightLeft
 } from 'lucide-react';
 import { UserProfile, Enrollment, EnrollmentPayment, StudentProfile, Program, AcademicClass } from '@/shared/types';
 import { AppLayout } from '@/shared/ui/AppLayout';
@@ -38,7 +38,6 @@ import StaffAttendanceManager from '@/domains/user/shared/ui/StaffAttendanceMana
 import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
 import TransferRequestsPanel from '@/domains/user/shared/ui/TransferRequestsPanel';
 import EnrollmentsPanel from '@/domains/user/secretary/dashboard/ui/EnrollmentsPanel';
-import StoreDashboard from '@/domains/store/admin/ui/StoreDashboard';
 import TournamentManager from '@/domains/competition/admin/TournamentManager';
 import WorkshopManager from '@/domains/competition/admin/WorkshopManager';
 import RegistrationManager from '@/domains/competition/admin/RegistrationManager';

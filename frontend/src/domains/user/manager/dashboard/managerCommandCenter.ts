@@ -2,7 +2,7 @@ import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   Activity, UserPlus, Award, BookOpen, Calendar, Building, DollarSign,
   BarChart3, Handshake, Trophy, Users, Bell, MessageSquare,
-  Edit3,
+  Edit3, ShoppingBag,
 } from 'lucide-react';
 
 export type ManagerSectionId =

@@ -212,14 +212,6 @@ export function getDefaultAuthenticatedTab(user: UserProfile | null | undefined)
   return user ? 'dashboard' : 'login';
 }
 
-export function canManageStore(user: UserProfile | null | undefined): boolean {
-  return hasPermission(user, 'store:manage');
-}
-
-export function canManageStoreInventory(user: UserProfile | null | undefined): boolean {
-  return hasPermission(user, 'store:inventory:manage');
-}
-
 export function normalizeRole(role: string | undefined | null): AppRole {
   const valid: AppRole[] = ['Admin', 'Manager', 'Secretary', 'Instructor', 'Student', 'Parent', 'EventManager'];
   if (role && valid.includes(role as AppRole)) return role as AppRole;
