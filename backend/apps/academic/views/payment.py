@@ -10,17 +10,19 @@ from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from apps.academic.constants import EnrollmentStatus, VerificationStatus
 from apps.academic.models import Enrollment
 from apps.academic.permissions import IsAcademicStaff
 from apps.academic.serializers import (
     EnrollmentPaymentSerializer,
     EnrollmentPaymentListSerializer,
-    CashPaymentSerializer,
-    OnlinePaymentVerifySerializer,
+    PaymentSerializer,
+    RejectionSerializer,
 )
 from apps.academic.services.payment_service import (
-    create_cash_payment,
-    verify_online_payment,
+    record_payment,
+    reject_payment,
+    set_under_review,
     list_payments,
     get_payment_or_404,
 )
@@ -40,11 +42,11 @@ class PaymentListView(generics.GenericAPIView):
 
 
 @extend_schema_view(
-    post=extend_schema(summary="Create Cash Payment", tags=["Academic - Payments"]),
+    post=extend_schema(summary="Record Payment (Verify)", tags=["Academic - Payments"]),
 )
-class CashPaymentCreateView(generics.GenericAPIView):
+class PaymentCreateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
-    serializer_class = CashPaymentSerializer
+    serializer_class = PaymentSerializer
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -54,7 +56,7 @@ class CashPaymentCreateView(generics.GenericAPIView):
         enrollment = get_object_or_404(Enrollment, pk=data.pop("enrollment"))
 
         try:
-            payment = create_cash_payment(
+            payment = record_payment(
                 request.user,
                 enrollment=enrollment,
                 **data,
@@ -69,47 +71,77 @@ class CashPaymentCreateView(generics.GenericAPIView):
 
 
 @extend_schema_view(
-    post=extend_schema(summary="Verify Online Payment", tags=["Academic - Payments"]),
+    get=extend_schema(
+        summary="List Pending Verification Queue",
+        tags=["Academic - Payments"],
+    ),
 )
-class OnlinePaymentVerifyView(generics.GenericAPIView):
-    serializer_class = OnlinePaymentVerifySerializer
-    permission_classes = []
+class EnrollmentVerificationQueueView(generics.GenericAPIView):
+    permission_classes = [IsAcademicStaff]
+    serializer_class = EnrollmentPaymentListSerializer
 
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        reference = serializer.validated_data["reference"]
-        try:
-            payment = verify_online_payment(reference=reference)
-        except DjangoValidationError as exc:
-            raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
-
-        return Response(
-            EnrollmentPaymentSerializer(payment).data,
-            status=status.HTTP_200_OK,
+    def get(self, request):
+        enrollments = Enrollment.objects.filter(
+            status=EnrollmentStatus.PENDING_VERIFICATION,
+            verification_status__in=[
+                VerificationStatus.SUBMITTED,
+                VerificationStatus.UNDER_REVIEW,
+            ],
+        ).select_related(
+            "student__user", "enrolled_class__sub_program", "enrolled_class__branch"
         )
+
+        payments = [
+            e.payment for e in enrollments
+            if hasattr(e, "payment")
+        ]
+
+        serializer = self.get_serializer(payments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(
-    post=extend_schema(summary="Online Payment Webhook", tags=["Academic - Payments"]),
+    post=extend_schema(
+        summary="Mark Enrollment Under Review",
+        tags=["Academic - Payments"],
+    ),
 )
-class OnlinePaymentWebhookView(generics.GenericAPIView):
-    serializer_class = OnlinePaymentVerifySerializer
-    permission_classes = []
+class EnrollmentUnderReviewView(generics.GenericAPIView):
+    permission_classes = [IsAcademicStaff]
 
-    def post(self, request):
-        reference = request.data.get("tx_ref") or request.data.get("reference")
-        if not reference:
-            return Response(
-                {"error": "Missing transaction reference."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+    def post(self, request, pk):
+        enrollment = get_object_or_404(Enrollment, pk=pk)
         try:
-            verify_online_payment(reference=reference)
-        except Exception as e:
-            logger.error("Webhook verification failed for %s: %s", reference, e)
-            return Response({"status": "error"}, status=status.HTTP_200_OK)
+            set_under_review(request.user, enrollment=enrollment)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
 
-        return Response({"status": "success"}, status=status.HTTP_200_OK)
+        return Response({"status": "UNDER_REVIEW"}, status=status.HTTP_200_OK)
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Reject Enrollment Payment",
+        tags=["Academic - Payments"],
+        request=RejectionSerializer,
+    ),
+)
+class EnrollmentRejectView(generics.GenericAPIView):
+    permission_classes = [IsAcademicStaff]
+    serializer_class = RejectionSerializer
+
+    def post(self, request, pk):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        enrollment = get_object_or_404(Enrollment, pk=pk)
+        try:
+            reject_payment(
+                request.user,
+                enrollment=enrollment,
+                rejection_reason=serializer.validated_data["rejection_reason"],
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
+
+        return Response({"status": "REJECTED"}, status=status.HTTP_200_OK)

@@ -8,10 +8,11 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.academic.constants import (
     ClassPeriod, ClassType, AttendanceStatus, SessionStatus,
-    EnrollmentStatus, PaymentMethod, PaymentStatus, ProgressStatus,
+    EnrollmentStatus, PaymentMethod, PaymentStatus, VerificationStatus,
+    ProgressStatus,
 )
 from apps.academic.models import (
-    Program, SubProgram, Class, Student, EnrollmentPeriod,
+    BranchTransferRequest, Program, SubProgram, Class, Student, EnrollmentPeriod,
     StaffAttendanceSession, StaffAttendanceRecord, Enrollment, EnrollmentPayment,
     AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress,
     Certificate,
@@ -33,7 +34,11 @@ from apps.academic.services.enrollment_service import (
     enroll_student,
 )
 from apps.academic.services.payment_service import (
-    create_cash_payment,
+    record_payment,
+)
+from apps.academic.services.transfer_service import (
+    approve_transfer,
+    request_transfer,
 )
 from apps.accounts.models import Branch, UserAssignment
 from apps.accounts.constants import Roles
@@ -199,7 +204,7 @@ class SubProgramAPITest(AcademicAPITestCase):
 
     def test_list_sub_programs_public(self):
         program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         response = self.client.get(f"{self.base_url}/sub-programs/")
         self.assertEqual(response.status_code, 200)
@@ -207,7 +212,7 @@ class SubProgramAPITest(AcademicAPITestCase):
 
     def test_retrieve_sub_program_public(self):
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         response = self.client.get(f"{self.base_url}/sub-programs/{sub.pk}/")
         self.assertEqual(response.status_code, 200)
@@ -218,7 +223,8 @@ class SubProgramAPITest(AcademicAPITestCase):
             "program": str(self.program.pk),
             "name": "Python",
             "slug": "python",
-            "fee": "500.00",
+            "group_fee": "500.00",
+            "individual_fee": "500.00",
         }
         response = self.client.post(f"{self.base_url}/sub-programs/", data, format="json")
         self.assertEqual(response.status_code, 401)
@@ -229,7 +235,8 @@ class SubProgramAPITest(AcademicAPITestCase):
             "program": str(self.program.pk),
             "name": "Python",
             "slug": "python",
-            "fee": "500.00",
+            "group_fee": "500.00",
+            "individual_fee": "500.00",
         }
         response = self.client.post(f"{self.base_url}/sub-programs/", data, format="json")
         self.assertEqual(response.status_code, 201)
@@ -241,7 +248,8 @@ class SubProgramAPITest(AcademicAPITestCase):
             "program": str(self.program.pk),
             "name": "Python",
             "slug": "python",
-            "fee": "500.00",
+            "group_fee": "500.00",
+            "individual_fee": "500.00",
         }
         response = self.client.post(f"{self.base_url}/sub-programs/", data, format="json")
         self.assertEqual(response.status_code, 403)
@@ -249,7 +257,7 @@ class SubProgramAPITest(AcademicAPITestCase):
     def test_list_sub_programs(self):
         self.authenticate_as_super_admin()
         program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         response = self.client.get(f"{self.base_url}/sub-programs/")
         self.assertEqual(response.status_code, 200)
@@ -257,11 +265,11 @@ class SubProgramAPITest(AcademicAPITestCase):
     def test_update_sub_program(self):
         self.authenticate_as_super_admin()
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         response = self.client.patch(
             f"{self.base_url}/sub-programs/{sub.pk}/",
-            {"fee": "600.00"},
+            {"group_fee": "600.00", "individual_fee": "600.00"},
             format="json",
         )
         self.assertEqual(response.status_code, 200)
@@ -269,7 +277,7 @@ class SubProgramAPITest(AcademicAPITestCase):
     def test_deactivate_sub_program(self):
         self.authenticate_as_super_admin()
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         response = self.client.post(f"{self.base_url}/sub-programs/{sub.pk}/deactivate/")
         self.assertEqual(response.status_code, 200)
@@ -282,7 +290,8 @@ class SubProgramAPITest(AcademicAPITestCase):
             "program": str(self.program.pk),
             "name": "Bad",
             "slug": "bad",
-            "fee": "-100.00",
+            "group_fee": "-100.00",
+            "individual_fee": "-100.00",
         }
         response = self.client.post(f"{self.base_url}/sub-programs/", data, format="json")
         self.assertEqual(response.status_code, 400)
@@ -290,11 +299,11 @@ class SubProgramAPITest(AcademicAPITestCase):
     def test_update_sub_program_negative_fee_returns_400(self):
         self.authenticate_as_super_admin()
         sub = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         response = self.client.patch(
             f"{self.base_url}/sub-programs/{sub.pk}/",
-            {"fee": "-50.00"},
+            {"group_fee": "-50.00", "individual_fee": "-50.00"},
             format="json",
         )
         self.assertEqual(response.status_code, 400)
@@ -307,7 +316,7 @@ class ClassAPITest(AcademicAPITestCase):
             name="Programming", slug="programming"
         )
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
 
     def test_list_classes_requires_auth(self):
@@ -538,7 +547,7 @@ class EnrollmentPeriodAPITest(AcademicAPITestCase):
             name="Programming", slug="programming"
         )
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=500.00
+            program=self.program, name="Python", slug="python", group_fee=500.00, individual_fee=500.00
         )
         self.period = create_enrollment_period(
             actor=None,
@@ -813,7 +822,7 @@ class EnrollmentAPITest(AcademicAPITestCase):
             supports_group=True, supports_individual=True,
         )
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+            program=self.program, name="Python", slug="python", group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.student_user = user_service.create_student_user(
             "testenroll@test.com", "Test", "Student", self.password, self.branch,
@@ -859,7 +868,7 @@ class EnrollmentAPITest(AcademicAPITestCase):
         }
         response = self.client.post(f"{self.base_url}/enrollments/", data, format="json")
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["status"], EnrollmentStatus.PENDING_PAYMENT)
+        self.assertEqual(response.json()["status"], EnrollmentStatus.PENDING_VERIFICATION)
 
     def test_enroll_student_as_student_returns_403(self):
         self.authenticate_as_student()
@@ -886,35 +895,29 @@ class EnrollmentAPITest(AcademicAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], EnrollmentStatus.COMPLETED)
 
-    @patch("apps.academic.services.payment_service.shared_initialize_payment")
-    def test_online_enrollment_new_student(self, mock_init):
-        mock_init.return_value = {
-            "provider": "chapa", "reference": "ENROLL-aaaaaaaa-aaaaaaaaaaaa",
-            "checkout_url": "https://checkout.chapa.co/abc",
-        }
+    def test_online_enrollment_new_student(self):
         response = self.client.post(
             f"{self.base_url}/enrollments/online/",
             {
                 "enrolled_class": str(self.individual_class.pk),
-                "callback_url": "https://example.com/webhook",
-                "return_url": "https://example.com/redirect",
                 "email": "newstudent@test.com",
                 "first_name": "New",
                 "last_name": "Student",
                 "password": "TestPass123!",
+                "payment_method": "BANK_TRANSFER",
+                "transaction_reference": "TXN-ONLINE-001",
             },
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertIn("checkout_url", response.json())
-        self.assertEqual(response.json()["enrollment"]["status"], EnrollmentStatus.PENDING_PAYMENT)
+        self.assertEqual(response.json()["status"], EnrollmentStatus.PENDING_VERIFICATION)
+        self.assertIsNotNone(response.json().get("pending_code"))
 
     def test_online_enrollment_unauthenticated_missing_fields_raises(self):
         response = self.client.post(
             f"{self.base_url}/enrollments/online/",
             {
                 "enrolled_class": str(self.individual_class.pk),
-                "callback_url": "https://example.com/webhook",
             },
             format="json",
         )
@@ -926,12 +929,176 @@ class EnrollmentAPITest(AcademicAPITestCase):
             f"{self.base_url}/enrollments/online/",
             {
                 "enrolled_class": str(self.group_class.pk),
-                "callback_url": "https://example.com/webhook",
                 "email": "new@test.com",
                 "first_name": "New",
                 "last_name": "Student",
                 "password": "TestPass123!",
+                "payment_method": "CASH",
             },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def _create_active_enrollment(self):
+        enrollment = enroll_student(
+            None, student=self.student_model, enrolled_class=self.individual_class,
+        )
+        enrollment.status = EnrollmentStatus.ACTIVE
+        enrollment.save()
+        return enrollment
+
+    def test_move_enrollment_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Move Target", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{enrollment.pk}/move/",
+            {"target_class": str(target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["enrolled_class"], str(target_class.pk))
+
+    def test_move_enrollment_unauthenticated_returns_401(self):
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Move Target 401", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{enrollment.pk}/move/",
+            {"target_class": str(target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_move_enrollment_as_student_returns_403(self):
+        self.authenticate_as_student()
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Move Target 403", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{enrollment.pk}/move/",
+            {"target_class": str(target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_move_enrollment_inactive_target_returns_400(self):
+        self.authenticate_as_super_admin()
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Inactive Move Target", class_type=ClassType.INDIVIDUAL,
+        )
+        class_service.deactivate_class(target_class)
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{enrollment.pk}/move/",
+            {"target_class": str(target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_move_enrollment_non_active_returns_400(self):
+        self.authenticate_as_super_admin()
+        enrollment = enroll_student(
+            None, student=self.student_model, enrolled_class=self.individual_class,
+        )
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Non-Active Move", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{enrollment.pk}/move/",
+            {"target_class": str(target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_split_class_by_ids_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Split Target", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/classes/{self.individual_class.pk}/split/",
+            {
+                "target_class": str(target_class.pk),
+                "enrollment_ids": [str(enrollment.pk)],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["enrolled_class"], str(target_class.pk))
+
+    def test_split_class_by_count_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Split Count Target", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/classes/{self.individual_class.pk}/split/",
+            {
+                "target_class": str(target_class.pk),
+                "count": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_split_class_unauthenticated_returns_401(self):
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Split 401 Target", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/classes/{self.individual_class.pk}/split/",
+            {
+                "target_class": str(target_class.pk),
+                "count": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_split_class_as_student_returns_403(self):
+        self.authenticate_as_student()
+        enrollment = self._create_active_enrollment()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Split 403 Target", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/classes/{self.individual_class.pk}/split/",
+            {
+                "target_class": str(target_class.pk),
+                "count": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_split_class_no_args_returns_400(self):
+        self.authenticate_as_super_admin()
+        target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
+            name="Split No Args Target", class_type=ClassType.INDIVIDUAL,
+        )
+        response = self.client.post(
+            f"{self.base_url}/classes/{self.individual_class.pk}/split/",
+            {"target_class": str(target_class.pk)},
             format="json",
         )
         self.assertEqual(response.status_code, 400)
@@ -942,7 +1109,7 @@ class PaymentAPITest(AcademicAPITestCase):
         super().setUp()
         self.program = program_service.create_program(name="Programming", slug="programming")
         self.sub_program = program_service.create_sub_program(
-            program=self.program, name="Python", slug="python", fee=Decimal("500.00"),
+            program=self.program, name="Python", slug="python", group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.student_user = user_service.create_student_user(
             "testpayment@test.com", "Test", "Student", self.password, self.branch,
@@ -963,81 +1130,66 @@ class PaymentAPITest(AcademicAPITestCase):
 
     def test_list_payments_as_super_admin(self):
         self.authenticate_as_super_admin()
-        response = self.client.get(f"{self.base_url}/payments/")
+        response = self.client.get(f"{self.base_url}/payments/list/")
         self.assertEqual(response.status_code, 200)
 
-    def test_create_cash_payment_as_secretary(self):
+    def test_record_payment_as_secretary(self):
         self.authenticate_as_secretary()
         response = self.client.post(
-            f"{self.base_url}/payments/cash/",
-            {"enrollment": str(self.enrollment.pk), "amount": "500.00"},
+            f"{self.base_url}/payments/",
+            {
+                "enrollment": str(self.enrollment.pk),
+                "amount": "500.00",
+                "payment_method": "CASH",
+            },
             format="json",
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["status"], PaymentStatus.PAID)
 
-    def test_create_cash_payment_as_student_returns_403(self):
+    def test_record_payment_as_student_returns_403(self):
         self.authenticate_as_student()
         response = self.client.post(
-            f"{self.base_url}/payments/cash/",
-            {"enrollment": str(self.enrollment.pk), "amount": "500.00"},
+            f"{self.base_url}/payments/",
+            {
+                "enrollment": str(self.enrollment.pk),
+                "amount": "500.00",
+                "payment_method": "CASH",
+            },
             format="json",
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_online_verify_public(self):
-        EnrollmentPayment.objects.create(
-            enrollment=self.enrollment,
-            amount=Decimal("500.00"),
-            payment_method=PaymentMethod.ONLINE,
-            payment_provider="CHAPA",
-            transaction_reference="ENROLL-abcd1234-abcdef123456",
-            status=PaymentStatus.PENDING,
-        )
-        with patch("apps.academic.services.payment_service.shared_verify_payment") as mock_v:
-            mock_v.return_value = {
-                "provider": "chapa", "status": "success", "provider_status": "success",
-                "reference": "ENROLL-abcd1234-abcdef123456", "provider_transaction_id": "tx_123",
-                "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
-            }
-            response = self.client.post(
-                f"{self.base_url}/enrollments/online/verify/",
-                {"reference": "ENROLL-abcd1234-abcdef123456"},
-                format="json",
-            )
+    def test_verification_queue_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.get(f"{self.base_url}/payments/verification-queue/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], PaymentStatus.PAID)
 
-    def test_online_verify_bad_reference_returns_400(self):
+    def test_under_review_as_secretary(self):
+        self.authenticate_as_secretary()
+        self.enrollment.verification_status = VerificationStatus.SUBMITTED
+        self.enrollment.save()
         response = self.client.post(
-            f"{self.base_url}/enrollments/online/verify/",
-            {"reference": "bad-ref"},
+            f"{self.base_url}/payments/{self.enrollment.pk}/under-review/",
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
-
-    def test_online_webhook(self):
-        EnrollmentPayment.objects.create(
-            enrollment=self.enrollment,
-            amount=Decimal("500.00"),
-            payment_method=PaymentMethod.ONLINE,
-            payment_provider="CHAPA",
-            transaction_reference="ENROLL-abcf0000-abcdef123456",
-            status=PaymentStatus.PENDING,
-        )
-        with patch("apps.academic.services.payment_service.shared_verify_payment") as mock_v:
-            mock_v.return_value = {
-                "provider": "chapa", "status": "success", "provider_status": "success",
-                "reference": "ENROLL-abcf0000-abcdef123456", "provider_transaction_id": "tx_wh",
-                "amount": Decimal("500.00"), "currency": "ETB", "raw": {},
-            }
-            response = self.client.post(
-                f"{self.base_url}/enrollments/online/webhook/",
-                {"tx_ref": "ENROLL-abcf0000-abcdef123456"},
-                format="json",
-            )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], "success")
+
+    def test_reject_enrollment(self):
+        self.authenticate_as_secretary()
+        self.enrollment.verification_status = VerificationStatus.SUBMITTED
+        self.enrollment.save()
+        EnrollmentPayment.objects.create(
+            enrollment=self.enrollment, amount=Decimal("500.00"),
+            payment_method=PaymentMethod.BANK_TRANSFER,
+            transaction_reference="TXN-REJ", status=PaymentStatus.PENDING,
+        )
+        response = self.client.post(
+            f"{self.base_url}/payments/{self.enrollment.pk}/reject/",
+            {"rejection_reason": "Payment not found."},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
 
 
 class AttendanceAPITest(AcademicAPITestCase):
@@ -1046,7 +1198,7 @@ class AttendanceAPITest(AcademicAPITestCase):
 
         self.program = Program.objects.create(name="Att Program", slug="att-program")
         self.sub_program = SubProgram.objects.create(
-            program=self.program, name="Att Sub", slug="att-sub", fee=Decimal("500.00"),
+            program=self.program, name="Att Sub", slug="att-sub", group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.klass = class_service.create_class(
             sub_program=self.sub_program, branch=self.branch,
@@ -1219,7 +1371,7 @@ class ProgressAPITest(AcademicAPITestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Prog Sub", slug="prog-sub",
-            fee=Decimal("500.00"),
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.klass = class_service.create_class(
             sub_program=self.sub_program, branch=self.branch,
@@ -1472,7 +1624,7 @@ class LearningMaterialAPITest(AcademicAPITestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Mat API Sub", slug="mat-api-sub",
-            fee=Decimal("500.00"),
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.klass = class_service.create_class(
             sub_program=self.sub_program, branch=self.branch,
@@ -1692,7 +1844,7 @@ class LearningMaterialAPITest(AcademicAPITestCase):
         )
         other_sub = SubProgram.objects.create(
             program=other_program, name="Other API Sub", slug="other-api-sub",
-            fee=Decimal("400.00"),
+            group_fee=Decimal("400.00"), individual_fee=Decimal("400.00"),
         )
         file = self._create_temp_file()
         learning_material_service.upload_material(
@@ -1716,7 +1868,7 @@ class CertificateAPITest(AcademicAPITestCase):
         )
         self.sub_program = SubProgram.objects.create(
             program=self.program, name="Cert API Sub", slug="cert-api-sub",
-            fee=Decimal("500.00"),
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
         )
         self.klass = class_service.create_class(
             sub_program=self.sub_program, branch=self.branch,
@@ -1919,7 +2071,7 @@ class ReportAPITest(AcademicAPITestCase):
         )
         self.sub_program = program_service.create_sub_program(
             program=self.program, name="Report Sub", slug="report-sub",
-            fee=Decimal("300.00"),
+            group_fee=Decimal("300.00"), individual_fee=Decimal("300.00"),
         )
         self.class_model = class_service.create_class(
             sub_program=self.sub_program, branch=self.branch,
@@ -2039,3 +2191,197 @@ class ReportAPITest(AcademicAPITestCase):
             f"{self.base_url}/reports/classes/{self.class_model.pk}/"
         )
         self.assertEqual(response.status_code, 401)
+
+
+class TransferAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.branch_a = Branch.objects.create(name="Branch A", code="BA01")
+        self.branch_b = Branch.objects.create(name="Branch B", code="BB01")
+        self.program = program_service.create_program(
+            name="Programming", slug="programming",
+            supports_group=True, supports_individual=True,
+        )
+        self.sub_program = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python",
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
+        )
+        self.student_user = user_service.create_student_user(
+            "transferee@test.com", "Test", "Student", self.password, self.branch_a,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_user.is_email_verified = True
+        self.student_user.save()
+        self.student = Student.objects.create(
+            user=self.student_user, branch=self.branch_a, date_joined=date.today(),
+        )
+        self.source_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch_a, instructor=self.instructor,
+            name="Source", class_type=ClassType.INDIVIDUAL,
+        )
+        self.target_class = class_service.create_class(
+            sub_program=self.sub_program, branch=self.branch_b, instructor=self.instructor,
+            name="Target", class_type=ClassType.INDIVIDUAL,
+        )
+        self.enrollment = enroll_student(
+            None, student=self.student, enrolled_class=self.source_class,
+        )
+        self.enrollment.status = EnrollmentStatus.ACTIVE
+        self.enrollment.save()
+
+    def test_request_transfer_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/transfers/request/",
+            {
+                "enrollment": str(self.enrollment.pk),
+                "target_class": str(self.target_class.pk),
+                "to_branch": str(self.branch_b.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "PENDING")
+
+    def test_request_transfer_unauthenticated_returns_401(self):
+        response = self.client.post(
+            f"{self.base_url}/transfers/request/",
+            {
+                "enrollment": str(self.enrollment.pk),
+                "target_class": str(self.target_class.pk),
+                "to_branch": str(self.branch_b.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_request_transfer_as_student_returns_403(self):
+        self.authenticate_as_student()
+        response = self.client.post(
+            f"{self.base_url}/transfers/request/",
+            {
+                "enrollment": str(self.enrollment.pk),
+                "target_class": str(self.target_class.pk),
+                "to_branch": str(self.branch_b.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_list_transfers_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        request_transfer(
+            self.super_admin,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        response = self.client.get(f"{self.base_url}/transfers/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_list_transfers_unauthenticated_returns_401(self):
+        response = self.client.get(f"{self.base_url}/transfers/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_approve_transfer_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        transfer = request_transfer(
+            self.super_admin,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        response = self.client.post(
+            f"{self.base_url}/transfers/{transfer.pk}/approve/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["new_enrollment"]["status"], EnrollmentStatus.ACTIVE)
+        self.assertEqual(data["transfer_request"]["status"], "APPROVED")
+
+    def test_reject_transfer_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        transfer = request_transfer(
+            self.super_admin,
+            enrollment=self.enrollment,
+            target_class=self.target_class,
+            to_branch=self.branch_b,
+        )
+        response = self.client.post(
+            f"{self.base_url}/transfers/{transfer.pk}/reject/",
+            {"rejection_reason": "No capacity"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "REJECTED")
+
+
+class SwitchSubProgramAPITest(AcademicAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.program = program_service.create_program(
+            name="Programming", slug="programming",
+            supports_group=True, supports_individual=True,
+        )
+        self.sub_program_a = program_service.create_sub_program(
+            program=self.program, name="Python", slug="python",
+            group_fee=Decimal("300.00"), individual_fee=Decimal("300.00"),
+        )
+        self.sub_program_b = program_service.create_sub_program(
+            program=self.program, name="Java", slug="java",
+            group_fee=Decimal("500.00"), individual_fee=Decimal("500.00"),
+        )
+        self.student_user = user_service.create_student_user(
+            "switchit@test.com", "Switch", "Student", self.password, self.branch,
+        )
+        user_service.activate_user(self.student_user)
+        self.student_user.is_email_verified = True
+        self.student_user.save()
+        self.student = Student.objects.create(
+            user=self.student_user, branch=self.branch, date_joined=date.today(),
+        )
+        self.current_class = class_service.create_class(
+            sub_program=self.sub_program_a, branch=self.branch, instructor=self.instructor,
+            name="Python Class", class_type=ClassType.INDIVIDUAL,
+        )
+        self.target_class = class_service.create_class(
+            sub_program=self.sub_program_b, branch=self.branch, instructor=self.instructor,
+            name="Java Class", class_type=ClassType.INDIVIDUAL,
+        )
+        self.enrollment = enroll_student(
+            None, student=self.student, enrolled_class=self.current_class,
+        )
+        self.enrollment.status = EnrollmentStatus.ACTIVE
+        self.enrollment.save()
+
+    def test_switch_subprogram_as_super_admin(self):
+        self.authenticate_as_super_admin()
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{self.enrollment.pk}/switch-subprogram/",
+            {"target_class": str(self.target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["new_enrollment"]["status"], EnrollmentStatus.ACTIVE)
+        self.assertIsNotNone(data["new_enrollment"]["enrollment_number"])
+        self.assertEqual(data["amount_due"], 200.0)
+
+    def test_switch_subprogram_unauthenticated_returns_401(self):
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{self.enrollment.pk}/switch-subprogram/",
+            {"target_class": str(self.target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_switch_subprogram_as_student_returns_403(self):
+        self.authenticate_as_student()
+        response = self.client.post(
+            f"{self.base_url}/enrollments/{self.enrollment.pk}/switch-subprogram/",
+            {"target_class": str(self.target_class.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)

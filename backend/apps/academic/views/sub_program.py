@@ -33,7 +33,7 @@ class SubProgramListCreateView(generics.ListCreateAPIView):
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "slug"]
-    ordering_fields = ["name", "fee"]
+    ordering_fields = ["name", "group_fee", "individual_fee"]
     ordering = ["name"]
 
     def get_queryset(self):
