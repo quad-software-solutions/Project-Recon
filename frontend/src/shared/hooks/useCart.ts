@@ -41,6 +41,7 @@ export function useCart() {
       await fetchCart();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add item to cart');
+      throw err;
     }
   };
 
@@ -71,6 +72,8 @@ export function useCart() {
     }
   };
 
+  const clearCartError = () => setError(null);
+
   const openCart = () => {
     setCartOpen(true);
   };
@@ -89,6 +92,7 @@ export function useCart() {
     handleUpdateQuantity,
     handleRemoveFromCart,
     clearCart,
+    clearCartError,
     fetchCart,
     openCart,
     closeCart,

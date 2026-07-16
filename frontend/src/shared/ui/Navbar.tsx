@@ -29,6 +29,8 @@ type MegaItem = {
   icon: React.ElementType;
   tab: ActiveTab;
   section?: string;
+  /** Optional absolute path for deep links (e.g. /store/orders) */
+  href?: string;
 };
 
 const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> = {
@@ -54,10 +56,10 @@ const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> 
   store: {
     viewAllTab: 'store',
     items: [
-      { label: 'Sensors', desc: 'Ultrasonic, gyro, vision', icon: Cpu, tab: 'store' },
-      { label: 'Microcontrollers', desc: 'Arduino, ESP32, Pi', icon: Laptop, tab: 'store' },
-      { label: 'Accessories', desc: 'Motors, wires, tools', icon: Wrench, tab: 'store' },
-      { label: 'Apparel & Bags', desc: 'Branded merch & backpacks', icon: ShoppingBag, tab: 'store' },
+      { label: 'All products', desc: 'Browse the full catalog', icon: ShoppingBag, tab: 'store', href: '/store' },
+      { label: 'My orders', desc: 'Track paid and pickup orders', icon: Award, tab: 'store-orders', href: '/store/orders' },
+      { label: 'Sensors & kits', desc: 'Parts for competition builds', icon: Cpu, tab: 'store', href: '/store' },
+      { label: 'Apparel & bags', desc: 'Branded merch', icon: ShoppingBag, tab: 'store', href: '/store' },
     ],
   },
   events: {
@@ -119,19 +121,23 @@ export default function Navbar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleNavClick = (tab: ActiveTab, section?: string) => {
-    setActiveTab(tab);
+  const handleNavClick = (tab: ActiveTab, section?: string, href?: string) => {
     setMobileMenuOpen(false);
     setMobileMegaOpen(null);
     setOpenMega(null);
+    if (href) {
+      window.history.pushState(null, '', href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setActiveTab(tab);
     if (section) {
-      // Allow the tab content to render before scrolling
       requestAnimationFrame(() => {
         setTimeout(() => {
           const el = document.getElementById(section);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       });
     } else {
@@ -254,7 +260,7 @@ export default function Navbar({
                                 <a
                                   key={i}
                                   href={`#${sub.tab}${sub.section ? `/${sub.section}` : ''}`}
-                                  onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section); }}
+                                  onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section, sub.href); }}
                                   role="menuitem"
                                   className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-brand-blue/[0.06] transition-all duration-150 group"
                                 >
@@ -409,7 +415,7 @@ export default function Navbar({
                                   <a
                                     key={i}
                                     href={`#${sub.tab}${sub.section ? `/${sub.section}` : ''}`}
-                                    onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section); }}
+                                    onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section, sub.href); }}
                                     className="flex items-center gap-2.5 py-2 px-2.5 text-sm text-slate-600 hover:text-brand-blue rounded-lg hover:bg-brand-blue/[0.04] transition-all"
                                   >
                                     <SubIcon className="w-3.5 h-3.5 text-brand-blue/50" />

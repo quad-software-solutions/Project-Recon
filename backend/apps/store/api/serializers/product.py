@@ -40,7 +40,7 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_primary_image(self, obj):
         img = obj.images.filter(is_primary=True).first()
         if img:
-            return ProductImageSerializer(img).data
+            return ProductImageSerializer(img, context=self.context).data
         return None
 
 
@@ -75,5 +75,5 @@ class ProductAdminSerializer(serializers.ModelSerializer):
     def get_primary_image(self, obj):
         img = obj.images.filter(is_primary=True).first()
         if img:
-            return ProductImageSerializer(img).data
+            return ProductImageSerializer(img, context=self.context).data
         return None

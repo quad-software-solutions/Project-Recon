@@ -110,7 +110,7 @@ function ShopPanel({ branchId }: { branchId: string }) {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((product, i) => {
-            const primaryImg = product.primary_image?.image_url || product.images?.[0]?.image_url;
+            const primaryImg = product.primary_image?.image || product.images?.[0]?.image;
             return (
               <motion.div key={product.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 className="bg-white rounded-2xl border border-brand-border overflow-hidden hover:shadow-md transition-shadow group">

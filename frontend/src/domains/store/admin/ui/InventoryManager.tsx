@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Search, X, Package, Building2, Plus, ArrowRight, TrendingUp,
+} from 'lucide-react';
 import { storeAdminApi, type InventoryPayload, type InventoryTransferPayload } from '../api/storeAdminApi';
 import { branchesApi } from '@/domains/user/shared/api/adminApi';
-import type { BranchInventory } from '@/domains/store/model/types';
+import type { BranchInventory, Product } from '@/domains/store/model/types';
+import {
+  getInventoryProductName,
+  getInventoryProductSku,
+  isLowStock,
+} from '@/domains/store/utils/inventoryDisplay';
+import { cn } from '@/shared/utils/cn';
 
 interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
@@ -23,7 +32,9 @@ interface ActionState {
   type: ActionType;
   inventoryId: string;
   branch: string;
+  branchName: string;
   product: string;
+  productName: string;
   quantity: string;
   newQuantity: string;
   toBranch: string;
@@ -33,7 +44,9 @@ const initialAction = (): ActionState => ({
   type: 'add',
   inventoryId: '',
   branch: '',
+  branchName: '',
   product: '',
+  productName: '',
   quantity: '',
   newQuantity: '',
   toBranch: '',
@@ -42,9 +55,11 @@ const initialAction = (): ActionState => ({
 export default function InventoryManager({ addToast }: Props) {
   const [items, setItems] = useState<BranchInventory[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
+  const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<InventoryPayload>(emptyInventory());
@@ -57,14 +72,14 @@ export default function InventoryManager({ addToast }: Props) {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {};
-      if (branchFilter) params.branch = branchFilter;
-      const [data, branchData] = await Promise.all([
-        storeAdminApi.inventory.list(params),
+      const [data, branchData, productData] = await Promise.all([
+        storeAdminApi.inventory.list(),
         branchesApi.list(),
+        storeAdminApi.products.list(),
       ]);
       setItems(data);
       setBranches(branchData.map((b: any) => ({ id: b.id || b.uuid, name: b.name })));
+      setProducts(productData);
     } catch (e: any) {
       addToast(e.message || 'Failed to load inventory', 'error');
     } finally {
@@ -72,7 +87,7 @@ export default function InventoryManager({ addToast }: Props) {
     }
   };
 
-  useEffect(() => { fetchAll(); }, [branchFilter]);
+  useEffect(() => { fetchAll(); }, []);
 
   const openCreate = () => {
     setCreateForm(emptyInventory());
@@ -93,41 +108,67 @@ export default function InventoryManager({ addToast }: Props) {
     }
   };
 
-  const openAction = (item?: BranchInventory) => {
+  const openAction = (item: BranchInventory) => {
     setAction({
       ...initialAction(),
-      inventoryId: item?.id || '',
-      product: item?.product || '',
-      branch: item?.branch || '',
+      inventoryId: item.id,
+      product: item.product,
+      productName: getInventoryProductName(item),
+      branch: item.branch,
+      branchName: item.branch_name || '',
     });
     setShowActionModal(true);
   };
 
   const handleAction = async () => {
+    if (action.type === 'add' || action.type === 'reduce' || action.type === 'correct') {
+      if (!action.inventoryId) {
+        addToast('Select an inventory row before performing this action', 'error');
+        return;
+      }
+    }
+
+    const qty = parseInt(action.quantity, 10);
+    if (action.type === 'add' || action.type === 'reduce' || action.type === 'transfer') {
+      if (!Number.isFinite(qty) || qty < 1) {
+        addToast('Quantity must be at least 1', 'error');
+        return;
+      }
+    }
+
+    if (action.type === 'transfer') {
+      if (!action.toBranch || !action.product || !action.branch) {
+        addToast('Transfer requires from branch, destination branch, and product', 'error');
+        return;
+      }
+    }
+
     setActioning(true);
     try {
       switch (action.type) {
         case 'add':
-          await storeAdminApi.inventory.adjust(action.inventoryId, { quantity: parseInt(action.quantity) || 0 });
+          await storeAdminApi.inventory.adjust(action.inventoryId, { quantity: qty });
           break;
         case 'reduce':
-          await storeAdminApi.inventory.reduce(action.inventoryId, { quantity: parseInt(action.quantity) || 0 });
+          await storeAdminApi.inventory.reduce(action.inventoryId, { quantity: qty });
           break;
         case 'correct':
-          await storeAdminApi.inventory.correct(action.inventoryId, { quantity: parseInt(action.newQuantity) || 0 });
+          await storeAdminApi.inventory.correct(action.inventoryId, {
+            quantity: parseInt(action.newQuantity, 10) || 0,
+          });
           break;
         case 'transfer': {
           const payload: InventoryTransferPayload = {
             from_branch: action.branch,
             to_branch: action.toBranch,
             product: action.product,
-            quantity: parseInt(action.quantity) || 0,
+            quantity: qty,
           };
           await storeAdminApi.inventory.transfer(payload);
           break;
         }
       }
-      addToast('Inventory action completed', 'success');
+      addToast('Inventory action completed successfully', 'success');
       setShowActionModal(false);
       fetchAll();
     } catch (e: any) {
@@ -137,174 +178,424 @@ export default function InventoryManager({ addToast }: Props) {
     }
   };
 
-  const filtered = items.filter(i =>
-    i.product_name.toLowerCase().includes(search.toLowerCase()) ||
-    i.product_sku.toLowerCase().includes(search.toLowerCase()) ||
-    i.branch_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const lowStockItems = items.filter(isLowStock);
+  const hasActiveFilters = Boolean(search || branchFilter || lowStockOnly);
+  const filtered = items.filter(i => {
+    const name = getInventoryProductName(i).toLowerCase();
+    const sku = getInventoryProductSku(i).toLowerCase();
+    const branchName = (i.branch_name || '').toLowerCase();
+    const q = search.toLowerCase();
+    const matchesSearch = !q || name.includes(q) || sku.includes(q) || branchName.includes(q);
+    const matchesBranch = !branchFilter || i.branch === branchFilter;
+    const matchesLowStock = !lowStockOnly || isLowStock(i);
+    return matchesSearch && matchesBranch && matchesLowStock;
+  });
+
+  const actionDisabled =
+    actioning ||
+    ((action.type === 'add' || action.type === 'reduce' || action.type === 'correct') && !action.inventoryId) ||
+    ((action.type === 'add' || action.type === 'reduce' || action.type === 'transfer') &&
+      (!(parseInt(action.quantity, 10) >= 1))) ||
+    (action.type === 'correct' && action.newQuantity === '') ||
+    (action.type === 'transfer' && (!action.toBranch || !action.product || !action.branch));
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-800">Branch Inventory</h3>
-        <div className="flex items-center gap-2">
-          <button onClick={() => openAction()}
-            className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 transition-colors">
-            Stock Action
-          </button>
-          <button onClick={openCreate}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors">
-            New Record
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 mb-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input type="text" placeholder="Search inventory..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-        </div>
-        <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
-          className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-          <option value="">All Branches</option>
-          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-slate-400 text-center py-8">Loading...</p>
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-slate-400 text-center py-8">{search || branchFilter ? 'No matches' : 'No inventory records'}</p>
-      ) : (
-        <div className="space-y-1">
-          {filtered.map(item => (
-            <div key={item.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-800">{item.product_name}</p>
-                <p className="text-xs text-slate-500">
-                  {item.branch_name} &middot; SKU: {item.product_sku}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                    item.quantity <= item.minimum_quantity
-                      ? 'bg-red-50 text-red-600'
-                      : 'bg-emerald-50 text-emerald-600'
-                  }`}>
-                    Qty: {item.quantity}
-                  </span>
-                  <span className="text-[11px] text-slate-400">Min: {item.minimum_quantity}</span>
-                </div>
-              </div>
-              <button onClick={() => openAction(item)}
-                className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors shrink-0 ml-2">
-                Action
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-5 w-full max-w-md mx-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-slate-800">New Inventory Record</h4>
-              <button onClick={() => setShowCreateModal(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Branch</label>
-                <select value={createForm.branch} onChange={e => setCreateForm(p => ({ ...p, branch: e.target.value }))}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                  <option value="">-- Select --</option>
-                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Product ID</label>
-                <input type="text" value={createForm.product} onChange={e => setCreateForm(p => ({ ...p, product: e.target.value }))}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Quantity</label>
-                  <input type="number" min="0" value={createForm.quantity} onChange={e => setCreateForm(p => ({ ...p, quantity: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Min Quantity</label>
-                  <input type="number" min="0" value={createForm.minimum_quantity} onChange={e => setCreateForm(p => ({ ...p, minimum_quantity: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setShowCreateModal(false)}
-                className="px-3 py-1.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
-              <button onClick={handleCreate} disabled={creating || !createForm.branch || !createForm.product}
-                className="px-3 py-1.5 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                {creating ? 'Creating...' : 'Create'}
-              </button>
-            </div>
+    <div className="bg-white rounded-xl border border-brand-border overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-brand-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
+            <Package className="w-4 h-4 text-brand-blue" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-brand-ink">Branch Inventory</h3>
+            <p className="text-xs text-brand-muted">
+              {items.length} records
+              {lowStockItems.length > 0 && (
+                <span className="text-red-500 ml-1">&middot; {lowStockItems.length} low stock</span>
+              )}
+            </p>
           </div>
         </div>
-      )}
+        <button onClick={openCreate}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15">
+          <Plus className="w-4 h-4" /> New Record
+        </button>
+      </div>
 
-      {showActionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowActionModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-5 w-full max-w-md mx-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-slate-800">Stock Action</h4>
-              <button onClick={() => setShowActionModal(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Action</label>
-                <select value={action.type} onChange={e => setAction(p => ({ ...p, type: e.target.value as ActionType }))}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                  <option value="add">Add Stock</option>
-                  <option value="reduce">Reduce Stock</option>
-                  <option value="correct">Correct Quantity</option>
-                  <option value="transfer">Transfer to Branch</option>
-                </select>
+      {/* Filters */}
+      <div className="px-5 py-3 border-b border-brand-border/30 bg-slate-50/50">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-muted" />
+            <input
+              type="text"
+              placeholder="Search by product, SKU, or branch..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue placeholder:text-brand-muted/60"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={branchFilter}
+              onChange={e => setBranchFilter(e.target.value)}
+              className="flex-1 sm:w-auto px-3 py-2 text-sm bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+            >
+              <option value="">All Branches</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <label className="flex items-center gap-1.5 px-3 py-2 text-sm bg-white border border-brand-border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={lowStockOnly}
+                onChange={e => setLowStockOnly(e.target.checked)}
+                className="rounded border-brand-border text-brand-blue focus:ring-brand-blue/20"
+              />
+              <span className="text-xs font-medium text-brand-muted">Low stock only</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Inventory List */}
+      <div className="p-5">
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 animate-pulse">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                </div>
+                <div className="h-6 w-16 bg-slate-200 rounded" />
               </div>
-              {(action.type === 'add' || action.type === 'reduce' || action.type === 'transfer') && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Quantity</label>
-                  <input type="number" min="0" value={action.quantity} onChange={e => setAction(p => ({ ...p, quantity: e.target.value }))}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-3">
+              {hasActiveFilters ? (
+                <Search className="w-6 h-6 text-slate-300" />
+              ) : (
+                <Package className="w-6 h-6 text-slate-300" />
               )}
-              {action.type === 'correct' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">New Quantity</label>
-                  <input type="number" min="0" value={action.newQuantity} onChange={e => setAction(p => ({ ...p, newQuantity: e.target.value }))}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            </div>
+            <p className="text-sm font-medium text-brand-muted">
+              {hasActiveFilters ? 'No matching inventory records' : 'No inventory records yet'}
+            </p>
+            {!hasActiveFilters && (
+              <button
+                onClick={openCreate}
+                className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15"
+              >
+                <Plus className="w-4 h-4" /> Create first record
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <AnimatePresence>
+              {filtered.map(item => {
+                const productName = getInventoryProductName(item);
+                const productSku = getInventoryProductSku(item);
+                const stockPercent = item.minimum_quantity > 0
+                  ? Math.min((item.quantity / item.minimum_quantity) * 100, 200)
+                  : 100;
+                const isLow = isLowStock(item);
+                const isCritical = item.quantity === 0;
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="p-4 rounded-xl border transition-all duration-150 hover:shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2.5">
+                          <h4 className="text-sm font-semibold text-brand-ink truncate">{productName}</h4>
+                          {isCritical && (
+                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">OUT</span>
+                          )}
+                          {isLow && !isCritical && (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">LOW</span>
+                          )}
+                          {!isLow && (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">OK</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-brand-muted">
+                          <span className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" /> {item.branch_name}
+                          </span>
+                          {productSku && <span>SKU: {productSku}</span>}
+                        </div>
+
+                        {/* Stock Bar */}
+                        <div className="mt-2.5 flex items-center gap-3">
+                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500",
+                                isCritical ? "bg-red-500" : isLow ? "bg-amber-400" : "bg-emerald-400"
+                              )}
+                              style={{ width: `${Math.min(stockPercent, 100)}%` }}
+                            />
+                          </div>
+                          <span className={cn(
+                            "text-xs font-bold whitespace-nowrap",
+                            isCritical ? "text-red-600" : isLow ? "text-amber-700" : "text-emerald-600"
+                          )}>
+                            {item.quantity} / {item.minimum_quantity} min
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => openAction(item)}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-blue bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors mt-0.5"
+                      >
+                        Action
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+
+      {/* Create Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-xl border border-brand-border w-full max-w-md mx-auto"
+            >
+              <div className="px-6 py-4 border-b border-brand-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
+                    <Plus className="w-4 h-4 text-brand-blue" />
+                  </div>
+                  <h4 className="text-sm font-bold text-brand-ink">New Inventory Record</h4>
                 </div>
-              )}
-              {action.type === 'transfer' && (
+                <button onClick={() => setShowCreateModal(false)} className="p-1.5 rounded-lg text-brand-muted hover:bg-slate-100 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Destination Branch</label>
-                  <select value={action.toBranch} onChange={e => setAction(p => ({ ...p, toBranch: e.target.value }))}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                    <option value="">-- Select --</option>
-                    {branches.filter(b => b.id !== action.branch).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  <label className="block text-xs font-semibold text-brand-muted mb-1.5">Branch</label>
+                  <select
+                    value={createForm.branch}
+                    onChange={e => setCreateForm(p => ({ ...p, branch: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
                   </select>
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setShowActionModal(false)}
-                className="px-3 py-1.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
-              <button onClick={handleAction} disabled={actioning}
-                className="px-3 py-1.5 text-sm font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors">
-                {actioning ? 'Processing...' : 'Execute'}
-              </button>
-            </div>
+                <div>
+                  <label className="block text-xs font-semibold text-brand-muted mb-1.5">Product</label>
+                  <select
+                    value={createForm.product}
+                    onChange={e => setCreateForm(p => ({ ...p, product: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                  >
+                    <option value="">Select product</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}{p.sku ? ` (${p.sku})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-muted mb-1.5">Quantity</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={createForm.quantity}
+                      onChange={e => setCreateForm(p => ({ ...p, quantity: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-muted mb-1.5">Min Quantity</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={createForm.minimum_quantity}
+                      onChange={e => setCreateForm(p => ({ ...p, minimum_quantity: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-brand-border/50 bg-slate-50/50 flex items-center justify-end gap-2.5">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2.5 text-sm font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={creating || !createForm.branch || !createForm.product}
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-brand-blue rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-colors shadow-sm shadow-brand-blue/15 flex items-center gap-2"
+                >
+                  {creating ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    'Create Record'
+                  )}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* Action Modal */}
+      <AnimatePresence>
+        {showActionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setShowActionModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-xl border border-brand-border w-full max-w-md mx-auto"
+            >
+              <div className="px-6 py-4 border-b border-brand-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-brand-blue" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-brand-ink">Stock Action</h4>
+                    {action.productName && (
+                      <p className="text-xs text-brand-muted">{action.productName}</p>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => setShowActionModal(false)} className="p-1.5 rounded-lg text-brand-muted hover:bg-slate-100 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-brand-muted mb-1.5">Action Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['add', 'reduce', 'correct', 'transfer'] as ActionType[]).map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setAction(p => ({ ...p, type }))}
+                        className={cn(
+                          "px-3 py-2.5 rounded-lg text-sm font-semibold border transition-all text-left",
+                          action.type === type
+                            ? "bg-brand-blue/5 border-brand-blue/30 text-brand-blue"
+                            : "bg-white border-brand-border text-brand-muted hover:border-brand-blue/20"
+                        )}
+                      >
+                        {type === 'add' && 'Add Stock'}
+                        {type === 'reduce' && 'Reduce Stock'}
+                        {type === 'correct' && 'Correct Qty'}
+                        {type === 'transfer' && 'Transfer'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(action.type === 'add' || action.type === 'reduce' || action.type === 'transfer') && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-muted mb-1.5">Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={action.quantity}
+                      onChange={e => setAction(p => ({ ...p, quantity: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                      placeholder="Enter quantity"
+                    />
+                  </div>
+                )}
+
+                {action.type === 'correct' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-muted mb-1.5">New Quantity</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={action.newQuantity}
+                      onChange={e => setAction(p => ({ ...p, newQuantity: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                      placeholder="Set exact quantity"
+                    />
+                    <p className="text-[11px] text-brand-muted mt-1">This will override the current quantity</p>
+                  </div>
+                )}
+
+                {action.type === 'transfer' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-muted mb-1.5">Destination Branch</label>
+                    <div className="flex items-center gap-2 mb-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <Building2 className="w-4 h-4 text-brand-muted" />
+                      <span className="text-sm text-brand-muted">From: <strong className="text-brand-ink">{action.branchName || 'Selected'}</strong></span>
+                      <ArrowRight className="w-4 h-4 text-brand-muted" />
+                    </div>
+                    <select
+                      value={action.toBranch}
+                      onChange={e => setAction(p => ({ ...p, toBranch: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 text-sm border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10 focus:border-brand-blue"
+                    >
+                      <option value="">Select destination</option>
+                      {branches.filter(b => b.id !== action.branch).map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-brand-border/50 bg-slate-50/50 flex items-center justify-end gap-2.5">
+                <button
+                  onClick={() => setShowActionModal(false)}
+                  className="px-4 py-2.5 text-sm font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAction}
+                  disabled={actionDisabled}
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-brand-blue rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-colors shadow-sm shadow-brand-blue/15 flex items-center gap-2"
+                >
+                  {actioning ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    'Execute'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

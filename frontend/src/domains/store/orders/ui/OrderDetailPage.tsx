@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, ShoppingBag, Clock, CheckCircle2, Package, Truck, Building2 } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Building2, Clock, Package, Hash, ArrowRight } from 'lucide-react';
 import { getOrder } from '../api/orderApi';
-import { Order } from '@/domains/store/model/types';
+import type { Order } from '@/domains/store/model/types';
 import EmptyState from '@/shared/ui/EmptyState';
-import LoadingSkeleton from '@/shared/ui/LoadingSkeleton';
 import { Button } from '@/shared/ui/Button';
-
-const statusConfig = {
-  'pending': { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50', label: 'Pending' },
-  'paid': { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50', label: 'Paid' },
-  'processing': { icon: Package, color: 'text-blue-500', bg: 'bg-blue-50', label: 'Processing' },
-  'shipped': { icon: Truck, color: 'text-indigo-500', bg: 'bg-indigo-50', label: 'Shipped' },
-  'delivered': { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50', label: 'Delivered' },
-  'cancelled': { icon: ShoppingBag, color: 'text-red-500', bg: 'bg-red-50', label: 'Cancelled' },
-};
+import { formatMoney } from '@/domains/store/utils/formatMoney';
+import { getOrderStatusLabel, getOrderStatusTone, normalizeOrderStatus } from '@/domains/store/utils/orderStatus';
+import { navigateStore } from '@/domains/store/utils/catalog';
+import { cn } from '@/shared/utils/cn';
 
 export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
@@ -22,20 +16,17 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     const loadOrder = async () => {
-      const idSegment = window.location.pathname.split('/').filter(Boolean).pop();
-      const orderId = idSegment ? idSegment : null;
-
-      if (!orderId) {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      const orderId = parts[parts.length - 1];
+      if (!orderId || orderId === 'orders') {
         setError('Invalid order');
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
-        const data = await getOrder(orderId);
-        setOrder(data);
-      } catch (err) {
+        setOrder(await getOrder(orderId));
+      } catch {
         setError('Failed to load order');
       } finally {
         setLoading(false);
@@ -44,15 +35,13 @@ export default function OrderDetailPage() {
     loadOrder();
   }, []);
 
-  const navigateTo = (path: string) => {
-    window.history.pushState(null, '', path);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  };
-
   if (loading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <LoadingSkeleton rows={1} />
+      <div className="p-6 max-w-4xl mx-auto animate-pulse space-y-4">
+        <div className="h-4 w-24 bg-brand-surface rounded" />
+        <div className="h-8 w-48 bg-brand-surface rounded" />
+        <div className="h-32 bg-brand-surface rounded-xl" />
+        <div className="h-48 bg-brand-surface rounded-xl" />
       </div>
     );
   }
@@ -64,111 +53,161 @@ export default function OrderDetailPage() {
           icon={ShoppingBag}
           title="Order not found"
           description="The order you're looking for doesn't exist or you don't have permission to view it."
+          action={<Button variant="secondary" onClick={() => navigateStore('/store/orders')}>Back to orders</Button>}
         />
       </div>
     );
   }
 
-  const config = statusConfig[order.status as keyof typeof statusConfig] ?? statusConfig.pending;
-  const StatusIcon = config.icon;
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <button
-          type="button"
-          onClick={() => navigateTo('/store/orders')}
-          className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Orders
-        </button>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Order #{order.order_number}</h1>
-            <p className="text-sm text-slate-500">
-              Placed on {new Date(order.created_at).toLocaleDateString()}
-            </p>
-          </div>
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${config.bg}`}>
-            <StatusIcon className={`w-4 h-4 ${config.color}`} />
-            <span className={`text-xs font-bold ${config.color}`}>{config.label}</span>
-          </div>
+      <button
+        type="button"
+        onClick={() => navigateStore('/store/orders')}
+        className="inline-flex items-center gap-2 text-sm text-brand-muted hover:text-brand-ink mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to orders
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <p className="eyebrow mb-1">Order</p>
+          <h1 className="font-display text-2xl font-bold text-brand-ink font-mono">#{order.order_number}</h1>
+          <p className="text-sm text-brand-muted mt-1 flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" />
+            Placed {new Date(order.created_at).toLocaleString()}
+          </p>
         </div>
+        <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border', getOrderStatusTone(order.status))}>
+          {getOrderStatusLabel(order.status)}
+        </span>
       </div>
 
-      <div className="grid gap-6">
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
-          <div className="flex items-center gap-2 mb-3">
-            <Building2 className="w-4 h-4 text-slate-500" />
-            <h3 className="font-bold text-slate-900">Branch</h3>
+      <div className="grid gap-4">
+        {/* Branch & Payment Info */}
+        <div className="p-5 bg-white rounded-[var(--radius-card)] border border-brand-border">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 className="w-4 h-4 text-brand-muted" />
+                <h3 className="font-bold text-brand-ink text-sm">Pickup branch</h3>
+              </div>
+              <p className="text-sm text-brand-ink">{order.branch_name}</p>
+            </div>
+            {order.payment_reference && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Hash className="w-4 h-4 text-brand-muted" />
+                  <h3 className="font-bold text-brand-ink text-sm">Payment reference</h3>
+                </div>
+                <p className="text-xs font-mono text-brand-ink break-all">{order.payment_reference}</p>
+              </div>
+            )}
           </div>
-          <p className="text-sm text-slate-700">{order.branch_name}</p>
+          {(order.paid_at || order.completed_at) && (
+            <div className="mt-4 pt-4 border-t border-brand-border grid sm:grid-cols-2 gap-2 text-xs text-brand-muted">
+              {order.paid_at && (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Paid: {new Date(order.paid_at).toLocaleString()}
+                </span>
+              )}
+              {order.completed_at && (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Completed: {new Date(order.completed_at).toLocaleString()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
-          <h3 className="font-bold text-slate-900 mb-4">Order Items</h3>
+        {/* Items */}
+        <div className="p-5 bg-white rounded-[var(--radius-card)] border border-brand-border">
+          <h3 className="font-bold text-brand-ink mb-4 text-sm flex items-center gap-2">
+            <Package className="w-4 h-4 text-brand-muted" />
+            Items ({order.items.length})
+          </h3>
           <div className="space-y-3">
             {order.items.map((item) => (
-              <div key={item.id} className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-                <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center">
-                  <ShoppingBag className="w-5 h-5 text-slate-400" />
+              <div key={item.id} className="flex items-center gap-4 p-3 bg-brand-surface rounded-xl">
+                <div className="w-12 h-12 bg-white rounded-lg border border-brand-border flex items-center justify-center shrink-0">
+                  <ShoppingBag className="w-5 h-5 text-brand-muted" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900">{item.product_name}</p>
-                  <p className="text-xs text-slate-500">SKU: {item.sku}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-brand-ink truncate">{item.product_name}</p>
+                  <p className="text-xs text-brand-muted">SKU: {item.sku}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium text-slate-900">
-                    {item.quantity} x Birr {item.unit_price.toLocaleString()}
+                <div className="text-right shrink-0">
+                  <p className="text-sm text-brand-ink tabular-nums">
+                    {item.quantity} × {formatMoney(item.unit_price)}
                   </p>
-                  <p className="text-sm font-bold text-brand-blue">
-                    Birr {item.subtotal.toLocaleString()}
-                  </p>
+                  <p className="text-sm font-bold text-brand-blue tabular-nums">{formatMoney(item.subtotal)}</p>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-200">
+          <div className="mt-4 pt-4 border-t border-brand-border space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-brand-muted">Subtotal</span>
+              <span className="font-medium text-brand-ink tabular-nums">{formatMoney(order.subtotal)}</span>
+            </div>
             <div className="flex justify-between items-center">
-              <span className="font-semibold text-slate-900">Total</span>
-              <span className="text-xl font-bold text-brand-blue">
-                Birr {order.total.toLocaleString()}
-              </span>
+              <span className="font-semibold text-brand-ink">Total</span>
+              <span className="text-xl font-bold text-brand-blue tabular-nums">{formatMoney(order.total)}</span>
             </div>
           </div>
         </div>
 
+        {/* Status Timeline */}
         {order.status_history && order.status_history.length > 0 && (
-          <div className="p-4 bg-white rounded-xl border border-slate-200">
-            <h3 className="font-bold text-slate-900 mb-4">Order History</h3>
-            <div className="space-y-3">
-              {order.status_history.map((history, index) => (
-                <div key={index} className="flex gap-3">
-                  <div className="w-2 h-2 rounded-full bg-slate-300 mt-2" />
-                  <div>
-                    <p className="text-sm text-slate-900">
-                      <span className="font-medium">{history.previous_status || 'Created'}</span>
-                      {' → '}
-                      <span className="font-bold text-brand-blue">{history.new_status}</span>
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {new Date(history.changed_at).toLocaleString()}
-                    </p>
-                    {history.notes && (
-                      <p className="text-xs text-slate-600 mt-1">{history.notes}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+          <div className="p-5 bg-white rounded-[var(--radius-card)] border border-brand-border">
+            <h3 className="font-bold text-brand-ink mb-4 text-sm">Status timeline</h3>
+            <div className="space-y-0">
+              {[...order.status_history]
+                .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime())
+                .map((h, idx, arr) => {
+                  const isLast = idx === arr.length - 1;
+                  return (
+                    <div key={h.id} className="flex gap-3 relative">
+                      {!isLast && (
+                        <div className="absolute left-[7px] top-4 bottom-0 w-0.5 bg-brand-border" />
+                      )}
+                      <div className={cn(
+                        'w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 z-10 bg-white',
+                        normalizeOrderStatus(h.new_status) === 'CANCELLED' ||
+                          normalizeOrderStatus(h.new_status) === 'REFUNDED'
+                          ? 'border-red-400'
+                          : 'border-brand-blue'
+                      )} />
+                      <div className="flex-1 min-w-0 pb-4">
+                        <p className="text-sm text-brand-ink">
+                          <span className="font-medium">
+                            {h.previous_status ? getOrderStatusLabel(h.previous_status) : 'Created'}
+                          </span>
+                          <ArrowRight className="w-3 h-3 inline mx-1 text-brand-muted" />
+                          <span className="font-bold text-brand-blue">
+                            {getOrderStatusLabel(h.new_status)}
+                          </span>
+                        </p>
+                        <p className="text-xs text-brand-muted mt-0.5">
+                          {new Date(h.changed_at).toLocaleString()}
+                        </p>
+                        {h.notes && (
+                          <p className="text-xs text-brand-muted/80 mt-1 italic bg-white/60 px-2 py-1 rounded border border-brand-border/50">
+                            {h.notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
 
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => navigateTo('/store')}>
-            Continue Shopping
+        <div className="flex gap-3 pt-2">
+          <Button variant="secondary" onClick={() => navigateStore('/store')}>
+            Continue shopping
           </Button>
         </div>
       </div>

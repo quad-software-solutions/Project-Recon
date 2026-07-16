@@ -11,7 +11,6 @@ export interface ProductCategory {
 export interface ProductImage {
   id: string;
   image: string;
-  image_url?: string;
   alt_text: string;
   is_primary: boolean;
   display_order: number;
@@ -29,14 +28,22 @@ export interface Product {
   sku: string;
   barcode: string;
   price: number;
-  currency: string;
   weight: number;
   is_active: boolean;
-  stock_status: string;
+  archived_at?: string | null;
   images: ProductImage[];
   primary_image: ProductImage | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProductBrief {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  price: number;
+  category_name: string;
 }
 
 export interface BranchInventory {
@@ -44,9 +51,10 @@ export interface BranchInventory {
   branch: string;
   branch_name: string;
   product: string;
-  product_name: string;
-  product_slug: string;
-  product_sku: string;
+  product_name?: string;
+  product_slug?: string;
+  product_sku?: string;
+  product_detail?: ProductBrief;
   quantity: number;
   minimum_quantity: number;
   created_at: string;

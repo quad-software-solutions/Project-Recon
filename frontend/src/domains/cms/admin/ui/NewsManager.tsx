@@ -7,7 +7,7 @@ interface Props { addToast: (msg: string, type: 'success' | 'error') => void }
 
 const emptyForm = (): Partial<News> => ({
   title: '', subtitle: '', content: '', author: '',
-  imageUrl: '', category: '', tags: '', publishedAt: new Date().toISOString().slice(0, 10), isActive: true,
+  imageUrl: '', category: 'NEWS', tags: '', publishedAt: new Date().toISOString().slice(0, 10), isActive: true,
 });
 
 export default function NewsManager({ addToast }: Props) {
@@ -200,7 +200,10 @@ export default function NewsManager({ addToast }: Props) {
                   <img src={editing.imageUrl} alt="" className="w-full h-32 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 </div>
               )}
-              <Field label="Category" value={editing.category ?? ''} onChange={v => { setEditing({ ...editing, category: v }); clearError('category'); }} error={formErrors.category} placeholder="e.g. NEWS, ANNOUNCEMENT, EVENT" />
+              <Select label="Category" value={editing.category ?? 'NEWS'} onChange={v => { setEditing({ ...editing, category: v }); clearError('category'); }} error={formErrors.category} options={[
+                { value: 'NEWS', label: 'News' },
+                { value: 'ANNOUNCEMENT', label: 'Announcement' },
+              ]} />
               <Field label="Tags (comma-separated)" value={editing.tags ?? ''} onChange={v => { setEditing({ ...editing, tags: v }); clearError('tags'); }} error={formErrors.tags} placeholder="e.g. robotics, competition, vex" />
               <Field label="Published Date" type="date" value={editing.publishedAt?.slice(0, 10) ?? ''} onChange={v => { setEditing({ ...editing, publishedAt: v }); clearError('publishedAt'); }} error={formErrors.publishedAt} />
               <Textarea label="Content" value={editing.content ?? ''} onChange={v => { setEditing({ ...editing, content: v }); clearError('content'); }} error={formErrors.content} required placeholder="e.g. Write the full article content here..." />
@@ -232,6 +235,19 @@ function Field({ label, value, onChange, type = 'text', error, required, placeho
       </label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${error ? 'border-red-300 focus:ring-red-30 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function Select({ label, value, onChange, error, options }: { label: string; value: string; onChange: (v: string) => void; error?: string; options: { value: string; label: string }[] }) {
+  return (
+    <div>
+      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{label}</label>
+      <select value={value} onChange={e => onChange(e.target.value)}
+        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${error ? 'border-red-300 focus:ring-red-30 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );

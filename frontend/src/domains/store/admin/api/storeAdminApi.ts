@@ -19,7 +19,6 @@ export interface ProductPayload {
   sku: string;
   barcode: string;
   price: number;
-  currency: string;
   weight: number;
   is_active: boolean;
 }
@@ -53,6 +52,46 @@ export interface InventoryTransferPayload {
   quantity: number;
 }
 
+export interface ProductStatsReport {
+  summary: {
+    total_products: number;
+    active_products: number;
+    archived_products: number;
+  };
+  price_stats: { min: number; max: number; avg: number };
+  by_category: Array<{
+    id: string;
+    name: string;
+    is_active: boolean;
+    total_products: number;
+    active_products: number;
+    archived_products: number;
+  }>;
+}
+
+export interface SalesReportRow {
+  period: string | null;
+  order_count: number;
+  total_revenue: number;
+  avg_order_value: number;
+}
+
+export interface LowStockReportRow {
+  branch_id: string;
+  branch_name: string;
+  product_id: string;
+  product_name: string;
+  sku: string;
+  quantity: number;
+  minimum_quantity: number;
+}
+
+export interface OrderReportRow {
+  period: string | null;
+  order_count: number;
+  total_value?: number;
+}
+
 export const storeAdminApi = {
   categories: {
     list: () => http.get<ProductCategory[]>(`${PREFIX}/categories/`),
@@ -67,13 +106,25 @@ export const storeAdminApi = {
   products: {
     list: (params?: Record<string, string>) => http.get<Product[]>(`${PREFIX}/products/`, { params }),
     get: (id: string) => http.get<Product>(`${PREFIX}/products/${id}/`),
-    create: (data: ProductPayload) => http.post<Product>(`${PREFIX}/products/`, data),
+    create: (data: ProductPayload) => {
+      const payload = { ...data } as Record<string, unknown>;
+      if (!payload.slug && data.name) {
+        payload.slug = data.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      }
+      return http.post<Product>(`${PREFIX}/products/`, payload);
+    },
     update: (id: string, data: Partial<ProductPayload>) => http.put<Product>(`${PREFIX}/products/${id}/`, data),
     delete: (id: string) => http.delete<void>(`${PREFIX}/products/${id}/`),
+    archive: (id: string) => http.post<void>(`${PREFIX}/products/${id}/archive/`, {}),
+    restore: (id: string) => http.post<void>(`${PREFIX}/products/${id}/restore/`, {}),
+    activate: (id: string) => http.post<void>(`${PREFIX}/products/${id}/activate/`, {}),
+    deactivate: (id: string) => http.post<void>(`${PREFIX}/products/${id}/deactivate/`, {}),
     uploadImage: (productId: string, formData: FormData) =>
       http.post<Product>(`${PREFIX}/products/${productId}/images/`, formData),
     deleteImage: (imageId: string) =>
       http.delete<void>(`/store/admin/product-images/${imageId}/`),
+    setPrimaryImage: (imageId: string) =>
+      http.post<void>(`/store/admin/product-images/${imageId}/set-primary/`, {}),
   },
 
   inventory: {
@@ -90,5 +141,14 @@ export const storeAdminApi = {
     get: (id: string) => http.get<Order>(`${PREFIX}/orders/${id}/`),
     updateStatus: (id: string, data: OrderStatusPayload) =>
       http.post<Order>(`${PREFIX}/orders/${id}/status/`, data),
+  },
+
+  reports: {
+    products: () => http.get<ProductStatsReport>(`${PREFIX}/reports/products/`),
+    sales: (params?: Record<string, string>) =>
+      http.get<SalesReportRow[]>(`${PREFIX}/reports/sales/`, { params }),
+    lowStock: () => http.get<LowStockReportRow[]>(`${PREFIX}/reports/low-stock/`),
+    orders: (params?: Record<string, string>) =>
+      http.get<OrderReportRow[]>(`${PREFIX}/reports/orders/`, { params }),
   },
 };

@@ -47,7 +47,6 @@ export default function App() {
   } = useCart();
 
   const handleCheckoutSuccess = (_pendingOrder: any) => {
-    closeCart();
     fetchCart();
   };
 
@@ -129,7 +128,7 @@ export default function App() {
           onOpenAuth={(mode) => {
             handleTabChange(mode === 'register' ? 'registration' : 'login');
           }}
-          cartCount={cart?.items?.length || 0}
+          cartCount={cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
           onOpenCart={openCart}
         />
       )}

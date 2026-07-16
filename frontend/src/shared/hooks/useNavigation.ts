@@ -6,8 +6,11 @@ import { getUserProfile } from '@/shared/utils/storage';
 function tabFromPath(path: string): ActiveTab {
   if (path.startsWith('/store/orders/')) return 'store-order-detail';
   if (path.startsWith('/store/orders')) return 'store-orders';
+  // Product + category deep links stay on the store tab; StoreTab parses the path.
+  if (path.startsWith('/store/products/') || path.startsWith('/store/categories/') || path.startsWith('/store')) {
+    return 'store';
+  }
   if (path.startsWith('/about')) return 'about';
-  if (path.startsWith('/store')) return 'store';
   if (path.startsWith('/simulator')) return 'simulator';
   if (path.startsWith('/command-center')) return 'command-center';
   if (path.startsWith('/dashboard') || path.startsWith('/manager')) return 'dashboard';
