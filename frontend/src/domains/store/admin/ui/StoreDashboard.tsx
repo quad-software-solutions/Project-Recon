@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, LayoutGrid, Package, Archive, ShoppingCart, Banknote,
   X, CheckCircle, AlertCircle, Lock, DollarSign, AlertTriangle, RefreshCw,
-  TrendingUp, Clock,
+  TrendingUp, Clock, BarChart3, Filter,
 } from 'lucide-react';
 import CategoryManager from './CategoryManager';
 import ProductManager from './ProductManager';
 import InventoryManager from './InventoryManager';
 import OrderManager from './OrderManager';
-import { storeAdminApi, type LowStockReportRow } from '../api/storeAdminApi';
+import PendingPaymentManager from './PendingPaymentManager';
+import { storeAdminApi, type LowStockReportRow, type SalesReportRow, type OrderReportRow, type ProductStatsReport, type InventoryReportRow } from '../api/storeAdminApi';
 import type { Order } from '@/domains/store/model/types';
 import type { UserProfile } from '@/shared/types';
 import { canManageStore, canManageStoreInventory } from '@/shared/auth/permissions';
@@ -17,7 +18,7 @@ import { formatMoney } from '@/domains/store/utils/formatMoney';
 import { getOrderStatusLabel, getOrderStatusTone } from '@/domains/store/utils/orderStatus';
 import { cn } from '@/shared/utils/cn';
 
-type Section = 'overview' | 'categories' | 'products' | 'inventory' | 'orders';
+type Section = 'overview' | 'categories' | 'products' | 'inventory' | 'orders' | 'payments' | 'reports';
 
 interface NavItem {
   id: Section;
@@ -195,6 +196,8 @@ export default function StoreDashboard({ currentUser }: Props) {
             {canManageFull && section === 'products' && <ProductManager addToast={addToast} />}
             {section === 'inventory' && <InventoryManager addToast={addToast} />}
             {canManageFull && section === 'orders' && <OrderManager addToast={addToast} />}
+            {canManageFull && section === 'payments' && <PendingPaymentManager addToast={addToast} />}
+            {canManageFull && section === 'reports' && <ReportsPanel addToast={addToast} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -449,6 +452,200 @@ function OverviewPanel({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReportsPanel({ addToast }: { addToast: (msg: string, type: 'success' | 'error') => void }) {
+  const [tab, setTab] = useState<'products' | 'sales' | 'inventory' | 'lowstock'>('sales');
+  const [loading, setLoading] = useState(false);
+  const [productStats, setProductStats] = useState<ProductStatsReport | null>(null);
+  const [sales, setSales] = useState<SalesReportRow[]>([]);
+  const [inventory, setInventory] = useState<InventoryReportRow[]>([]);
+  const [lowStock, setLowStock] = useState<LowStockReportRow[]>([]);
+  const [groupBy, setGroupBy] = useState('day');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        if (tab === 'products') setProductStats(await storeAdminApi.reports.products());
+        else if (tab === 'sales') setSales(await storeAdminApi.reports.sales({ group_by: groupBy }));
+        else if (tab === 'inventory') setInventory(await storeAdminApi.reports.inventory());
+        else if (tab === 'lowstock') setLowStock(await storeAdminApi.reports.lowStock());
+      } catch (e: unknown) {
+        addToast(e instanceof Error ? e.message : 'Failed to load report', 'error');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [tab, groupBy, addToast]);
+
+  const tabs = [
+    { id: 'sales' as const, label: 'Sales', icon: TrendingUp },
+    { id: 'products' as const, label: 'Products', icon: Package },
+    { id: 'inventory' as const, label: 'Inventory', icon: Archive },
+    { id: 'lowstock' as const, label: 'Low Stock', icon: AlertTriangle },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl border border-brand-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-brand-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-violet-50 border border-violet-200 flex items-center justify-center">
+            <BarChart3 className="w-4 h-4 text-violet-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-brand-ink">Reports</h3>
+            <p className="text-xs text-brand-muted">Store analytics and statistics</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-3 border-b border-brand-border/30 bg-slate-50/50 flex items-center gap-1.5 overflow-x-auto">
+        {tabs.map(t => (
+          <button key={t.id} type="button" onClick={() => setTab(t.id)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap',
+              tab === t.id ? 'bg-brand-blue text-white shadow-sm' : 'text-brand-muted hover:text-brand-ink hover:bg-white',
+            )}>
+            <t.icon className="w-3.5 h-3.5" /> {t.label}
+          </button>
+        ))}
+        {tab === 'sales' && (
+          <div className="ml-auto flex items-center gap-2">
+            <Filter className="w-3.5 h-3.5 text-brand-muted" />
+            <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
+              className="px-2 py-1 text-xs bg-white border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/10">
+              <option value="day">Daily</option>
+              <option value="week">Weekly</option>
+              <option value="month">Monthly</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="p-5">
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+            ))}
+          </div>
+        ) : tab === 'products' && productStats ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard label="Total" value={productStats.summary.total_products} color="text-brand-ink" />
+              <StatCard label="Active" value={productStats.summary.active_products} color="text-emerald-600" />
+              <StatCard label="Archived" value={productStats.summary.archived_products} color="text-amber-600" />
+            </div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-muted">By category</h4>
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-brand-muted border-b border-brand-border/50">
+                <th className="pb-2 font-semibold">Category</th>
+                <th className="pb-2 font-semibold text-right">Total</th>
+                <th className="pb-2 font-semibold text-right">Active</th>
+                <th className="pb-2 font-semibold text-right">Archived</th>
+              </tr></thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {productStats.by_category.map(c => (
+                  <tr key={c.id} className="text-brand-ink">
+                    <td className="py-2 font-medium">{c.name}</td>
+                    <td className="py-2 text-right tabular-nums">{c.total_products}</td>
+                    <td className="py-2 text-right tabular-nums text-emerald-600">{c.active_products}</td>
+                    <td className="py-2 text-right tabular-nums text-amber-600">{c.archived_products}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : tab === 'sales' ? (
+          sales.length === 0 ? (
+            <div className="text-center py-12 text-sm text-brand-muted">No sales data for this period.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-brand-muted border-b border-brand-border/50">
+                <th className="pb-2 font-semibold">Period</th>
+                <th className="pb-2 font-semibold text-right">Orders</th>
+                <th className="pb-2 font-semibold text-right">Revenue</th>
+                <th className="pb-2 font-semibold text-right">Avg. Value</th>
+              </tr></thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {sales.map((r, i) => (
+                  <tr key={i} className="text-brand-ink">
+                    <td className="py-2 font-medium">{r.period ? new Date(r.period).toLocaleDateString() : 'N/A'}</td>
+                    <td className="py-2 text-right tabular-nums">{r.order_count}</td>
+                    <td className="py-2 text-right tabular-nums font-semibold text-brand-blue">{formatMoney(r.total_revenue)}</td>
+                    <td className="py-2 text-right tabular-nums">{formatMoney(r.avg_order_value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        ) : tab === 'inventory' ? (
+          inventory.length === 0 ? (
+            <div className="text-center py-12 text-sm text-brand-muted">No inventory records.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-brand-muted border-b border-brand-border/50">
+                <th className="pb-2 font-semibold">Branch</th>
+                <th className="pb-2 font-semibold">Product</th>
+                <th className="pb-2 font-semibold">SKU</th>
+                <th className="pb-2 font-semibold text-right">Qty</th>
+                <th className="pb-2 font-semibold text-right">Min</th>
+              </tr></thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {inventory.map((r, i) => (
+                  <tr key={i} className={cn('text-brand-ink', r.quantity <= r.minimum_quantity && 'bg-amber-50/50')}>
+                    <td className="py-2 font-medium">{r.branch_name}</td>
+                    <td className="py-2">{r.product_name}</td>
+                    <td className="py-2 text-xs font-mono text-brand-muted">{r.sku}</td>
+                    <td className="py-2 text-right tabular-nums">{r.quantity}</td>
+                    <td className="py-2 text-right tabular-nums text-brand-muted">{r.minimum_quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        ) : tab === 'lowstock' ? (
+          lowStock.length === 0 ? (
+            <div className="text-center py-12 text-sm text-brand-muted">
+              <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+              All stock levels are healthy.
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-brand-muted border-b border-brand-border/50">
+                <th className="pb-2 font-semibold">Branch</th>
+                <th className="pb-2 font-semibold">Product</th>
+                <th className="pb-2 font-semibold">SKU</th>
+                <th className="pb-2 font-semibold text-right">Qty</th>
+                <th className="pb-2 font-semibold text-right">Min</th>
+              </tr></thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {lowStock.map((r, i) => (
+                  <tr key={i} className="text-brand-ink">
+                    <td className="py-2 font-medium">{r.branch_name}</td>
+                    <td className="py-2">{r.product_name}</td>
+                    <td className="py-2 text-xs font-mono text-brand-muted">{r.sku}</td>
+                    <td className="py-2 text-right tabular-nums font-bold text-red-600">{r.quantity}</td>
+                    <td className="py-2 text-right tabular-nums text-brand-muted">{r.minimum_quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="p-4 rounded-xl border border-brand-border bg-white">
+      <p className="text-xs font-medium text-brand-muted mb-1">{label}</p>
+      <p className={cn('text-2xl font-bold font-display tracking-tight', color)}>{value.toLocaleString()}</p>
     </div>
   );
 }
