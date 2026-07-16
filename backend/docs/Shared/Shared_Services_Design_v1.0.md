@@ -2,7 +2,7 @@
 
 # Shared App Architecture v1.0
 
-**Status:** Locked Before Implementation
+**Status:** LOCKED
 
 **App:** `shared`
 
@@ -56,24 +56,18 @@ Avoid unnecessary abstractions.
 
 Only create additional layers when they solve a real problem.
 
-## Provider Pattern
-
-External services supporting multiple providers use the Provider Pattern.
-
-Provider selection is configured through `.env` and Django settings.
-
 ---
 
 # 3. Responsibilities
 
-Shared currently owns only three infrastructure domains.
+Shared currently owns two infrastructure domains.
 
 ```text
 shared/
 │
 ├── audit/
-├── email/
-└── payment/
+├── bank/
+└── email/
 ```
 
 Future additions (only when needed):
@@ -147,21 +141,23 @@ shared/
 │   ├── admin.py
 │   └── tests/
 │
+├── bank/
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── bank_account.py
+│   ├── api/
+│   │   ├── serializers.py
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   └── permissions.py
+│   ├── admin.py
+│   └── tests/
+│
 ├── email/
-│   ├── providers/
-│   │   ├── smtp.py
-│   │   ├── sendgrid.py
-│   │   └── ses.py
 │   ├── services.py
 │   └── tests/
 │
-├── payment/
-│   ├── providers/
-│   │   ├── chapa.py
-│   │   └── stripe.py
-│   ├── services.py
-│   └── tests/
-│
+├── validators.py
 ├── apps.py
 └── __init__.py
 ```
@@ -174,49 +170,42 @@ Purpose:
 
 Provide a unified email sending interface.
 
-Business modules communicate only with `EmailService`.
+Business modules communicate only with `send_email()`.
 
 Responsibilities:
 
-- Select configured provider.
-- Send plain-text emails.
-- Hide provider implementations.
-- Raise consistent errors.
+- Send plain-text emails using Django's send_mail.
+- Log all sent emails via `log_action`.
 
-Supported providers:
+Uses Django's built-in mail backend — no custom provider abstraction.
 
-- SMTP
-- SendGrid (future)
-- AWS SES (future)
-
-Configuration lives in `config/integrations/email.py`.
+Configuration lives in Django settings.
 
 Email does **not** own OTP generation, verification workflows, password reset workflows, or business logic.
 
 ---
 
-# 8. Payment Infrastructure
+# 8. Bank Account Infrastructure
 
 Purpose:
 
-Provide a unified payment interface.
+Store and manage bank account details for payment collection.
 
-Business modules communicate only with `PaymentService`.
+Model: BankAccount
 
-Responsibilities:
+- bank_name, account_holder, account_number, branch, swift_code, iban, is_active, notes
+- UUID primary key, timestamps
 
-- Initialize payments.
-- Verify payments.
-- Hide provider implementations.
+API:
 
-Supported providers:
+- GET /api/v1/bank-accounts/ — list (any authenticated user)
+- POST /api/v1/bank-accounts/ — create (super admin only)
+- GET /api/v1/bank-accounts/{id}/ — detail (any authenticated user)
+- PUT /api/v1/bank-accounts/{id}/ — update (super admin only)
+- PATCH /api/v1/bank-accounts/{id}/ — partial update (super admin only)
+- DELETE /api/v1/bank-accounts/{id}/ — destroy (super admin only)
 
-- Chapa
-- Stripe (future)
-
-Configuration lives in `config/integrations/payment.py`.
-
-Business payment workflows remain inside business apps.
+No service layer — CRUD logic lives in the viewset.
 
 ---
 
@@ -236,6 +225,7 @@ AuditLog fields:
 - branch
 - ip_address
 - user_agent
+- details
 - created_at
 
 Rules:
@@ -243,7 +233,7 @@ Rules:
 - Immutable
 - Never updated
 - Never deleted
-- Written only through `AuditService`
+- Written only through `log_action()`
 - Read-only API
 - Does not trigger business logic
 - Does not modify business data
@@ -264,9 +254,7 @@ config/
 ├── settings.py
 └── integrations/
     ├── email.py
-    ├── payment.py
     ├── celery.py
-    ├── sms.py
     └── storage.py
 ```
 
@@ -279,9 +267,9 @@ It only reads Django settings.
 # 11. Cross Module Usage
 
 - Accounts → EmailService / AuditService
-- Academic → PaymentService / AuditService
-- Events → PaymentService / AuditService
-- Store → PaymentService / AuditService
+- Academic → AuditService
+- Events → AuditService
+- Store → AuditService
 - CMS → EmailService / AuditService
 
 ---
@@ -291,8 +279,6 @@ It only reads Django settings.
 - Shared owns infrastructure only.
 - Shared never imports business modules.
 - Shared never duplicates Django functionality.
-- External services support multiple providers.
-- Provider selection is configuration-driven.
 - Business modules communicate only with Shared services.
 
 ---
@@ -302,7 +288,7 @@ It only reads Django settings.
 | Decision | Choice |
 |----------|--------|
 | Purpose | Infrastructure Only |
-| Domains | Audit, Email, Payment |
+| Domains | Audit, Email, Bank |
 | Storage | Django Storage |
 | Static Files | Django |
 | Authentication | Django |
@@ -311,8 +297,9 @@ It only reads Django settings.
 | Exceptions | Django/App-specific |
 | Celery | Config only |
 | Provider Configuration | config/integrations |
-| Provider Implementations | shared |
 | Audit API | shared.audit |
+| Bank API | shared.bank |
 | Audit Records | Immutable |
+| Bank Records | Mutable |
 
 **Status:** LOCKED

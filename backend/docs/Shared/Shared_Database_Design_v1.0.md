@@ -20,14 +20,15 @@ Shared should therefore contain as few database tables as possible.
 
 # 2. Database Overview
 
-Shared contains a single database table.
+Shared contains two database tables.
 
 ```text
 shared
-└── AuditLog
+├── AuditLog
+└── BankAccount
 ```
 
-Email and Payment communicate directly with external providers and require no database tables.
+Email communicates directly with external providers and requires no database tables.
 
 ---
 
@@ -52,6 +53,8 @@ Email and Payment communicate directly with external providers and require no da
 ```
 
 AuditLog references Accounts using string model references (`settings.AUTH_USER_MODEL` and `"accounts.Branch"`), avoiding circular imports.
+
+BankAccount is standalone with no foreign keys.
 
 ---
 
@@ -128,6 +131,11 @@ Examples:
 - TextField
 - Nullable
 
+### details
+
+- JSONField
+- Nullable
+
 ### created_at
 
 - DateTimeField
@@ -135,16 +143,78 @@ Examples:
 
 ---
 
-# 5. Relationships
+# 5. BankAccount
 
-- User (1) → (Many) AuditLog
-- Branch (1) → (Many) AuditLog
+Purpose: Store bank account details for payment collection.
 
-No other foreign keys exist.
+## Fields
+
+### id
+
+- UUID
+- Primary Key
+
+### bank_name
+
+- CharField(200)
+- Required
+
+### account_holder
+
+- CharField(200)
+- Required
+
+### account_number
+
+- CharField(100)
+- Required
+
+### branch
+
+- CharField(200)
+- Blank
+
+### swift_code
+
+- CharField(50)
+- Blank
+
+### iban
+
+- CharField(50)
+- Blank
+
+### is_active
+
+- BooleanField
+- Default True
+
+### notes
+
+- TextField
+- Blank
+
+### created_at
+
+- DateTimeField
+- Auto-generated on creation.
+
+### updated_at
+
+- DateTimeField
+- Auto-generated on update.
 
 ---
 
-# 6. Referential Behavior
+# 6. Relationships
+
+- User (1) → (Many) AuditLog
+- Branch (1) → (Many) AuditLog
+- BankAccount has no foreign key relationships.
+
+---
+
+# 7. Referential Behavior
 
 User deletion:
 
@@ -158,7 +228,9 @@ Audit history must always remain intact.
 
 ---
 
-# 7. Recommended Indexes
+# 8. Recommended Indexes
+
+AuditLog:
 
 - created_at
 - actor
@@ -169,18 +241,20 @@ Audit history must always remain intact.
 
 ---
 
-# 8. Constraints
+# 9. Constraints
 
 Audit records are immutable.
 
 - Never updated
 - Never deleted
 
-Only inserts are allowed through AuditService.
+Only inserts are allowed through `log_action`.
+
+BankAccount has no immutability constraints.
 
 ---
 
-# 9. Shared Does NOT Store
+# 10. Shared Does NOT Store
 
 - Email messages
 - Email queue
@@ -192,7 +266,7 @@ Only inserts are allowed through AuditService.
 
 ---
 
-# 10. Future Expansion
+# 11. Future Expansion
 
 Possible future infrastructure tables:
 
@@ -204,13 +278,14 @@ Only when required.
 
 ---
 
-# 11. Database Decision Log
+# 12. Database Decision Log
 
 | Decision | Choice |
 |----------|--------|
-| Number of Tables | 1 |
-| Table | AuditLog |
-| Primary Key | UUID |
+| Number of Tables | 2 |
+| AuditLog Table | Immutable, append-only |
+| BankAccount Table | Mutable, CRUD |
+| Primary Key | UUID (both tables) |
 | Actor | FK → User |
 | Branch | FK → Branch |
 | Resource Reference | resource_type + resource_id |
@@ -224,20 +299,34 @@ Only when required.
 
 ---
 
-# 12. Database Summary
+# 13. Database Summary
 
 ```text
 shared
-└── AuditLog
+├── AuditLog
+│   ├── id
+│   ├── actor
+│   ├── action
+│   ├── resource_type
+│   ├── resource_id
+│   ├── branch
+│   ├── ip_address
+│   ├── user_agent
+│   ├── details
+│   └── created_at
+│
+└── BankAccount
     ├── id
-    ├── actor
-    ├── action
-    ├── resource_type
-    ├── resource_id
+    ├── bank_name
+    ├── account_holder
+    ├── account_number
     ├── branch
-    ├── ip_address
-    ├── user_agent
-    └── created_at
+    ├── swift_code
+    ├── iban
+    ├── is_active
+    ├── notes
+    ├── created_at
+    └── updated_at
 ```
 
 ---

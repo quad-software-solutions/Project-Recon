@@ -2,7 +2,7 @@
 
 # Shared Services Design v1.0
 
-**Status:** 🔒 LOCKED BEFORE IMPLEMENTATION
+**Status:** LOCKED
 
 **App:** `shared`
 
@@ -24,7 +24,7 @@ Shared services simply provide infrastructure capabilities.
 
 # 2. Services Overview
 
-The Shared app contains exactly **three services**.
+The Shared app contains exactly **two services**.
 
 ```text
 shared/
@@ -32,10 +32,7 @@ shared/
 ├── audit/
 │   └── services.py
 │
-├── email/
-│   └── services.py
-│
-└── payment/
+└── email/
     └── services.py
 ```
 
@@ -75,6 +72,7 @@ resource_id
 branch=None
 ip_address=None
 user_agent=None
+details=None
 ```
 
 ### Returns
@@ -88,9 +86,9 @@ AuditLog
 ## Example
 
 ```python
-AuditService.log_action(
+log_action(
     actor=request.user,
-    action=AuditAction.CREATE,
+    action="CREATE",
     resource_type="Branch",
     resource_id=branch.id,
     branch=branch,
@@ -135,10 +133,8 @@ Business modules never communicate with email providers directly.
 
 ## Responsibilities
 
-- Select the configured provider.
-- Validate provider configuration.
-- Send plain-text emails.
-- Raise consistent exceptions.
+- Send plain-text emails using Django's `send_mail`.
+- Log all sent emails via `log_action`.
 
 ---
 
@@ -151,7 +147,7 @@ Business modules never communicate with email providers directly.
 ```python
 to
 subject
-message
+body
 ```
 
 ### Returns
@@ -160,50 +156,7 @@ message
 True
 ```
 
-### Raises
-
-```python
-EmailProviderError
-```
-
----
-
-## Provider Selection
-
-The provider is selected from Django settings.
-
-```python
-settings.EMAIL_PROVIDER
-```
-
-Example
-
-```env
-EMAIL_PROVIDER=smtp
-```
-
-Supported providers
-
-- SMTP
-- SendGrid (future)
-- AWS SES (future)
-
----
-
-## Internal Flow
-
-```text
-Business Module
-        │
-        ▼
- EmailService
-        │
-        ▼
-Configured Provider
-        │
-        ▼
-SMTP / SendGrid / SES
-```
+In test/debug mode the email is written to stderr instead of being dispatched.
 
 ---
 
@@ -246,115 +199,7 @@ CMS
 
 ---
 
-# 5. PaymentService
-
-## Purpose
-
-Provide a provider-independent payment interface.
-
-Business modules never communicate directly with payment providers.
-
----
-
-## Responsibilities
-
-- Initialize payments.
-- Verify payments.
-- Select configured provider.
-- Normalize provider responses.
-
----
-
-## Public API
-
-### initialize_payment()
-
-### Parameters
-
-```python
-amount
-currency
-reference
-callback_url
-customer
-```
-
-### Returns
-
-Provider response.
-
----
-
-### verify_payment()
-
-### Parameters
-
-```python
-reference
-```
-
-### Returns
-
-Verification result.
-
----
-
-## Provider Selection
-
-```python
-settings.PAYMENT_PROVIDER
-```
-
-Example
-
-```env
-PAYMENT_PROVIDER=chapa
-```
-
-Supported providers
-
-- Chapa
-- Stripe (future)
-
----
-
-## Internal Flow
-
-```text
-Business Module
-        │
-        ▼
- PaymentService
-        │
-        ▼
-Configured Provider
-        │
-        ▼
-Chapa / Stripe
-```
-
----
-
-## Rules
-
-- Never create orders.
-- Never update payments.
-- Never modify business models.
-- Never determine business success/failure.
-- Never perform refunds unless explicitly requested by business services.
-- Only communicate with payment providers.
-
----
-
-## Used By
-
-- Store
-- Academic
-- Events
-
----
-
-# 6. Service Communication Rules
+# 5. Service Communication Rules
 
 Business modules communicate with Shared.
 
@@ -367,7 +212,6 @@ Business Apps
 ──────────────────────────
 AuditService
 EmailService
-PaymentService
 ──────────────────────────
       │
       ▼
@@ -380,25 +224,15 @@ Shared must never import business modules.
 
 ---
 
-# 7. Error Handling
+# 6. Error Handling
 
-Each service exposes its own exceptions.
+Services do not define custom exception classes. Errors propagate directly from Django's mail backend.
 
-Examples
-
-```text
-AuditError
-
-EmailProviderError
-
-PaymentProviderError
-```
-
-Business modules decide how to handle these exceptions.
+Business modules decide how to handle failures.
 
 ---
 
-# 8. Transactions
+# 7. Transactions
 
 Shared services never create database transactions.
 
@@ -415,16 +249,16 @@ transaction.atomic()
 
 ↓
 
-AuditService.log_action()
+log_action()
 
 ↓
 
-EmailService.send_email()
+send_email()
 ```
 
 ---
 
-# 9. Dependency Rules
+# 8. Dependency Rules
 
 Allowed
 
@@ -446,13 +280,13 @@ Business Apps
 
 ---
 
-# 10. Design Rules
+# 9. Design Rules
 
 Every Shared service must:
 
 - Have a single responsibility.
 - Expose a small public API.
-- Hide provider implementations.
+- Hide external dependencies.
 - Be stateless.
 - Never contain business workflows.
 - Never import business modules.
@@ -460,7 +294,7 @@ Every Shared service must:
 
 ---
 
-# 11. Future Expansion
+# 10. Future Expansion
 
 Future infrastructure services may include:
 
@@ -474,13 +308,13 @@ These should only be added when a real business requirement exists.
 
 ---
 
-# 12. Service Decision Log
+# 11. Service Decision Log
 
 | Decision | Choice |
 |----------|--------|
-| Services | Audit, Email, Payment |
+| Services | Audit, Email |
 | Public APIs | Minimal |
-| Provider Pattern | Yes |
+| Provider Pattern | No |
 | Registry Pattern | No |
 | Base Provider Class | No |
 | Email Templates | No |
@@ -490,12 +324,11 @@ These should only be added when a real business requirement exists.
 | Transactions | Business Layer |
 | Retry Logic | No |
 | Queueing | No |
-| Provider Selection | Django Settings |
 | Service State | Stateless |
 
 ---
 
-# 13. Architecture Summary
+# 12. Architecture Summary
 
 ```text
 Business Apps
@@ -504,7 +337,6 @@ Business Apps
 ────────────────────────────
 AuditService
 EmailService
-PaymentService
 ────────────────────────────
         │
         ▼
@@ -513,14 +345,12 @@ Database / External Providers
 
 ---
 
-# 14. Locked Rules
+# 13. Locked Rules
 
 - Shared owns infrastructure only.
 - Business modules decide when to call shared services.
 - Shared services never own business workflows.
 - Shared services never modify business entities.
-- Provider implementations remain hidden behind services.
-- All provider selection is configuration-driven through Django settings.
 - Shared never imports business apps.
 - Shared remains independent of every business domain.
 
@@ -528,4 +358,4 @@ Database / External Providers
 
 # Status
 
-**🔒 LOCKED**
+**LOCKED**
