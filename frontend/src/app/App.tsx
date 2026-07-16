@@ -40,7 +40,7 @@ export default function App() {
   } = useAuth();
 
   const {
-    cart, cartOpen,
+    cart, cartOpen, loading,
     fetchCart, handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, clearCart,
     openCart, closeCart,
   } = useCart();
@@ -193,6 +193,7 @@ export default function App() {
       <CartDrawer
         cartOpen={cartOpen}
         cart={cart}
+        loading={loading}
         onClose={closeCart}
         currentUser={currentUser}
         onUpdateQuantity={handleUpdateQuantity}
