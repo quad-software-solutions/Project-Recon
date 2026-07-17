@@ -182,7 +182,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
   }, [users]);
 
   const activeEnrollments = enrollments.filter((e: any) => e.status === 'ACTIVE');
-  const pendingEnrollments = enrollments.filter((e: any) => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter((e: any) => e.status === 'PENDING_VERIFICATION');
   const paidPayments = payments.filter((p: any) => p.status === 'PAID');
   const pendingPayments = payments.filter((p: any) => p.status === 'PENDING');
   const totalRevenue = paidPayments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff, ArrowRight } from 'lucide-react';
 import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf, fetchBranchesApi, fetchClassesApi, requestTransferApi } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment, StudentCertificate, AcademicClass } from '@/shared/types';
+import { isForbiddenError } from '@/shared/api/http';
 
 type Branch = { id: string; name: string; code?: string };
 
@@ -10,6 +11,7 @@ const STATUS_STYLES: Record<string, string> = {
   PENDING_VERIFICATION: 'bg-amber-100 text-amber-700',
   COMPLETED: 'bg-blue-100 text-blue-600',
   CANCELLED: 'bg-red-100 text-red-600',
+  REJECTED: 'bg-red-100 text-red-600',
 };
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
@@ -17,6 +19,7 @@ const STATUS_ICONS: Record<string, React.ElementType> = {
   PENDING_VERIFICATION: Clock,
   COMPLETED: AlertCircle,
   CANCELLED: XCircle,
+  REJECTED: XCircle,
 };
 
 interface Props { studentId: string }
@@ -38,9 +41,11 @@ export default function MyRegistrations({ studentId }: Props) {
   const [transferDone, setTransferDone] = useState(false);
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(setRegistrations).catch(() => {
-      setPermissionDenied(true);
-      fetchStudentCertificatesApi(studentId).then(setCertificates).catch(() => {});
+    fetchEnrollmentsApi(studentId).then(setRegistrations).catch((err) => {
+      if (isForbiddenError(err)) {
+        setPermissionDenied(true);
+        fetchStudentCertificatesApi(studentId).then(setCertificates).catch(() => {});
+      }
     }).finally(() => setLoading(false));
   }, [studentId]);
 
@@ -79,7 +84,8 @@ export default function MyRegistrations({ studentId }: Props) {
   };
 
   const filtered = registrations.filter(r => {
-    const matchSearch = (r.program_name || r.sub_program_name || r.class_name || '').toLowerCase().includes(search.toLowerCase()) || r.id.toLowerCase().includes(search.toLowerCase());
+    const haystack = `${r.program_name || ''} ${r.sub_program_name || ''} ${r.class_name || ''} ${r.pending_code || ''} ${r.enrollment_number || ''}`.toLowerCase();
+    const matchSearch = haystack.includes(search.toLowerCase()) || r.id.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'all' || r.status === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -157,6 +163,7 @@ export default function MyRegistrations({ studentId }: Props) {
             <option value="PENDING_VERIFICATION">Pending</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
+            <option value="REJECTED">Rejected</option>
           </select>
         </div>
 
@@ -166,6 +173,7 @@ export default function MyRegistrations({ studentId }: Props) {
               <tr className="bg-slate-50 border-b border-brand-border">
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Program</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Class</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden md:table-cell">Reference</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Branch</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Date</th>
                 <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
@@ -179,6 +187,7 @@ export default function MyRegistrations({ studentId }: Props) {
                   <tr key={reg.id} className="border-b border-brand-border last:border-0 hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3 text-xs font-medium text-slate-900">{reg.program_name || reg.sub_program_name || '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{reg.class_name || '—'}</td>
+                    <td className="px-4 py-3 text-xs font-mono text-brand-blue hidden md:table-cell">{reg.pending_code || reg.enrollment_number || '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{reg.branch_name || '—'}</td>
                     <td className="px-4 py-3 text-xs text-slate-500 flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {reg.enrolled_at?.slice(0, 10)}
@@ -207,7 +216,7 @@ export default function MyRegistrations({ studentId }: Props) {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-8 text-xs text-slate-400">No registrations found</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-xs text-slate-400">No registrations found</td></tr>
               )}
             </tbody>
           </table>

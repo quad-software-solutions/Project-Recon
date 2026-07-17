@@ -28,7 +28,7 @@ export default function AdminRegistrationsPanel() {
 
   const statusClass = (status: string) => {
     if (status === 'ACTIVE' || status === 'COMPLETED') return 'bg-emerald-50 text-emerald-600';
-    if (status === 'PENDING_PAYMENT') return 'bg-amber-50 text-amber-600';
+    if (status === 'PENDING_VERIFICATION') return 'bg-amber-50 text-amber-600';
     return 'bg-red-50 text-red-600';
   };
 
