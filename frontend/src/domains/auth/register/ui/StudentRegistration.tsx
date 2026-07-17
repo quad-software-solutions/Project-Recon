@@ -745,10 +745,51 @@ export default function StudentRegistration() {
                             <div className="relative">
                               <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                               <select value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
-                                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
+                                className="w-full pl-10 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
                                 <option value="">Select a bank...</option>
                                 {bankAccounts.map((acc, i) => (
                                   <option key={`${acc.bank_name}-${i}`} value={acc.bank_name}>{acc.bank_name}</option>
+                                ))}
+                              </select>
+                              <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 9l6 6 6-6" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentMethod === 'MOBILE_MONEY' && (
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Mobile Money Provider</label>
+                            <div className="relative">
+                              <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <select value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                className="w-full pl-10 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
+                                <option value="">Select provider...</option>
+                                <option value="Telebirr">Telebirr</option>
+                                <option value="M-Pesa">M-Pesa</option>
+                                <option value="Amole">Amole</option>
+                                <option value="Chapa">Chapa</option>
+                                <option value="CBE Birr">CBE Birr</option>
+                                <option value="HelloCash">HelloCash</option>
+                              </select>
+                              <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 9l6 6 6-6" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentMethod === 'CHEQUE' && (
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Bank Name</label>
+                            <div className="relative">
+                              <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <select value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                className="w-full pl-10 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
+                                <option value="">Select a bank...</option>
+                                {bankAccounts.map((acc, i) => (
+                                  <option key={`chq-${acc.bank_name}-${i}`} value={acc.bank_name}>{acc.bank_name}</option>
                                 ))}
                               </select>
                               <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
