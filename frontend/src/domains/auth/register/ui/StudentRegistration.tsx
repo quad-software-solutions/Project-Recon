@@ -105,8 +105,8 @@ export default function StudentRegistration() {
 
   const handleSubmit = async () => {
     setSubmitError('');
-    if (!selectedClassId) {
-      setSubmitError(selectedSubProgramId ? 'No class slot currently available for this course. Please contact the admin.' : 'Please select a course to enroll in.');
+    if (!selectedSubProgramId) {
+      setSubmitError('Please select a course to enroll in.');
       return;
     }
     if (!formData.studentEmail.trim() || !formData.password.trim()) {
@@ -129,7 +129,7 @@ export default function StudentRegistration() {
         parentName: formData.parentName,
         parentPhone: formData.parentPhone,
         parentEmail: formData.parentEmail,
-        enrolledClassId: selectedClassId,
+        enrolledClassId: selectedClassId || selectedSubProgramId,
         paymentMethod,
         bank_name: paymentDetails.bank_name || undefined,
         transaction_reference: paymentDetails.transaction_reference || undefined,
@@ -662,7 +662,7 @@ export default function StudentRegistration() {
                             {!selectedClass && (
                               <p className="text-[10px] text-amber-600 font-bold mt-2 flex items-center gap-1">
                                 <Info className="w-3 h-3 shrink-0" />
-                                No class slot available — admin will assign
+                                No class slot — admin assigns on verification
                               </p>
                             )}
                           </div>
@@ -873,7 +873,7 @@ export default function StudentRegistration() {
                     {/* Submit Button */}
                     <button
                       onClick={handleSubmit}
-                      disabled={(!selectedClassId && !selectedSubProgramId) || isSubmitting}
+                      disabled={!selectedSubProgramId || isSubmitting}
                       className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 disabled:cursor-not-allowed text-white px-4 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 flex items-center justify-center gap-2 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97] disabled:shadow-none"
                     >
                       {isSubmitting ? (
