@@ -67,7 +67,7 @@ export default function StudentRegistration() {
       fetchProgramsApi().catch(() => [] as any[]),
       fetchSubProgramsApi().catch(() => [] as any[]),
       fetchClassesApi().catch(() => [] as any[]),
-      fetchBankAccountsApi().catch(() => [] as any[]),
+      fetchBankAccountsApi().catch((e) => { console.warn('Bank accounts fetch failed:', e); return [] as any[]; }),
     ]).then(([progs, subs, cls, banks]) => {
       if (progs.length > 0) setPrograms(progs);
       if (subs.length > 0) setSubPrograms(subs);
@@ -222,7 +222,7 @@ export default function StudentRegistration() {
           </div>
 
           <div className="px-8 md:px-10 pb-8 flex gap-3">
-            <button onClick={() => { setIsSuccess(false); setStep(1); setFormData({ name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: '' }); setSelectedClassId(''); }}
+            <button onClick={() => { setIsSuccess(false); setStep(1); setFormData({ name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: '' }); setSelectedClassId(''); setSelectedSubProgramId(''); setEnrollmentType('GROUP'); }}
               className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97]">
               New Registration
             </button>
@@ -824,7 +824,7 @@ export default function StudentRegistration() {
                     {/* Submit Button */}
                     <button
                       onClick={handleSubmit}
-                      disabled={!selectedClassId || isSubmitting}
+                      disabled={(!selectedClassId && !selectedSubProgramId) || isSubmitting}
                       className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 disabled:cursor-not-allowed text-white px-4 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 flex items-center justify-center gap-2 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97] disabled:shadow-none"
                     >
                       {isSubmitting ? (
