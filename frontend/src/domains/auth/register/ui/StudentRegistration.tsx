@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Clock, Eye, EyeOff, Loader2, Building2, Hash, FileUp, Users, RotateCcw, User as UserIcon, Smartphone, FileText, Wallet, GraduationCap, Check, Info, ArrowRight } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Building2, Hash, FileUp, Users, RotateCcw, User as UserIcon, Smartphone, FileText, Wallet, GraduationCap, Check, Info } from 'lucide-react';
 import { registerApi } from '../api/registerApi';
 import { fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, fetchBankAccountsApi } from '../../../learning/academics/api/academicApi';
 import type { Program, SubProgram, AcademicClass, Enrollment } from '@/shared/types';
@@ -97,7 +97,6 @@ export default function StudentRegistration() {
   const classFee = selectedSub
     ? Number(enrollmentType === 'GROUP' ? selectedSub.group_fee : (selectedSub.individual_fee ?? 0))
     : 0;
-  const filteredClasses = classes.filter(c => c.class_type === enrollmentType);
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
