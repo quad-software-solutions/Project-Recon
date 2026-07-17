@@ -51,42 +51,63 @@ export default function CertificateGenerator({ studentId }: Props) {
           {selected && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-3xl border border-brand-border shadow-lg overflow-hidden">
-              <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
-                {/* Ornamental top border */}
-                <div className="flex items-center justify-center gap-1 pt-6 px-8">
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
-                  <div className="flex items-center gap-0.5">
-                    <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
-                    <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
-                    <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
-                  </div>
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
-                </div>
-                <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
-                  <div className="w-28 h-auto">
+              <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark">
+                {/* Decorative border frame */}
+                <div className="absolute inset-[14px] border-[1px] border-white/10 rounded-xl pointer-events-none" />
+
+                {/* Corner ornaments */}
+                <div className="absolute top-4 left-4 w-10 h-10 border-l-[1.5px] border-t-[1.5px] border-white/15 rounded-tl-xl" />
+                <div className="absolute top-4 right-4 w-10 h-10 border-r-[1.5px] border-t-[1.5px] border-white/15 rounded-tr-xl" />
+                <div className="absolute bottom-4 left-4 w-10 h-10 border-l-[1.5px] border-b-[1.5px] border-white/15 rounded-bl-xl" />
+                <div className="absolute bottom-4 right-4 w-10 h-10 border-r-[1.5px] border-b-[1.5px] border-white/15 rounded-br-xl" />
+
+                <div className="px-10 py-8 flex flex-col items-center">
+                  {/* Brand logo */}
+                  <div className="w-28 h-auto mb-4">
                     <BrandLogo className="w-full h-auto" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-1 bg-brand-cyan rounded-full" />
-                    <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
-                    <div className="w-1 h-1 bg-brand-cyan rounded-full" />
+
+                  {/* Decorative header divider */}
+                  <div className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent mb-5" />
+
+                  {/* Gold seal */}
+                  <div className="w-9 h-9 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-600/20 ring-[1.5px] ring-white/15 mb-3">
+                    <Award className="w-[18px] h-[18px] text-white" />
                   </div>
-                  <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent" />
-                  <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
-                  <p className="font-black text-2xl text-white tracking-tight">{selected.student_name}</p>
-                  <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
-                  <p className="font-bold text-base text-blue-600">{selected.certificate_title || selected.sub_program_name}</p>
-                  <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent mt-1" />
-                  <div className="flex items-center gap-3 mt-1">
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <Shield className="w-2.5 h-2.5 text-brand-cyan" />
-                      <p className="font-mono text-[9px]">{selected.certificate_number}</p>
+
+                  <p className="text-white/50 text-[10px] tracking-widest uppercase mb-2">This certifies that</p>
+
+                  {/* Recipient name — focal point */}
+                  <p className="font-black text-2xl text-white tracking-tight text-center leading-tight px-4">
+                    {selected.student_name}
+                  </p>
+
+                  <div className="w-20 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent mt-3 mb-3" />
+
+                  <p className="text-white/50 text-[10px] tracking-widest uppercase mb-4">has successfully completed</p>
+
+                  {/* Program badge */}
+                  <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/15 px-4 py-1 mb-1">
+                    <span className="text-sm font-bold text-white">{selected.certificate_title || selected.sub_program_name}</span>
+                  </div>
+
+                  {/* Details */}
+                  <div className="w-full mt-5 pt-4 border-t border-white/10">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                      <div className="text-left">
+                        <p className="text-[7px] text-white/35 uppercase tracking-[0.2em] font-bold">Certificate ID</p>
+                        <p className="font-mono text-[9px] text-white/70 mt-0.5 tracking-wider">{selected.certificate_number}</p>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[7px] text-white/35 uppercase tracking-[0.2em] font-bold">Completion Date</p>
+                        <p className="font-mono text-[9px] text-white/70 mt-0.5">{selected.issued_at?.slice(0, 10) || ''}</p>
+                      </div>
                     </div>
-                    <span className="text-slate-600 text-[9px]">|</span>
-                    <p className="font-mono text-[9px] text-slate-400">{selected.issued_at?.slice(0, 10) || ''}</p>
                   </div>
                 </div>
-                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-600 via-brand-cyan to-blue-600 opacity-60" />
+
+                {/* Bottom accent glow */}
+                <div className="h-[2px] bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
               </div>
 
               <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">

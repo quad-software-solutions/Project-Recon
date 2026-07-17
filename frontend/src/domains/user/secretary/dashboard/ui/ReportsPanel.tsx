@@ -70,7 +70,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
 
   const doDownload = async (key: string, fn: () => Promise<void>) => {
     setDownloading(key);
-    try { await fn(); } catch (e) { /* console.error */('Download failed', e); }
+    try { await fn(); } catch (e) { console.error('Download failed', e); }
     setTimeout(() => setDownloading(null), 1500);
   };
 

@@ -60,7 +60,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
         setBanners(data);
         setActiveImages(data.map((b, i) => b.image || SLIDER_IMAGES[i % SLIDER_IMAGES.length]));
       }
-    }).catch(err => { if (err.name !== 'AbortError') /* console.error */(err); });
+    }).catch(err => { if (err.name !== 'AbortError') console.error(err); });
     return () => abort.abort();
   }, []);
 

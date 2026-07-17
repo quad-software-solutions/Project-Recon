@@ -409,36 +409,40 @@ export default function PublicEventDetailsPage({
           {/* Tournament preview */}
           {event.event_type === 'TOURNAMENT' && (
             <Section title="Tournament snapshot" icon={Trophy}>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{standings.length}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 rounded-2xl p-4 text-center">
+                  <p className="text-2xl font-black text-slate-900 tabular-nums leading-none mb-1.5">{standings.length}</p>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Teams</p>
                 </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{matches.length}</p>
+                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 rounded-2xl p-4 text-center">
+                  <p className="text-2xl font-black text-slate-900 tabular-nums leading-none mb-1.5">{matches.length}</p>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matches</p>
                 </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{matches.filter(m => m.status === 'LIVE').length}</p>
+                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 rounded-2xl p-4 text-center">
+                  <p className="text-2xl font-black text-slate-900 tabular-nums leading-none mb-1.5">{matches.filter(m => m.status === 'LIVE').length}</p>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live</p>
                 </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{matches.filter(m => m.status === 'COMPLETED').length}</p>
+                <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 rounded-2xl p-4 text-center">
+                  <p className="text-2xl font-black text-slate-900 tabular-nums leading-none mb-1.5">{matches.filter(m => m.status === 'COMPLETED').length}</p>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Completed</p>
                 </div>
               </div>
 
               {tournamentId && matches.length > 0 && (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                   {matches.slice(0, 4).map(m => (
                     <button
                       key={m.id}
                       onClick={() => onOpenMatch(m.id, tournamentId)}
-                      className="bg-white border border-slate-200 rounded-2xl p-4 text-left hover:border-brand-red/20 hover:shadow-premium-sm transition-all"
+                      className="bg-white border border-slate-200 rounded-2xl p-4 text-left hover:border-slate-300 hover:shadow-sm transition-all group"
                     >
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{m.round}</p>
-                      <p className="mt-1 text-sm font-black text-slate-900">{m.status}</p>
-                      <p className="mt-2 text-xs text-slate-600">{formatDateTime(m.scheduledAt || m.scheduled_at)}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-500">{m.round || 'Match'}</p>
+                          <p className="mt-1 text-sm font-black text-slate-900">{m.status}</p>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono">{formatDateTime(m.scheduledAt || m.scheduled_at)}</p>
+                      </div>
                     </button>
                   ))}
                 </div>

@@ -185,7 +185,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
       };
     } catch (err) {
       // If user detail fetch fails (e.g. permission), use token claims
-      /* console.warn */('Could not fetch user profile, using token claims:', err);
+      console.warn('Could not fetch user profile, using token claims:', err);
     }
   }
 
@@ -229,7 +229,7 @@ export async function logoutApi(): Promise<void> {
       await http.post('/accounts/logout/', { refresh });
     } catch {
       // Logout should not block the UI even if the server call fails
-      /* console.warn */('Backend logout failed, clearing local tokens anyway.');
+      console.warn('Backend logout failed, clearing local tokens anyway.');
     }
   }
   clearTokens();
@@ -333,7 +333,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
         badges: [],
       };
     } catch (err) {
-      /* console.warn */('Could not fetch user profile after verification:', err);
+      console.warn('Could not fetch user profile after verification:', err);
     }
   }
 

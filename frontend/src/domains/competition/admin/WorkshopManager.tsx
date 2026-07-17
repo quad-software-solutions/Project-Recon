@@ -36,7 +36,7 @@ export default function WorkshopManager() {
       eventsApi.adminGetEvents({ event_type: 'WORKSHOP' }),
       http.get<any>('/accounts/users/', { params: { page_size: '100', search: '' } })
         .then(r => (Array.isArray(r) ? r : r.results ?? []).filter((u: any) => u.assignments?.some((a: any) => a.role === 'instructor')).map((u: any) => ({ id: u.id, full_name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), email: u.email })))
-        .catch(e => { /* console.warn */('Instructor list fetch failed, extracting from workshops:', e); return [] as UserOption[]; }),
+        .catch(e => { console.warn('Instructor list fetch failed, extracting from workshops:', e); return [] as UserOption[]; }),
     ]).then(([ws, evts, usrs]) => {
       setWorkshops(Array.isArray(ws) ? ws : []);
       setEvents((Array.isArray(evts) ? evts : []).filter(e => e.event_type === 'WORKSHOP'));

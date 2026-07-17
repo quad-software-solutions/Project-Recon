@@ -17,7 +17,7 @@ interface HomePageProps {
   currentUser: UserProfile | null;
   onEnrollInProgram: (programId: string) => void;
   onNavigate: (tab: ActiveTab) => void;
-  onSetSelectedProgramSpec: (program: any) => void;
+  onSetSelectedProgramSpec: (program: ProgramDisplay) => void;
 }
 
 export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, onSetSelectedProgramSpec }: HomePageProps) {
@@ -44,20 +44,20 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
 
     cmsPublicApi.getPartners(signal)
       .then(data => setPartners(data.filter(p => p.is_active)))
-      .catch(err => { if (err.name !== 'AbortError') /* console.error */(err); });
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
     cmsPublicApi.getFaqs(signal)
       .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))))
-      .catch(err => { if (err.name !== 'AbortError') /* console.error */(err); });
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
     cmsPublicApi.getPlatformStats(signal)
       .then(data => setStats(data))
-      .catch(err => { if (err.name !== 'AbortError') /* console.error */(err); });
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
     setProgramsLoading(true);
     getPrograms(signal)
       .then(data => setPrograms(data))
-      .catch(err => { if (err.name !== 'AbortError') /* console.error */(err); })
+      .catch(err => { if (err.name !== 'AbortError') console.error(err); })
       .finally(() => setProgramsLoading(false));
 
     cmsPublicApi.getGallery(signal)
