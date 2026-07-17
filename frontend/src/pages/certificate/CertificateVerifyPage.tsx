@@ -137,7 +137,7 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
 
                   {/* Brand logo */}
                   <div className="w-28 h-auto">
-                    <BrandLogo className="w-full h-auto brightness-0 invert" />
+                    <BrandLogo className="w-full h-auto" />
                   </div>
 
                   {/* Certificate label */}
