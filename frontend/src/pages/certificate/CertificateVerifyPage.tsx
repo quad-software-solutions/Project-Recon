@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, Loader2, Shield, CheckCircle2, XCircle, ExternalLink, Award, User, BookOpen, Calendar, Share2, Printer, Clock, BadgeCheck, Hash, GraduationCap, ScrollText } from 'lucide-react';
 import { http } from '@/shared/api/http';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 interface VerifyResult {
   valid: boolean;
@@ -110,7 +111,7 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
             </motion.div>
           )}
 
-          {/* Success — professional certificate card */}
+          {/* Success — certificate (same design as certificate template) */}
           {result && result.valid && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               {/* Verification seal banner */}
@@ -120,90 +121,89 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
                 <span className="font-bold text-sm tracking-wide">Verified Authentic Certificate</span>
               </motion.div>
 
-              {/* Certificate document */}
-              <div className="relative bg-white rounded-3xl overflow-hidden shadow-[0_8px_40px_-12px_rgba(0,0,0,0.2)] border border-slate-200">
-                {/* Decorative top border */}
-                <div className="h-2 bg-gradient-to-r from-brand-red via-amber-400 to-brand-red" />
-
-                <div className="p-8 md:p-10">
+              {/* Certificate document — matches template design */}
+              <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark rounded-3xl overflow-hidden shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]">
+                <div className="relative px-8 pb-8 pt-6 flex flex-col items-center gap-3">
                   {/* Corner ornaments */}
-                  <div className="absolute top-6 left-6 w-12 h-12 border-l-2 border-t-2 border-slate-200 rounded-tl-xl" />
-                  <div className="absolute top-6 right-6 w-12 h-12 border-r-2 border-t-2 border-slate-200 rounded-tr-xl" />
-                  <div className="absolute bottom-6 left-6 w-12 h-12 border-l-2 border-b-2 border-slate-200 rounded-bl-xl" />
-                  <div className="absolute bottom-6 right-6 w-12 h-12 border-r-2 border-b-2 border-slate-200 rounded-br-xl" />
+                  <div className="absolute top-4 left-4 w-10 h-10 border-l-2 border-t-2 border-white/30 rounded-tl-xl" />
+                  <div className="absolute top-4 right-4 w-10 h-10 border-r-2 border-t-2 border-white/30 rounded-tr-xl" />
+                  <div className="absolute bottom-4 left-4 w-10 h-10 border-l-2 border-b-2 border-white/30 rounded-bl-xl" />
+                  <div className="absolute bottom-4 right-4 w-10 h-10 border-r-2 border-b-2 border-white/30 rounded-br-xl" />
 
-                  {/* Main content */}
-                  <div className="relative text-center space-y-6">
-                    {/* Seal icon */}
-                    <div className="w-16 h-16 mx-auto bg-gradient-to-br from-amber-50 to-amber-100 rounded-full flex items-center justify-center border-2 border-amber-300 shadow-inner">
-                      <Award className="w-8 h-8 text-amber-600" />
-                    </div>
+                  {/* Gold seal */}
+                  <div className="w-14 h-14 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-600/30 ring-2 ring-white/20">
+                    <Award className="w-7 h-7 text-white" />
+                  </div>
 
-                    {/* Certificate title */}
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Certificate of Completion</p>
-                      <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight font-serif">
-                        {result.certificate_title}
-                      </h2>
-                    </div>
+                  {/* Brand logo */}
+                  <div className="w-28 h-auto">
+                    <BrandLogo className="w-full h-auto brightness-0 invert" />
+                  </div>
 
-                    {/* Divider */}
-                    <div className="flex items-center gap-3 justify-center">
-                      <div className="h-px flex-1 max-w-20 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-                      <ScrollText className="w-4 h-4 text-slate-300" />
-                      <div className="h-px flex-1 max-w-20 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-                    </div>
+                  {/* Certificate label */}
+                  <div className="flex items-center gap-2">
+                    <div className="h-px w-8 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+                    <span className="text-[7px] text-white/80 uppercase tracking-[0.35em] font-bold">Certificate of Completion</span>
+                    <div className="h-px w-8 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+                  </div>
 
-                    {/* Awarded text */}
-                    <p className="text-sm text-slate-500 font-medium">This is to certify that</p>
-                    <p className="text-2xl md:text-3xl font-bold text-slate-900 font-serif tracking-wide">
-                      {result.student_name}
-                    </p>
-                    <p className="text-sm text-slate-500 font-medium">
-                      has successfully completed the program
-                    </p>
-                    <div className="inline-flex items-center gap-2 bg-brand-red/5 text-brand-red font-bold text-base md:text-lg px-5 py-2 rounded-xl border border-brand-red/10">
-                      <GraduationCap className="w-5 h-5" />
-                      {result.sub_program_name}
-                    </div>
+                  {/* Decorative divider */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                    <ScrollText className="w-3.5 h-3.5 text-amber-400" />
+                    <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                  </div>
 
-                    {/* Details grid */}
-                    <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto pt-2">
-                      <div className="bg-slate-50 rounded-xl p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Issued</p>
-                        <p className="text-xs font-bold text-slate-800">
-                          {new Date(result.issued_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </p>
-                      </div>
-                      <div className="bg-slate-50 rounded-xl p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Authority</p>
-                        <p className="text-xs font-bold text-slate-800">{result.issued_by_name}</p>
-                      </div>
-                    </div>
+                  <p className="text-white/70 text-[11px] tracking-wide">This certifies that</p>
+                  <p className="font-black text-2xl text-white tracking-tight font-serif">{result.student_name}</p>
+                  <p className="text-white/70 text-[11px] tracking-wide">has successfully completed</p>
 
-                    {/* Certificate number */}
-                    <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 text-[10px] font-mono font-bold px-3 py-1.5 rounded-full">
-                      <Hash className="w-3 h-3" />
-                      {result.certificate_number}
+                  {/* Program badge */}
+                  <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white text-sm font-bold px-4 py-1.5 rounded-full border border-white/20">
+                    <GraduationCap className="w-4 h-4" />
+                    {result.sub_program_name}
+                  </div>
+
+                  {/* Certificate title */}
+                  <p className="text-amber-300 text-[10px] font-bold uppercase tracking-widest">{result.certificate_title}</p>
+
+                  <div className="w-40 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+
+                  {/* Meta row */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-white/50">
+                      <Hash className="w-2.5 h-2.5" />
+                      <span className="font-mono text-[8px]">{result.certificate_number}</span>
                     </div>
+                    <span className="text-white/30 text-[8px]">|</span>
+                    <span className="font-mono text-[8px] text-white/50">{new Date(result.issued_at).toLocaleDateString()}</span>
+                  </div>
+
+                  {/* Issued by */}
+                  <div className="flex items-center gap-1.5 text-white/50 text-[9px]">
+                    <Shield className="w-3 h-3" />
+                    <span>Issued by {result.issued_by_name}</span>
                   </div>
                 </div>
 
+                {/* Bottom accent bar */}
+                <div className="h-1 bg-gradient-to-r from-amber-400/60 via-amber-300 to-amber-400/60" />
+
                 {/* Footer */}
-                <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                <div className="bg-slate-900/80 px-6 py-3 flex items-center justify-between flex-wrap gap-2 backdrop-blur-sm">
+                  <div className="flex items-center gap-1.5 text-[10px] text-white/40">
                     <Clock className="w-3 h-3" />
                     <span>Verified {verifiedAt ? new Date(verifiedAt).toLocaleString() : ''}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/cert-verify?number=' + result.certificate_number); }}
-                      className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-brand-red flex items-center gap-1 transition-colors"
+                      className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-amber-300 flex items-center gap-1 transition-colors"
                     ><Share2 className="w-3 h-3" /> Share</button>
                     <button onClick={() => window.print()}
-                      className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-brand-red flex items-center gap-1 transition-colors"
+                      className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-amber-300 flex items-center gap-1 transition-colors"
                     ><Printer className="w-3 h-3" /> Print</button>
                     <button onClick={() => { setResult(null); setError(null); setNumber(''); setVerifiedAt(null); }}
-                      className="text-[10px] font-black uppercase tracking-wider text-brand-red hover:text-brand-red-dark"
+                      className="text-[10px] font-black uppercase tracking-wider text-amber-300 hover:text-amber-200"
                     >Verify another</button>
                   </div>
                 </div>
