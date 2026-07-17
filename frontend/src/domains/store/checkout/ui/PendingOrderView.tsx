@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, CheckCircle2, Clock, Building2, XCircle, AlertCircle,
+  ArrowLeft, CheckCircle2, Clock, Building2, XCircle, X, AlertCircle,
   Upload, Loader2,
 } from 'lucide-react';
 import { getPendingOrder } from '../api/checkoutApi';
@@ -13,6 +13,7 @@ import { navigateStore } from '@/domains/store/utils/catalog';
 
 const PAYMENT_METHODS: { value: StorePaymentMethod; label: string }[] = [
   { value: 'BANK_TRANSFER', label: 'Bank transfer' },
+  { value: 'MOBILE_MONEY', label: 'Mobile money' },
   { value: 'CASH', label: 'Cash (pay at branch)' },
   { value: 'CHEQUE', label: 'Cheque' },
 ];
@@ -50,8 +51,21 @@ export default function PendingOrderView({ orderId, onBack }: Props) {
     })();
   }, [orderId]);
 
+  useEffect(() => {
+    if (evMethod === 'CASH') {
+      setEvFile(null);
+      setEvRef('');
+      setEvBank('');
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }, [evMethod]);
+
   const handleSubmitEvidence = async () => {
     if (!order) return;
+    if (evMethod !== 'CASH' && !evRef.trim()) {
+      setEvError('Transaction reference is required for this payment method.');
+      return;
+    }
     setEvSubmitting(true);
     setEvError(null);
     try {
@@ -203,35 +217,41 @@ export default function PendingOrderView({ orderId, onBack }: Props) {
                   ))}
                 </div>
               </div>
-              <div>
-                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Bank / provider</label>
-                <input value={evBank} onChange={e => setEvBank(e.target.value)}
-                  className="form-input w-full" placeholder="e.g. Commercial Bank of Ethiopia" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Transaction reference</label>
-                <input value={evRef} onChange={e => setEvRef(e.target.value)}
-                  className="form-input w-full" placeholder="Transfer / receipt reference" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Upload receipt (optional)</label>
-                <div className="flex items-center gap-2">
-                  <input ref={fileRef} type="file" accept="image/*,.pdf"
-                    onChange={e => setEvFile(e.target.files?.[0] || null)}
-                    className="hidden" />
-                  <button type="button" onClick={() => fileRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:text-brand-ink hover:border-brand-blue/30 transition-all">
-                    <Upload className="w-3.5 h-3.5" />
-                    {evFile ? evFile.name : 'Choose file'}
-                  </button>
-                  {evFile && (
-                    <button type="button" onClick={() => { setEvFile(null); if (fileRef.current) fileRef.current.value = ''; }}
-                      className="p-1.5 text-brand-muted hover:text-red-500 transition-colors">
-                      <XCircle className="w-3.5 h-3.5" />
+              {evMethod !== 'CASH' && (
+                <>
+                  <div>
+                    <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Bank / provider</label>
+                    <input value={evBank} onChange={e => setEvBank(e.target.value)}
+                      className="form-input w-full" placeholder="e.g. Commercial Bank of Ethiopia" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Transaction reference</label>
+                    <input value={evRef} onChange={e => setEvRef(e.target.value)}
+                      className="form-input w-full" placeholder="Transfer / receipt reference" required />
+                  </div>
+                </>
+              )}
+              {evMethod !== 'CASH' && (
+                <div>
+                  <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Upload receipt (optional)</label>
+                  <div className="flex items-center gap-2">
+                    <input ref={fileRef} type="file" accept="image/*,.pdf"
+                      onChange={e => setEvFile(e.target.files?.[0] || null)}
+                      className="hidden" />
+                    <button type="button" onClick={() => fileRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:text-brand-ink hover:border-brand-blue/30 transition-all">
+                      <Upload className="w-3.5 h-3.5" />
+                      {evFile ? evFile.name : 'Choose file'}
                     </button>
-                  )}
+                    {evFile && (
+                      <button type="button" onClick={() => { setEvFile(null); if (fileRef.current) fileRef.current.value = ''; }}
+                        className="p-1.5 text-brand-muted hover:text-red-500 transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {evError && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">

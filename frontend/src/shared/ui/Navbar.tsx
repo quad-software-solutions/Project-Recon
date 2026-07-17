@@ -102,7 +102,9 @@ export default function Navbar({
   const [openMega, setOpenMega] = useState<string | null>(null);
   const [mobileMegaOpen, setMobileMegaOpen] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const megaTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const profileRef = React.useRef<HTMLDivElement>(null);
   const branding = useBranding();
 
   useEffect(() => {
@@ -118,15 +120,25 @@ export default function Navbar({
         setSearchOpen(true);
       }
       if (e.key === 'Escape') setSearchOpen(false);
+      if (e.key === 'Escape') setProfileOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, []);
 
   const handleNavClick = (tab: ActiveTab, section?: string, href?: string) => {
     setMobileMenuOpen(false);
     setMobileMegaOpen(null);
     setOpenMega(null);
+    setProfileOpen(false);
     if (href) {
       window.history.pushState(null, '', href);
       window.dispatchEvent(new PopStateEvent('popstate'));
@@ -299,9 +311,19 @@ export default function Navbar({
             })}
           </div>
 
-          {/* Right side: search, notifications, auth */}
+          {/* Right side: search, cart, auth */}
           <div className="flex items-center gap-1">
-            {/* Search and cart triggers removed to make header clean */}
+
+            {/* Search */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-brand-muted-dark hover:text-brand-blue hover:bg-brand-blue/5 border border-transparent hover:border-brand-blue/15 transition-all duration-200"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4" />
+              <span className="text-xs font-medium">Search</span>
+              <kbd className="text-[9px] font-mono text-brand-muted bg-brand-surface px-1 py-0.5 rounded border border-brand-border">⌘K</kbd>
+            </button>
 
             {/* Cart button */}
             <button
@@ -318,7 +340,51 @@ export default function Navbar({
             </button>
 
             <div className="hidden sm:flex items-center gap-1">
-              {!currentUser && (
+              {currentUser ? (
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setProfileOpen(!profileOpen)}
+                    className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-xl border border-brand-border/50 hover:border-brand-border hover:bg-brand-surface/50 transition-all"
+                    id="btn-nav-profile"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-blue to-brand-blue-dark flex items-center justify-center text-white font-bold text-[10px] shrink-0">
+                      {currentUser.name.charAt(0)}
+                    </div>
+                    <span className="text-xs font-semibold text-brand-ink max-w-[80px] truncate">{currentUser.name.split(' ')[0]}</span>
+                    <ChevronDown className={`w-3 h-3 text-brand-muted transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {profileOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-brand-border bg-white shadow-xl shadow-brand-ink/10 z-50">
+                      <div className="px-4 py-3 border-b border-brand-border/50">
+                        <p className="text-sm font-semibold text-brand-ink truncate">{currentUser.name}</p>
+                        <p className="text-xs text-brand-muted mt-0.5">{currentUser.role}</p>
+                      </div>
+                      <button
+                        onClick={() => { setProfileOpen(false); handleNavClick('dashboard'); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-brand-ink hover:bg-brand-blue/5 transition-colors"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-brand-muted" />
+                        Dashboard
+                      </button>
+                      <button
+                        onClick={() => { setProfileOpen(false); handleNavClick('store-orders', undefined, '/store/orders'); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-brand-ink hover:bg-brand-blue/5 transition-colors"
+                      >
+                        <ShoppingBag className="w-4 h-4 text-brand-muted" />
+                        My orders
+                      </button>
+                      <div className="border-t border-brand-border/50" />
+                      <button
+                        onClick={() => { setProfileOpen(false); onLogout(); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-brand-red hover:bg-red-50/50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => onOpenAuth('login')}

@@ -85,6 +85,13 @@ export default function CartDrawer({
   }, [branchOptions, branchId]);
 
   useEffect(() => {
+    if (paymentMethod === 'CASH') {
+      setPaymentAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [paymentMethod]);
+
+  useEffect(() => {
     if (checkoutStep === 'checkout' && includePayment && paymentMethod !== 'CASH') {
       setBankAccountsLoading(true);
       listBankAccounts()
@@ -191,18 +198,18 @@ export default function CartDrawer({
                   <ShoppingBag className="w-4 h-4 text-brand-blue" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-brand-ink">Cart</h3>
+                  <h3 className="font-bold text-lg text-brand-ink">Cart</h3>
                   {itemCount > 0 && checkoutStep === 'cart' && (
-                    <p className="text-xs text-brand-muted">{itemCount} item{itemCount !== 1 ? 's' : ''}</p>
+                    <p className="text-xs font-semibold text-brand-muted">{itemCount} item{itemCount !== 1 ? 's' : ''}</p>
                   )}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => { onClose(); resetCheckout(); }}
-                className="p-2 rounded-xl text-brand-muted hover:bg-brand-surface hover:text-brand-ink transition-all"
+                className="p-2.5 rounded-xl text-brand-muted hover:bg-brand-surface hover:text-brand-ink transition-all"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4.5 h-4.5" />
               </button>
             </div>
 
@@ -216,29 +223,29 @@ export default function CartDrawer({
                   <p className="text-sm text-brand-muted mb-6 text-center leading-relaxed max-w-xs mx-auto">
                     {includePayment
                       ? 'Payment evidence submitted. Staff will verify and confirm your order.'
-                      : 'Complete payment and contact the store with your reference. This pending checkout expires after 30 minutes.'}
+                      : 'You chose to pay later. Submit payment at the branch with your order reference. This pending checkout expires after 30 minutes.'}
                   </p>
                   <div className="space-y-3 rounded-[var(--radius-card)] border border-brand-border bg-brand-surface/60 p-4 text-sm">
                     <div className="flex justify-between gap-3">
-                      <span className="text-brand-muted">Branch</span>
-                      <span className="font-medium text-brand-ink text-right">{pendingOrder.branch_name}</span>
+                      <span className="font-semibold text-brand-muted">Branch</span>
+                      <span className="font-bold text-brand-ink text-right">{pendingOrder.branch_name}</span>
                     </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-brand-muted">Total</span>
+                    <div className="flex justify-between gap-3 items-center">
+                      <span className="font-semibold text-brand-muted">Total</span>
                       <PriceDisplay amount={pendingOrder.total} size="sm" />
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span className="text-brand-muted">Items</span>
-                      <span className="font-medium text-brand-ink">{pendingOrder.items.length}</span>
+                      <span className="font-semibold text-brand-muted">Items</span>
+                      <span className="font-bold text-brand-ink">{pendingOrder.items.length}</span>
                     </div>
                     {pendingOrder.payment_reference && (
                       <div className="pt-2 border-t border-brand-border">
-                        <p className="text-[11px] uppercase tracking-wide text-brand-muted mb-1">Payment reference</p>
-                        <p className="font-mono text-xs font-semibold text-brand-ink break-all">{pendingOrder.payment_reference}</p>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-brand-ink mb-1">Payment reference</p>
+                        <p className="font-mono text-xs font-bold text-brand-ink break-all">{pendingOrder.payment_reference}</p>
                       </div>
                     )}
                     {pendingOrder.expires_at && (
-                      <p className="text-xs text-brand-muted">
+                      <p className="text-xs font-medium text-brand-muted">
                         Expires {new Date(pendingOrder.expires_at).toLocaleString()}
                       </p>
                     )}
@@ -252,6 +259,7 @@ export default function CartDrawer({
                       }}
                       size="lg"
                       variant="secondary"
+                      className="w-full font-bold"
                     >
                       View details
                     </Button>
@@ -263,6 +271,7 @@ export default function CartDrawer({
                           navigateStore('/store/orders');
                         }}
                         size="lg"
+                        className="w-full font-bold"
                       >
                         View my orders
                       </Button>
@@ -271,6 +280,7 @@ export default function CartDrawer({
                       variant="secondary"
                       onClick={() => { resetCheckout(); onClose(); }}
                       size="lg"
+                      className="w-full font-bold"
                     >
                       Continue shopping
                     </Button>
@@ -288,12 +298,12 @@ export default function CartDrawer({
                   onSubmit={handleCheckoutSubmit}
                   className="space-y-4"
                 >
-                  <h4 className="font-bold text-base text-brand-ink">Checkout</h4>
+                  <h4 className="font-bold text-lg text-brand-ink">Checkout</h4>
 
                   <div className="p-4 bg-brand-surface rounded-xl border border-brand-border space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-brand-muted">
+                    <div className="flex items-center gap-2 text-sm text-brand-ink">
                       <Building2 className="w-4 h-4" />
-                      <span className="font-medium">Pickup branch</span>
+                      <span className="font-bold">Pickup branch</span>
                     </div>
                     {branchOptions.length === 0 ? (
                       <p className="text-sm text-brand-muted">No branch on cart items.</p>
@@ -306,7 +316,7 @@ export default function CartDrawer({
                       <select
                         value={branchId}
                         onChange={(e) => setBranchId(e.target.value)}
-                        className="form-input w-full"
+                        className="form-input w-full font-semibold"
                         required
                       >
                         {branchOptions.map((b) => (
@@ -314,7 +324,7 @@ export default function CartDrawer({
                         ))}
                       </select>
                     )}
-                    <p className="text-[11px] text-brand-muted leading-relaxed">
+                    <p className="text-[11px] font-medium text-brand-ink/70 leading-relaxed">
                       One order belongs to one branch. Items should share the same pickup location.
                     </p>
                   </div>
@@ -322,7 +332,7 @@ export default function CartDrawer({
                   {!currentUser && (
                     <>
                       <div className="p-3 bg-brand-blue/5 rounded-xl border border-brand-blue/15">
-                        <p className="text-xs text-brand-blue leading-relaxed">
+                        <p className="text-xs font-semibold text-brand-blue leading-relaxed">
                           Guest checkout available. Sign in afterward to track confirmed orders.
                         </p>
                       </div>
@@ -353,24 +363,24 @@ export default function CartDrawer({
                     </>
                   )}
 
-                  <div className="rounded-xl border border-brand-border p-4 space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted flex items-center gap-1">
-                    <ShoppingBag className="w-3 h-3" /> Order summary
+                  <div className="rounded-xl border border-brand-border p-4 space-y-2.5">
+                    <p className="text-xs font-bold uppercase tracking-wide text-brand-ink flex items-center gap-1.5">
+                      <ShoppingBag className="w-3.5 h-3.5" /> Order summary
                     </p>
                     {items.map((item) => (
                       <div key={item.id} className="flex justify-between gap-3 text-sm">
-                        <span className="text-brand-ink truncate">{item.product_name} × {item.quantity}</span>
-                        <span className="tabular-nums text-brand-muted shrink-0">{formatMoney(item.subtotal)}</span>
+                        <span className="font-semibold text-brand-ink truncate">{item.product_name} × {item.quantity}</span>
+                        <span className="tabular-nums font-semibold text-brand-ink shrink-0">{formatMoney(item.subtotal)}</span>
                       </div>
                     ))}
-                    <div className="pt-2 border-t border-brand-border flex justify-between">
-                      <span className="font-semibold text-brand-ink">Total</span>
+                    <div className="pt-2.5 border-t border-brand-border flex justify-between items-center gap-3">
+                      <span className="font-bold text-brand-ink">Total</span>
                       <PriceDisplay amount={total} size="md" />
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-brand-border p-4 space-y-3">
-                    <label className="flex items-center gap-2 text-sm font-medium text-brand-ink cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm font-bold text-brand-ink cursor-pointer">
                       <input
                         type="checkbox"
                         checked={includePayment}
@@ -382,11 +392,11 @@ export default function CartDrawer({
                     {includePayment && (
                       <>
                         <div>
-                          <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Payment method</label>
+                          <label className="text-[11px] font-bold text-brand-ink uppercase tracking-wide mb-1.5 block">Payment method</label>
                           <select
                             value={paymentMethod}
                             onChange={(e) => setPaymentMethod(e.target.value as StorePaymentMethod)}
-                            className="form-input w-full"
+                            className="form-input w-full font-semibold"
                             required
                           >
                             {PAYMENT_METHODS.map((m) => (
@@ -397,7 +407,7 @@ export default function CartDrawer({
                         {paymentMethod !== 'CASH' && (
                           <>
                             <div>
-                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Your name / sender</label>
+                              <label className="text-[11px] font-bold text-brand-ink uppercase tracking-wide mb-1.5 block">Your name / sender</label>
                               <input
                                 value={senderName}
                                 onChange={(e) => setSenderName(e.target.value)}
@@ -406,7 +416,7 @@ export default function CartDrawer({
                               />
                             </div>
                             <div>
-                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Your bank / provider</label>
+                              <label className="text-[11px] font-bold text-brand-ink uppercase tracking-wide mb-1.5 block">Your bank / provider</label>
                               <input
                                 value={bankName}
                                 onChange={(e) => setBankName(e.target.value)}
@@ -415,7 +425,7 @@ export default function CartDrawer({
                               />
                             </div>
                             <div>
-                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Transaction reference</label>
+                              <label className="text-[11px] font-bold text-brand-ink uppercase tracking-wide mb-1.5 block">Transaction reference</label>
                               <input
                                 value={transactionRef}
                                 onChange={(e) => setTransactionRef(e.target.value)}
@@ -425,7 +435,7 @@ export default function CartDrawer({
                               />
                             </div>
                             <div>
-                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Upload receipt (optional)</label>
+                              <label className="text-[11px] font-bold text-brand-ink uppercase tracking-wide mb-1.5 block">Upload receipt (optional)</label>
                               <div className="flex items-center gap-2">
                                 <input
                                   ref={fileInputRef}
@@ -434,19 +444,21 @@ export default function CartDrawer({
                                   onChange={(e) => setPaymentAttachment(e.target.files?.[0] || null)}
                                   className="hidden"
                                 />
-                                <button
+                                <Button
                                   type="button"
+                                  variant="secondary"
+                                  size="sm"
                                   onClick={() => fileInputRef.current?.click()}
-                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:text-brand-ink hover:border-brand-blue/30 transition-all"
+                                  className="font-bold"
                                 >
-                                  <Upload className="w-3.5 h-3.5" />
+                                  <Upload className="w-3.5 h-3.5 mr-1.5 inline" />
                                   {paymentAttachment ? paymentAttachment.name : 'Choose file'}
-                                </button>
+                                </Button>
                                 {paymentAttachment && (
                                   <button
                                     type="button"
                                     onClick={() => { setPaymentAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                                    className="p-1.5 text-brand-muted hover:text-red-500 transition-colors"
+                                    className="p-2 text-brand-muted hover:text-red-500 transition-colors"
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
@@ -454,8 +466,8 @@ export default function CartDrawer({
                               </div>
                             </div>
                             <div className="border-t border-brand-border/50 pt-3">
-                              <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-2 block flex items-center gap-1">
-                                <Landmark className="w-3 h-3" /> Company bank accounts
+                              <label className="text-[11px] font-bold text-brand-ink uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <Landmark className="w-3.5 h-3.5" /> Company bank accounts
                               </label>
                               {bankAccountsLoading ? (
                                 <div className="space-y-2">
@@ -464,7 +476,7 @@ export default function CartDrawer({
                                   ))}
                                 </div>
                               ) : bankAccounts.length === 0 ? (
-                                <p className="text-xs text-brand-muted">No bank accounts available.</p>
+                                <p className="text-xs font-medium text-brand-muted">No bank accounts available.</p>
                               ) : (
                                 (() => {
                                   const seen = new Set<string>();
@@ -475,24 +487,24 @@ export default function CartDrawer({
                                     if (!g) { g = [a.bank_name, []]; byBank.push(g); }
                                     g[1].push(a);
                                   });
-                                  return <div className="space-y-1 max-h-48 overflow-y-auto">
+                                  return <div className="space-y-2 max-h-48 overflow-y-auto">
                                     {byBank.map(([bank, accs]) => (
                                       <div key={bank}>
-                                        <p className="font-semibold text-brand-ink text-xs mb-1">{bank}</p>
-                                        <div className="space-y-1">
+                                        <p className="font-bold text-brand-ink text-xs mb-1.5">{bank}</p>
+                                        <div className="space-y-1.5">
                                           {accs.map(acc => (
-                                            <div key={acc.account_number} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-brand-border/40 text-xs">
+                                            <div key={acc.account_number} className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-brand-border/60 text-xs">
                                               <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                                                <span className="font-mono text-brand-muted">{acc.account_number}</span>
-                                                <span className="text-brand-muted/60 text-[10px] truncate">{acc.account_holder}{acc.branch ? ` • ${acc.branch}` : ''}</span>
+                                                <span className="font-mono font-bold text-brand-ink">{acc.account_number}</span>
+                                                <span className="text-brand-muted text-[10px] font-medium truncate">{acc.account_holder}{acc.branch ? ` • ${acc.branch}` : ''}</span>
                                               </div>
                                               <button
                                                 type="button"
                                                 onClick={() => navigator.clipboard.writeText(acc.account_number)}
-                                                className="shrink-0 p-1 rounded text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-colors"
+                                                className="shrink-0 p-1.5 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/5 transition-colors"
                                                 title="Copy account number"
                                               >
-                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                                                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                                                 </svg>
@@ -508,8 +520,8 @@ export default function CartDrawer({
                             </div>
                           </>
                         )}
-                        <p className="text-[11px] text-brand-muted leading-relaxed">
-                          Amount submitted: {formatMoney(total)}. Staff will verify before fulfilling the order.
+                        <p className="text-[11px] font-medium text-brand-ink/70 leading-relaxed">
+                          Amount submitted: <span className="font-bold text-brand-ink">{formatMoney(total)}</span>. Staff will verify before fulfilling the order.
                         </p>
                       </>
                     )}
@@ -522,20 +534,35 @@ export default function CartDrawer({
                     </div>
                   )}
 
-                  <Button type="submit" disabled={checkoutLoading || !branchId} className="w-full" size="lg">
+                  <Button type="submit" disabled={checkoutLoading || !branchId} className="w-full font-bold" size="lg">
                     {checkoutLoading ? (
                       <><Loader className="w-4 h-4 animate-spin mr-2 inline" /> Processing…</>
                     ) : (
                       <><CreditCard className="w-4 h-4 mr-2 inline" /> Place order — {formatMoney(total)}</>
                     )}
                   </Button>
-                  <button
+                  <Button
                     type="button"
-                    onClick={() => { setCheckoutStep('cart'); setFormError(null); }}
-                    className="w-full py-2 text-sm text-brand-muted hover:text-brand-ink transition-colors"
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => {
+                      setCheckoutStep('cart');
+                      setGuestName('');
+                      setGuestEmail('');
+                      setGuestPhone('');
+                      setPaymentMethod('BANK_TRANSFER');
+                      setBankName('');
+                      setSenderName('');
+                      setTransactionRef('');
+                      setIncludePayment(true);
+                      setPaymentAttachment(null);
+                      setBankAccounts([]);
+                      setFormError(null);
+                    }}
+                    className="w-full font-bold"
                   >
                     Back to cart
-                  </button>
+                  </Button>
                 </motion.form>
               ) : loading ? (
                 <div className="space-y-3 pt-2">
@@ -547,37 +574,37 @@ export default function CartDrawer({
                   <div className="w-16 h-16 rounded-2xl bg-brand-surface border border-brand-border flex items-center justify-center mx-auto mb-4">
                     <ShoppingBag className="w-7 h-7 text-brand-border" />
                   </div>
-                  <p className="text-sm font-semibold text-brand-ink mb-1">Your cart is empty</p>
-                  <p className="text-xs text-brand-muted max-w-[200px] mx-auto leading-relaxed">
+                  <p className="text-sm font-bold text-brand-ink mb-1">Your cart is empty</p>
+                  <p className="text-xs font-medium text-brand-muted max-w-[200px] mx-auto leading-relaxed">
                     Browse the store and add items to get started
                   </p>
                   <div className="mt-6">
-                    <Button onClick={onClose} variant="secondary" size="sm">Browse products</Button>
+                    <Button onClick={onClose} variant="secondary" size="sm" className="font-bold">Browse products</Button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2.5">
                   {items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 bg-brand-surface rounded-xl border border-brand-border">
+                    <div key={item.id} className="flex items-center gap-3 p-3.5 bg-brand-surface rounded-xl border border-brand-border">
                       <div className="w-14 h-14 bg-white rounded-lg border border-brand-border flex items-center justify-center shrink-0">
                         <Package className="w-6 h-6 text-brand-muted" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm text-brand-ink truncate">{item.product_name}</h4>
-                        <p className="text-[11px] text-brand-muted truncate">{item.branch_name}</p>
-                        <PriceDisplay amount={item.product_price} size="sm" className="text-brand-blue text-xs mt-0.5" />
+                        <h4 className="font-bold text-sm text-brand-ink truncate">{item.product_name}</h4>
+                        <p className="text-[11px] font-medium text-brand-muted truncate">{item.branch_name}</p>
+                        <PriceDisplay amount={item.product_price} size="sm" className="text-brand-blue text-xs font-bold mt-0.5" />
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <div className="flex items-center bg-white border border-brand-border rounded-lg overflow-hidden">
-                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)} className="p-1.5 text-brand-muted hover:bg-brand-surface transition-colors" disabled={item.quantity <= 1}>
+                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)} className="p-2 text-brand-muted hover:bg-brand-surface hover:text-brand-ink transition-colors" disabled={item.quantity <= 1}>
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="text-xs font-semibold px-2 min-w-[20px] text-center tabular-nums">{item.quantity}</span>
-                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1.5 text-brand-muted hover:bg-brand-surface transition-colors">
+                          <span className="text-xs font-bold px-2.5 min-w-[24px] text-center tabular-nums text-brand-ink">{item.quantity}</span>
+                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-2 text-brand-muted hover:bg-brand-surface hover:text-brand-ink transition-colors">
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <button type="button" onClick={() => onRemoveFromCart(item.id)} className="p-1.5 text-brand-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                        <button type="button" onClick={() => onRemoveFromCart(item.id)} className="p-2 text-brand-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -589,11 +616,11 @@ export default function CartDrawer({
 
             {items.length > 0 && checkoutStep === 'cart' && !loading && (
               <div className="px-5 py-4 border-t border-brand-border/50 bg-brand-surface/80 shrink-0">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-brand-muted">Subtotal</span>
+                <div className="flex items-center justify-between mb-3.5 gap-3">
+                  <span className="text-sm font-bold text-brand-ink">Subtotal</span>
                   <PriceDisplay amount={total} size="md" />
                 </div>
-                <Button onClick={() => setCheckoutStep('checkout')} className="w-full" size="lg">
+                <Button onClick={() => setCheckoutStep('checkout')} className="w-full font-bold" size="lg">
                   Proceed to checkout
                 </Button>
               </div>
