@@ -78,7 +78,7 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
       setLiveMatchCount(matchList.filter(m => m.status === 'LIVE').length);
       setLastRefresh(new Date());
     }).catch(err => {
-      /* console.error */(err);
+      console.error(err);
       setError('Failed to load events');
     }).finally(() => setLoading(false));
   };

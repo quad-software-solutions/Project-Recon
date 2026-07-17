@@ -52,7 +52,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
         return next;
       });
     } catch (e) {
-      /* console.error */('Failed to update progress', e);
+      console.error('Failed to update progress', e);
     } finally {
       setUpdating(null);
     }

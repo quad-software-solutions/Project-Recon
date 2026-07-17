@@ -28,7 +28,7 @@ import { CartProvider, useCartContext } from '../shared/context/CartContext';
 import { useNavigation } from '../shared/hooks/useNavigation';
 import { hasPermission } from '../shared/auth/permissions';
 
-import { ActiveTab, UserProfile } from '../shared/types';
+import { ActiveTab, UserProfile, ProgramDisplay, PendingOrder } from '../shared/types';
 
 const LoginView = React.lazy(() => import('../domains/auth/login/ui/LoginView'));
 const AuthModal = React.lazy(() => import('../domains/auth/modal/ui/AuthModal'));
@@ -54,7 +54,7 @@ function AppInner() {
     openCart, closeCart,
   } = useCartContext();
 
-  const handleCheckoutSuccess = (_pendingOrder: any) => {
+  const handleCheckoutSuccess = (_pendingOrder: PendingOrder) => {
     fetchCart();
   };
 
@@ -65,7 +65,7 @@ function AppInner() {
     forceNavigate('login');
   };
 
-  const [selectedProgramSpec, setSelectedProgramSpec] = useState<any>(null);
+  const [selectedProgramSpec, setSelectedProgramSpec] = useState<ProgramDisplay | null>(null);
 
   const handleEnrollInProgram = (_programId: string) => {
     if (!currentUser) {
