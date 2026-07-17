@@ -39,7 +39,7 @@ export default function EventRegistrationModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState<'eligibility' | 'details' | 'confirm'>('eligibility');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE'>('BANK_TRANSFER');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE'>('CASH');
   const [transactionReference, setTransactionReference] = useState('');
   const [bankName, setBankName] = useState('');
 

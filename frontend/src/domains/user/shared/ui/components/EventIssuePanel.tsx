@@ -17,7 +17,7 @@ export default function EventIssuePanel({ mode, templates, onRefresh, onError }:
   const [results, setResults] = useState<{ email: string; success: boolean; error?: string }[]>([]);
 
   useEffect(() => {
-    adminGetRegistrations({ event_type: mode.toUpperCase() })
+    adminGetRegistrations({})
       .then(data => setRegistrations(Array.isArray(data) ? data : (data as Record<string, unknown>).results as EventRegistration[] || []))
       .catch(() => setRegistrations([]))
       .finally(() => setLoading(false));

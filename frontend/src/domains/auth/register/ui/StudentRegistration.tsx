@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Clock, Eye, EyeOff, Loader2, Building2, Hash, FileUp, Users, RotateCcw, User as UserIcon, Smartphone, FileText, Wallet, GraduationCap, Check, Info, ArrowRight } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, ShieldCheck, Lock, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Building2, Hash, FileUp, Users, RotateCcw, User as UserIcon, Smartphone, FileText, Wallet, GraduationCap, Check, Info } from 'lucide-react';
 import { registerApi } from '../api/registerApi';
 import { fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, fetchBankAccountsApi } from '../../../learning/academics/api/academicApi';
-import type { Program, SubProgram, AcademicClass } from '@/shared/types';
+import type { Program, SubProgram, AcademicClass, Enrollment } from '@/shared/types';
 
 type PaymentMethodType = 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE' | 'CASH';
 
@@ -35,8 +35,6 @@ export default function StudentRegistration() {
   const [formData, setFormData] = useState({
     name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: ''
   });
-  const [selectedClassId, setSelectedClassId] = useState('');
-  const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('BANK_TRANSFER');
   const [paymentDetails, setPaymentDetails] = useState({ bank_name: '', transaction_reference: '', transfer_reference: '' });
   const [paymentAttachment, setPaymentAttachment] = useState<File | null>(null);
@@ -46,11 +44,25 @@ export default function StudentRegistration() {
   const [submitError, setSubmitError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
   const [enrollmentNumber, setEnrollmentNumber] = useState('');
+  const [enrollmentData, setEnrollmentData] = useState<Enrollment | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
   const [programsLoading, setProgramsLoading] = useState(true);
   const [programsError, setProgramsError] = useState('');
   const [enrollmentType, setEnrollmentType] = useState<'GROUP' | 'INDIVIDUAL'>('GROUP');
+  const [selectedSubProgramId, setSelectedSubProgramId] = useState('');
+  const [classes, setClasses] = useState<AcademicClass[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
+
+  const handleSubProgramSelect = (subId: string, classType?: 'GROUP' | 'INDIVIDUAL') => {
+    setSelectedSubProgramId(subId);
+    const type = classType || enrollmentType;
+    console.log('[Class Match] Searching classes for sub_program:', subId, 'class_type:', type);
+    console.log('[Class Match] Available active classes:', classes.map(c => ({ id: c.id, sub_program: c.sub_program, name: c.name, class_type: c.class_type, is_active: c.is_active })));
+    const match = classes.find(c => c.sub_program === subId && c.class_type === type && c.is_active);
+    console.log('[Class Match] Result:', match ? `found: ${match.id} - ${match.name}` : 'NO MATCH FOUND');
+    setSelectedClassId(match ? match.id : '');
+  };
 
   const loadPrograms = () => {
     setProgramsLoading(true);
@@ -59,11 +71,13 @@ export default function StudentRegistration() {
       fetchProgramsApi().catch(() => [] as any[]),
       fetchSubProgramsApi().catch(() => [] as any[]),
       fetchClassesApi().catch(() => [] as any[]),
-      fetchBankAccountsApi().catch(() => [] as any[]),
+      fetchBankAccountsApi().catch((e) => { console.warn('Bank accounts fetch failed:', e); return [] as any[]; }),
     ]).then(([progs, subs, cls, banks]) => {
       if (progs.length > 0) setPrograms(progs);
       if (subs.length > 0) setSubPrograms(subs);
-      setClasses((cls || []).filter(c => c.is_active));
+      const activeClasses = (cls || []).filter(c => c.is_active);
+      console.log('[Classes Loaded] Raw from API:', cls, 'Active only:', activeClasses);
+      setClasses(activeClasses);
       if (Array.isArray(banks) && banks.length > 0) setBankAccounts(banks);
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : String(err);
@@ -80,14 +94,12 @@ export default function StudentRegistration() {
     return () => clearInterval(timer);
   }, []);
 
-  const selectedClass = classes.find(c => c.id === selectedClassId);
-  const selectedSub = selectedClass
-    ? subPrograms.find(s => s.id === selectedClass.sub_program)
+  const selectedSub = selectedSubProgramId
+    ? subPrograms.find(s => s.id === selectedSubProgramId)
     : undefined;
   const classFee = selectedSub
     ? Number(enrollmentType === 'GROUP' ? selectedSub.group_fee : (selectedSub.individual_fee ?? 0))
     : 0;
-  const filteredClasses = classes.filter(c => c.class_type === enrollmentType);
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +108,12 @@ export default function StudentRegistration() {
 
   const handleSubmit = async () => {
     setSubmitError('');
+    if (!selectedSubProgramId) {
+      setSubmitError('Please select a course to enroll in.');
+      return;
+    }
     if (!selectedClassId) {
-      setSubmitError('Please select a class to enroll in.');
+      setSubmitError('No class is currently available for the selected course. Please contact administration or try a different enrollment type.');
       return;
     }
     if (!formData.studentEmail.trim() || !formData.password.trim()) {
@@ -110,6 +126,7 @@ export default function StudentRegistration() {
     }
     setIsSubmitting(true);
     try {
+      console.log('[Enrollment] Submitting with enrolled_class:', selectedClassId);
       const result = await registerApi({
         name: formData.name,
         studentEmail: formData.studentEmail.trim(),
@@ -126,16 +143,15 @@ export default function StudentRegistration() {
         transaction_reference: paymentDetails.transaction_reference || undefined,
         transfer_reference: paymentDetails.transfer_reference || undefined,
       });
-      setEnrollmentNumber(
-        (result.enrollment as { enrollment_number?: string; pending_code?: string })?.enrollment_number
-        || (result.enrollment as { pending_code?: string })?.pending_code
-        || result.enrollment?.id?.slice(0, 8)
-        || ''
-      );
+      const enrollment = result.enrollment as Enrollment;
+      setEnrollmentData(enrollment);
+      setEnrollmentNumber(enrollment.enrollment_number || enrollment.pending_code || enrollment.id?.slice(0, 8) || '');
       setIsSubmitting(false);
       setIsSuccess(true);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      console.error('[Enrollment Error]', message, err);
+      setSubmitError(message);
       setIsSubmitting(false);
     }
   };
@@ -154,27 +170,74 @@ export default function StudentRegistration() {
           initial={{ scale: 0.92, opacity: 0, y: 24 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="bg-white/95 backdrop-blur-xl p-10 md:p-12 rounded-3xl shadow-[0_30px_80px_-12px_rgba(0,0,0,0.15)] text-center max-w-md border border-white/20 relative"
+          className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_30px_80px_-12px_rgba(0,0,0,0.15)] max-w-lg w-full border border-white/20 relative overflow-hidden"
         >
-          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-blue via-brand-red to-brand-blue rounded-t-3xl" />
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-blue via-brand-red to-brand-blue" />
+
+          <div className="p-8 md:p-10 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-inner">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h2 className="font-black text-2xl text-slate-900 tracking-tight mb-1">Registration Complete!</h2>
+            <p className="text-slate-500 text-sm font-medium">Your enrollment has been submitted successfully.</p>
           </div>
-          <h2 className="font-black text-2xl text-slate-900 tracking-tight mb-2">Registration Complete!</h2>
-          <div className="bg-slate-100 rounded-xl px-5 py-3.5 mb-5 inline-block mx-auto">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Reference</span>
-            <span className="font-black text-lg text-brand-red tracking-widest">{enrollmentNumber || "Submitted"}</span>
+
+          {/* Enrollment Details */}
+          {enrollmentData && (
+            <div className="px-8 md:px-10 pb-2">
+              <div className="bg-slate-50 rounded-xl border border-slate-100 divide-y divide-slate-100">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-xs font-medium text-slate-500">Program</span>
+                  <span className="text-sm font-bold text-slate-900 text-right">{enrollmentData.program_name || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-xs font-medium text-slate-500">Course</span>
+                  <span className="text-sm font-bold text-slate-900 text-right">{enrollmentData.sub_program_name || enrollmentData.class_name || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-xs font-medium text-slate-500">Class Type</span>
+                  <span className="text-sm font-bold text-slate-900 text-right capitalize">{enrollmentData.class_type?.toLowerCase() || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-xs font-medium text-slate-500">Branch</span>
+                  <span className="text-sm font-bold text-slate-900 text-right">{enrollmentData.branch_name || '—'}</span>
+                </div>
+                {enrollmentData.payment_method && (
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-xs font-medium text-slate-500">Payment</span>
+                    <span className="text-sm font-bold text-slate-900 text-right capitalize">{enrollmentData.payment_method.replace(/_/g, ' ')}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-xs font-medium text-slate-500">Status</span>
+                  <span className={`text-sm font-bold text-right ${enrollmentData.status === 'PENDING_VERIFICATION' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {enrollmentData.status === 'PENDING_VERIFICATION' ? 'Pending Verification' : enrollmentData.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="px-8 md:px-10 pb-2">
+            <div className="bg-brand-red/[0.04] border border-brand-red/15 rounded-xl px-4 py-3.5 flex items-center justify-between">
+              <span className="text-[10px] font-black text-brand-red uppercase tracking-wider">Reference</span>
+              <span className="font-black text-base text-brand-red tracking-widest">{enrollmentNumber || "Submitted"}</span>
+            </div>
           </div>
-          <p className="text-slate-600 font-medium mb-8 text-sm leading-relaxed">
-            Thank you for registering <strong className="text-slate-900">{formData.name}</strong>. Your enrollment was submitted for payment verification. Sign in with <strong className="text-brand-red">{formData.studentEmail}</strong> after verifying your email to open the Student Dashboard.
-          </p>
-          <div className="flex gap-3">
-            <button onClick={() => { setIsSuccess(false); setStep(1); setFormData({ name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: '' }); setSelectedClassId(''); }}
-              className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-8 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97]">
+
+          <div className="px-8 md:px-10 pb-6">
+            <p className="text-slate-600 text-xs leading-relaxed text-center">
+              Thank you <strong className="text-slate-900">{formData.name}</strong>. Your enrollment is pending payment verification. Sign in with <strong className="text-brand-red">{formData.studentEmail}</strong> after email verification to open the <strong className="text-slate-900">Student Dashboard</strong>.
+            </p>
+          </div>
+
+          <div className="px-8 md:px-10 pb-8 flex gap-3">
+            <button onClick={() => { setIsSuccess(false); setStep(1); setFormData({ name: '', studentEmail: '', password: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: '' }); setSelectedSubProgramId(''); setSelectedClassId(''); setEnrollmentType('GROUP'); }}
+              className="flex-1 bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97]">
               New Registration
             </button>
             <button onClick={() => window.location.reload()}
-              className="flex-1 bg-slate-100 text-slate-700 px-8 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-slate-200 transition-all active:scale-[0.97]">
+              className="flex-1 bg-slate-100 text-slate-700 px-6 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-slate-200 transition-all active:scale-[0.97]">
               Back to Home
             </button>
           </div>
@@ -433,7 +496,7 @@ export default function StudentRegistration() {
                   <div className="flex bg-white/90 backdrop-blur-sm border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
                     <button
                       type="button"
-                      onClick={() => { setEnrollmentType('GROUP'); setSelectedClassId(''); }}
+                      onClick={() => { setEnrollmentType('GROUP'); if (selectedSubProgramId) handleSubProgramSelect(selectedSubProgramId, 'GROUP'); }}
                       className={`flex items-center gap-2.5 px-6 py-2.5 rounded-lg text-sm font-black uppercase tracking-wider transition-all duration-200 ${
                         enrollmentType === 'GROUP'
                           ? 'bg-brand-red text-white shadow-md shadow-brand-red/30'
@@ -444,7 +507,7 @@ export default function StudentRegistration() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setEnrollmentType('INDIVIDUAL'); setSelectedClassId(''); }}
+                      onClick={() => { setEnrollmentType('INDIVIDUAL'); if (selectedSubProgramId) handleSubProgramSelect(selectedSubProgramId, 'INDIVIDUAL'); }}
                       className={`flex items-center gap-2.5 px-6 py-2.5 rounded-lg text-sm font-black uppercase tracking-wider transition-all duration-200 ${
                         enrollmentType === 'INDIVIDUAL'
                           ? 'bg-brand-red text-white shadow-md shadow-brand-red/30'
@@ -477,71 +540,78 @@ export default function StudentRegistration() {
                         Retry
                       </button>
                     </div>
-                  ) : filteredClasses.length === 0 ? (
+                  ) : subPrograms.length === 0 ? (
                     <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-white/40 p-12 text-center">
                       <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
                         <BookOpen className="w-8 h-8 text-slate-400" />
                       </div>
-                      <p className="text-lg font-bold text-slate-600">No {enrollmentType === 'GROUP' ? 'group' : 'individual'} classes available</p>
-                      <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Open classes will appear here once they are published. Check back later or contact the admin.</p>
+                      <p className="text-lg font-bold text-slate-600">No programs available</p>
+                      <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">Courses will appear here once they are published.</p>
                     </div>
                   ) : (
-                    <motion.div
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white/95 backdrop-blur-sm rounded-2xl border border-white/40 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.06)]"
-                    >
-                      <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                        <BookOpen className="w-5 h-5 text-brand-red" />
-                        <h3 className="font-black text-base text-slate-900 tracking-tight">Available Classes</h3>
-                        <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">{filteredClasses.length} classes</span>
-                      </div>
-                      <div className="p-5 flex flex-col gap-3">
-                        {filteredClasses.map((cls, ci) => {
-                          const sub = subPrograms.find(s => s.id === cls.sub_program);
-                          const fee = Number(enrollmentType === 'GROUP' ? sub?.group_fee : (sub?.individual_fee ?? 0));
-                          const selected = selectedClassId === cls.id;
-                          const programName = cls.sub_program_name || sub?.name || 'Program';
-                          const initials = programName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-                          const colors = ['from-brand-red to-brand-red-dark', 'from-brand-blue to-blue-700', 'from-emerald-500 to-emerald-700', 'from-amber-500 to-orange-600', 'from-violet-500 to-violet-700', 'from-cyan-500 to-cyan-700'];
-                          const colorIdx = [...(programName)].reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
-                          return (
-                            <motion.button
-                              key={cls.id}
-                              type="button"
-                              onClick={() => setSelectedClassId(cls.id)}
-                              whileHover={{ scale: 1.005 }}
-                              whileTap={{ scale: 0.995 }}
-                              className={`text-left rounded-xl p-4 border-2 transition-all ${
-                                selected
-                                  ? 'border-brand-red bg-brand-red/[0.04] shadow-lg shadow-brand-red/5'
-                                  : 'border-slate-100 hover:border-slate-200 bg-white shadow-sm hover:shadow-md'
-                              }`}
-                            >
-                              <div className="flex gap-4 items-center">
-                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors[colorIdx]} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm`}>
-                                  {initials}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">{cls.name}</h4>
-                                  <p className="text-xs text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
-                                    <GraduationCap className="w-3 h-3 shrink-0" />
-                                    <span>{programName}</span>
-                                    {cls.branch_name && <><span className="text-slate-300">·</span><span>{cls.branch_name}</span></>}
-                                  </p>
-                                </div>
-                                <div className="text-right shrink-0 ml-2">
-                                  <p className={`font-black text-sm ${selected ? 'text-brand-red' : 'text-slate-800'}`}>
-                                    {fee > 0 ? `${fee.toLocaleString()} Birr` : 'Free'}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">{enrollmentType === 'GROUP' ? 'Group' : 'Individual'}</p>
-                                </div>
+                    <div className="space-y-6">
+                      {programs.filter(p => subPrograms.some(sp => sp.program === p.id)).map(program => {
+                        const subs = subPrograms.filter(sp => sp.program === program.id);
+                        return (
+                          <motion.div
+                            key={program.id}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white/95 backdrop-blur-sm rounded-2xl border border-white/40 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.06)]"
+                          >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-brand-red/10 flex items-center justify-center">
+                                <GraduationCap className="w-4 h-4 text-brand-red" />
                               </div>
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
+                              <h3 className="font-black text-base text-slate-900 tracking-tight">{program.name}</h3>
+                              <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">{subs.length} courses</span>
+                            </div>
+                            <div className="p-5 flex flex-col gap-3">
+                              {subs.map(sub => {
+                                const fee = Number(enrollmentType === 'GROUP' ? sub.group_fee : (sub.individual_fee ?? 0));
+                                const selected = selectedSubProgramId === sub.id;
+                                const initials = sub.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                                const colors = ['from-brand-red to-brand-red-dark', 'from-brand-blue to-blue-700', 'from-emerald-500 to-emerald-700', 'from-amber-500 to-orange-600', 'from-violet-500 to-violet-700', 'from-cyan-500 to-cyan-700'];
+                                const colorIdx = [...(sub.name)].reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
+                                return (
+                                  <motion.button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => handleSubProgramSelect(sub.id)}
+                                    whileHover={{ scale: 1.005 }}
+                                    whileTap={{ scale: 0.995 }}
+                                    className={`text-left rounded-xl p-4 border-2 transition-all ${
+                                      selected
+                                        ? 'border-brand-red bg-brand-red/[0.04] shadow-lg shadow-brand-red/5'
+                                        : 'border-slate-100 hover:border-slate-200 bg-white shadow-sm hover:shadow-md'
+                                    }`}
+                                  >
+                                    <div className="flex gap-4 items-center">
+                                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors[colorIdx]} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm`}>
+                                        {initials}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">{sub.name}</h4>
+                                        <p className="text-xs text-slate-500 mt-0.5 truncate flex items-center gap-1.5">
+                                          <GraduationCap className="w-3 h-3 shrink-0" />
+                                          <span>{program.name}</span>
+                                          {sub.duration && <><span className="text-slate-300">·</span><span>{sub.duration} {sub.duration_unit?.toLowerCase() || 'hrs'}</span></>}
+                                        </p>
+                                      </div>
+                                      <div className="text-right shrink-0 ml-2">
+                                        <p className={`font-black text-sm ${selected ? 'text-brand-red' : 'text-slate-800'}`}>
+                                          {fee > 0 ? `${fee.toLocaleString()} Birr` : 'Free'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   )}
                 </motion.div>
               )}
@@ -572,38 +642,36 @@ export default function StudentRegistration() {
 
                 {/* Summary Body */}
                 <div className="p-6">
-                  {!selectedClass ? (
+                  {!selectedSubProgramId ? (
                     <div className="flex flex-col items-center justify-center text-center text-slate-500 py-8">
                       <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
                         <GraduationCap className="w-8 h-8 text-slate-400" />
                       </div>
-                      <p className="text-sm font-bold text-slate-600 mb-1">No class selected</p>
-                      <p className="text-xs text-slate-400 max-w-[180px]">Choose a program from the left to see the summary.</p>
+                      <p className="text-sm font-bold text-slate-600 mb-1">Select a course</p>
+                      <p className="text-xs text-slate-400 max-w-[200px]">Choose a program from the left to see the summary.</p>
                     </div>
-                  ) : (
+                  ) : selectedSub ? (
                     <>
-                      {/* Selected Class */}
                       <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0">
-                            <span className="font-bold text-slate-900 text-sm leading-tight block mb-1 truncate">{selectedClass.name}</span>
+                            <span className="font-bold text-slate-900 text-sm leading-tight block mb-1 truncate">{selectedSub.name}</span>
                             <span className="inline-flex text-[10px] font-black tracking-wider text-brand-red uppercase bg-brand-red/10 px-2 py-0.5 rounded-md">
-                              {selectedClass.class_type === 'GROUP' ? 'Group Class' : '1-on-1 Tutoring'}
+                              {enrollmentType === 'GROUP' ? 'Group Class' : '1-on-1 Tutoring'}
                             </span>
-                            {selectedSub?.name && (
+                            {selectedSub.program_name && (
                               <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
                                 <GraduationCap className="w-3 h-3 shrink-0" />
-                                {selectedSub.name}
+                                {selectedSub.program_name}
                               </p>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Fee Breakdown */}
                       <div className="mt-5 space-y-2.5">
                         <div className="flex justify-between items-center text-sm py-2">
-                          <span className="text-slate-600 font-medium">Class Fee</span>
+                          <span className="text-slate-600 font-medium">Course Fee</span>
                           <span className="font-bold text-slate-900">{classFee.toLocaleString()} Birr</span>
                         </div>
                         <div className="border-t border-slate-100" />
@@ -621,7 +689,7 @@ export default function StudentRegistration() {
                         </p>
                       </div>
                     </>
-                  )}
+                  ) : null}
                 </div>
               </motion.div>
 
@@ -675,9 +743,58 @@ export default function StudentRegistration() {
                           <div>
                             <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Bank Name</label>
                             <div className="relative">
-                              <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                              <input type="text" placeholder="e.g. Dashen Bank" value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
-                                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all" />
+                              <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <select value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                className="w-full pl-10 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
+                                <option value="">Select a bank...</option>
+                                {bankAccounts.map((acc, i) => (
+                                  <option key={`${acc.bank_name}-${i}`} value={acc.bank_name}>{acc.bank_name}</option>
+                                ))}
+                              </select>
+                              <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 9l6 6 6-6" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentMethod === 'MOBILE_MONEY' && (
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Mobile Money Provider</label>
+                            <div className="relative">
+                              <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <select value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                className="w-full pl-10 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
+                                <option value="">Select provider...</option>
+                                <option value="Telebirr">Telebirr</option>
+                                <option value="M-Pesa">M-Pesa</option>
+                                <option value="Amole">Amole</option>
+                                <option value="Chapa">Chapa</option>
+                                <option value="CBE Birr">CBE Birr</option>
+                                <option value="HelloCash">HelloCash</option>
+                              </select>
+                              <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 9l6 6 6-6" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentMethod === 'CHEQUE' && (
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Bank Name</label>
+                            <div className="relative">
+                              <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <select value={paymentDetails.bank_name} onChange={e => setPaymentDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                className="w-full pl-10 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all appearance-none cursor-pointer">
+                                <option value="">Select a bank...</option>
+                                {bankAccounts.map((acc, i) => (
+                                  <option key={`chq-${acc.bank_name}-${i}`} value={acc.bank_name}>{acc.bank_name}</option>
+                                ))}
+                              </select>
+                              <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 9l6 6 6-6" />
+                              </svg>
                             </div>
                           </div>
                         )}
@@ -756,7 +873,7 @@ export default function StudentRegistration() {
                     {/* Submit Button */}
                     <button
                       onClick={handleSubmit}
-                      disabled={!selectedClassId || isSubmitting}
+                      disabled={!selectedSubProgramId || isSubmitting}
                       className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 disabled:cursor-not-allowed text-white px-4 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm shadow-lg shadow-brand-red/30 flex items-center justify-center gap-2 hover:shadow-xl hover:shadow-brand-red/45 transition-all active:scale-[0.97] disabled:shadow-none"
                     >
                       {isSubmitting ? (
@@ -773,10 +890,30 @@ export default function StudentRegistration() {
                       <motion.div
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-700 flex items-start gap-2.5"
+                        className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4"
                       >
-                        <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                        <span>{submitError}</span>
+                        <div className="flex items-start gap-2.5">
+                          <Info className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-red-700">{submitError}</p>
+                            <p className="text-[10px] text-red-500 mt-1">Your form data is preserved. Fix the issue and retry, or go back to edit.</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button onClick={handleSubmit} disabled={isSubmitting}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-[11px] font-black uppercase tracking-wider transition-all">
+                            {isSubmitting ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            )}
+                            Retry
+                          </button>
+                          <button onClick={() => setSubmitError('')}
+                            className="px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-wider hover:bg-slate-50 transition-all">
+                            Dismiss
+                          </button>
+                        </div>
                       </motion.div>
                     )}
                   </div>

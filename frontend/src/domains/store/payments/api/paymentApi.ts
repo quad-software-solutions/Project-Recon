@@ -1,4 +1,5 @@
 import { http } from '@/shared/api/http';
+import { getStoreRequestHeaders } from '@/domains/store/utils/session';
 import type { PaymentEvidencePayload, StorePayment } from '@/domains/store/model/types';
 
 const ADMIN_BASE = '/store/admin';
@@ -50,5 +51,6 @@ export async function submitPaymentEvidence(
   return await http.post<StorePayment>(
     `${STORE_BASE}/pending-orders/${pendingOrderPk}/evidence/`,
     form,
+    { headers: getStoreRequestHeaders() },
   );
 }

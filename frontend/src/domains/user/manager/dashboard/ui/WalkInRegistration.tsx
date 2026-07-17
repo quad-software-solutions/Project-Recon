@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck, Loader2, Lock } from 'lucide-react';
-import { registerApi } from '@/domains/auth/register/api/registerApi';
-import { fetchProgramsApi, fetchSubProgramsApi } from '../../../../learning/academics/api/academicApi';
-import type { Program, SubProgram, UserProfile } from '@/shared/types';
+import { fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi } from '../../../../learning/academics/api/academicApi';
+import type { Program, SubProgram, AcademicClass, UserProfile } from '@/shared/types';
 import { isSuperAdminOrBranchManager } from '@/shared/auth/permissions';
+import { cacheStudentId } from '@/domains/user/student/api/studentContext';
+import { getToken, setTokens, clearTokens } from '@/shared/utils/auth';
 
 interface Props {
   currentUser: UserProfile;
@@ -22,16 +23,19 @@ export default function WalkInRegistration({ currentUser }: Props) {
   const [isSuccess, setIsSuccess] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
+  const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [programsLoading, setProgramsLoading] = useState(true);
   const [programsError, setProgramsError] = useState('');
 
   useEffect(() => {
     Promise.all([
       fetchProgramsApi(),
-      fetchSubProgramsApi()
-    ]).then(([progs, subs]) => {
+      fetchSubProgramsApi(),
+      fetchClassesApi().catch(() => [] as AcademicClass[]),
+    ]).then(([progs, subs, cls]) => {
       if (progs.length > 0) setPrograms(progs);
       if (subs.length > 0) setSubPrograms(subs);
+      setClasses((cls || []).filter(c => c.is_active));
     }).catch(() => {
       setProgramsError('Failed to load programs');
     }).finally(() => setProgramsLoading(false));
@@ -58,8 +62,8 @@ export default function WalkInRegistration({ currentUser }: Props) {
         ? subs.map(s => ({
             id: s.slug || s.id,
             name: s.name,
-            priceClass: s.fee,
-            pricePrivate: s.fee * 2,
+            priceClass: s.group_fee,
+            pricePrivate: (s.individual_fee ?? s.group_fee) * 2,
             desc: s.description || p.description || '',
           }))
         : [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 7000, desc: p.description || '' }],
@@ -87,6 +91,22 @@ export default function WalkInRegistration({ currentUser }: Props) {
 
   const [submitError, setSubmitError] = useState('');
 
+  const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+
+  const splitName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return { first_name: parts[0], last_name: parts[0] };
+    return { first_name: parts[0], last_name: parts.slice(1).join(' ') };
+  };
+
+  const resolveClassId = (courseId: string, format: 'class' | 'private'): string => {
+    const sub = subPrograms.find(s => (s.slug || s.id) === courseId);
+    if (!sub) return '';
+    const type = format === 'class' ? 'GROUP' : 'INDIVIDUAL';
+    const match = classes.find(c => c.sub_program === sub.id && c.class_type === type && c.is_active);
+    return match ? match.id : '';
+  };
+
   const handleSubmit = async () => {
     if (subtotal === 0) {
       alert('Please select at least one course.');
@@ -95,26 +115,50 @@ export default function WalkInRegistration({ currentUser }: Props) {
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      const selectedCoursesList = Object.entries(selectedCourses)
-        .filter(([, format]) => format)
-        .map(([id, format]) => {
-          const course = allCourses.find(c => c.id === id);
-          const price = format === 'private' ? (course?.pricePrivate ?? 0) : (course?.priceClass ?? 0);
-          return { name: course?.name || id, format: format as 'class' | 'private', price: Number(price) || 0 };
+      const selectedList = Object.entries(selectedCourses).filter(([, format]) => format);
+      const firstCourseId = selectedList[0]?.[0];
+      const firstFormat = selectedList[0]?.[1];
+      const classId = resolveClassId(firstCourseId, firstFormat);
+      if (!classId) {
+        setSubmitError('No active class available for the selected course. Please create one first.');
+        setIsSubmitting(false);
+        return;
+      }
+      const { first_name, last_name } = splitName(formData.name);
+      const tempPassword = 'Walkin@' + Math.random().toString(36).slice(2, 8);
+      const payload = {
+        enrolled_class: classId,
+        email: formData.studentEmail,
+        first_name,
+        last_name,
+        password: tempPassword,
+        guardian_name: formData.parentName || '',
+        guardian_phone: formData.parentPhone || '',
+        guardian_email: formData.parentEmail || '',
+        payment_method: 'CASH',
+      };
+      const savedToken = getToken();
+      clearTokens();
+      let enrollmentResult: any;
+      try {
+        const res = await fetch(`${API_BASE}/academic/enrollments/online/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
         });
-      await registerApi({
-        name: formData.name,
-        studentEmail: formData.studentEmail,
-        age: formData.age,
-        grade: formData.grade,
-        school: formData.school,
-        parentName: formData.parentName,
-        parentPhone: formData.parentPhone,
-        parentEmail: formData.parentEmail,
-        selectedCourses: selectedCoursesList,
-        paymentMethod: 'CASH',
-        total: grandTotal,
-      });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const msg = body?.enrolled_class?.[0] || body?.detail || body?.non_field_errors?.[0] || `API Error: ${res.status}`;
+          throw new Error(msg);
+        }
+        enrollmentResult = await res.json();
+      } finally {
+        if (savedToken) setTokens(savedToken);
+      }
+      const studentId = enrollmentResult.student || (enrollmentResult.enrollment as any)?.student;
+      if (studentId && formData.studentEmail) {
+        cacheStudentId(formData.studentEmail, studentId);
+      }
       setIsSuccess(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Registration submission failed. Please try again.');

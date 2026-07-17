@@ -187,7 +187,7 @@ export default function EventsModule({ currentUser }: Props) {
                           <Clock className="w-3 h-3" /> {new Date(reg.registered_at).toLocaleDateString()}
                         </span>
                       </div>
-                      {reg.location && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><MapPin className="w-3 h-3" />{reg.location}</p>}
+                      {reg.event_location && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><MapPin className="w-3 h-3" />{reg.event_location}</p>}
                     </div>
                     {(reg.registration_status === 'PENDING' || reg.registration_status === 'APPROVED') && (
                       <button

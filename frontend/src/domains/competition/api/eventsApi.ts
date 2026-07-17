@@ -136,7 +136,7 @@ export interface BackendEventRegistration {
   event_title?: string;
   start_datetime?: string;
   end_datetime?: string;
-  location?: string;
+  event_location?: string;
   event_type?: EventType;
   student?: string | null;
   student_email?: string;

@@ -13,7 +13,6 @@ export interface StudentRegistrationRequest {
   parentName: string;
   parentPhone: string;
   parentEmail: string;
-  /** Academic class UUID from backend catalog */
   enrolledClassId: string;
   paymentMethod: PaymentMethodType;
   bank_name?: string;
@@ -30,21 +29,25 @@ function splitName(fullName: string): { first_name: string; last_name: string } 
 export async function registerApi(data: StudentRegistrationRequest): Promise<OnlineEnrollmentResponse> {
   const { first_name, last_name } = splitName(data.name);
 
-  const result = await onlineEnrollApi({
+  const payload: Record<string, unknown> = {
     enrolled_class: data.enrolledClassId,
     email: data.studentEmail,
     first_name,
     last_name,
     password: data.password,
     phone_number: data.parentPhone || undefined,
-    guardian_name: data.parentName,
-    guardian_phone: data.parentPhone,
-    guardian_email: data.parentEmail,
+    guardian_name: data.parentName || '',
+    guardian_phone: data.parentPhone || '',
+    guardian_email: data.parentEmail || '',
     payment_method: data.paymentMethod,
-    bank_name: data.bank_name,
-    transaction_reference: data.transaction_reference,
-    transfer_reference: data.transfer_reference,
-  });
+    bank_name: data.bank_name || '',
+    transaction_reference: data.transaction_reference || '',
+    transfer_reference: data.transfer_reference || '',
+  };
+
+  console.log('[Enrollment Payload]', JSON.stringify(payload, null, 2));
+
+  const result = await onlineEnrollApi(payload as OnlineEnrollmentPayload);
 
   const studentId =
     result.student ||

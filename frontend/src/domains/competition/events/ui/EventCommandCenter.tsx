@@ -233,7 +233,8 @@ function Overview() {
 /* ─── CREATE EVENT ─── */
 function CreateEvent() {
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [categories, setCategories] = useState<eventsApi.BackendTournamentCategory[]>([]);
   const [date, setDate] = useState('');
   const [maxTeams, setMaxTeams] = useState('');
   const [fee, setFee] = useState('');
@@ -241,6 +242,12 @@ function CreateEvent() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    eventsApi.adminGetTournamentCategories()
+      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async () => {
     if (!name || !date) { setError('Name and date are required'); return; }
@@ -254,12 +261,12 @@ function CreateEvent() {
         status: 'DRAFT',
       });
       await eventsApi.adminCreateTournament({
-        event: evt.id, category: category || 'General',
+        event: evt.id, category: categoryId || undefined,
         max_teams: maxTeams ? parseInt(maxTeams) : null,
         prize_pool: null,
       });
       setSuccess(true);
-      setTimeout(() => { setName(''); setCategory(''); setDate(''); setMaxTeams(''); setFee(''); setLocation(''); setSuccess(false); }, 2000);
+      setTimeout(() => { setName(''); setCategoryId(''); setDate(''); setMaxTeams(''); setFee(''); setLocation(''); setSuccess(false); }, 2000);
     } catch (err: any) {
       setError(err?.message || 'Failed to create event');
     } finally { setSaving(false); }
@@ -273,7 +280,13 @@ function CreateEvent() {
       {success && <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4 text-xs text-emerald-700"><CheckCircle2 className="w-4 h-4 shrink-0" /><span>Event created successfully!</span></div>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Event Name *</label><input value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Addis Ababa VEX Qualifier" /></div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Category</label><input value={category} onChange={e => setCategory(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. VEX V5" /></div>
+        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Category</label>
+          <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
+            className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+            <option value="">Select category...</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
         <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Date *</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" /></div>
         <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Max Teams</label><input type="number" value={maxTeams} onChange={e => setMaxTeams(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. 40" /></div>
         <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Registration Fee (Birr)</label><input type="number" value={fee} onChange={e => setFee(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="0 for free" /></div>
