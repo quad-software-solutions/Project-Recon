@@ -40,6 +40,7 @@ from apps.academic.views.staff_attendance import (
     RecordDetailView,
 )
 from apps.academic.views.enrollment import (
+    AvailableBranchesView,
     EnrollmentListCreateView,
     EnrollmentCancelView,
     EnrollmentCompleteView,
@@ -130,6 +131,7 @@ __all__ = [
     "EnrollmentListCreateView",
     "EnrollmentCancelView",
     "EnrollmentCompleteView",
+    "AvailableBranchesView",
     "OnlineEnrollmentView",
     "PaymentListView",
     "PaymentCreateView",

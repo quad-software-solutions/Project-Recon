@@ -178,3 +178,25 @@ def scoped_branches_queryset(request, active_only: bool = False):
 def get_branch_or_404(branch_id):
     """Fetch branch by id or raise DoesNotExist."""
     return get_branch(branch_id)
+
+
+def list_available_branches_for_enrollment(*, sub_program_id, class_type):
+    """
+    Return branches that have an active class for the given sub-program and class type.
+
+    Uses the 'classes' reverse relation from Branch to the academic Class model.
+    No cross-module model import needed — the ORM traversal is string-based.
+
+    Args:
+        sub_program_id: UUID of the sub-program.
+        class_type: ClassType value (e.g. GROUP, INDIVIDUAL).
+
+    Returns:
+        QuerySet of dicts with id, name, city.
+    """
+    return Branch.objects.filter(
+        status=BranchStatus.ACTIVE,
+        classes__sub_program_id=sub_program_id,
+        classes__class_type=class_type,
+        classes__is_active=True,
+    ).distinct().values("id", "name", "city")

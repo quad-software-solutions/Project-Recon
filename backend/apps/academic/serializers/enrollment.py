@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.academic.constants import PaymentMethod
+from apps.academic.constants import ClassType, PaymentMethod
 from apps.academic.models import Enrollment
 
 
@@ -87,7 +87,10 @@ class EnrollStudentSerializer(serializers.Serializer):
 
 
 class OnlineEnrollmentSerializer(serializers.Serializer):
-    enrolled_class = serializers.UUIDField()
+    enrolled_class = serializers.UUIDField(required=False)
+    sub_program = serializers.UUIDField(required=False)
+    class_type = serializers.ChoiceField(choices=ClassType.choices, required=False)
+    branch = serializers.UUIDField(required=False)
 
     email = serializers.EmailField(required=False)
     first_name = serializers.CharField(max_length=100, required=False)
@@ -105,6 +108,12 @@ class OnlineEnrollmentSerializer(serializers.Serializer):
     attachment = serializers.FileField(required=False, allow_null=True)
 
     def validate(self, data):
+        if not data.get("enrolled_class"):
+            if not all([data.get("sub_program"), data.get("class_type"), data.get("branch")]):
+                raise serializers.ValidationError(
+                    "Provide enrolled_class, or sub_program + class_type + branch."
+                )
+
         method = data.get("payment_method")
         tx_ref = data.get("transaction_reference", "")
         attachment = data.get("attachment")

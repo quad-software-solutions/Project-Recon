@@ -1059,6 +1059,81 @@ class EnrollmentAPITest(AcademicAPITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_available_branches_returns_branches(self):
+        response = self.client.get(
+            f"{self.base_url}/enrollments/available-branches/",
+            {"sub_program": str(self.sub_program.pk), "class_type": "GROUP"},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertGreaterEqual(len(data), 1)
+        self.assertIn(str(self.branch.pk), [b["id"] for b in data])
+
+    def test_available_branches_missing_params(self):
+        response = self.client.get(
+            f"{self.base_url}/enrollments/available-branches/",
+            {"sub_program": str(self.sub_program.pk)},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_available_branches_invalid_class_type(self):
+        response = self.client.get(
+            f"{self.base_url}/enrollments/available-branches/",
+            {"sub_program": str(self.sub_program.pk), "class_type": "INVALID"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_online_enrollment_with_triplet(self):
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/",
+            {
+                "sub_program": str(self.sub_program.pk),
+                "class_type": "INDIVIDUAL",
+                "branch": str(self.branch.pk),
+                "email": "triplet@test.com",
+                "first_name": "Triplet",
+                "last_name": "User",
+                "password": "TestPass123!",
+                "payment_method": "CASH",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], EnrollmentStatus.PENDING_VERIFICATION)
+
+    def test_online_enrollment_triplet_no_active_class(self):
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/",
+            {
+                "sub_program": str(self.sub_program.pk),
+                "class_type": "GROUP",
+                "branch": "00000000-0000-0000-0000-000000000000",
+                "email": "noclass@test.com",
+                "first_name": "No",
+                "last_name": "Class",
+                "password": "TestPass123!",
+                "payment_method": "CASH",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_online_enrollment_triplet_missing_fields(self):
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/",
+            {
+                "sub_program": str(self.sub_program.pk),
+                "class_type": "INDIVIDUAL",
+                "email": "missing@test.com",
+                "first_name": "Missing",
+                "last_name": "Branch",
+                "password": "TestPass123!",
+                "payment_method": "CASH",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
     def _create_active_enrollment(self):
         enrollment = enroll_student(
             None, student=self.student_model, enrolled_class=self.individual_class,

@@ -6,6 +6,7 @@ from apps.academic.views import (
     AttendanceSessionListCreateView,
     AttendanceRecordDetailView,
     AttendanceReportView,
+    AvailableBranchesView,
     AvailableStaffView,
     CertificatePublicVerifyView,
     CertificateReportView,
@@ -124,6 +125,7 @@ urlpatterns = [
     path("enrollments/", EnrollmentListCreateView.as_view(), name="enrollment-list-create"),
     path("enrollments/<uuid:pk>/cancel/", EnrollmentCancelView.as_view(), name="enrollment-cancel"),
     path("enrollments/<uuid:pk>/complete/", EnrollmentCompleteView.as_view(), name="enrollment-complete"),
+    path("enrollments/available-branches/", AvailableBranchesView.as_view(), name="enrollment-available-branches"),
     path("enrollments/online/", OnlineEnrollmentView.as_view(), name="enrollment-online"),
     path("enrollments/<uuid:pk>/move/", EnrollmentMoveView.as_view(), name="enrollment-move"),
     # Class Split

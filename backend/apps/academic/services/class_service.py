@@ -78,3 +78,26 @@ def deactivate_class(klass):
     klass.is_active = False
     klass.save()
     return klass
+
+
+def resolve_class_for_enrollment(*, sub_program_id, class_type, branch_id):
+    """
+    Resolve the active Class for a given sub-program, class type, and branch.
+
+    Used by OnlineEnrollmentView when the frontend sends sub_program + class_type + branch
+    instead of a direct enrolled_class UUID.
+
+    Args:
+        sub_program_id: UUID of the sub-program.
+        class_type: ClassType value (GROUP or INDIVIDUAL).
+        branch_id: UUID of the branch.
+
+    Returns:
+        Class instance or None if no active class matches.
+    """
+    return Class.objects.filter(
+        sub_program_id=sub_program_id,
+        class_type=class_type,
+        branch_id=branch_id,
+        is_active=True,
+    ).select_related("sub_program__program", "branch").first()

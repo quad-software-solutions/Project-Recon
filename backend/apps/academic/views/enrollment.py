@@ -7,11 +7,13 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 
 class EnrollmentPagination(PageNumberPagination):
     page_size = 20
 
+from apps.academic.constants import ClassType
 from apps.academic.models import Student
 from apps.academic.models.class_model import Class as ClassModel
 from apps.academic.permissions import IsAcademicStaff
@@ -20,6 +22,10 @@ from apps.academic.serializers import (
     EnrollmentListSerializer,
     EnrollStudentSerializer,
     OnlineEnrollmentSerializer,
+)
+from apps.academic.services.class_service import (
+    get_active_class_or_404,
+    resolve_class_for_enrollment,
 )
 from apps.academic.services.enrollment_service import (
     enroll_student,
@@ -30,6 +36,7 @@ from apps.academic.services.enrollment_service import (
     get_enrollment_or_404,
 )
 from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
+from apps.accounts.services.branch_service import list_available_branches_for_enrollment
 
 
 @extend_schema_view(
@@ -115,6 +122,39 @@ class EnrollmentCompleteView(generics.GenericAPIView):
 
 
 @extend_schema_view(
+    get=extend_schema(
+        summary="Available Branches for Enrollment",
+        description="Return active branches that have an active class for the given sub-program and class type.",
+        tags=["Academic - Enrollment"],
+        parameters=[
+            {"name": "sub_program", "in": "query", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "class_type", "in": "query", "required": True, "schema": {"type": "string", "enum": ["GROUP", "INDIVIDUAL"]}},
+        ],
+    ),
+)
+class AvailableBranchesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        sub_program = request.query_params.get("sub_program")
+        class_type = request.query_params.get("class_type")
+        if not sub_program or not class_type:
+            return Response(
+                {"error": "sub_program and class_type are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if class_type not in ClassType.values:
+            return Response(
+                {"error": "Invalid class_type."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        branches = list_available_branches_for_enrollment(
+            sub_program_id=sub_program, class_type=class_type,
+        )
+        return Response(list(branches))
+
+
+@extend_schema_view(
     post=extend_schema(summary="Online Enrollment (Self-Service)", tags=["Academic - Enrollment"]),
 )
 class OnlineEnrollmentView(generics.GenericAPIView):
@@ -126,15 +166,22 @@ class OnlineEnrollmentView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
-        enrolled_class = get_object_or_404(
-            ClassModel.objects.select_related("sub_program__program", "branch"),
-            pk=data.pop("enrolled_class"),
-        )
+
+        if data.get("enrolled_class"):
+            klass = get_active_class_or_404(data.pop("enrolled_class"))
+        else:
+            klass = resolve_class_for_enrollment(
+                sub_program_id=data.pop("sub_program"),
+                class_type=data.pop("class_type"),
+                branch_id=data.pop("branch"),
+            )
+            if not klass:
+                raise ValidationError("No active class found for the selected options.")
 
         try:
             enrollment = online_enrollment(
                 user=request.user if request.user.is_authenticated else None,
-                enrolled_class=enrolled_class,
+                enrolled_class=klass,
                 **data,
             )
         except DjangoValidationError as exc:
