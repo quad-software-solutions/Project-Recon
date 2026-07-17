@@ -173,7 +173,7 @@ export default function Robotics3DShowcase({ variant = 'hero', onShop }: Robotic
       <div className="robotics-3d-console" style={{ borderColor: hovered ? 'rgba(37, 99, 235, 0.3)' : undefined }}>
         <div>
           <p>{isStore ? 'Featured Build Bundle' : 'Ethio Robotics 3D Lab'}</p>
-          <strong>{isStore ? 'From 5,400 ETB' : 'STEM kits, coaching, and competitions'}</strong>
+          <strong>{isStore ? 'From 5,400 Birr' : 'STEM kits, coaching, and competitions'}</strong>
         </div>
         {isStore ? (
           <button type="button" onClick={onShop}>

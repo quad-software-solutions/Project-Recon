@@ -5,9 +5,10 @@ import {
   Lock, Key, Smartphone, Eye, EyeOff, AlertCircle, Check, RefreshCw,
   ShieldCheck, Award, Zap, TrendingUp, BookOpen, Star, CheckCircle2
 } from 'lucide-react';
-import type { UserProfile } from '@/src/shared/types';
-import { updateUserApi } from '@/src/domains/user/shared/api/adminApi';
-import { securityApi } from '@/src/domains/auth/login/api/securityApi';
+import type { UserProfile } from '@/shared/types';
+import { updateUserProfile } from '@/shared/utils/storage';
+import { updateUserApi } from '@/domains/user/shared/api/adminApi';
+import { securityApi } from '@/domains/auth/login/api/securityApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
 interface Props {
@@ -62,8 +63,7 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
         date_of_birth: form.date_of_birth,
         gender: form.gender,
       };
-      const existing = localStorage.getItem('ethio_robotics_user');
-      if (existing) localStorage.setItem('ethio_robotics_user', JSON.stringify(updatedUser));
+      updateUserProfile(updatedUser);
       onUserUpdate?.(updatedUser);
       setEditing(false);
     } catch (e) {
@@ -145,7 +145,7 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
                 <button onClick={cancelEdit} disabled={saving}
                   className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button onClick={handleSaveProfile} disabled={saving}
-                  className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -227,8 +227,7 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
           {accountTab === 'password' && <ChangePasswordForm />}
           {accountTab === 'email' && <EmailVerificationForm currentUser={currentUser} onVerify={() => {
             const updated = { ...currentUser, is_email_verified: true };
-            const existing = localStorage.getItem('ethio_robotics_user');
-            if (existing) localStorage.setItem('ethio_robotics_user', JSON.stringify(updated));
+            updateUserProfile(updated);
             onUserUpdate?.(updated);
           }} />}
           {accountTab === 'devices' && <TrustedDevicesPanel />}
@@ -296,8 +295,8 @@ function ChangePasswordForm() {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-brand-red/10 flex items-center justify-center">
-          <Key className="w-4 h-4 text-brand-red" />
+        <div className="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center">
+          <Key className="w-4 h-4 text-blue-600" />
         </div>
         <div>
           <h3 className="font-bold text-sm text-slate-900">Change Password</h3>
@@ -324,13 +323,13 @@ function ChangePasswordForm() {
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Current Password</label>
           <input type="password" value={form.current_password} onChange={e => setForm(f => ({ ...f, current_password: e.target.value }))}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-red/30 focus:bg-white" />
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-600/30 focus:bg-white" />
         </div>
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">New Password</label>
           <div className="relative">
             <input type={showNew ? 'text' : 'password'} value={form.new_password} onChange={e => setForm(f => ({ ...f, new_password: e.target.value }))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 pr-9 text-sm focus:outline-none focus:border-brand-red/30 focus:bg-white" />
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 pr-9 text-sm focus:outline-none focus:border-blue-600/30 focus:bg-white" />
             <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -352,10 +351,10 @@ function ChangePasswordForm() {
         <div>
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Confirm New Password</label>
           <input type="password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-red/30 focus:bg-white" />
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-600/30 focus:bg-white" />
         </div>
         <button type="submit" disabled={submitting}
-          className="self-start px-4 py-2 bg-brand-red text-white rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-brand-red-dark disabled:opacity-50">
+          className="self-start px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-blue-700 disabled:opacity-50">
           {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
           {submitting ? 'Updating...' : 'Update Password'}
         </button>

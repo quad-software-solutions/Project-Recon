@@ -1,27 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Loader2, Clock, ExternalLink } from 'lucide-react';
-import { cmsPublicApi } from '@/src/domains/cms/public/api/cmsPublicApi';
+import { Calendar, Loader2, Clock, MapPin } from 'lucide-react';
+import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
 
-const DOT_COLORS = ['bg-brand-blue', 'bg-brand-red', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-cyan-500'];
+const DOT_COLORS = ['bg-brand-blue', 'bg-blue-600', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-cyan-500'];
 
 export default function UpcomingEvents() {
-  const [events, setEvents] = useState<{ title: string; date: string; slug: string }[]>([]);
+  const [events, setEvents] = useState<{ title: string; date: string; location: string; description: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    cmsPublicApi.getNews({ limit: '5' }).then(res => {
-      const items = res?.results || [];
-      setEvents(items.map(n => ({
-        title: n.title,
-        date: new Date(n.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        slug: n.slug,
-      })));
-    }).catch(() => {}).finally(() => setLoading(false));
+    getUpcomingEvents()
+      .then(list => {
+        setEvents(list.map(e => ({
+          title: e.title,
+          date: new Date(e.start_datetime).toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          }),
+          location: e.location,
+          description: e.description?.slice(0, 120) || '',
+        })));
+      })
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-brand-border-light/60">
-      <h3 className="font-bold text-slate-900 text-lg mb-6">Upcoming Events & News</h3>
+      <h3 className="font-bold text-slate-900 text-lg mb-6">Upcoming Events</h3>
 
       {loading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
@@ -29,7 +34,7 @@ export default function UpcomingEvents() {
         <div className="text-center py-12 text-slate-400">
           <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">No upcoming events at the moment.</p>
-          <p className="text-xs mt-1">Check back later for new events and announcements.</p>
+          <p className="text-xs mt-1">Check the competition hub for tournaments and workshops.</p>
         </div>
       ) : (
         <div className="relative border-l-2 border-brand-border-light ml-3 pl-6 flex flex-col gap-6">
@@ -44,6 +49,12 @@ export default function UpcomingEvents() {
                 <p className="text-xs text-brand-muted font-medium flex items-center gap-1.5">
                   <Calendar className="w-3 h-3" /> {ev.date}
                 </p>
+                {ev.location && (
+                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> {ev.location}
+                  </p>
+                )}
+                {ev.description && <p className="text-xs text-slate-500 mt-1">{ev.description}</p>}
               </div>
             </div>
           ))}

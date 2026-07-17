@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, Globe, Award, ShoppingBag, Sparkles } from 'lucide-react';
-import Robotics3DShowcase from '../../../store/products/ui/Robotics3DShowcase';
-import BrandLogo from '@/src/shared/ui/BrandLogo';
+import { ArrowRight, Globe, ShoppingBag, Sparkles, CheckCircle2 } from 'lucide-react';
 
-import untitledLogo from '@/assets/Untitled.png';
+import untitledLogo from '@/assets/logo.svg';
 import sliderImg1 from '@/assets/slider/faj.jpg';
 import sliderImg2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
 import sliderImg3 from '@/assets/slider/photo_2026-06-15_18-51-59.jpg';
@@ -23,11 +21,23 @@ const SLIDER_IMAGES = [
 
 const SLIDE_DURATION = 6000;
 
-const stagger = (delay: number) => ({
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.7, delay, ease: [0.25, 0.46, 0.45, 0.94] },
-});
+const HERO_PARTICLES = Array.from({ length: 10 }, (_, i) => ({
+  width: 2 + ((i * 7) % 4),
+  left: (i * 28 + 11) % 100,
+  top: (i * 37 + 17) % 100,
+  drift: i % 2 === 0 ? 12 : -12,
+  duration: 5 + (i % 4),
+  delay: (i % 5) * 0.6,
+  color: i % 2 === 0 ? 'rgba(37,99,235,0.25)' : 'rgba(87,223,254,0.2)',
+}));
+
+const trustItems = ['Competitions', '120+ Labs', 'STEM Kits', 'Awards'];
+
+const stats = [
+  { value: '5M+', label: 'Future Engineers', accent: 'from-blue-300 to-blue-400' },
+  { value: '120+', label: 'Programs', accent: 'from-cyan-300 to-cyan-400' },
+  { value: '500+', label: 'Competitions', accent: 'from-indigo-300 to-indigo-400' },
+];
 
 interface HeroProps {
   onDiscoverPrograms: () => void;
@@ -40,7 +50,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
   const [mounted, setMounted] = useState(false);
   const [banners, setBanners] = useState<HeroBannerResponse[]>([]);
   const [activeImages, setActiveImages] = useState<string[]>(SLIDER_IMAGES);
-  
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -63,10 +73,10 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
 
   return (
     <section
-      className="relative w-full min-h-[720px] lg:min-h-[820px] flex items-center justify-center overflow-hidden pt-12"
+      className="relative flex min-h-screen w-full flex-col overflow-hidden"
       id="hero-banner"
     >
-      {/* Background Image Slider */}
+      {/* ── BACKGROUND ── */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="popLayout">
           <motion.img
@@ -81,44 +91,45 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             transition={{ duration: 1.4, ease: "easeInOut" }}
           />
         </AnimatePresence>
-        
-        {/* Vibrant brand gradient overlay */}
-        <div 
-          className="absolute inset-0 z-[1]" 
-          style={{ background: 'linear-gradient(135deg, rgba(37,51,141,0.55) 0%, rgba(17,26,95,0.40) 35%, rgba(8,12,50,0.45) 65%, rgba(237,28,36,0.12) 100%)' }}
-        />
-        <div 
-          className="absolute inset-0 z-[2]" 
-          style={{ background: 'linear-gradient(180deg, rgba(37,51,141,0.08) 0%, transparent 40%, rgba(237,28,36,0.08) 100%)', mixBlendMode: 'overlay' }}
+
+        {/* Desktop: left-to-right scrim — dark behind text column, fades right */}
+        <div className="hidden lg:block absolute inset-0 z-[1] bg-gradient-to-r from-[#0B1220]/90 via-[#0B1220]/55 to-transparent" />
+
+        {/* Desktop: bottom scrim — dark behind stat cards + progress bar */}
+        <div className="hidden lg:block absolute inset-x-0 bottom-0 h-[35%] z-[1] bg-gradient-to-t from-[#0B1220]/85 to-transparent" />
+
+        {/* Mobile: single bottom-anchored scrim covering bottom 70% */}
+        <div className="block lg:hidden absolute inset-x-0 bottom-0 h-[70%] z-[1] bg-gradient-to-t from-[#0B1220]/90 to-transparent" />
+
+        <div
+          className="absolute inset-0 z-[2] opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+          }}
         />
 
-        {/* Watermark logo */}
-        <div className="absolute inset-0 z-[1] flex items-center justify-center opacity-[0.04] pointer-events-none">
-          <img src={untitledLogo} alt="" className="w-[60%] max-w-[500px] object-contain" />
-        </div>
-
-        {/* Parallax particles */}
         <div className="absolute inset-0 z-[3] pointer-events-none overflow-hidden">
-          {[...Array(15)].map((_, i) => (
+          {HERO_PARTICLES.map((particle, i) => (
             <motion.div
               key={i}
               className="absolute rounded-full"
               style={{
-                width: Math.random() * 4 + 2 + 'px',
-                height: Math.random() * 4 + 2 + 'px',
-                left: Math.random() * 100 + '%',
-                top: Math.random() * 100 + '%',
-                background: i % 3 === 0 ? 'rgba(237,28,36,0.3)' : i % 3 === 1 ? 'rgba(87,223,254,0.25)' : 'rgba(255,255,255,0.2)',
+                width: `${particle.width}px`,
+                height: `${particle.width}px`,
+                left: `${particle.left}%`,
+                top: `${particle.top}%`,
+                background: particle.color,
               }}
               animate={{
-                y: [0, -30, 0],
-                x: [0, Math.random() > 0.5 ? 15 : -15, 0],
-                opacity: [0.2, 0.6, 0.2],
+                y: [0, -25, 0],
+                x: [0, particle.drift, 0],
+                opacity: [0.15, 0.5, 0.15],
               }}
               transition={{
-                duration: 4 + Math.random() * 4,
+                duration: particle.duration,
                 repeat: Infinity,
-                delay: Math.random() * 3,
+                delay: particle.delay,
                 ease: 'easeInOut',
               }}
             />
@@ -126,206 +137,205 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
         </div>
       </div>
 
-      {/* Slide indicator dots */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+      {/* ── SLIDE DOTS ── */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
         {activeImages.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentSlide(idx)}
             className={`rounded-full transition-all duration-500 ${
-              idx === currentSlide 
-                ? 'w-6 h-2 bg-white shadow-[0_0_8px_rgba(255,255,255,0.4)]' 
-                : 'w-2 h-2 bg-white/30 hover:bg-slate-1000'
+              idx === currentSlide
+                ? 'w-10 h-1.5 bg-white shadow-[0_0_12px_rgba(255,255,255,0.5)]'
+                : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/50'
             }`}
             aria-label={`Go to slide ${idx + 1}`}
           />
         ))}
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 py-14 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 lg:gap-14 items-center">
-          <div className="flex flex-col items-center lg:items-start gap-6 text-center lg:text-left">
-          
-            {/* Logo */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85, y: -20 }}
-              animate={mounted ? { opacity: 1, scale: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="rounded-2xl bg-white/92 p-3 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] ring-1 ring-white/40"
-            >
-              <BrandLogo className="h-20 w-[220px] sm:h-24 sm:w-[270px]" />
-            </motion.div>
-          
-            {/* Badge */}
-            <motion.div
-              {...stagger(0.15)}
-              className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-full"
-              id="hero-tag"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="font-mono text-xs font-semibold tracking-wide uppercase">Robotics Academy + Store</span>
-            </motion.div>
+      {/* ── MAIN CONTENT ── */}
+      {/*
+        Mobile: content anchored to bottom so the upper photo stays visible.
+        Desktop: content vertically centered with a left-aligned column.
+      */}
+      <div className="relative z-10 flex w-full flex-1 flex-col justify-end lg:justify-center px-6 lg:px-16 pb-24 pt-12 lg:py-24">
+        <div className="w-full max-w-xl text-left flex flex-col gap-7">
 
-            {/* Heading */}
-            <motion.h1
-              {...stagger(0.25)}
-              className="font-display font-bold text-white tracking-tight"
-              style={{ fontSize: 'clamp(32px, 6vw, 64px)', lineHeight: '1.1' }}
-              id="hero-title"
-            >
-              {banners[currentSlide]?.title ? (
-                <>{banners[currentSlide].title}</>
-              ) : (
-                <>ETHIO ROBOTICS <br />
-                <span className="text-[#ed1c24] drop-shadow-[0_2px_14px_rgba(237,28,36,0.45)]">builds future engineers</span> <br />
-                through real robots.</>
-              )}
-            </motion.h1>
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            <span className="inline-flex items-center gap-2.5 px-4 py-1.5 bg-white/[0.06] backdrop-blur-md border border-white/[0.12] text-white/70 rounded-full text-xs font-semibold tracking-widest uppercase">
+              <Sparkles className="w-3 h-3 text-blue-300" />
+              Robotics Academy
+              <span className="w-px h-3 bg-white/15" />
+              <span>🇪🇹</span>
+            </span>
+          </motion.div>
 
-            {/* Subtitle / Quote */}
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={banners[currentSlide]?.subtitle || 'default-subtitle'}
-                {...stagger(0.35)}
-                className="font-display font-semibold text-white/90 italic tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-                style={{ fontSize: 'clamp(14px, 2vw, 20px)' }}
-                id="hero-quote"
-              >
-                {banners[currentSlide]?.subtitle 
-                  ? `"${banners[currentSlide].subtitle}"` 
-                  : '"Encouraging creativity through Competition."'}
-              </motion.p>
-            </AnimatePresence>
+          {/* Heading */}
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="font-display font-bold text-white tracking-tight leading-[1.05]"
+            style={{ fontSize: 'clamp(34px, 5.5vw, 66px)' }}
+            id="hero-title"
+          >
+            {banners[currentSlide]?.title ? (
+              <>{banners[currentSlide].title}</>
+            ) : (
+              <>
+                <span className="text-white">Ethio Robotics</span>
+                <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-cyan-200 to-blue-100">
+                  builds future engineers
+                </span>
+                <br />
+                <span className="text-white/90">through real robots.</span>
+              </>
+            )}
+          </motion.h1>
 
-            {/* Description */}
+          {/* Description */}
+          <AnimatePresence mode="wait">
             <motion.p
-              {...stagger(0.45)}
-              className="font-sans text-slate-200/95 max-w-2xl leading-relaxed drop-shadow-[0_1px_6px_rgba(0,0,0,0.4)]"
-              style={{ fontSize: 'clamp(16px, 2.5vw, 19px)' }}
-              id="hero-description"
+              key={banners[currentSlide]?.subtitle || 'default-subtitle'}
+              initial={{ opacity: 0, y: 16 }}
+              animate={mounted ? { opacity: 1, y: 0 } : {}}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="font-sans text-white/60 leading-relaxed"
+              style={{ fontSize: 'clamp(15px, 1.5vw, 18px)' }}
+              id="hero-quote"
             >
-              Learn robotics, join competitions, and shop STEM kits, sensors, backpacks, tools, and lab-ready bundles from one polished platform.
+              {banners[currentSlide]?.subtitle
+                ? `"${banners[currentSlide].subtitle}"`
+                : 'Learn robotics, join competitions, and build the future with STEM.'}
             </motion.p>
+          </AnimatePresence>
 
-            {/* Mission Progress */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={mounted ? { opacity: 1, scale: 1 } : {}}
-              transition={{ duration: 0.8, delay: 0.55, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="w-full max-w-2xl mt-2"
-            >
-              {/* Dynamic tagline */}
-              <motion.p
-                className="font-display font-bold text-white tracking-wide mb-3 flex flex-wrap"
-                style={{
-                  fontSize: 'clamp(15px, 2.2vw, 20px)',
-                  textShadow: '0 0 20px rgba(237,28,36,0.5), 0 0 40px rgba(37,51,141,0.3)',
-                }}
-                id="hero-mission-tagline"
+          {/* Trust chips */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={mounted ? { opacity: 1 } : {}}
+            transition={{ duration: 0.6, delay: 0.28 }}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {trustItems.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/[0.05] border border-white/[0.08] text-white/40 rounded-full text-[11px] font-medium"
               >
-                {'5 Million Engineers starts here'.split('').map((char, i) => (
-                  <motion.span
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={mounted ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.3, delay: 0.8 + i * 0.035, ease: 'easeOut' }}
-                    style={{ display: char === ' ' ? 'inline' : 'inline-block', whiteSpace: 'pre' }}
-                  >
-                    {char}
-                  </motion.span>
-                ))}
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={mounted ? { opacity: [0, 1, 0] } : {}}
-                  transition={{ duration: 0.8, delay: 2, repeat: Infinity, repeatDelay: 0.5 }}
-                  className="inline-block ml-0.5 w-[2px] h-[1.1em] bg-[#ed1c24] align-middle"
-                />
-              </motion.p>
+                <CheckCircle2 className="w-2.5 h-2.5 text-blue-300/50" />
+                {item}
+              </span>
+            ))}
+          </motion.div>
 
-              <div className="bg-white/30 backdrop-blur-md rounded-2xl p-4 md:p-5 border border-slate-200 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-                <div className="flex justify-between items-end mb-2">
-                  <span className="font-mono text-xs font-bold text-slate-900/70 uppercase tracking-wider">Mission Progress</span>
-                  <span className="font-sans text-sm font-bold text-slate-900">1,240,500 / 5,000,000</span>
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.35 }}
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1"
+            id="hero-actions"
+          >
+            {banners[currentSlide]?.button_text && banners[currentSlide]?.button_url ? (
+              <a
+                href={banners[currentSlide].button_url!}
+                target="_blank" rel="noopener noreferrer"
+                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-700 text-white px-7 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden w-full sm:w-auto"
+              >
+                <span className="relative z-[1] flex items-center gap-2">
+                  {banners[currentSlide].button_text}
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </a>
+            ) : (
+              <button
+                onClick={onDiscoverPrograms}
+                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-700 text-white px-7 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden w-full sm:w-auto"
+                id="btn-discover-programs"
+              >
+                <span className="relative z-[1] flex items-center gap-2">
+                  Explore Programs
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </button>
+            )}
+
+            <button
+              onClick={onJoinCommunity}
+              className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-white/10 backdrop-blur-md border border-white/20 text-white px-7 py-3.5 rounded-xl hover:bg-white/20 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 overflow-hidden w-full sm:w-auto"
+              id="btn-join-community"
+            >
+              <span className="relative z-[1] flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                Join Us
+              </span>
+            </button>
+
+            <button
+              onClick={onShopStore}
+              className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-white/[0.06] backdrop-blur-md border border-white/15 text-white/60 px-5 py-3.5 rounded-xl hover:bg-white/15 hover:text-white hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300 w-full sm:w-auto"
+              id="btn-shop-store"
+            >
+              <span className="relative z-[1] flex items-center gap-2">
+                <ShoppingBag className="w-3.5 h-3.5" />
+                Shop Gear
+              </span>
+            </button>
+          </motion.div>
+
+          {/* Stats + Progress (grouped into one compact block) */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={mounted ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.45 }}
+            className="w-full"
+          >
+            <div className="w-full bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.06] p-4">
+              {/* Stats row */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {stats.map((stat, i) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={mounted ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.5, delay: 0.55 + i * 0.1 }}
+                  >
+                    <div className={`text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r ${stat.accent}`}>
+                      {stat.value}
+                    </div>
+                    <div className="text-[10px] text-white/40 font-medium mt-0.5 uppercase tracking-widest">
+                      {stat.label}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Progress bar */}
+              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[9px] font-mono font-semibold text-white/30 uppercase tracking-[0.15em]">Mission Progress</span>
+                  <span className="text-[11px] font-semibold text-white/50 font-mono">1,240,500 / 5,000,000</span>
                 </div>
-                <div className="w-full h-3 bg-white/15 rounded-full overflow-hidden">
-                  <motion.div 
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div
                     initial={{ width: 0 }}
                     animate={mounted ? { width: '24.8%' } : {}}
-                    transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
-                    className="h-full bg-gradient-to-r from-[#25338d] via-[#25338d] to-[#ed1c24] rounded-full"
+                    transition={{ duration: 1.5, delay: 0.8, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-full"
                   />
                 </div>
-                <p className="text-[10px] text-slate-900/50 font-medium text-right mt-1.5">24.8% of National Goal Achieved</p>
+                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">24.8% of National Goal</p>
               </div>
-            </motion.div>
-
-            {/* CTA Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={mounted ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4"
-              id="hero-actions"
-            >
-              {banners[currentSlide]?.button_text && banners[currentSlide]?.button_url ? (
-                <a
-                  href={banners[currentSlide].button_url!}
-                  target="_blank" rel="noopener noreferrer"
-                  className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-[#ed1c24] to-[#b5121b] text-white px-8 py-4 rounded-xl shadow-[0_4px_15px_-2px_rgba(237,28,36,0.35)] hover:shadow-[0_8px_25px_-2px_rgba(237,28,36,0.45)] hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 overflow-hidden"
-                >
-                  <span className="relative z-[1] flex items-center gap-2">
-                    {banners[currentSlide].button_text}
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </a>
-              ) : (
-                <button
-                  onClick={onDiscoverPrograms}
-                  className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-gradient-to-r from-[#ed1c24] to-[#b5121b] text-white px-8 py-4 rounded-xl shadow-[0_4px_15px_-2px_rgba(237,28,36,0.35)] hover:shadow-[0_8px_25px_-2px_rgba(237,28,36,0.45)] hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 overflow-hidden"
-                  id="btn-discover-programs"
-                >
-                  <span className="relative z-[1] flex items-center gap-2">
-                    Explore Programs
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </button>
-              )}
-
-              <button
-                onClick={onJoinCommunity}
-                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-white text-[#25338d] px-8 py-4 rounded-xl shadow-[0_4px_15px_-2px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_25px_-2px_rgba(0,0,0,0.15)] hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 overflow-hidden"
-                id="btn-join-community"
-              >
-                <span className="relative z-[1] flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  Join the Community
-                </span>
-              </button>
-
-              <button
-                onClick={onShopStore}
-                className="group relative inline-flex items-center justify-center font-sans font-semibold text-sm bg-slate-100 text-slate-900 border border-slate-200 px-8 py-4 rounded-xl hover:bg-slate-200 hover:-translate-y-1 active:scale-[0.97] transition-all duration-300 overflow-hidden"
-                id="btn-shop-store"
-              >
-                <span className="relative z-[1] flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4" />
-                  Shop STEM Gear
-                </span>
-              </button>
-            </motion.div>
-
-          </div>
-
-          {/* Product Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 60, scale: 0.92 }}
-            animate={mounted ? { opacity: 1, x: 0, scale: 1 } : {}}
-            transition={{ duration: 0.9, delay: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="w-full max-w-xl mx-auto lg:max-w-none"
-          >
-            <Robotics3DShowcase variant="hero" />
+            </div>
           </motion.div>
+
         </div>
       </div>
     </section>

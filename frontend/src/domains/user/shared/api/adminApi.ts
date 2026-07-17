@@ -1,4 +1,5 @@
 import { http } from '../../../../shared/api/http';
+import { fetchAllPages } from '../../../../shared/api/pagination';
 
 export interface PaginatedResponse<T> {
   count: number;
@@ -128,6 +129,14 @@ export async function fetchUsersApi(): Promise<PaginatedResponse<AdminUserRespon
   return http.get<PaginatedResponse<AdminUserResponse>>('/accounts/users/');
 }
 
+export async function fetchAllUsersApi(): Promise<AdminUserResponse[]> {
+  return fetchAllPages(page =>
+    http.get<PaginatedResponse<AdminUserResponse>>('/accounts/users/', {
+      params: { page: String(page), page_size: '100' },
+    }),
+  );
+}
+
 export async function fetchUserApi(id: string): Promise<AdminUserResponse> {
   return http.get<AdminUserResponse>(`/accounts/users/${id}/`);
 }
@@ -177,7 +186,11 @@ export async function createBranchManagerApi(data: {
 /* ─── AUDIT API ─── */
 
 export async function fetchAuditLogsApi(): Promise<AuditLogEntry[]> {
-  return http.get<AuditLogEntry[]>('/audit/');
+  return fetchAllPages(page =>
+    http.get<PaginatedResponse<AuditLogEntry>>('/audit/', {
+      params: { page: String(page), page_size: '100' },
+    }),
+  );
 }
 
 /* ─── BRANCH API ─── */

@@ -1,40 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, ShieldCheck, Check, MapPin, CheckCircle2, ChevronRight, ChevronLeft, Laptop, Cpu, Globe, UserCheck, Loader2, Lock } from 'lucide-react';
+import { registerApi } from '@/domains/auth/register/api/registerApi';
+import { fetchProgramsApi, fetchSubProgramsApi } from '../../../../learning/academics/api/academicApi';
+import type { Program, SubProgram, UserProfile } from '@/shared/types';
+import { isSuperAdminOrBranchManager } from '@/shared/auth/permissions';
 
-const COURSE_CATEGORIES = [
-  {
-    id: 'robotics',
-    title: 'Robotics Classes',
-    icon: Cpu,
-    courses: [
-      { id: 'vex-v5', name: 'VEX V5 Competitive', priceClass: 3500, pricePrivate: 7000, desc: 'Professional metallic builds & C++ logic integrations.' },
-      { id: 'vex-iq', name: 'VEX IQ Junior', priceClass: 3000, pricePrivate: 6000, desc: 'Mechanical assembly and block-based programming.' },
-      { id: 'enjoy-ai', name: 'Enjoy AI Autonomous', priceClass: 4000, pricePrivate: 8000, desc: 'Autonomous driving & computer vision systems.' }
-    ]
-  },
-  {
-    id: 'programming',
-    title: 'Programming Languages',
-    icon: Laptop,
-    courses: [
-      { id: 'python', name: 'Python Programming', priceClass: 2500, pricePrivate: 5000, desc: 'Algorithms, data structures, and AI foundations.' },
-      { id: 'cpp', name: 'C++ Engineering', priceClass: 2800, pricePrivate: 5600, desc: 'Low-level hardware control and competitive coding.' },
-      { id: 'web', name: 'Web Development', priceClass: 2000, pricePrivate: 4000, desc: 'HTML, CSS, JS, and React frontend mastery.' }
-    ]
-  },
-  {
-    id: 'languages',
-    title: 'World Languages',
-    icon: Globe,
-    courses: [
-      { id: 'mandarin', name: 'Mandarin Chinese', priceClass: 2000, pricePrivate: 4000, desc: 'Immersive Mandarin reading and speaking.' },
-      { id: 'spanish', name: 'Spanish', priceClass: 2000, pricePrivate: 4000, desc: 'Conversational Spanish for global communication.' }
-    ]
-  }
-];
+interface Props {
+  currentUser: UserProfile;
+}
 
-export default function WalkInRegistration() {
+export default function WalkInRegistration({ currentUser }: Props) {
+  const canManage = isSuperAdminOrBranchManager(currentUser);
   const [step, setStep] = useState<1 | 2>(1);
   const [formData, setFormData] = useState({
     name: '', studentEmail: '', age: '', grade: '', school: '', parentName: '', parentPhone: '', parentEmail: ''
@@ -43,6 +20,22 @@ export default function WalkInRegistration() {
   const [selectedCourses, setSelectedCourses] = useState<Record<string, 'class' | 'private' | null>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(true);
+  const [programsError, setProgramsError] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      fetchProgramsApi(),
+      fetchSubProgramsApi()
+    ]).then(([progs, subs]) => {
+      if (progs.length > 0) setPrograms(progs);
+      if (subs.length > 0) setSubPrograms(subs);
+    }).catch(() => {
+      setProgramsError('Failed to load programs');
+    }).finally(() => setProgramsLoading(false));
+  }, []);
 
   const toggleCourse = (id: string, format: 'class' | 'private') => {
     setSelectedCourses(prev => {
@@ -55,7 +48,25 @@ export default function WalkInRegistration() {
     });
   };
 
-  const allCourses = COURSE_CATEGORIES.flatMap(cat => cat.courses);
+  const courseCategories = programs.map(p => {
+    const subs = subPrograms.filter(s => s.program === p.id);
+    return {
+      id: p.slug || p.id,
+      title: p.name,
+      icon: p.name.toLowerCase().includes('robot') ? Cpu : p.name.toLowerCase().includes('program') || p.name.toLowerCase().includes('python') || p.name.toLowerCase().includes('cpp') || p.name.toLowerCase().includes('web') ? Laptop : Globe,
+      courses: subs.length > 0
+        ? subs.map(s => ({
+            id: s.slug || s.id,
+            name: s.name,
+            priceClass: s.fee,
+            pricePrivate: s.fee * 2,
+            desc: s.description || p.description || '',
+          }))
+        : [{ id: p.slug || p.id, name: p.name, priceClass: 3500, pricePrivate: 7000, desc: p.description || '' }],
+    };
+  });
+
+  const allCourses = courseCategories.flatMap(cat => cat.courses);
 
   const subtotal = Object.keys(selectedCourses).reduce((sum, id) => {
     const course = allCourses.find(c => c.id === id);
@@ -66,7 +77,7 @@ export default function WalkInRegistration() {
     return sum;
   }, 0);
 
-  const registrationFee = 500; // ETB
+  const registrationFee = 500; // Birr
   const grandTotal = subtotal > 0 ? subtotal + registrationFee : 0;
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -74,16 +85,42 @@ export default function WalkInRegistration() {
     setStep(2);
   };
 
-  const handleSubmit = () => {
+  const [submitError, setSubmitError] = useState('');
+
+  const handleSubmit = async () => {
     if (subtotal === 0) {
-      alert("Please select at least one course.");
+      alert('Please select at least one course.');
       return;
     }
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setSubmitError('');
+    try {
+      const selectedCoursesList = Object.entries(selectedCourses)
+        .filter(([, format]) => format)
+        .map(([id, format]) => {
+          const course = allCourses.find(c => c.id === id);
+          const price = format === 'private' ? (course?.pricePrivate ?? 0) : (course?.priceClass ?? 0);
+          return { name: course?.name || id, format: format as 'class' | 'private', price: Number(price) || 0 };
+        });
+      await registerApi({
+        name: formData.name,
+        studentEmail: formData.studentEmail,
+        age: formData.age,
+        grade: formData.grade,
+        school: formData.school,
+        parentName: formData.parentName,
+        parentPhone: formData.parentPhone,
+        parentEmail: formData.parentEmail,
+        selectedCourses: selectedCoursesList,
+        paymentMethod: 'CASH',
+        total: grandTotal,
+      });
       setIsSuccess(true);
-    }, 1500);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Registration submission failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -92,6 +129,20 @@ export default function WalkInRegistration() {
     setStep(1);
     setIsSuccess(false);
   };
+
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">Walk-in registration is only available to Super Admin and Branch Manager roles.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (
@@ -102,7 +153,7 @@ export default function WalkInRegistration() {
           </div>
           <h2 className="font-display font-extrabold text-2xl text-slate-900 mb-2">Walk-In Registered!</h2>
           <p className="text-slate-600 font-sans mb-8">
-            {formData.name} has been successfully registered. The total amount of <strong className="font-bold text-slate-900">{grandTotal.toLocaleString()} ETB</strong> should be collected at the desk.
+            {formData.name} has been successfully registered. The total amount of <strong className="font-bold text-slate-900">{grandTotal.toLocaleString()} Birr</strong> should be collected at the desk.
           </p>
           <button onClick={resetForm} className="bg-[#2563EB] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#004ac6] transition-colors w-full flex items-center justify-center gap-2">
             <UserCheck className="w-4 h-4" /> Register Another Student
@@ -229,7 +280,22 @@ export default function WalkInRegistration() {
                 </div>
 
                 <div className="flex flex-col gap-6">
-                  {COURSE_CATEGORIES.map((category) => (
+                  {programsLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Loader2 className="w-8 h-8 text-[#2563EB] animate-spin" />
+                      <span className="ml-3 font-bold text-slate-600">Loading programs...</span>
+                    </div>
+                  ) : programsError ? (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                      <p className="text-red-700 font-bold">{programsError}</p>
+                    </div>
+                  ) : courseCategories.length === 0 ? (
+                    <div className="bg-white/80 rounded-2xl p-12 text-center">
+                      <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                      <p className="text-lg font-bold text-slate-600">No courses available</p>
+                      <p className="text-sm text-slate-500 mt-1">Programs will appear here once they are added.</p>
+                    </div>
+                  ) : courseCategories.map((category) => (
                     <div key={category.id} className="bg-white rounded-3xl shadow-sm border border-brand-border-light overflow-hidden">
                       <div className="bg-slate-50 px-6 py-4 border-b border-brand-border-light flex items-center gap-3">
                         <category.icon className="w-5 h-5 text-[#2563EB]" />
@@ -254,15 +320,15 @@ export default function WalkInRegistration() {
                                     className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl border-2 transition-all ${isSelectedClass ? 'border-[#2563EB] bg-[#2563EB]/10' : 'border-slate-200 hover:border-[#2563EB]/40 bg-white'}`}
                                   >
                                     <span className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isSelectedClass ? 'text-[#2563EB]' : 'text-slate-500'}`}>Group</span>
-                                    <span className={`font-display font-bold text-sm ${isSelectedClass ? 'text-[#2563EB]' : 'text-slate-900'}`}>{course.priceClass.toLocaleString()} ETB</span>
+                                    <span className={`font-display font-bold text-sm ${isSelectedClass ? 'text-[#2563EB]' : 'text-slate-900'}`}>{course.priceClass.toLocaleString()} Birr</span>
                                   </button>
-                                  {category.id !== 'robotics' && (
+                                  {(programs.length === 0 || (programs.find(p => p.slug === category.id || p.id === category.id)?.supports_individual ?? true)) && (
                                     <button
                                       onClick={() => toggleCourse(course.id, 'private')}
                                       className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl border-2 transition-all ${isSelectedPrivate ? 'border-[#2563EB] bg-[#2563EB]/10' : 'border-slate-200 hover:border-[#2563EB]/40 bg-white'}`}
                                     >
                                       <span className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isSelectedPrivate ? 'text-[#2563EB]' : 'text-slate-500'}`}>Private</span>
-                                      <span className={`font-display font-bold text-sm ${isSelectedPrivate ? 'text-[#2563EB]' : 'text-slate-900'}`}>{course.pricePrivate.toLocaleString()} ETB</span>
+                                      <span className={`font-display font-bold text-sm ${isSelectedPrivate ? 'text-[#2563EB]' : 'text-slate-900'}`}>{course.pricePrivate.toLocaleString()} Birr</span>
                                     </button>
                                   )}
                                 </div>
@@ -302,7 +368,7 @@ export default function WalkInRegistration() {
                                 <span className="font-bold text-slate-800 leading-tight mb-1">{course.name}</span>
                                 <span className="text-[10px] font-bold tracking-wider text-[#2563EB] uppercase bg-blue-100/50 w-fit px-1.5 py-0.5 rounded">{format}</span>
                               </div>
-                              <span className="font-mono font-bold text-slate-900 whitespace-nowrap">{price.toLocaleString()} ETB</span>
+                              <span className="font-mono font-bold text-slate-900 whitespace-nowrap">{price.toLocaleString()} Birr</span>
                             </div>
                           );
                         })
@@ -310,22 +376,25 @@ export default function WalkInRegistration() {
                     </div>
                     
                     <div className="flex flex-col gap-2 text-sm pt-5 border-t border-slate-200">
-                      <div className="flex justify-between text-slate-500"><span className="font-medium">Subtotal</span><span className="font-mono font-bold">{subtotal.toLocaleString()} ETB</span></div>
-                      <div className="flex justify-between text-slate-500"><span className="font-medium">Registration Fee</span><span className="font-mono font-bold">{registrationFee.toLocaleString()} ETB</span></div>
+                      <div className="flex justify-between text-slate-500"><span className="font-medium">Subtotal</span><span className="font-mono font-bold">{subtotal.toLocaleString()} Birr</span></div>
+                      <div className="flex justify-between text-slate-500"><span className="font-medium">Registration Fee</span><span className="font-mono font-bold">{registrationFee.toLocaleString()} Birr</span></div>
                       <div className="flex justify-between text-slate-900 mt-3 pt-4 border-t border-slate-200">
                         <span className="font-bold text-base">Total Due (Cash/POS)</span>
-                        <span className="font-mono font-extrabold text-2xl text-[#2563EB]">{grandTotal.toLocaleString()} ETB</span>
+                        <span className="font-mono font-extrabold text-2xl text-[#2563EB]">{grandTotal.toLocaleString()} Birr</span>
                       </div>
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-slate-200">
+                      {submitError && (
+                        <p className="mb-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{submitError}</p>
+                      )}
                       <button
                         onClick={handleSubmit}
                         disabled={subtotal === 0 || isSubmitting}
                         className="w-full bg-[#2563EB] disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white px-4 py-4 rounded-xl font-bold text-sm shadow-md shadow-[#2563EB]/20 flex items-center justify-center gap-2 hover:bg-[#004ac6] transition-all active:scale-[0.98]"
                       >
                         {isSubmitting ? (
-                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-5 h-5 border-2 border-slate-300 border-t-brand-red rounded-full" />
+                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full" />
                         ) : (
                           <>
                             <ShieldCheck className="w-5 h-5" /> 

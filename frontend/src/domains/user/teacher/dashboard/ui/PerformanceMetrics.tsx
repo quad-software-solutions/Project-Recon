@@ -1,16 +1,18 @@
 import React from 'react';
-import { BarChart3, TrendingUp, Users, Award, Star, AlertTriangle, Zap, BookOpen, Target, BrainCircuit } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Award, AlertTriangle, Zap, BookOpen, Target, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import { StudentProfile, Enrollment } from '@/shared/types';
+
 interface Props {
-  students: any[];
-  enrollments: any[];
+  students: StudentProfile[];
+  enrollments: Enrollment[];
 }
 
 export default function PerformanceMetrics({ students, enrollments }: Props) {
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
   const completedEnrollments = enrollments.filter(e => e.status === 'COMPLETED');
-  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
   const cancelledEnrollments = enrollments.filter(e => e.status === 'CANCELLED');
 
   const enrollmentCompletionRate = enrollments.length > 0
@@ -19,21 +21,28 @@ export default function PerformanceMetrics({ students, enrollments }: Props) {
     ? Math.round((activeEnrollments.length / enrollments.length) * 100) : 0;
 
   const summaryCards = [
-    { label: 'Total Students', value: students.length, icon: Users, color: 'text-brand-blue', bg: 'bg-blue-50', border: 'border-blue-200', trend: '+ this term' },
+    { label: 'Total Students', value: students.length, icon: Users, color: 'text-brand-blue', bg: 'bg-blue-50', border: 'border-blue-200', trend: 'in selected class' },
     { label: 'Active Now', value: activeEnrollments.length, icon: Zap, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', trend: `${activeRate}% of total` },
     { label: 'Completed', value: completedEnrollments.length, icon: Award, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', trend: `${enrollmentCompletionRate}% completion rate` },
     { label: 'In Progress', value: pendingEnrollments.length, icon: Target, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200', trend: 'awaiting payment' },
   ];
 
-  const tiers = [
-    { label: 'High Achievers', icon: Star, color: 'text-emerald-600', bg: 'bg-emerald-50', bar: 'bg-emerald-500', pct: 35, count: Math.round(students.length * 0.35) },
-    { label: 'On Track', icon: BrainCircuit, color: 'text-blue-600', bg: 'bg-blue-50', bar: 'bg-blue-500', pct: 40, count: Math.round(students.length * 0.4) },
-    { label: 'Needs Support', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', bar: 'bg-amber-500', pct: 20, count: Math.round(students.length * 0.2) },
-    { label: 'At Risk', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', bar: 'bg-red-500', pct: 5, count: Math.max(1, Math.round(students.length * 0.05)) },
-  ];
 
-  const trendMonths = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
-  const trendData = [45, 52, 48, 61, 58, 65];
+  const now = new Date();
+  const trendMonths: string[] = [];
+  const trendData: number[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    trendMonths.push(d.toLocaleString('en', { month: 'short' }));
+    const monthEnrollments = enrollments.filter(e => {
+      if (!e.created_at) return false;
+      const created = new Date(e.created_at);
+      return created.getMonth() === d.getMonth() && created.getFullYear() === d.getFullYear();
+    });
+    const completed = monthEnrollments.filter(e => e.status === 'COMPLETED').length;
+    const total = monthEnrollments.length;
+    trendData.push(total > 0 ? Math.round((completed / total) * 100) : 0);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,7 +66,7 @@ export default function PerformanceMetrics({ students, enrollments }: Props) {
         ))}
       </div>
 
-      {/* Enrollment Breakdown */}
+      {/* Enrollment breakdown only — grade tiers require backend grades API */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-6">
           <h3 className="font-display font-bold text-base text-slate-900 mb-4 flex items-center gap-2">
@@ -112,30 +121,6 @@ export default function PerformanceMetrics({ students, enrollments }: Props) {
             })}
           </div>
           <p className="text-[10px] text-slate-400 mt-3 text-center">Average class performance over time</p>
-        </div>
-      </div>
-
-      {/* Student Performance Tiers */}
-      <div className="bg-white rounded-2xl border border-brand-border-light/60 shadow-sm p-6">
-        <h3 className="font-display font-bold text-base text-slate-900 mb-4 flex items-center gap-2">
-          <Target className="w-5 h-5 text-brand-blue" /> Student Performance Tiers
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {tiers.map((tier, i) => (
-            <motion.div key={tier.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-              className={`${tier.bg} rounded-xl p-4 border border-transparent`}>
-              <div className="flex items-center gap-2 mb-3">
-                <tier.icon className={`w-4 h-4 ${tier.color}`} />
-                <span className="text-xs font-bold text-slate-800">{tier.label}</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{tier.count}</p>
-              <p className="text-[10px] text-slate-500 mb-2">{tier.pct}% of class</p>
-              <div className="w-full h-1.5 bg-white rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${tier.pct}%` }} transition={{ duration: 0.8 }}
-                  className={`h-full rounded-full ${tier.bar}`} />
-              </div>
-            </motion.div>
-          ))}
         </div>
       </div>
 

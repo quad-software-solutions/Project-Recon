@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, ChevronDown, LogOut } from 'lucide-react';
-import NotificationCenter from '@/src/domains/notification/ui/NotificationCenter';
 
 interface TopNavbarProps {
   title: string;
@@ -14,7 +13,16 @@ interface TopNavbarProps {
   onLogout?: () => void;
 }
 
-export function TopNavbar({ title, subtitle, userName, userRole, onLogout }: TopNavbarProps) {
+export function TopNavbar({
+  title,
+  subtitle,
+  onSearch,
+  searchValue = '',
+  actions,
+  userName,
+  userRole,
+  onLogout,
+}: TopNavbarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -31,24 +39,38 @@ export function TopNavbar({ title, subtitle, userName, userRole, onLogout }: Top
     : 'U';
 
   return (
-    <header className="sticky top-0 z-20 shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-100">
-      <div className="flex items-center justify-between gap-3 px-4 lg:px-6 h-14">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
+      <div className="flex min-h-16 items-center justify-between gap-3 px-4 lg:px-6">
         {/* Left — page title */}
         <div className="min-w-0 flex-1">
           {subtitle && (
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{subtitle}</span>
+            <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">{subtitle}</span>
           )}
-          <h1 className="font-semibold text-base text-slate-900 truncate leading-tight">{title}</h1>
+          <h1 className="font-semibold text-lg text-slate-950 truncate leading-tight">{title}</h1>
         </div>
 
         {/* Right — user */}
         <div className="flex items-center gap-2">
+          {onSearch && (
+            <SearchInput
+              value={searchValue}
+              onChange={onSearch}
+              placeholder="Search workspace"
+              className="hidden w-64 lg:block"
+            />
+          )}
+
+          {actions && (
+            <div className="hidden items-center gap-1 sm:flex">
+              {actions}
+            </div>
+          )}
 
           {/* User button */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white pl-1 pr-2.5 py-1 shadow-sm transition-colors hover:bg-slate-50"
               id="topnav-user-btn"
             >
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-blue to-brand-blue-dark flex items-center justify-center text-white font-bold text-[10px] shrink-0 shadow-sm">
@@ -61,7 +83,7 @@ export function TopNavbar({ title, subtitle, userName, userRole, onLogout }: Top
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden z-50">
+              <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 z-50">
                 <div className="px-4 py-3 border-b border-slate-100">
                   <p className="text-sm font-semibold text-slate-900 truncate">{userName || 'User'}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{userRole || 'Member'}</p>

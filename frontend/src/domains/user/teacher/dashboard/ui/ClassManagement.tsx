@@ -1,20 +1,38 @@
 import React, { useState } from 'react';
-import { Users, Search, X, CheckCircle2, Clock, UserCheck, AlertCircle, Calendar, Loader2, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { Search, CheckCircle2, Clock, Calendar, Loader2, Users, UserCheck, AlertCircle, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
-import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
 
-interface Props {
-  students: any[];
-  enrollments: any[];
+import { StudentProfile, Enrollment, AttendanceSession } from '@/shared/types';
+
+interface AttendanceSessionExtended extends AttendanceSession {
+  records_count?: number;
+  students_present?: number;
 }
 
-export default function ClassManagement({ students, enrollments }: Props) {
+interface Props {
+  students: StudentProfile[];
+  enrollments: Enrollment[];
+  classes?: { id: string; name: string }[];
+  selectedClassId?: string;
+  onClassChange?: (id: string) => void;
+  mode?: 'staff' | 'instructor';
+}
+
+export default function ClassManagement({
+  students,
+  enrollments,
+  classes = [],
+  selectedClassId = '',
+  onClassChange,
+  mode = 'staff',
+}: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [attended, setAttended] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [historyData, setHistoryData] = useState<AttendanceSessionExtended[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyDate, setHistoryDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -43,34 +61,35 @@ export default function ClassManagement({ students, enrollments }: Props) {
 
   const recordAttendance = async () => {
     const enrolledStudents = students.filter(s => enrollments.some(e => e.student === s.id));
-    if (enrolledStudents.length === 0) return;
+    if (enrolledStudents.length === 0 || !selectedClassId) return;
     setSaving(true);
     try {
       const session = await createAttendanceSessionApi({
-        enrolled_class: enrollments[0]?.enrolled_class || '',
+        enrolled_class: selectedClassId,
         session_date: todayStr,
         topic: 'Daily Attendance',
       });
       const records = Array.from(attended).map(studentId => {
         const enrollment = enrollments.find(e => e.student === studentId);
         return { enrollment: enrollment?.id || '', status: 'PRESENT' };
-      });
+      }).filter(r => r.enrollment);
       if (records.length > 0) {
         await recordBulkAttendanceApi(session.id, records);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e) {
-      console.error('Failed to record attendance', e);
+    } catch {
+      setSaved(false);
     } finally {
       setSaving(false);
     }
   };
 
   const loadHistory = async () => {
+    if (!selectedClassId) return;
     setHistoryLoading(true);
     try {
-      const sessions = await fetchAttendanceSessionsApi(enrollments[0]?.enrolled_class || '');
+      const sessions = await fetchAttendanceSessionsApi(selectedClassId);
       const arr = Array.isArray(sessions) ? sessions : [];
       setHistoryData(arr.filter(s => s.session_date?.startsWith(historyDate.slice(0, 7))));
     } catch {
@@ -140,6 +159,20 @@ export default function ClassManagement({ students, enrollments }: Props) {
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span className="font-sans text-xs text-slate-500">{selectedDate}</span>
             </div>
+            {classes.length > 0 && onClassChange && (
+              <select
+                value={selectedClassId}
+                onChange={e => onClassChange(e.target.value)}
+                className="mt-2 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50"
+              >
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            {mode === 'instructor' && enrollments.length === 0 && selectedClassId && (
+              <p className="text-[10px] text-amber-600 mt-1">No roster yet — record a first attendance session for this class.</p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Bulk Actions */}
@@ -233,7 +266,7 @@ export default function ClassManagement({ students, enrollments }: Props) {
                       className={`text-[11px] font-bold px-4 py-2 rounded-lg transition-all active:scale-95 ${
                         st.attended
                           ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 border border-slate-200'
-                          : 'bg-brand-red text-white hover:bg-brand-red-dark shadow-sm'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                       }`}
                     >
                       {st.attended ? 'Undo' : 'Mark Present'}
@@ -288,7 +321,7 @@ export default function ClassManagement({ students, enrollments }: Props) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {historyData.map((s: any, i: number) => (
+                    {historyData.map((s: AttendanceSessionExtended, i: number) => (
                       <div key={s.id || i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">{s.topic || 'Attendance'}</p>

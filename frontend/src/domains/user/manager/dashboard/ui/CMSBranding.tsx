@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Check, Loader2, RotateCcw, Palette, Type, FileText, Eye, Smartphone, Monitor, Image, Globe, Upload } from 'lucide-react';
-import { saveBranding, resetBranding } from '@/src/shared/hooks/useBranding';
+import { saveBranding, resetBranding } from '@/shared/hooks/useBranding';
 
 const STORAGE_KEY = 'ethio-cms-branding';
 
@@ -78,14 +78,14 @@ export default function CMSBranding() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-brand-red/10 flex items-center justify-center">
-            <Palette className="w-3.5 h-3.5 text-brand-red" />
+          <div className="w-6 h-6 rounded-lg bg-blue-600/10 flex items-center justify-center">
+            <Palette className="w-3.5 h-3.5 text-blue-600" />
           </div>
           <h3 className="font-bold text-base text-slate-900">CMS & Branding</h3>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setPreview(!preview)}
-            className={`p-1.5 rounded-lg transition-colors ${preview ? 'bg-brand-red/10 text-brand-red' : 'text-slate-400 hover:bg-slate-100'}`}
+            className={`p-1.5 rounded-lg transition-colors ${preview ? 'bg-blue-600/10 text-blue-600' : 'text-slate-400 hover:bg-slate-100'}`}
             title={preview ? 'Edit mode' : 'Preview mode'}
           >
             {preview ? <Smartphone className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -117,7 +117,7 @@ export default function CMSBranding() {
                 <p className="text-sm text-slate-800 font-medium bg-slate-50 rounded-lg px-3 py-2 border border-slate-200" style={{ borderColor: data.primaryColor + '20' }}>{data.slogan}</p>
               ) : (
                 <input type="text" value={data.slogan} onChange={e => update('slogan', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all"
                 />
               )}
             </div>
@@ -129,7 +129,7 @@ export default function CMSBranding() {
                 <p className="text-sm text-slate-600 italic bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">{data.vision}</p>
               ) : (
                 <textarea rows={2} value={data.vision} onChange={e => update('vision', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all resize-none"
                 />
               )}
             </div>
@@ -141,7 +141,7 @@ export default function CMSBranding() {
                 <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">{data.programDesc}</p>
               ) : (
                 <textarea rows={3} value={data.programDesc} onChange={e => update('programDesc', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all resize-none"
                 />
               )}
             </div>
@@ -185,11 +185,11 @@ export default function CMSBranding() {
               ) : (
                 <div className="flex items-center gap-2">
                   <input type="text" value={data.logoUrl} onChange={e => update('logoUrl', e.target.value)} placeholder="https://example.com/logo.png"
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all"
                   />
                   <input type="file" accept="image/*" ref={logoInputRef} onChange={handleLogoUpload} className="hidden" />
                   <button type="button" onClick={() => logoInputRef.current?.click()}
-                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-red transition-colors shrink-0" title="Upload image">
+                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-colors shrink-0" title="Upload image">
                     <Upload className="w-4 h-4" />
                   </button>
                 </div>
@@ -205,7 +205,7 @@ export default function CMSBranding() {
                 <Monitor className="w-3 h-3" />Font Family
               </label>
               <select value={data.fontFamily} onChange={e => update('fontFamily', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all"
               >
                 {['Inter', 'Hanken Grotesk', 'system-ui', 'Georgia', 'Arial', 'Poppins', 'Roboto', 'Montserrat'].map(f => (
                   <option key={f} value={f}>{f}</option>
@@ -227,7 +227,7 @@ export default function CMSBranding() {
                 <p className="text-lg font-bold text-slate-800 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200" style={{ borderColor: data.primaryColor + '20', color: data.primaryColor }}>{data.heroTitle}</p>
               ) : (
                 <input type="text" value={data.heroTitle} onChange={e => update('heroTitle', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all"
                 />
               )}
             </div>
@@ -239,7 +239,7 @@ export default function CMSBranding() {
                 <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">{data.heroSubtitle}</p>
               ) : (
                 <textarea rows={2} value={data.heroSubtitle} onChange={e => update('heroSubtitle', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brand-red/30 focus:bg-white transition-all resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-600/30 focus:bg-white transition-all resize-none"
                 />
               )}
             </div>
@@ -249,7 +249,7 @@ export default function CMSBranding() {
 
       <button onClick={handleSave} disabled={saving}
         className={`self-start px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-          saved ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-brand-red text-white hover:bg-brand-red-dark'
+          saved ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-blue-600 text-white hover:bg-blue-700'
         }`}
       >
         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}

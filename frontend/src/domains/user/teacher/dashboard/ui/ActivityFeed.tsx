@@ -1,63 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, CheckCircle2, Edit3, Award, UserPlus, DollarSign, Loader2, RefreshCw } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentProgressApi } from '@/src/domains/learning/academics/api/academicApi';
+import { Activity, CheckCircle2, DollarSign, Loader2, RefreshCw, Calendar } from 'lucide-react';
+import {
+  fetchEnrollmentsApi,
+  fetchPaymentsListApi,
+  fetchAttendanceSessionsApi,
+} from '@/domains/learning/academics/api/academicApi';
 
 const ICON_MAP: Record<string, { icon: typeof CheckCircle2; bg: string; color: string }> = {
-  ENROLLMENT: { icon: UserPlus, bg: 'bg-blue-100', color: 'text-blue-600' },
-  PROGRESS: { icon: Edit3, bg: 'bg-purple-100', color: 'text-purple-600' },
+  ENROLLMENT: { icon: CheckCircle2, bg: 'bg-blue-100', color: 'text-blue-600' },
   PAYMENT: { icon: DollarSign, bg: 'bg-emerald-100', color: 'text-emerald-600' },
-  COMPLETION: { icon: Award, bg: 'bg-amber-100', color: 'text-amber-600' },
-  ATTENDANCE: { icon: CheckCircle2, bg: 'bg-green-100', color: 'text-green-600' },
+  ATTENDANCE: { icon: Calendar, bg: 'bg-green-100', color: 'text-green-600' },
 };
 
-export default function ActivityFeed() {
-  const [items, setItems] = useState<{ icon: typeof CheckCircle2; bg: string; color: string; bold: string; text: string; time: string }[]>([]);
+type FeedItem = { icon: typeof CheckCircle2; bg: string; color: string; bold: string; text: string; time: string; ts: number };
+
+interface Props {
+  mode?: 'staff' | 'instructor';
+  classId?: string;
+}
+
+export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
+  const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  function toTs(val: string | undefined | null): number {
+    if (!val) return 0;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
+  function fmtDate(val: string | undefined | null): string {
+    if (!val) return '';
+    return new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
 
   const loadActivity = () => {
     setLoading(true);
-    Promise.all([
-      fetchEnrollmentsApi(),
-      fetchPaymentsApi(),
-    ]).then(([enr, pay]) => {
-      const enrollments = Array.isArray(enr) ? enr : [];
-      const payments = Array.isArray(pay) ? pay : [];
-      const feed: typeof items = [];
 
-      enrollments.slice(0, 5).forEach(e => {
-        const s = ICON_MAP.ENROLLMENT;
-        feed.push({
-          icon: s.icon, bg: s.bg, color: s.color,
-          bold: e.student_name || 'Student',
-          text: `enrolled in ${e.class_name || e.sub_program_name || 'class'}`,
-          time: e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recent',
+    if (mode === 'instructor') {
+      fetchAttendanceSessionsApi(classId || undefined)
+        .then(sessions => {
+          const arr = Array.isArray(sessions) ? sessions : [];
+          const feed: FeedItem[] = arr.slice(0, 10).map(s => {
+            const style = ICON_MAP.ATTENDANCE;
+            return {
+              icon: style.icon,
+              bg: style.bg,
+              color: style.color,
+              bold: s.class_name || 'Class',
+              text: s.topic || 'Attendance session',
+              time: fmtDate(s.session_date),
+              ts: toTs(s.session_date),
+            };
+          });
+          setItems(feed);
+        })
+        .catch(() => setItems([]))
+        .finally(() => setLoading(false));
+      return;
+    }
+
+    Promise.all([fetchEnrollmentsApi(), fetchPaymentsListApi()])
+      .then(([enr, pay]) => {
+        const enrollments = Array.isArray(enr) ? enr : [];
+        const payments = Array.isArray(pay) ? pay : [];
+        const feed: FeedItem[] = [];
+
+        enrollments.slice(0, 5).forEach(e => {
+          const s = ICON_MAP.ENROLLMENT;
+          feed.push({
+            icon: s.icon, bg: s.bg, color: s.color,
+            bold: e.student_name || 'Student',
+            text: `enrolled in ${e.class_name || e.sub_program_name || 'class'}`,
+            time: fmtDate(e.enrolled_at),
+            ts: toTs(e.enrolled_at),
+          });
         });
-      });
 
-      payments.slice(0, 3).forEach(p => {
-        const s = ICON_MAP.PAYMENT;
-        feed.push({
-          icon: s.icon, bg: s.bg, color: s.color,
-          bold: p.student_name || 'Student',
-          text: `${p.status === 'PAID' ? 'completed' : 'initiated'} payment of ${Number(p.amount).toLocaleString()} ETB`,
-          time: p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recent',
+        payments.slice(0, 3).forEach(p => {
+          const s = ICON_MAP.PAYMENT;
+          feed.push({
+            icon: s.icon, bg: s.bg, color: s.color,
+            bold: p.student_name || 'Student',
+            text: `${p.status === 'PAID' ? 'completed' : 'initiated'} payment of ${Number(p.amount).toLocaleString()} Birr`,
+            time: fmtDate(p.payment_date),
+            ts: toTs(p.payment_date),
+          });
         });
-      });
 
-      feed.sort((a, b) => {
-        const dateA = new Date(a.time).getTime();
-        const dateB = new Date(b.time).getTime();
-        if (!isNaN(dateA) && !isNaN(dateB)) return dateB - dateA;
-        return 0;
-      });
+        feed.sort((a, b) => b.ts - a.ts);
 
-      setItems(feed.slice(0, 10));
-    }).catch(() => {
-      setItems([]);
-    }).finally(() => setLoading(false));
+        setItems(feed.slice(0, 10));
+      })
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadActivity(); }, []);
+  useEffect(() => { loadActivity(); }, [mode, classId]);
 
   return (
     <div className="bg-white rounded-[24px] border border-brand-border-light p-6 shadow-sm" id="section-activity">
@@ -79,15 +118,15 @@ export default function ActivityFeed() {
       ) : (
         <div className="flex flex-col gap-4">
           {items.map((item, i) => (
-            <div key={i} className="flex gap-3 items-start">
-              <div className={`w-6 h-6 rounded-full ${item.bg} flex items-center justify-center ${item.color} shrink-0`}>
-                <item.icon className="w-3.5 h-3.5" />
+            <div key={i} className="flex items-start gap-3">
+              <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center shrink-0`}>
+                <item.icon className={`w-4 h-4 ${item.color}`} />
               </div>
-              <div>
-                <p className="font-sans text-xs text-slate-800 leading-snug">
-                  <span className="font-bold">{item.bold} </span>{item.text}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-slate-700">
+                  <span className="font-bold text-slate-900">{item.bold}</span> {item.text}
                 </p>
-                <span className="font-mono text-[9px] text-brand-muted mt-0.5 block">{item.time}</span>
+                <p className="text-[10px] text-slate-400 mt-0.5">{item.time}</p>
               </div>
             </div>
           ))}

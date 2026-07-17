@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import { clearTokens } from '@/shared/utils/auth';
+import { getUserProfile, setUserProfile, clearUserProfile, clearSessionStorage } from '@/shared/utils/storage';
 
 export function useAuth() {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('ethio_robotics_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getUserProfile());
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('ethio_robotics_user', JSON.stringify(currentUser));
+      setUserProfile(currentUser);
     } else {
-      localStorage.removeItem('ethio_robotics_user');
+      clearUserProfile();
     }
   }, [currentUser]);
 
@@ -29,8 +28,8 @@ export function useAuth() {
     } catch {
       // Even if backend call fails, still clear local state
     }
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    clearTokens();
+    clearSessionStorage();
     setCurrentUser(null);
   };
 

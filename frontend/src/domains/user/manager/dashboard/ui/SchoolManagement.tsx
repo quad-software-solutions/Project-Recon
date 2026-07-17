@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Edit3, Trash2, Search, X, Building, MapPin, Phone, Mail,
-  Users, BookOpen, CheckCircle, XCircle, Clock, Loader2
+  Users, CheckCircle, XCircle, Clock, Loader2, Lock
 } from 'lucide-react';
 import { branchesApi, BranchResponse } from '../../../shared/api/adminApi';
+import type { UserProfile } from '@/shared/types';
+import { isSuperAdmin } from '@/shared/auth/permissions';
 
 const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
   Active: { icon: CheckCircle, color: 'text-emerald-500' },
@@ -12,7 +14,12 @@ const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string }> 
   Archived: { icon: Clock, color: 'text-amber-500' },
 };
 
-export default function SchoolManagement() {
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function SchoolManagement({ currentUser }: Props) {
+  const canManage = isSuperAdmin(currentUser);
   const [schools, setSchools] = useState<BranchResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +39,7 @@ export default function SchoolManagement() {
       const data = await branchesApi.list();
       setSchools(data);
     } catch (e) {
-      setError('Branches are restricted to super admin.');
+      setError(e instanceof Error ? e.message : 'Branches are restricted to super admin.');
     }
     setLoading(false);
   };
@@ -45,7 +52,6 @@ export default function SchoolManagement() {
   });
 
   const activeSchools = schools.filter(s => s.status === 'Active').length;
-  const totalStudents = 0;
 
   const openAdd = () => {
     setEditing(null);
@@ -99,6 +105,20 @@ export default function SchoolManagement() {
     }
   };
 
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">School management is restricted to Super Admin only.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
 
   return (
@@ -115,7 +135,7 @@ export default function SchoolManagement() {
         {[
           { label: 'Total Schools', value: schools.length, icon: Building, color: 'text-sky-600', bg: 'bg-sky-50' },
           { label: 'Active', value: activeSchools, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Total Students', value: totalStudents, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Active Schools', value: activeSchools, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
           { label: 'Inactive', value: schools.filter(s => s.status !== 'Active').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((stat, i) => {
           const SIcon = stat.icon;
@@ -149,11 +169,13 @@ export default function SchoolManagement() {
               <option value="Archived">Archived</option>
             </select>
           </div>
-          <button onClick={openAdd}
-            className="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add School
-          </button>
+          {canManage && (
+            <button onClick={openAdd}
+              className="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add School
+            </button>
+          )}
         </div>
 
         <div className="p-4">
@@ -199,21 +221,23 @@ export default function SchoolManagement() {
                       <div className="text-[10px] font-mono text-slate-400">Code: {s.code}</div>
                     </div>
 
-                    <div className="mt-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(s)}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600 transition-all">
-                        <Edit3 className="w-3 h-3" /> Edit
-                      </button>
-                      <button onClick={() => toggleActive(s)}
-                        className={`flex items-center justify-center p-1.5 rounded-lg border transition-all ${s.status === 'Active' ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200'}`}
-                      >
-                        {s.status === 'Active' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                      </button>
-                      <button onClick={() => handleDelete(s.id)}
-                        className="flex items-center justify-center p-1.5 rounded-lg border border-red-200 text-red-500 bg-red-50 hover:bg-red-100 transition-all">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {canManage && (
+                      <div className="mt-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEdit(s)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600 transition-all">
+                          <Edit3 className="w-3 h-3" /> Edit
+                        </button>
+                        <button onClick={() => toggleActive(s)}
+                          className={`flex items-center justify-center p-1.5 rounded-lg border transition-all ${s.status === 'Active' ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200'}`}
+                        >
+                          {s.status === 'Active' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={() => handleDelete(s.id)}
+                          className="flex items-center justify-center p-1.5 rounded-lg border border-red-200 text-red-500 bg-red-50 hover:bg-red-100 transition-all">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 );
               })}
@@ -223,7 +247,7 @@ export default function SchoolManagement() {
       </div>
 
       <AnimatePresence>
-        {showModal && (
+        {showModal && canManage && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowModal(false)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />

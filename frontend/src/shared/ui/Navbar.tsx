@@ -5,12 +5,12 @@ import {
   Info, ShoppingBag, Bot, Trophy, Users, LayoutDashboard,
   LogIn, UserPlus, Home, ChevronDown, GraduationCap,
   Cpu, Globe, Wrench, Laptop, Sparkles,
-  Award, Calendar, MapPin, Search
+  Award, Calendar, MapPin, Search, ShieldCheck,
 } from 'lucide-react';
-import NotificationCenter from '@/src/domains/notification/ui/NotificationCenter';
+
 import SearchOverlay from './SearchOverlay';
 import BrandLogo from './BrandLogo';
-import { useBranding } from '@/src/shared/hooks/useBranding';
+import { useBranding } from '@/shared/hooks/useBranding';
 import { ActiveTab, UserProfile } from '../types';
 
 interface NavbarProps {
@@ -29,6 +29,8 @@ type MegaItem = {
   icon: React.ElementType;
   tab: ActiveTab;
   section?: string;
+  /** Optional absolute path for deep links (e.g. /store/orders) */
+  href?: string;
 };
 
 const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> = {
@@ -54,19 +56,20 @@ const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> 
   store: {
     viewAllTab: 'store',
     items: [
-      { label: 'Sensors', desc: 'Ultrasonic, gyro, vision', icon: Cpu, tab: 'store' },
-      { label: 'Microcontrollers', desc: 'Arduino, ESP32, Pi', icon: Laptop, tab: 'store' },
-      { label: 'Accessories', desc: 'Motors, wires, tools', icon: Wrench, tab: 'store' },
-      { label: 'Apparel & Bags', desc: 'Branded merch & backpacks', icon: ShoppingBag, tab: 'store' },
+      { label: 'All products', desc: 'Browse the full catalog', icon: ShoppingBag, tab: 'store', href: '/store' },
+      { label: 'My orders', desc: 'Track paid and pickup orders', icon: Award, tab: 'store-orders', href: '/store/orders' },
+      { label: 'Sensors & kits', desc: 'Parts for competition builds', icon: Cpu, tab: 'store', href: '/store' },
+      { label: 'Apparel & bags', desc: 'Branded merch', icon: ShoppingBag, tab: 'store', href: '/store' },
     ],
   },
   events: {
     viewAllTab: 'competitions',
     items: [
-      { label: 'Competitions', desc: 'VEX & Enjoy AI tournaments', icon: Trophy, tab: 'competitions' },
-      { label: 'Workshops', desc: 'Hands-on training sessions', icon: GraduationCap, tab: 'competitions' },
-      { label: 'Event Calendar', desc: 'Upcoming dates & deadlines', icon: Calendar, tab: 'competitions' },
-      { label: 'Venues', desc: 'Lab locations & maps', icon: MapPin, tab: 'competitions' },
+      { label: 'Competitions', desc: 'VEX & Enjoy AI tournaments', icon: Trophy, tab: 'competitions', section: 'live-matches' },
+      { label: 'Workshops', desc: 'Hands-on training sessions', icon: GraduationCap, tab: 'competitions', section: 'events' },
+      { label: 'Event Calendar', desc: 'Upcoming dates & deadlines', icon: Calendar, tab: 'competitions', section: 'events' },
+      { label: 'Venues', desc: 'Lab locations & maps', icon: MapPin, tab: 'competitions', section: 'venues' },
+      { label: 'Verify Certificate', desc: 'Check certificate authenticity', icon: ShieldCheck, tab: 'cert-verify' },
     ],
   },
 };
@@ -79,6 +82,7 @@ const NAV_ITEMS: NavItem[] = [
   { tab: 'registration', label: 'Programs', icon: GraduationCap, mega: 'programs', auth: 'guest' },
   { tab: 'store', label: 'Store', icon: ShoppingBag, mega: 'store', auth: 'guest' },
   { tab: 'competitions', label: 'Events', icon: Trophy, mega: 'events', auth: 'guest' },
+  { tab: 'cert-verify', label: 'Verify', icon: ShieldCheck, auth: 'guest' },
 ];
 
 const getMegaPanelAlignment = (mega?: string) =>
@@ -119,19 +123,23 @@ export default function Navbar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleNavClick = (tab: ActiveTab, section?: string) => {
-    setActiveTab(tab);
+  const handleNavClick = (tab: ActiveTab, section?: string, href?: string) => {
     setMobileMenuOpen(false);
     setMobileMegaOpen(null);
     setOpenMega(null);
+    if (href) {
+      window.history.pushState(null, '', href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setActiveTab(tab);
     if (section) {
-      // Allow the tab content to render before scrolling
       requestAnimationFrame(() => {
         setTimeout(() => {
           const el = document.getElementById(section);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       });
     } else {
@@ -254,7 +262,7 @@ export default function Navbar({
                                 <a
                                   key={i}
                                   href={`#${sub.tab}${sub.section ? `/${sub.section}` : ''}`}
-                                  onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section); }}
+                                  onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section, sub.href); }}
                                   role="menuitem"
                                   className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-brand-blue/[0.06] transition-all duration-150 group"
                                 >
@@ -409,7 +417,7 @@ export default function Navbar({
                                   <a
                                     key={i}
                                     href={`#${sub.tab}${sub.section ? `/${sub.section}` : ''}`}
-                                    onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section); }}
+                                    onClick={(e) => { e.preventDefault(); handleNavClick(sub.tab, sub.section, sub.href); }}
                                     className="flex items-center gap-2.5 py-2 px-2.5 text-sm text-slate-600 hover:text-brand-blue rounded-lg hover:bg-brand-blue/[0.04] transition-all"
                                   >
                                     <SubIcon className="w-3.5 h-3.5 text-brand-blue/50" />
@@ -447,7 +455,7 @@ export default function Navbar({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm text-slate-900 truncate leading-tight">{currentUser.name}</p>
-                          <p className="text-[10px] text-brand-muted">{currentUser.xpPoints} XP · {currentUser.role}</p>
+                          <p className="text-[10px] text-brand-muted">{currentUser.role}</p>
                         </div>
                       </div>
                       <button onClick={() => handleNavClick('dashboard')} className="w-full text-center py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-brand-blue to-brand-blue-dark rounded-lg shadow-sm">

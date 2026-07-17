@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Gift, Copy, CheckCircle2, Users, Share2, Sparkles, Loader2 } from 'lucide-react';
-import { UserProfile } from '@/src/shared/types';
+import { UserProfile } from '@/shared/types';
 
 interface Props { currentUser: UserProfile; }
 

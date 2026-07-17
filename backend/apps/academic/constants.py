@@ -29,20 +29,25 @@ class SessionStatus(models.TextChoices):
 
 
 class EnrollmentStatus(models.TextChoices):
-    PENDING_PAYMENT = "PENDING_PAYMENT", "Pending Payment"
+    PENDING_VERIFICATION = "PENDING_VERIFICATION", "Pending Verification"
     ACTIVE = "ACTIVE", "Active"
     COMPLETED = "COMPLETED", "Completed"
     CANCELLED = "CANCELLED", "Cancelled"
+    REJECTED = "REJECTED", "Rejected"
 
 
 class PaymentMethod(models.TextChoices):
     CASH = "CASH", "Cash"
-    ONLINE = "ONLINE", "Online"
+    BANK_TRANSFER = "BANK_TRANSFER", "Bank Transfer"
+    MOBILE_MONEY = "MOBILE_MONEY", "Mobile Money"
+    CHEQUE = "CHEQUE", "Cheque"
 
 
-class PaymentProvider(models.TextChoices):
-    CHAPA = "CHAPA", "Chapa"
-    STRIPE = "STRIPE", "Stripe"
+class VerificationStatus(models.TextChoices):
+    SUBMITTED = "SUBMITTED", "Submitted"
+    UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
+    VERIFIED = "VERIFIED", "Verified"
+    REJECTED = "REJECTED", "Rejected"
 
 
 class PaymentStatus(models.TextChoices):

@@ -24,7 +24,7 @@ export default function FaqManager({ addToast }: Props) {
   const load = async () => {
     setLoading(true);
     try { setItems(await api.getAll<Faq>('faqs')); }
-    catch { setItems([]); }
+    catch { setItems([]); addToast('Failed to load FAQs', 'error'); }
     setLoading(false);
   };
 
@@ -100,7 +100,7 @@ export default function FaqManager({ addToast }: Props) {
           <h2 className="font-bold text-slate-800">FAQs</h2>
           <p className="text-xs text-slate-400 mt-0.5">Manage frequently asked questions</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-brand-red hover:bg-red-700">
+        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700">
           <Plus className="w-3.5 h-3.5" /> Add FAQ
         </button>
       </div>
@@ -109,11 +109,11 @@ export default function FaqManager({ addToast }: Props) {
         <div className="relative flex-1 min-w-[160px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search FAQs..."
-            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30" />
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600/30" />
         </div>
         {categories.length > 0 && (
           <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red/30 bg-white"
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600/30 bg-white"
           >
             <option value="">All Categories</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -136,7 +136,7 @@ export default function FaqManager({ addToast }: Props) {
               <div key={item.id} className="transition-colors">
                 <div className="flex items-start gap-3 p-3 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => toggleExpand(item.id)}>
                   <GripVertical className="w-4 h-4 text-slate-300 shrink-0 mt-1" />
-                  <HelpCircle className="w-4 h-4 text-brand-red shrink-0 mt-1" />
+                  <HelpCircle className="w-4 h-4 text-blue-600 shrink-0 mt-1" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold text-slate-800">{item.question}</p>
@@ -163,7 +163,7 @@ export default function FaqManager({ addToast }: Props) {
                   </div>
                 </div>
                 {isExpanded && (
-                  <div className="px-3 pb-3 ml-10 border-l-2 border-brand-red/20 pl-4">
+                  <div className="px-3 pb-3 ml-10 border-l-2 border-blue-600/20 pl-4">
                     <p className="text-sm text-slate-600 whitespace-pre-wrap">{item.answer}</p>
                   </div>
                 )}
@@ -189,7 +189,7 @@ export default function FaqManager({ addToast }: Props) {
                   Priority <span className="text-red-400 ml-0.5">*</span>
                 </label>
                 <input type="number" value={editing.priority ?? 0} onChange={e => setEditing({ ...editing, priority: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-red/30" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/30" />
               </div>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={editing.isActive ?? true} onChange={e => setEditing({ ...editing, isActive: e.target.checked })} className="rounded" />
@@ -199,7 +199,7 @@ export default function FaqManager({ addToast }: Props) {
             <div className="flex gap-2 justify-end p-4 border-t border-slate-200">
               <button onClick={closeForm} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
               <button onClick={save} disabled={saving}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-red hover:bg-red-700 disabled:opacity-50">
+                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
                 {saving ? 'Saving...' : editing.id ? 'Update' : 'Create'}
               </button>
             </div>
@@ -218,7 +218,7 @@ function Field({ label, value, onChange, error, required, placeholder }: { label
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${error ? 'border-red-300 focus:ring-red-30 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`} />
+        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${error ? 'border-red-300 focus:ring-red-30 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -232,7 +232,7 @@ function Textarea({ label, value, onChange, error, required, placeholder }: { la
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={4} placeholder={placeholder}
-        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all resize-none ${error ? 'border-red-300 focus:ring-red-30 bg-red-50' : 'border-slate-200 focus:ring-brand-red/30'}`} />
+        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all resize-none ${error ? 'border-red-300 focus:ring-red-30 bg-red-50' : 'border-slate-200 focus:ring-blue-600/30'}`} />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );

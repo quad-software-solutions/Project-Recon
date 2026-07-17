@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Target, Loader2, ShieldOff, Download } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchMilestonesApi, fetchStudentProgressApi, downloadProgressReportPdf } from '@/src/domains/learning/academics/api/academicApi';
-import type { LearningMilestone, StudentProgress } from '@/src/shared/types';
+import { fetchEnrollmentsApi, fetchMilestonesApi, fetchStudentProgressApi, downloadProgressReportPdf } from '@/domains/learning/academics/api/academicApi';
+import type { LearningMilestone, StudentProgress } from '@/shared/types';
 
 interface Props { studentId: string }
 
@@ -48,7 +48,7 @@ export default function ProgressMilestones({ studentId }: Props) {
         </p>
         <button
           onClick={() => downloadProgressReportPdf(studentId)}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red px-4 py-2 rounded-lg hover:bg-brand-red-dark transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Download className="w-3.5 h-3.5" /> Download PDF Report
         </button>

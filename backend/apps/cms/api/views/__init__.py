@@ -30,6 +30,18 @@ from .faq import (
     AdminFAQListCreateView,
     AdminFAQRetrieveUpdateDestroyView,
 )
+from .map_node import (
+    PublicMapNodeListView,
+    AdminMapNodeListCreateView,
+    AdminMapNodeRetrieveUpdateDestroyView,
+)
+from .gallery import (
+    PublicGalleryListView,
+    PublicGalleryDetailView,
+    AdminGalleryListCreateView,
+    AdminGalleryRetrieveUpdateDestroyView,
+)
+from .stats import PublicPlatformStatsView
 
 __all__ = [
     "PublicHeroBannerListView",
@@ -52,4 +64,12 @@ __all__ = [
     "PublicFAQListView",
     "AdminFAQListCreateView",
     "AdminFAQRetrieveUpdateDestroyView",
+    "PublicMapNodeListView",
+    "AdminMapNodeListCreateView",
+    "AdminMapNodeRetrieveUpdateDestroyView",
+    "PublicGalleryListView",
+    "PublicGalleryDetailView",
+    "AdminGalleryListCreateView",
+    "AdminGalleryRetrieveUpdateDestroyView",
+    "PublicPlatformStatsView",
 ]

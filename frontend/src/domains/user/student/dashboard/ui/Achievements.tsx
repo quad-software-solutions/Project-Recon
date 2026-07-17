@@ -1,6 +1,6 @@
 import React from 'react';
 import { Crown, Trophy, Shield, Star, Medal, Target, Award } from 'lucide-react';
-import { UserProfile } from '@/src/shared/types';
+import { UserProfile } from '@/shared/types';
 
 interface Props { currentUser: UserProfile; }
 

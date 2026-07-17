@@ -1,8 +1,45 @@
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+import { getToken, setTokens, clearTokens, getRefreshToken } from '@/shared/utils/auth';
+import { clearSessionStorage } from '@/shared/utils/storage';
 
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
   _isRetry?: boolean;
+}
+
+/** Typed API error that preserves HTTP status for 401/403/404 handling. */
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+
+  constructor(status: number, message: string, body?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function isApiError(err: unknown): err is ApiError {
+  return err instanceof ApiError;
+}
+
+export function isForbiddenError(err: unknown): boolean {
+  if (isApiError(err)) return err.status === 403;
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    return msg.includes('permission') || msg.includes('forbidden') || msg.includes('403');
+  }
+  return false;
+}
+
+export function isNotFoundError(err: unknown): boolean {
+  if (isApiError(err)) return err.status === 404;
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    return msg.includes('not found') || msg.includes('404');
+  }
+  return false;
 }
 
 /**
@@ -11,22 +48,30 @@ interface RequestConfig extends RequestInit {
  *   { "detail": "Invalid credentials." }
  *   { "email": ["This field is required."] }
  */
-async function parseErrorBody(res: Response): Promise<string> {
+async function parseErrorBody(res: Response): Promise<{ message: string; body: unknown }> {
   try {
     const body = await res.json();
-    if (typeof body === 'string') return body;
-    if (body.detail) return body.detail;
-    // Collect field-level errors
+    if (typeof body === 'string') return { message: body, body };
+    if (body?.detail) {
+      const detail = Array.isArray(body.detail) ? body.detail.join(', ') : String(body.detail);
+      return { message: detail, body };
+    }
     const fieldErrors = Object.entries(body)
       .map(([key, val]) => {
         const msgs = Array.isArray(val) ? val.join(', ') : String(val);
         return `${key}: ${msgs}`;
       })
       .join('; ');
-    return fieldErrors || `API Error: ${res.status}`;
+    return { message: fieldErrors || `API Error: ${res.status}`, body };
   } catch {
-    return `API Error: ${res.status} ${res.statusText}`;
+    return { message: `API Error: ${res.status} ${res.statusText}`, body: null };
   }
+}
+
+function forceLogout(): void {
+  clearTokens();
+  clearSessionStorage();
+  window.dispatchEvent(new CustomEvent('auth:logout'));
 }
 
 let isRefreshing = false;
@@ -41,15 +86,59 @@ function onRefreshed(token: string) {
   refreshSubscribers = [];
 }
 
+async function handleTokenRefresh<T>(retryRequest: () => Promise<T>): Promise<T> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    forceLogout();
+    throw new ApiError(401, 'Session expired');
+  }
+
+  if (!isRefreshing) {
+    isRefreshing = true;
+    try {
+      const refreshUrl = new URL(`${BASE_URL}/accounts/token/refresh/`, window.location.origin);
+      const refreshRes = await fetch(refreshUrl.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (refreshRes.ok) {
+        const data = await refreshRes.json();
+        setTokens(data.access, data.refresh);
+        onRefreshed(data.access);
+      } else {
+        forceLogout();
+        onRefreshed('');
+      }
+    } catch {
+      forceLogout();
+      onRefreshed('');
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    subscribeTokenRefresh((newToken) => {
+      if (newToken) {
+        retryRequest().then(resolve).catch(reject);
+      } else {
+        reject(new ApiError(401, 'Session expired'));
+      }
+    });
+  });
+}
+
 async function request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
   const { params, _isRetry, ...init } = config;
   const urlStr = `${BASE_URL}${endpoint}`;
   const url = urlStr.startsWith('http') ? new URL(urlStr) : new URL(urlStr, window.location.origin);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-  let token = localStorage.getItem('access_token');
+  const token = getToken();
   const headers: Record<string, string> = { ...init.headers as Record<string, string> };
-  
+
   if (!(init.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
   }
@@ -63,62 +152,63 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     headers,
   });
 
+  // Only refresh+retry on 401 — never on 403/404
   if (res.status === 401 && !_isRetry && token) {
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (refreshToken) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          const refreshUrl = new URL(`${BASE_URL}/accounts/token/refresh/`, window.location.origin);
-          const refreshRes = await fetch(refreshUrl.toString(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh: refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const data = await refreshRes.json();
-            localStorage.setItem('access_token', data.access);
-            if (data.refresh) {
-              localStorage.setItem('refresh_token', data.refresh);
-            }
-            onRefreshed(data.access);
-          } else {
-            // Refresh failed, user needs to login again
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('ethio_robotics_user');
-            window.dispatchEvent(new CustomEvent('auth:logout'));
-          }
-        } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-        } finally {
-          isRefreshing = false;
-        }
-      }
-
-      // Wait for refresh to complete and retry
-      return new Promise<T>((resolve, reject) => {
-        subscribeTokenRefresh((newToken) => {
-          // Retry the original request
-          config._isRetry = true;
-          // The retry will pick up the new token automatically because we don't pass headers with Authorization directly here
-          request<T>(endpoint, config).then(resolve).catch(reject);
-        });
+    if (getRefreshToken()) {
+      return handleTokenRefresh(() => {
+        config._isRetry = true;
+        return request<T>(endpoint, config);
       });
     }
+    forceLogout();
+    throw new ApiError(401, 'Session expired');
   }
 
   if (!res.ok) {
-    const message = await parseErrorBody(res);
-    throw new Error(message);
+    const { message, body } = await parseErrorBody(res);
+    throw new ApiError(res.status, message, body);
   }
 
-  // Handle 204 No Content
   if (res.status === 204) return undefined as T;
 
   return res.json();
+}
+
+async function requestBlob(endpoint: string, config: RequestConfig = {}): Promise<Blob> {
+  const { params, _isRetry, ...init } = config;
+  const urlStr = `${BASE_URL}${endpoint}`;
+  const url = urlStr.startsWith('http') ? new URL(urlStr) : new URL(urlStr, window.location.origin);
+  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  const token = getToken();
+  const headers: Record<string, string> = { ...init.headers as Record<string, string> };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url.toString(), {
+    ...init,
+    headers,
+  });
+
+  if (res.status === 401 && !_isRetry && token) {
+    if (getRefreshToken()) {
+      return handleTokenRefresh(() => {
+        config._isRetry = true;
+        return requestBlob(endpoint, config);
+      });
+    }
+    forceLogout();
+    throw new ApiError(401, 'Session expired');
+  }
+
+  if (!res.ok) {
+    const { message, body } = await parseErrorBody(res);
+    throw new ApiError(res.status, message, body);
+  }
+
+  return res.blob();
 }
 
 export const http = {
@@ -132,4 +222,6 @@ export const http = {
     request<T>(endpoint, { ...config, method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body) }),
   delete: <T>(endpoint: string, config?: RequestConfig) =>
     request<T>(endpoint, { ...config, method: 'DELETE' }),
+  downloadBlob: (endpoint: string, config?: RequestConfig) =>
+    requestBlob(endpoint, { ...config, method: 'GET' }),
 };

@@ -4,6 +4,7 @@ import {
   Trophy, Download, Settings, Sliders, MessageSquare, History, Clock, ArrowUpDown, Users, Target, GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { StudentProfile } from '@/shared/types';
 
 interface SubScores {
   scores: number[];
@@ -38,7 +39,7 @@ function saveGrades(g: Record<string, StudentGrade>) {
   try { localStorage.setItem(STORAGE_GRADES, JSON.stringify(g)); } catch {}
 }
 
-interface Props { students: any[]; }
+interface Props { students: StudentProfile[]; }
 
 export default function GradeBook({ students }: Props) {
   const [grades, setGrades] = useState<Record<string, StudentGrade>>(loadGrades);
@@ -46,7 +47,7 @@ export default function GradeBook({ students }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [sortField, setSortField] = useState<string>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showWeights, setShowWeights] = useState(false);

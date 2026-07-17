@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Video, FileText, Code, Download, ExternalLink, Loader2, ShieldOff } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchLearningMaterialsApi } from '@/src/domains/learning/academics/api/academicApi';
-import type { LearningMaterial } from '@/src/shared/types';
+import { Book, Video, FileText, Code, Download, Loader2 } from 'lucide-react';
+import { fetchLearningMaterialsApi } from '@/domains/learning/academics/api/academicApi';
+import type { LearningMaterial } from '@/shared/types';
 
 const TYPE_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   PDF: { icon: Book, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -18,35 +18,19 @@ const DEFAULT_CFG = { icon: Book, color: 'text-slate-600', bg: 'bg-slate-50' };
 
 interface Props { studentId: string }
 
-export default function LearningResources({ studentId }: Props) {
+export default function LearningResources({ studentId: _studentId }: Props) {
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        const enr = await fetchEnrollmentsApi(studentId);
-        const all: LearningMaterial[] = [];
-        for (const e of enr) {
-          try {
-            const m = await fetchLearningMaterialsApi(e.enrolled_class);
-            all.push(...m);
-          } catch {}
-        }
-        if (!cancelled) setMaterials(all);
-      } catch {
-        // Permission denied — try direct materials fetch (student-scoped)
-        try {
-          const mats = await fetchLearningMaterialsApi();
-          if (!cancelled) setMaterials(mats);
-        } catch {}
-      }
-      if (!cancelled) setLoading(false);
-    }
-    load();
+    // Students can list materials; do not call enrollments (403) or class-as-sub_program.
+    fetchLearningMaterialsApi()
+      .then(mats => { if (!cancelled) setMaterials(Array.isArray(mats) ? mats : []); })
+      .catch(() => { if (!cancelled) setMaterials([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [studentId]);
+  }, []);
 
   return (
     <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-border-light/60">
@@ -65,7 +49,7 @@ export default function LearningResources({ studentId }: Props) {
             const cfg = TYPE_ICONS[res.material_type] || DEFAULT_CFG;
             const Icon = cfg.icon;
             return (
-              <div key={res.id} className="group bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:bg-white hover:border-brand-red/30 hover:shadow-md transition-all cursor-pointer flex flex-col h-full">
+              <div key={res.id} className="group bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:bg-white hover:border-blue-600/30 hover:shadow-md transition-all cursor-pointer flex flex-col h-full">
                 <div className="flex justify-between items-start mb-4">
                   <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
                     <Icon className={`w-5 h-5 ${cfg.color}`} />
@@ -74,9 +58,9 @@ export default function LearningResources({ studentId }: Props) {
                     {res.material_type}
                   </span>
                 </div>
-                <h4 className="font-sans font-bold text-slate-900 text-sm leading-snug mb-1 group-hover:text-brand-red transition-colors">{res.title}</h4>
+                <h4 className="font-sans font-bold text-slate-900 text-sm leading-snug mb-1 group-hover:text-blue-600 transition-colors">{res.title}</h4>
                 {res.description && <p className="text-xs text-slate-500 font-medium mb-4 line-clamp-2">{res.description}</p>}
-                <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between text-brand-red opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
                   <a href={res.file_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold flex items-center gap-1">
                     <Download className="w-3.5 h-3.5" /> Download
                   </a>

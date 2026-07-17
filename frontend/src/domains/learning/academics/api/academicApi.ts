@@ -1,9 +1,15 @@
-import type { StudentProfile, Program, SubProgram, AcademicClass, Enrollment, EnrollmentPeriod, EnrollmentPayment, AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress, LearningMaterial, Certificate, StudentCertificate } from '@/src/shared/types';
-import { http } from '@/src/shared/api/http';
+import type { StudentProfile, Program, SubProgram, AcademicClass, Enrollment, EnrollmentPeriod, EnrollmentPayment, AttendanceSession, AttendanceRecord, LearningMilestone, StudentProgress, LearningMaterial, Certificate, StudentCertificate } from '@/shared/types';
+import { http } from '@/shared/api/http';
 
 const BASE = '/academic';
 
 type ListResponse<T> = T[] | { results: T[] };
+export interface PaginatedListResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
 type QueryValue = string | number | boolean | null | undefined;
 
 function unwrapList<T>(response: ListResponse<T>): T[] {
@@ -23,6 +29,7 @@ export type AcademicProgramPayload = {
   name: string;
   slug: string;
   description?: string;
+  image?: string | File | null;
   supports_group: boolean;
   supports_individual: boolean;
 };
@@ -32,6 +39,7 @@ export type AcademicSubProgramPayload = {
   name: string;
   slug: string;
   description?: string;
+  image?: string | File | null;
   duration?: number | null;
   duration_unit?: string | null;
   fee: string;
@@ -39,8 +47,6 @@ export type AcademicSubProgramPayload = {
 
 export type OnlineEnrollmentPayload = {
   enrolled_class: string;
-  callback_url?: string;
-  return_url?: string;
   email?: string;
   first_name?: string;
   last_name?: string;
@@ -49,12 +55,30 @@ export type OnlineEnrollmentPayload = {
   guardian_name?: string;
   guardian_phone?: string;
   guardian_email?: string;
+  payment_method: string;
+  transaction_reference?: string;
+  bank_name?: string;
+  transfer_reference?: string;
 };
 
-export type CashPaymentPayload = {
+export type OnlineEnrollmentResponse = {
+  enrollment: Enrollment;
+  student?: string;
+};
+
+export type RecordPaymentPayload = {
   enrollment: string;
   amount: string;
+  payment_method: string;
   payment_date?: string;
+  transaction_reference?: string;
+  bank_name?: string;
+  transfer_reference?: string;
+  verification_notes?: string;
+};
+
+export type RejectPaymentPayload = {
+  rejection_reason: string;
 };
 
 export type AdmitStudentPayload = {
@@ -121,47 +145,82 @@ export type LearningMaterialPayload = {
 export type CertificateTemplatePayload = {
   sub_program: string;
   title: string;
-  background?: string;
-  institute_logo?: string;
-  signature?: string;
+  background?: File | null;
+  institute_logo?: File | null;
+  signature?: File | null;
   body_text: string;
+  signatory_name?: string;
+  signatory_title?: string;
 };
 
+const SIGNATORY_SEP = '\n\n---SIGNATORY---\n';
+
+function encodeBodyWithSignatory(body: string, name?: string, title?: string): string {
+  if (!name && !title) return body;
+  return `${body}${SIGNATORY_SEP}${name || ''}\n${title || ''}`;
+}
+
+export function decodeBodyWithSignatory(body: string): { body: string; signatory_name: string; signatory_title: string } {
+  const idx = body.indexOf(SIGNATORY_SEP);
+  if (idx === -1) return { body, signatory_name: '', signatory_title: '' };
+  const main = body.slice(0, idx);
+  const parts = body.slice(idx + SIGNATORY_SEP.length).split('\n');
+  return { body: main, signatory_name: parts[0] || '', signatory_title: parts[1] || '' };
+}
+
 export type StaffAttendanceRecordPayload = {
-  user: string;
+  staff_member: string;
   status: string;
-  remarks?: string;
+  notes?: string;
 };
 
 // ─── Programs ───
 export async function fetchProgramsApi(): Promise<Program[]> {
-  try { return unwrapList(await http.get<ListResponse<Program>>(`${BASE}/programs/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<Program>>(`${BASE}/programs/`));
 }
 
 export async function fetchSubProgramsApi(programId?: string): Promise<SubProgram[]> {
-  try { return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/${queryString({ program: programId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/${queryString({ program: programId })}`));
+}
+
+function toProgramFormData(payload: Partial<AcademicProgramPayload>): FormData | typeof payload {
+  if (!(payload.image instanceof File)) return payload;
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(payload)) {
+    if (k === 'image') { fd.append('image', v as File); }
+    else if (v !== undefined) { fd.append(k, String(v)); }
+  }
+  return fd;
 }
 
 export async function createProgramApi(payload: AcademicProgramPayload): Promise<Program> {
-  return http.post<Program>(`${BASE}/programs/`, payload);
+  return http.post<Program>(`${BASE}/programs/`, toProgramFormData(payload));
 }
 
 export async function updateProgramApi(id: string, payload: Partial<AcademicProgramPayload>): Promise<Program> {
-  return http.patch<Program>(`${BASE}/programs/${id}/`, payload);
+  return http.patch<Program>(`${BASE}/programs/${id}/`, toProgramFormData(payload));
 }
 
 export async function setProgramActiveApi(id: string, active: boolean): Promise<Program> {
   return http.post<Program>(`${BASE}/programs/${id}/${active ? 'activate' : 'deactivate'}/`, {});
 }
 
+function toSubProgramFormData(payload: Partial<AcademicSubProgramPayload>): FormData | typeof payload {
+  if (!(payload.image instanceof File)) return payload;
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(payload)) {
+    if (k === 'image') { fd.append('image', v as File); }
+    else if (v !== undefined) { fd.append(k, String(v)); }
+  }
+  return fd;
+}
+
 export async function createSubProgramApi(payload: AcademicSubProgramPayload): Promise<SubProgram> {
-  return http.post<SubProgram>(`${BASE}/sub-programs/`, payload);
+  return http.post<SubProgram>(`${BASE}/sub-programs/`, toSubProgramFormData(payload));
 }
 
 export async function updateSubProgramApi(id: string, payload: Partial<AcademicSubProgramPayload>): Promise<SubProgram> {
-  return http.patch<SubProgram>(`${BASE}/sub-programs/${id}/`, payload);
+  return http.patch<SubProgram>(`${BASE}/sub-programs/${id}/`, toSubProgramFormData(payload));
 }
 
 export async function setSubProgramActiveApi(id: string, active: boolean): Promise<SubProgram> {
@@ -170,8 +229,7 @@ export async function setSubProgramActiveApi(id: string, active: boolean): Promi
 
 // ─── Classes ───
 export async function fetchClassesApi(subProgramId?: string): Promise<AcademicClass[]> {
-  try { return unwrapList(await http.get<ListResponse<AcademicClass>>(`${BASE}/classes/${queryString({ sub_program: subProgramId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<AcademicClass>>(`${BASE}/classes/${queryString({ sub_program: subProgramId })}`));
 }
 
 export async function createClassApi(payload: AcademicClassPayload): Promise<AcademicClass> {
@@ -192,8 +250,7 @@ export async function setClassActiveApi(id: string, active: boolean): Promise<Ac
 
 // ─── Enrollment Periods ───
 export async function fetchEnrollmentPeriodsApi(): Promise<EnrollmentPeriod[]> {
-  try { return unwrapList(await http.get<ListResponse<EnrollmentPeriod>>(`${BASE}/enrollment-periods/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<EnrollmentPeriod>>(`${BASE}/enrollment-periods/`));
 }
 
 export async function createEnrollmentPeriodApi(payload: EnrollmentPeriodPayload): Promise<EnrollmentPeriod> {
@@ -210,20 +267,19 @@ export async function setEnrollmentPeriodActiveApi(id: string, active: boolean):
 
 // ─── Enrollments ───
 export async function fetchEnrollmentsApi(studentId?: string): Promise<Enrollment[]> {
-  try { return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ student: studentId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ student: studentId })}`));
+}
+
+export async function fetchEnrollmentsPaginatedApi(page = 1, pageSize = 20): Promise<PaginatedListResponse<Enrollment>> {
+  return http.get<PaginatedListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ page: String(page), page_size: String(pageSize) })}`);
 }
 
 export async function enrollStudentApi(payload: StaffEnrollmentPayload): Promise<Enrollment> {
   return http.post<Enrollment>(`${BASE}/enrollments/`, payload);
 }
 
-export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<Enrollment> {
-  return http.post<Enrollment>(`${BASE}/enrollments/online/`, payload);
-}
-
-export async function verifyOnlinePaymentApi(payload: { reference: string }): Promise<EnrollmentPayment> {
-  return http.post<EnrollmentPayment>(`${BASE}/enrollments/online/verify/`, payload);
+export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<OnlineEnrollmentResponse> {
+  return http.post<OnlineEnrollmentResponse>(`${BASE}/enrollments/online/`, payload);
 }
 
 export async function cancelEnrollmentApi(id: string): Promise<Enrollment> {
@@ -236,13 +292,11 @@ export async function completeEnrollmentApi(id: string): Promise<Enrollment> {
 
 // ─── Students ───
 export async function fetchStudentsApi(): Promise<StudentProfile[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/`));
 }
 
 export async function searchStudentsApi(query: string): Promise<StudentProfile[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/${queryString({ q: query })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/${queryString({ q: query })}`));
 }
 
 export async function createStudentApi(payload: { email: string; first_name: string; last_name: string; password: string; branch: string }): Promise<any> {
@@ -262,32 +316,49 @@ export async function setStudentActiveApi(id: string, active: boolean): Promise<
 }
 
 // ─── Payments ───
-export async function createCashPaymentApi(payload: CashPaymentPayload): Promise<EnrollmentPayment> {
-  return http.post<EnrollmentPayment>(`${BASE}/payments/cash/`, payload);
+export async function recordPaymentApi(payload: RecordPaymentPayload): Promise<EnrollmentPayment> {
+  return http.post<EnrollmentPayment>(`${BASE}/payments/`, payload);
 }
 
-export async function fetchPaymentsApi(): Promise<EnrollmentPayment[]> {
-  try { return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/`)); }
-  catch { return []; }
+export async function fetchPaymentsListApi(): Promise<EnrollmentPayment[]> {
+  return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/list/`));
+}
+
+/** @deprecated Use fetchPaymentsListApi */
+export const fetchPaymentsApi = fetchPaymentsListApi;
+
+export async function fetchVerificationQueueApi(): Promise<EnrollmentPayment[]> {
+  return unwrapList(await http.get<ListResponse<EnrollmentPayment>>(`${BASE}/payments/verification-queue/`));
+}
+
+export async function setUnderReviewApi(pk: string): Promise<{ status: string }> {
+  return http.post<{ status: string }>(`${BASE}/payments/${pk}/under-review/`, {});
+}
+
+export async function rejectPaymentApi(pk: string, payload: RejectPaymentPayload): Promise<{ status: string }> {
+  return http.post<{ status: string }>(`${BASE}/payments/${pk}/reject/`, payload);
 }
 
 // ─── Attendance ───
-export async function fetchAttendanceSessionsApi(classId: string): Promise<AttendanceSession[]> {
-  try { return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/${queryString({ enrolled_class: classId })}`)); }
-  catch { return []; }
+export async function fetchAttendanceSessionsApi(classId?: string): Promise<AttendanceSession[]> {
+  return unwrapList(await http.get<ListResponse<AttendanceSession>>(`${BASE}/attendance/sessions/${queryString({ enrolled_class: classId })}`));
 }
 
+/** Records are embedded on session detail — backend has no GET on .../records/ (405). */
 export async function fetchAttendanceRecordsApi(sessionId: string): Promise<AttendanceRecord[]> {
-  try { return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/sessions/${sessionId}/`)); }
-  catch { return []; }
+  const session = await http.get<AttendanceSession & { records?: AttendanceRecord[] }>(
+    `${BASE}/attendance/sessions/${sessionId}/`,
+  );
+  return Array.isArray(session?.records) ? session.records : [];
 }
 
 export async function createAttendanceSessionApi(payload: { enrolled_class: string; session_date: string; topic?: string }): Promise<AttendanceSession> {
   return http.post<AttendanceSession>(`${BASE}/attendance/sessions/`, payload);
 }
 
+/** Backend expects a JSON array of records, not `{ records: [...] }`. */
 export async function recordBulkAttendanceApi(sessionId: string, records: { enrollment: string; status: string; remarks?: string }[]): Promise<any> {
-  return http.post(`${BASE}/attendance/sessions/${sessionId}/records/`, { records });
+  return http.post(`${BASE}/attendance/sessions/${sessionId}/records/`, records);
 }
 
 export async function updateAttendanceRecordApi(sessionId: string, recordId: string, payload: Partial<{ status: string; remarks: string }>): Promise<AttendanceRecord> {
@@ -295,39 +366,106 @@ export async function updateAttendanceRecordApi(sessionId: string, recordId: str
 }
 
 export async function fetchEnrollmentAttendanceHistoryApi(enrollmentId: string): Promise<AttendanceRecord[]> {
-  try { return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/enrollments/${enrollmentId}/history/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/enrollments/${enrollmentId}/history/`));
 }
 
 export async function fetchEnrollmentAttendanceSummaryApi(enrollmentId: string): Promise<Record<string, unknown>> {
   return http.get<Record<string, unknown>>(`${BASE}/attendance/enrollments/${enrollmentId}/summary/`);
 }
 
-// ─── Staff Attendance ───
+// ─── Staff Attendance (backend field: `date`, not `session_date`) ───
+
 export async function fetchAvailableStaffApi(params?: { branch?: string; role?: string }): Promise<any[]> {
-  try { return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/available-staff/${queryString(params)}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/available-staff/${queryString(params)}`));
 }
 
-export async function fetchStaffAttendanceSessionsApi(params?: { branch?: string; session_date?: string }): Promise<any[]> {
-  try { return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/${queryString(params)}`)); }
-  catch { return []; }
+function mapStaffSessionFromApi(row: Record<string, unknown>) {
+  return {
+    ...row,
+    session_date: row.date ?? row.session_date,
+  };
 }
 
-export async function createStaffAttendanceSessionApi(payload: { branch: string; session_date: string; notes?: string }): Promise<any> {
-  return http.post(`${BASE}/staff-attendance/sessions/`, payload);
+export async function fetchStaffAttendanceSessionsApi(params?: {
+  branch?: string;
+  session_date?: string;
+  date_from?: string;
+  date_to?: string;
+  status?: string;
+}): Promise<any[]> {
+  const query: Record<string, string> = {};
+  if (params?.branch) query.branch = params.branch;
+  if (params?.status) query.status = params.status;
+  if (params?.date_from) query.date_from = params.date_from;
+  if (params?.date_to) query.date_to = params.date_to;
+  if (params?.session_date) {
+    query.date_from = params.session_date;
+    query.date_to = params.session_date;
+  }
+  const rows = unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/${queryString(query)}`));
+  return rows.map(r => mapStaffSessionFromApi(r as Record<string, unknown>));
 }
 
-export async function updateStaffAttendanceSessionApi(id: string, payload: Partial<{ branch: string; session_date: string; notes: string }>): Promise<any> {
-  return http.patch(`${BASE}/staff-attendance/sessions/${id}/`, payload);
+export async function createStaffAttendanceSessionApi(payload: {
+  branch: string;
+  session_date: string;
+  notes?: string;
+}): Promise<any> {
+  const res = await http.post(`${BASE}/staff-attendance/sessions/`, {
+    branch: payload.branch,
+    date: payload.session_date,
+    notes: payload.notes,
+  });
+  return mapStaffSessionFromApi(res as Record<string, unknown>);
 }
 
-export async function publishStaffAttendanceSessionApi(id: string): Promise<any> {
-  return http.post(`${BASE}/staff-attendance/sessions/${id}/publish/`, {});
+export async function updateStaffAttendanceSessionApi(
+  id: string,
+  payload: Partial<{ branch: string; session_date: string; notes: string }>,
+): Promise<any> {
+  const body: Record<string, string> = {};
+  if (payload.branch) body.branch = payload.branch;
+  if (payload.session_date) body.date = payload.session_date;
+  if (payload.notes !== undefined) body.notes = payload.notes;
+  const res = await http.patch(`${BASE}/staff-attendance/sessions/${id}/`, body);
+  return mapStaffSessionFromApi(res as Record<string, unknown>);
 }
 
-export async function upsertStaffAttendanceRecordsApi(sessionId: string, records: StaffAttendanceRecordPayload[]): Promise<any> {
-  return http.post(`${BASE}/staff-attendance/sessions/${sessionId}/records/`, records);
+/**
+ * Include `branch` in body for Branch Managers — permission mixin needs it on POST.
+ * Super Admins work with `{}` as well.
+ */
+export async function publishStaffAttendanceSessionApi(id: string, branch?: string): Promise<any> {
+  return http.post(`${BASE}/staff-attendance/sessions/${id}/publish/`, branch ? { branch } : {});
+}
+
+export async function fetchStaffAttendanceSessionApi(id: string, branch?: string): Promise<any> {
+  const q = branch ? queryString({ branch }) : '';
+  const res = await http.get(`${BASE}/staff-attendance/sessions/${id}/${q}`);
+  return mapStaffSessionFromApi(res as Record<string, unknown>);
+}
+
+/**
+ * SA can POST an array. BM permission check fails on array bodies — send one object
+ * at a time with `branch` so get_branch_id resolves without crashing.
+ */
+export async function upsertStaffAttendanceRecordsApi(
+  sessionId: string,
+  records: StaffAttendanceRecordPayload[],
+  branch?: string,
+): Promise<any> {
+  if (!branch) {
+    return http.post(`${BASE}/staff-attendance/sessions/${sessionId}/records/`, records);
+  }
+  const results = [];
+  for (const record of records) {
+    const row = await http.post(`${BASE}/staff-attendance/sessions/${sessionId}/records/`, {
+      ...record,
+      branch,
+    });
+    results.push(row);
+  }
+  return results.flat();
 }
 
 export async function updateStaffAttendanceRecordApi(sessionId: string, recordId: string, payload: Partial<StaffAttendanceRecordPayload>): Promise<any> {
@@ -336,8 +474,7 @@ export async function updateStaffAttendanceRecordApi(sessionId: string, recordId
 
 // ─── Milestones & Progress ───
 export async function fetchMilestonesApi(subProgramId: string): Promise<LearningMilestone[]> {
-  try { return unwrapList(await http.get<ListResponse<LearningMilestone>>(`${BASE}/learning-milestones/${queryString({ sub_program: subProgramId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<LearningMilestone>>(`${BASE}/learning-milestones/${queryString({ sub_program: subProgramId })}`));
 }
 
 export async function createMilestoneApi(payload: LearningMilestonePayload): Promise<LearningMilestone> {
@@ -357,8 +494,7 @@ export async function customizeMilestoneApi(id: string, payload: Partial<Learnin
 }
 
 export async function fetchStudentProgressApi(enrollmentId: string): Promise<StudentProgress[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/enrollments/${enrollmentId}/history/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/enrollments/${enrollmentId}/history/`));
 }
 
 export async function fetchStudentProgressSummaryApi(enrollmentId: string): Promise<Record<string, unknown>> {
@@ -375,8 +511,7 @@ export async function updateStudentProgressApi(id: string, payload: { status: st
 
 // ─── Learning Materials ───
 export async function fetchLearningMaterialsApi(subProgramId?: string): Promise<LearningMaterial[]> {
-  try { return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/${queryString({ sub_program: subProgramId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/${queryString({ sub_program: subProgramId })}`));
 }
 
 export async function createLearningMaterialApi(payload: LearningMaterialPayload): Promise<LearningMaterial> {
@@ -397,16 +532,28 @@ export function downloadLearningMaterialApi(id: string) {
 
 // ─── Certificates ───
 export async function fetchCertificateTemplatesApi(): Promise<Certificate[]> {
-  try { return unwrapList(await http.get<ListResponse<Certificate>>(`${BASE}/certificate-templates/`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<Certificate>>(`${BASE}/certificate-templates/`));
+}
+
+function toCertificateFormData(payload: Partial<CertificateTemplatePayload>): FormData {
+  const fd = new FormData();
+  if (payload.sub_program) fd.append('sub_program', payload.sub_program);
+  if (payload.title) fd.append('title', payload.title);
+  if (payload.background instanceof File) fd.append('background', payload.background);
+  if (payload.institute_logo instanceof File) fd.append('institute_logo', payload.institute_logo);
+  if (payload.signature instanceof File) fd.append('signature', payload.signature);
+  if (payload.body_text !== undefined) {
+    fd.append('body_text', encodeBodyWithSignatory(payload.body_text, payload.signatory_name, payload.signatory_title));
+  }
+  return fd;
 }
 
 export async function createCertificateTemplateApi(payload: CertificateTemplatePayload): Promise<Certificate> {
-  return http.post<Certificate>(`${BASE}/certificate-templates/`, payload);
+  return http.post<Certificate>(`${BASE}/certificate-templates/`, toCertificateFormData(payload));
 }
 
 export async function updateCertificateTemplateApi(id: string, payload: Partial<CertificateTemplatePayload>): Promise<Certificate> {
-  return http.patch<Certificate>(`${BASE}/certificate-templates/${id}/`, payload);
+  return http.patch<Certificate>(`${BASE}/certificate-templates/${id}/`, toCertificateFormData(payload));
 }
 
 export async function setCertificateTemplateActiveApi(id: string, active: boolean): Promise<Certificate> {
@@ -414,8 +561,7 @@ export async function setCertificateTemplateActiveApi(id: string, active: boolea
 }
 
 export async function fetchStudentCertificatesApi(studentId?: string): Promise<StudentCertificate[]> {
-  try { return unwrapList(await http.get<ListResponse<StudentCertificate>>(`${BASE}/student-certificates/${queryString({ student: studentId })}`)); }
-  catch { return []; }
+  return unwrapList(await http.get<ListResponse<StudentCertificate>>(`${BASE}/student-certificates/${queryString({ student: studentId })}`));
 }
 
 export async function issueStudentCertificateApi(payload: IssueCertificatePayload): Promise<StudentCertificate> {
@@ -431,15 +577,9 @@ export async function verifyCertificateApi(number: string): Promise<StudentCerti
 }
 
 // ─── Reports (PDF download) ───
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 async function downloadFile(endpoint: string, filename: string) {
-  const token = localStorage.getItem('access_token');
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) throw new Error('Failed to download report');
-  const blob = await res.blob();
+  const blob = await http.downloadBlob(endpoint);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -486,4 +626,97 @@ export function downloadSubProgramReportPdf(subProgramId: string) {
 
 export function downloadProgramReportPdf(programId: string) {
   return downloadPdf(`${BASE}/reports/programs/${programId}/`, `program-report-${programId}.pdf`);
+}
+
+export type BankAccount = {
+  id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  branch?: string;
+  swift_code?: string;
+  iban?: string;
+  is_active: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchBankAccountsApi(): Promise<BankAccount[]> {
+  return http.get<BankAccount[]>('/bank-accounts/');
+}
+
+export async function createBankAccountApi(data: Partial<BankAccount>): Promise<BankAccount> {
+  return http.post<BankAccount>('/bank-accounts/', data);
+}
+
+export async function updateBankAccountApi(id: string, data: Partial<BankAccount>): Promise<BankAccount> {
+  return http.put<BankAccount>(`/bank-accounts/${id}/`, data);
+}
+
+export async function deleteBankAccountApi(id: string): Promise<void> {
+  return http.delete(`/bank-accounts/${id}/`);
+}
+
+// ---- Branch Transfer ----
+
+export type BranchTransferRequest = {
+  id: string;
+  enrollment: string;
+  from_branch: string;
+  to_branch: string;
+  target_class: string;
+  requested_by: string;
+  approved_by?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejection_reason?: string;
+  created_at: string;
+  approved_at?: string;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+  code?: string;
+};
+
+export async function fetchBranchesApi(): Promise<Branch[]> {
+  return http.get<Branch[]>('/accounts/branches/');
+}
+
+export async function requestTransferApi(data: { enrollment: string; target_class: string; to_branch: string }): Promise<BranchTransferRequest> {
+  return http.post<BranchTransferRequest>(`${BASE}/transfers/request/`, data);
+}
+
+export async function listTransferRequestsApi(): Promise<BranchTransferRequest[]> {
+  return http.get<BranchTransferRequest[]>(`${BASE}/transfers/`);
+}
+
+export async function approveTransferApi(id: string): Promise<BranchTransferRequest> {
+  return http.post<BranchTransferRequest>(`${BASE}/transfers/${id}/approve/`, {});
+}
+
+export async function rejectTransferApi(id: string, rejection_reason: string): Promise<BranchTransferRequest> {
+  return http.post<BranchTransferRequest>(`${BASE}/transfers/${id}/reject/`, { rejection_reason });
+}
+
+export async function moveEnrollmentApi(
+  enrollmentId: string,
+  payload: { target_class: string },
+): Promise<Enrollment> {
+  return http.post<Enrollment>(`${BASE}/enrollments/${enrollmentId}/move/`, payload);
+}
+
+export async function splitClassApi(
+  classId: string,
+  payload: { target_class: string; enrollment_ids?: string[] },
+): Promise<{ detail?: string }> {
+  return http.post(`${BASE}/classes/${classId}/split/`, payload);
+}
+
+export async function switchSubProgramApi(
+  enrollmentId: string,
+  payload: { target_class: string },
+): Promise<{ old_enrollment: Enrollment; new_enrollment: Enrollment; amount_due?: string | number }> {
+  return http.post(`${BASE}/enrollments/${enrollmentId}/switch-subprogram/`, payload);
 }

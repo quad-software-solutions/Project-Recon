@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, ShoppingBag, GraduationCap, Trophy, Users, Wrench, ArrowRight } from 'lucide-react';
-import { ROBOTICS_PRODUCTS, ROBOTICS_PROGRAMS, MOCK_FORUM_POSTS, MOCK_WORKSHOPS, MOCK_TOURNAMENTS } from '@/src/shared/constants/mock-data';
 import type { ActiveTab } from '../types';
 
 interface SearchOverlayProps {
@@ -20,48 +19,38 @@ interface SearchResult {
   badge?: string;
 }
 
-const SEARCHABLE: SearchResult[] = [
-  ...ROBOTICS_PROGRAMS.map(p => ({
-    id: p.id, title: p.title, description: p.description,
-    category: 'Programs', icon: GraduationCap, tab: 'registration' as ActiveTab,
-    badge: p.level
-  })),
-  ...ROBOTICS_PRODUCTS.map(p => ({
-    id: p.id, title: p.name, description: p.description,
-    category: 'Store', icon: ShoppingBag, tab: 'store' as ActiveTab,
-    badge: p.category
-  })),
-  ...MOCK_WORKSHOPS.map(w => ({
-    id: w.id, title: w.title, description: w.description,
-    category: 'Workshops', icon: Wrench, tab: 'competitions' as ActiveTab,
-    badge: w.status
-  })),
-  ...MOCK_TOURNAMENTS.map(t => ({
-    id: t.id, title: t.name, description: t.description,
-    category: 'Tournaments', icon: Trophy, tab: 'competitions' as ActiveTab,
-    badge: t.status
-  })),
-  ...MOCK_FORUM_POSTS.map(f => ({
-    id: f.id, title: f.title, description: f.content,
-    category: 'Community', icon: Users, tab: 'community' as ActiveTab,
-    badge: f.category
-  })),
-];
-
 export default function SearchOverlay({ isOpen, onClose, onNavigate }: SearchOverlayProps) {
   const [query, setQuery] = useState('');
+  const [searchable, setSearchable] = useState<SearchResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
+      import('@/domains/store/products/api/productApi').then(m => m.getProducts()).then(products => {
+        const results: SearchResult[] = (products || []).map(p => ({
+          id: p.id, title: p.name, description: p.description,
+          category: 'Store', icon: ShoppingBag, tab: 'store' as ActiveTab,
+          badge: p.category_name
+        }));
+        setSearchable(prev => [...prev.filter(r => r.category !== 'Store'), ...results]);
+      }).catch(() => {});
+      import('@/domains/competition/api/competitionApi').then(async m => {
+        const [ts, ws] = await Promise.all([m.getTournaments().catch(() => []), m.getWorkshops().catch(() => [])]);
+        const results: SearchResult[] = [
+          ...ts.map(t => ({ id: t.id, title: t.title, description: t.description, category: 'Tournaments' as const, icon: Trophy, tab: 'competitions' as ActiveTab, badge: t.storedStatus })),
+          ...ws.map(w => ({ id: w.id, title: w.title, description: w.description, category: 'Workshops' as const, icon: Wrench, tab: 'competitions' as ActiveTab, badge: w.storedStatus })),
+        ];
+        setSearchable(prev => [...prev.filter(r => r.category !== 'Tournaments' && r.category !== 'Workshops'), ...results]);
+      }).catch(() => {});
     } else {
       setQuery('');
+      setSearchable([]);
     }
   }, [isOpen]);
 
   const filtered = query.trim()
-    ? SEARCHABLE.filter(item => {
+    ? searchable.filter(item => {
         const q = query.toLowerCase();
         return item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
       }).slice(0, 12)

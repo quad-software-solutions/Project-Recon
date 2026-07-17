@@ -45,6 +45,13 @@ class IsSuperAdminOrBranchManager(BasePermission):
         return Roles.SUPER_ADMIN in roles or Roles.BRANCH_MANAGER in roles
 
 
+class IsSecretary(BasePermission):
+    """Allow only users with an active Secretary assignment."""
+
+    def has_permission(self, request, view) -> bool:
+        return request.user.is_authenticated and user_is_secretary(request.user)
+
+
 class IsSelfOrSuperAdmin(BasePermission):
     """Allow the resource owner or a Super Admin."""
 
@@ -62,6 +69,7 @@ __all__ = [
     "IsSuperAdmin",
     "IsBranchManager",
     "IsInstructor",
+    "IsSecretary",
     "IsSuperAdminOrBranchManager",
     "IsSelfOrSuperAdmin",
     "get_active_branch_ids",

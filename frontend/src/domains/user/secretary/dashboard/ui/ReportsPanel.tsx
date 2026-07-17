@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { FileText, Users, BookOpen, DollarSign, Award, Download, Loader2 } from 'lucide-react';
-import { Enrollment, EnrollmentPayment, StudentProfile, StudentCertificate, AcademicClass } from '@/src/shared/types';
+import { Enrollment, EnrollmentPayment, StudentProfile, StudentCertificate, AcademicClass, UserProfile } from '@/shared/types';
 import {
   fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi,
   fetchClassesApi, fetchProgramsApi, fetchSubProgramsApi,
@@ -9,10 +9,10 @@ import {
   downloadAttendanceReportPdf, downloadProgressReportPdf,
   downloadCertificateReportPdf, downloadClassReportPdf,
   downloadSubProgramReportPdf, downloadProgramReportPdf
-} from '@/src/domains/learning/academics/api/academicApi';
-import type { Program, SubProgram } from '@/src/shared/types';
+} from '@/domains/learning/academics/api/academicApi';
+import type { Program, SubProgram } from '@/shared/types';
 
-export default function ReportsPanel() {
+export default function ReportsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -31,33 +31,41 @@ export default function ReportsPanel() {
   const [studentResults, setStudentResults] = useState<StudentProfile[]>([]);
 
   useEffect(() => {
-    Promise.all([
+    const isSecretary = currentUser?.role === 'Secretary';
+    Promise.allSettled([
       fetchEnrollmentsApi(),
       fetchPaymentsApi(),
       fetchStudentsApi(),
       fetchStudentCertificatesApi(),
-      fetchClassesApi(),
+      isSecretary ? Promise.resolve([]) : fetchClassesApi(),
       fetchProgramsApi(),
       fetchSubProgramsApi(),
     ]).then(([enr, pay, stu, cer, cls, prog, sub]) => {
-      setEnrollments(Array.isArray(enr) ? enr : []);
-      setPayments(Array.isArray(pay) ? pay : []);
-      setStudents(Array.isArray(stu) ? stu : []);
-      setCerts(Array.isArray(cer) ? cer : []);
-      setClasses(Array.isArray(cls) ? cls : []);
-      setPrograms(Array.isArray(prog) ? prog : []);
-      setSubPrograms(Array.isArray(sub) ? sub : []);
-      if (Array.isArray(stu) && stu.length > 0) setSelectedStudent(stu[0].id);
-      if (Array.isArray(cls) && cls.length > 0) setSelectedClass(cls[0].id);
-      if (Array.isArray(sub) && sub.length > 0) setSelectedSubProgram(sub[0].id);
-      if (Array.isArray(prog) && prog.length > 0) setSelectedProgram(prog[0].id);
-    }).catch(() => {}).finally(() => setLoading(false));
+      const enrV = enr.status === 'fulfilled' && Array.isArray(enr.value) ? enr.value : [];
+      const payV = pay.status === 'fulfilled' && Array.isArray(pay.value) ? pay.value : [];
+      const stuV = stu.status === 'fulfilled' && Array.isArray(stu.value) ? stu.value : [];
+      const cerV = cer.status === 'fulfilled' && Array.isArray(cer.value) ? cer.value : [];
+      const clsV = cls.status === 'fulfilled' && Array.isArray(cls.value) ? cls.value : [];
+      const progV = prog.status === 'fulfilled' && Array.isArray(prog.value) ? prog.value : [];
+      const subV = sub.status === 'fulfilled' && Array.isArray(sub.value) ? sub.value : [];
+      setEnrollments(enrV);
+      setPayments(payV);
+      setStudents(stuV);
+      setCerts(cerV);
+      setClasses(clsV);
+      setPrograms(progV);
+      setSubPrograms(subV);
+      if (stuV.length > 0) setSelectedStudent(stuV[0].id);
+      if (clsV.length > 0) setSelectedClass(clsV[0].id);
+      if (subV.length > 0) setSelectedSubProgram(subV[0].id);
+      if (progV.length > 0) setSelectedProgram(progV[0].id);
+    }).finally(() => setLoading(false));
   }, []);
 
   const totalPaid = payments.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount), 0);
   const activeStudents = students.filter(s => s.is_active);
   const activeEnrollments = enrollments.filter(e => e.status === 'ACTIVE');
-  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter(e => e.status === 'PENDING_VERIFICATION');
   const cashPayments = payments.filter(p => p.payment_method === 'CASH');
 
   const doDownload = async (key: string, fn: () => Promise<void>) => {
@@ -91,7 +99,7 @@ export default function ReportsPanel() {
     {
       key: 'payments', label: 'Payment Report', icon: DollarSign,
       stats: [
-        { label: 'Total Collected', value: `${totalPaid.toLocaleString()} ETB`, color: 'text-emerald-600' },
+        { label: 'Total Collected', value: `${totalPaid.toLocaleString()} Birr`, color: 'text-emerald-600' },
         { label: 'Transactions', value: payments.length, color: 'text-brand-blue' },
         { label: 'Cash', value: cashPayments.length, color: 'text-amber-600' },
         { label: 'Paid', value: payments.filter(p => p.status === 'PAID').length, color: 'text-emerald-600' },
@@ -153,8 +161,8 @@ export default function ReportsPanel() {
               className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-red/5 flex items-center justify-center">
-                  <RIcon className="w-5 h-5 text-brand-red" />
+                <div className="w-10 h-10 rounded-lg bg-blue-600/5 flex items-center justify-center">
+                  <RIcon className="w-5 h-5 text-blue-600" />
                 </div>
               </div>
               <h3 className="font-bold text-base text-slate-900">{r.label}</h3>
@@ -173,7 +181,7 @@ export default function ReportsPanel() {
 
       <div className="bg-white border border-slate-200 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <FileText className="w-4 h-4 text-brand-red" />
+          <FileText className="w-4 h-4 text-blue-600" />
           <h3 className="font-bold text-sm text-slate-900">Download Reports</h3>
         </div>
 
@@ -192,7 +200,7 @@ export default function ReportsPanel() {
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Student</label>
                 <select value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose student...</option>
                   {students.map(s => {
                     const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
@@ -205,7 +213,7 @@ export default function ReportsPanel() {
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Class</label>
                 <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose class...</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} — {c.branch_name || 'Branch'}</option>)}
                 </select>
@@ -215,7 +223,7 @@ export default function ReportsPanel() {
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Sub-Program</label>
                 <select value={selectedSubProgram} onChange={e => setSelectedSubProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose sub-program...</option>
                   {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name} — {sp.program_name || 'Program'}</option>)}
                 </select>
@@ -225,7 +233,7 @@ export default function ReportsPanel() {
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Program</label>
                 <select value={selectedProgram} onChange={e => setSelectedProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose program...</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -238,7 +246,7 @@ export default function ReportsPanel() {
             (reportType === 'subprogram' && !selectedSubProgram) ||
             (reportType === 'program' && !selectedProgram) ||
             !!downloading
-          } className="flex items-center gap-1.5 text-xs font-bold bg-brand-red text-white px-4 py-2 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 transition-colors shrink-0">
+          } className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shrink-0">
             <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-bounce' : ''}`} />
             {downloading ? 'Downloading...' : 'Download Report'}
           </button>
@@ -267,7 +275,7 @@ export default function ReportsPanel() {
                   <td className="px-4 py-2.5 text-xs text-slate-700">{e.class_name || e.sub_program_name || '—'}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-500 hidden sm:table-cell">{e.enrolled_at?.slice(0, 10) || '—'}</td>
                   <td className="px-4 py-2.5 text-center">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-brand-blue/10 text-brand-blue' : 'bg-red-100 text-red-600'}`}>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-brand-blue/10 text-brand-blue' : 'bg-red-100 text-red-600'}`}>
                       {e.status.replace('_', ' ')}
                     </span>
                   </td>

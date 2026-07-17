@@ -1,7 +1,16 @@
 from django.test import TestCase
 from rest_framework.exceptions import NotFound, ValidationError
 
-from apps.cms.models import HeroBanner, NewsArticle, Partner, AboutUs, FAQ, ContactRequest
+from apps.cms.models import (
+    HeroBanner,
+    NewsArticle,
+    Partner,
+    AboutUs,
+    FAQ,
+    ContactRequest,
+    MapNode,
+    Gallery,
+)
 from apps.cms.services.hero_banner_service import (
     create_hero_banner,
     update_hero_banner,
@@ -17,7 +26,23 @@ from apps.cms.services.contact_request_service import (
     delete_contact_request,
 )
 from apps.cms.services.faq_service import create_faq, get_faq_or_404
-from apps.cms.constants import ContactStatus, ContactPriority
+from apps.cms.services.map_node_service import (
+    create_map_node,
+    update_map_node,
+    delete_map_node,
+    get_map_node_or_404,
+    list_map_nodes,
+    list_active_map_nodes,
+)
+from apps.cms.services.gallery_service import (
+    create_gallery_item,
+    update_gallery_item,
+    delete_gallery_item,
+    get_gallery_or_404,
+    list_gallery_items,
+    list_active_gallery_items,
+)
+from apps.cms.constants import ContactStatus, ContactPriority, MapNodeCategory
 
 
 class HeroBannerServiceTest(TestCase):
@@ -249,3 +274,205 @@ class FAQServiceTest(TestCase):
     def test_get_or_404_not_found(self):
         with self.assertRaises(NotFound):
             get_faq_or_404("00000000-0000-0000-0000-000000000000")
+
+
+class GalleryServiceTest(TestCase):
+    """Service-level tests for Gallery CRUD."""
+
+    def test_create_gallery_item(self):
+        item = create_gallery_item({
+            "title": "Photo",
+            "description": "A nice photo",
+            "video_url": "https://example.com/video",
+        })
+        self.assertIsNotNone(item.id)
+        self.assertEqual(item.title, "Photo")
+        self.assertEqual(item.description, "A nice photo")
+        self.assertEqual(item.video_url, "https://example.com/video")
+        self.assertTrue(item.is_active)
+
+    def test_create_gallery_item_minimal(self):
+        item = create_gallery_item({"title": "Minimal"})
+        self.assertEqual(item.title, "Minimal")
+        self.assertEqual(item.description, "")
+        self.assertFalse(item.image)
+        self.assertIsNone(item.video_url)
+
+    def test_list_gallery_items_includes_inactive(self):
+        create_gallery_item({"title": "Active"})
+        create_gallery_item({"title": "Inactive", "is_active": False})
+        qs = list_gallery_items()
+        self.assertEqual(qs.count(), 2)
+
+    def test_list_active_gallery_items_excludes_inactive(self):
+        create_gallery_item({"title": "Active"})
+        create_gallery_item({"title": "Inactive", "is_active": False})
+        qs = list_active_gallery_items()
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].title, "Active")
+
+    def test_get_gallery_or_404_found(self):
+        item = create_gallery_item({"title": "Find Me"})
+        found = get_gallery_or_404(item.id)
+        self.assertEqual(found.id, item.id)
+
+    def test_get_gallery_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_gallery_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_get_gallery_or_404_active_only_found(self):
+        item = create_gallery_item({"title": "Active"})
+        found = get_gallery_or_404(item.id, active_only=True)
+        self.assertEqual(found.id, item.id)
+
+    def test_get_gallery_or_404_active_only_excludes_inactive(self):
+        item = create_gallery_item({"title": "Inactive", "is_active": False})
+        with self.assertRaises(NotFound):
+            get_gallery_or_404(item.id, active_only=True)
+
+    def test_update_gallery_item(self):
+        item = create_gallery_item({"title": "Old Title"})
+        updated = update_gallery_item(item, {"title": "New Title"})
+        self.assertEqual(updated.title, "New Title")
+
+    def test_update_gallery_item_multiple_fields(self):
+        item = create_gallery_item({"title": "Old", "description": "Old desc"})
+        updated = update_gallery_item(item, {
+            "title": "New",
+            "description": "New desc",
+            "video_url": "https://example.com/new",
+        })
+        self.assertEqual(updated.title, "New")
+        self.assertEqual(updated.description, "New desc")
+        self.assertEqual(updated.video_url, "https://example.com/new")
+
+    def test_delete_gallery_item_hard_delete(self):
+        item = create_gallery_item({"title": "Delete Me"})
+        delete_gallery_item(item)
+        with self.assertRaises(NotFound):
+            get_gallery_or_404(item.id)
+
+    def test_delete_gallery_item_removes_from_db(self):
+        item = create_gallery_item({"title": "Gone"})
+        item_id = item.id
+        delete_gallery_item(item)
+        self.assertFalse(Gallery.objects.filter(id=item_id).exists())
+
+    def test_delete_gallery_item_twice_raises_not_found(self):
+        item = create_gallery_item({"title": "Double Delete"})
+        delete_gallery_item(item)
+        with self.assertRaises(NotFound):
+            get_gallery_or_404(item.id)
+
+    def test_ordering_newest_first(self):
+        old = create_gallery_item({"title": "Older"})
+        new = create_gallery_item({"title": "Newer"})
+        qs = list_gallery_items()
+        self.assertEqual(qs[0].id, new.id)
+        self.assertEqual(qs[1].id, old.id)
+
+
+class MapNodeServiceTest(TestCase):
+    """Service-level tests for MapNode CRUD."""
+
+    def _data(self, **overrides):
+        defaults = {
+            "city": "Addis Ababa",
+            "country": "Ethiopia",
+            "title": "Test Node",
+            "achievement": "Great achievement.",
+            "x": 50.0,
+            "y": 25.0,
+            "category": MapNodeCategory.CHAMPIONSHIP,
+        }
+        defaults.update(overrides)
+        return defaults
+
+    def test_create_map_node(self):
+        node = create_map_node(self._data())
+        self.assertIsNotNone(node.id)
+        self.assertEqual(node.title, "Test Node")
+        self.assertEqual(node.category, MapNodeCategory.CHAMPIONSHIP)
+        self.assertTrue(node.is_active)
+
+    def test_create_map_node_with_all_fields(self):
+        node = create_map_node(self._data(
+            lat="8.9806\u00b0 N",
+            lng="38.7578\u00b0 E",
+        ))
+        self.assertEqual(node.lat, "8.9806\u00b0 N")
+        self.assertEqual(node.lng, "38.7578\u00b0 E")
+        self.assertEqual(node.x, 50.0)
+        self.assertEqual(node.y, 25.0)
+
+    def test_create_map_node_each_category(self):
+        for category in MapNodeCategory.values:
+            node = create_map_node(self._data(
+                title=f"Node {category}", category=category,
+            ))
+            self.assertEqual(node.category, category)
+
+    def test_list_map_nodes_includes_inactive(self):
+        create_map_node(self._data(title="Active"))
+        create_map_node(self._data(title="Inactive", is_active=False))
+        qs = list_map_nodes()
+        self.assertEqual(qs.count(), 2)
+
+    def test_list_active_map_nodes_excludes_inactive(self):
+        create_map_node(self._data(title="Active"))
+        create_map_node(self._data(title="Inactive", is_active=False))
+        qs = list_active_map_nodes()
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].title, "Active")
+
+    def test_get_map_node_or_404_found(self):
+        node = create_map_node(self._data())
+        found = get_map_node_or_404(node.id)
+        self.assertEqual(found.id, node.id)
+
+    def test_get_map_node_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_map_node_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_update_map_node(self):
+        node = create_map_node(self._data())
+        updated = update_map_node(node, {"title": "Updated Title"})
+        self.assertEqual(updated.title, "Updated Title")
+
+    def test_update_map_node_multiple_fields(self):
+        node = create_map_node(self._data())
+        updated = update_map_node(node, {
+            "city": "Dire Dawa",
+            "country": "Ethiopia",
+            "achievement": "New achievement.",
+        })
+        self.assertEqual(updated.city, "Dire Dawa")
+        self.assertEqual(updated.country, "Ethiopia")
+        self.assertEqual(updated.achievement, "New achievement.")
+
+    def test_update_map_node_category(self):
+        node = create_map_node(self._data())
+        updated = update_map_node(node, {"category": MapNodeCategory.RESEARCH})
+        self.assertEqual(updated.category, MapNodeCategory.RESEARCH)
+
+    def test_delete_map_node_soft_delete(self):
+        node = create_map_node(self._data())
+        self.assertTrue(node.is_active)
+        delete_map_node(node)
+        node.refresh_from_db()
+        self.assertFalse(node.is_active)
+
+    def test_delete_map_node_still_exists(self):
+        node = create_map_node(self._data())
+        delete_map_node(node)
+        # Should still be retrievable (not hard deleted)
+        found = get_map_node_or_404(node.id)
+        self.assertEqual(found.id, node.id)
+        self.assertFalse(found.is_active)
+
+    def test_ordering_by_title(self):
+        node_b = create_map_node(self._data(title="Beta", x=1, y=1))
+        node_a = create_map_node(self._data(title="Alpha", x=1, y=1))
+        qs = list_map_nodes()
+        self.assertEqual(qs[0].id, node_a.id)
+        self.assertEqual(qs[1].id, node_b.id)

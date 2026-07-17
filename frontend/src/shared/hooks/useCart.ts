@@ -1,51 +1,80 @@
-import { useState } from 'react';
-import { CartItem, Product } from '../types';
+import { useState, useEffect, useCallback } from 'react';
+import { 
+  getCart, 
+  addCartItem, 
+  updateCartItemQuantity, 
+  removeCartItem, 
+  clearCart as clearCartApi 
+} from '@/domains/store/cart/api/cartApi';
+import type { 
+  ShoppingCart, 
+  ShoppingCartItem, 
+  CartAddPayload 
+} from '@/domains/store/model/types';
 
 export function useCart() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<ShoppingCart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'shipping' | 'submitting' | 'success'>('cart');
 
-  const handleAddToCart = (product: Product) => {
-    setCart((prevCart) => {
-      const existing = prevCart.find((item) => item.product.id === product.id);
-      if (existing) {
-        return prevCart.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prevCart, { product, quantity: 1 }];
-    });
+  const fetchCart = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getCart();
+      setCart(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load cart');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  const handleAddToCart = async (payload: CartAddPayload) => {
+    try {
+      await addCartItem(payload);
+      await fetchCart();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add item to cart');
+      throw err;
+    }
   };
 
-  const handleUpdateCartQuantity = (productId: string, delta: number) => {
-    setCart((prevCart) => {
-      return prevCart.map((item) => {
-        if (item.product.id === productId) {
-          const newQty = item.quantity + delta;
-          return { ...item, quantity: newQty < 1 ? 1 : newQty };
-        }
-        return item;
-      });
-    });
+  const handleUpdateQuantity = async (itemId: string, quantity: number) => {
+    try {
+      await updateCartItemQuantity(itemId, quantity);
+      await fetchCart();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update quantity');
+    }
   };
 
-  const handleRemoveFromCart = (productId: string) => {
-    setCart((prevCart) => prevCart.filter((item) => item.product.id !== productId));
+  const handleRemoveFromCart = async (itemId: string) => {
+    try {
+      await removeCartItem(itemId);
+      await fetchCart();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove item');
+    }
   };
 
-  const getCartTotal = () => {
-    return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const clearCart = async () => {
+    try {
+      await clearCartApi();
+      await fetchCart();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to clear cart');
+    }
   };
 
-  const getCartItemsCount = () => {
-    return cart.reduce((sum, item) => sum + item.quantity, 0);
-  };
+  const clearCartError = () => setError(null);
 
   const openCart = () => {
-    setCheckoutStep('cart');
     setCartOpen(true);
   };
 
@@ -55,16 +84,16 @@ export function useCart() {
 
   return {
     cart,
-    setCart,
+    loading,
+    error,
     cartOpen,
     setCartOpen,
-    checkoutStep,
-    setCheckoutStep,
     handleAddToCart,
-    handleUpdateCartQuantity,
+    handleUpdateQuantity,
     handleRemoveFromCart,
-    getCartTotal,
-    getCartItemsCount,
+    clearCart,
+    clearCartError,
+    fetchCart,
     openCart,
     closeCart,
   };

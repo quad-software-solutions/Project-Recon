@@ -16,7 +16,7 @@ class ProgramAdmin(admin.ModelAdmin):
 
 @admin.register(SubProgram)
 class SubProgramAdmin(admin.ModelAdmin):
-    list_display = ["name", "program", "fee", "is_active", "created_at"]
+    list_display = ["name", "program", "group_fee", "individual_fee", "is_active", "created_at"]
     search_fields = ["name", "slug"]
     list_filter = ["is_active", "program", "duration_unit"]
     prepopulated_fields = {"slug": ["name"]}

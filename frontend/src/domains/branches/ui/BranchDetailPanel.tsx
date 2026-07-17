@@ -1,6 +1,6 @@
-import { motion } from 'motion/react';
+import { memo } from 'react';
 import { Building, MapPin, Mail, Phone, Calendar, Clock, UserPlus, X } from 'lucide-react';
-import type { BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+import type { BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchStatusActions } from './BranchStatusActions';
 
 interface Props {
@@ -21,10 +21,9 @@ const statusColor = (s: string) => {
   return map[s] || 'text-slate-600 bg-slate-50 border-slate-200';
 };
 
-export function BranchDetailPanel({ branch, onClose, onEdit, onAssignManager, onToggleActive, onArchive }: Props) {
+export const BranchDetailPanel = memo(function BranchDetailPanel({ branch, onClose, onEdit, onAssignManager, onToggleActive, onArchive }: Props) {
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-      className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
         <h3 className="font-bold text-slate-900 text-sm">Branch Details</h3>
         <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
@@ -85,6 +84,6 @@ export function BranchDetailPanel({ branch, onClose, onEdit, onAssignManager, on
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});

@@ -1,48 +1,55 @@
-import { http } from '@/src/shared/api/http';
-import { MOCK_NOTIFICATIONS } from '@/src/shared/constants/mock-data';
-import type { AppNotification } from '@/src/shared/types';
+import type { AppNotification } from '@/shared/types';
 
-const BASE = '/notifications';
+const STORAGE_KEY = 'ethio_robotics_notifications';
 
-export async function getNotifications(): Promise<AppNotification[]> {
+function load(): AppNotification[] {
   try {
-    const res = await http.get<{ results: AppNotification[] }>(`${BASE}/`);
-    return res.results;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return MOCK_NOTIFICATIONS;
+    return [];
   }
 }
 
+function save(items: AppNotification[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+let cached: AppNotification[] | null = null;
+
+function getCached(): AppNotification[] {
+  if (!cached) cached = load();
+  return cached;
+}
+
+function persist(): void {
+  if (cached !== null) save(cached);
+}
+
+export async function getNotifications(): Promise<AppNotification[]> {
+  return getCached();
+}
+
 export async function markAsRead(id: string): Promise<void> {
-  try {
-    await http.patch(`${BASE}/${id}/`, { read: true });
-  } catch {
-    // silent fallback
+  const items = getCached();
+  const idx = items.findIndex(n => n.id === id);
+  if (idx !== -1) {
+    items[idx].read = true;
+    persist();
   }
 }
 
 export async function markAllAsRead(): Promise<void> {
-  try {
-    await http.post(`${BASE}/mark-all-read/`, {});
-  } catch {
-    // silent fallback
-  }
+  getCached().forEach(n => { n.read = true; });
+  persist();
 }
 
-export async function getUnreadCount(): Promise<number> {
-  try {
-    const res = await http.get<{ count: number }>(`${BASE}/unread-count/`);
-    return res.count;
-  } catch {
-    const notifs = await getNotifications();
-    return notifs.filter(n => !n.read).length;
-  }
+export async function addNotification(notification: AppNotification): Promise<void> {
+  getCached().unshift(notification);
+  persist();
 }
 
-export async function dismissNotification(id: string): Promise<void> {
-  try {
-    await http.delete(`${BASE}/${id}/`);
-  } catch {
-    // silent fallback
-  }
+export async function clearNotifications(): Promise<void> {
+  cached = [];
+  persist();
 }

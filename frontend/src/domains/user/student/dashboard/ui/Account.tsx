@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  User, Mail, Phone, MapPin, Calendar, BookOpen, Award, CheckCircle2,
-  Edit3, Save, X, Loader2, Shield, Star, TrendingUp, Zap, Medal,
-  Target, Clock, GraduationCap, Eye, EyeOff, ChevronRight
+  User, Mail, Phone, Calendar, BookOpen, CheckCircle2,
+  Edit3, Save, X, Loader2, Shield, Star, Target, Lock,
 } from 'lucide-react';
-import type { UserProfile, Enrollment } from '@/src/shared/types';
-import { updateUserApi } from '@/src/domains/user/shared/api/adminApi';
-import { fetchEnrollmentsApi } from '@/src/domains/learning/academics/api/academicApi';
+import type { UserProfile } from '@/shared/types';
+import { updateUserApi } from '@/domains/user/shared/api/adminApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
 interface Props {
@@ -16,19 +14,10 @@ interface Props {
   onUserUpdate?: (user: UserProfile) => void;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  PENDING_PAYMENT: 'bg-amber-100 text-amber-700 border-amber-200',
-  COMPLETED: 'bg-blue-100 text-blue-700 border-blue-200',
-  CANCELLED: 'bg-red-100 text-red-700 border-red-200',
-};
-
-export default function Account({ currentUser, studentId, onUserUpdate }: Props) {
+export default function Account({ currentUser, onUserUpdate }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [enrollLoading, setEnrollLoading] = useState(true);
 
   const [form, setForm] = useState({
     first_name: currentUser.first_name || currentUser.name.split(' ')[0] || '',
@@ -38,9 +27,10 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
     gender: currentUser.gender || '',
   });
 
-  useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(setEnrollments).catch(() => {}).finally(() => setEnrollLoading(false));
-  }, [studentId]);
+  const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   const handleSave = async () => {
     if (!currentUser.id) { setError('User ID not available.'); return; }
@@ -81,13 +71,36 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
     setEditing(false);
   };
 
-  const activeCount = enrollments.filter(e => e.status === 'ACTIVE').length;
-  const completedCount = enrollments.filter(e => e.status === 'COMPLETED').length;
-  const pendingCount = enrollments.filter(e => e.status === 'PENDING_PAYMENT').length;
+  const handlePasswordChange = async () => {
+    if (pwForm.new_password !== pwForm.confirm_password) {
+      setPwError('Passwords do not match');
+      return;
+    }
+    if (pwForm.new_password.length < 8) {
+      setPwError('Password must be at least 8 characters');
+      return;
+    }
+    setPwSaving(true);
+    setPwError('');
+    setPwSuccess(false);
+    try {
+      const { http } = await import('@/shared/api/http');
+      await http.patch('/accounts/password/change/', {
+        current_password: pwForm.current_password,
+        new_password: pwForm.new_password,
+      });
+      setPwSuccess(true);
+      setPwForm({ current_password: '', new_password: '', confirm_password: '' });
+    } catch (e: any) {
+      setPwError(e.message || 'Failed to change password');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── Profile Header ── */}
+      {/* Profile Header */}
       <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-border-light/60 flex flex-col md:flex-row items-center md:items-start gap-8 relative">
         {!editing && (
           <button onClick={() => setEditing(true)}
@@ -145,7 +158,7 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
                 <button onClick={cancelEdit} disabled={saving}
                   className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -154,7 +167,7 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
           ) : (
             <>
               <h3 className="font-display font-bold text-slate-900 text-3xl md:text-4xl uppercase tracking-tight">{currentUser.name}</h3>
-              <p className="font-sans text-brand-muted text-sm mt-1">{currentUser.role}</p>
+              <p className="font-sans text-brand-muted text-sm mt-1">Student</p>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4">
                 <span className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold bg-slate-100 px-3 py-1.5 rounded-lg">
@@ -184,156 +197,37 @@ export default function Account({ currentUser, studentId, onUserUpdate }: Props)
         </div>
       </div>
 
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <Zap className="w-6 h-6 text-emerald-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">XP Points</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{currentUser.xpPoints.toLocaleString()}</p>
-          </div>
+      {/* Password Change */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
+        <div className="flex items-center gap-2 mb-5">
+          <Lock className="w-5 h-5 text-slate-500" />
+          <h3 className="font-bold text-lg text-slate-900">Password</h3>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-            <Award className="w-6 h-6 text-purple-500" />
+        {pwSuccess && (
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> Password changed successfully.
           </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">Badges</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{currentUser.badges.length} <span className="text-sm font-normal text-slate-400">earned</span></p>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input type="password" value={pwForm.current_password} onChange={e => setPwForm(f => ({ ...f, current_password: e.target.value }))}
+            placeholder="Current password"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+          <input type="password" value={pwForm.new_password} onChange={e => setPwForm(f => ({ ...f, new_password: e.target.value }))}
+            placeholder="New password"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+          <div className="flex gap-2">
+            <input type="password" value={pwForm.confirm_password} onChange={e => setPwForm(f => ({ ...f, confirm_password: e.target.value }))}
+              placeholder="Confirm new password"
+              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+            <button onClick={handlePasswordChange} disabled={pwSaving}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-6 h-6 text-blue-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">Active</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{activeCount} <span className="text-sm font-normal text-slate-400">tracks</span></p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-brand-border-light/60 flex items-center gap-4 hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-            <Medal className="w-6 h-6 text-amber-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wide">Completed</p>
-            <p className="font-bold text-slate-900 text-xl leading-tight mt-0.5">{completedCount} <span className="text-sm font-normal text-slate-400">courses</span></p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Portfolio: Enrollments & Achievements ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Enrollment Portfolio */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-brand-red" />
-              <h3 className="font-black text-lg text-slate-900">Learning Portfolio</h3>
-            </div>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">{enrollments.length} total</span>
-          </div>
-
-          {enrollLoading ? (
-            <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
-          ) : enrollments.length === 0 ? (
-            <div className="py-8 text-center text-slate-400">
-              <Target className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">No enrollments yet. Start your learning journey!</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-              {[...enrollments].reverse().map((enr, i) => (
-                <motion.div
-                  key={enr.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${
-                    enr.status === 'ACTIVE' ? 'bg-emerald-50/50 border-emerald-200' :
-                    enr.status === 'COMPLETED' ? 'bg-blue-50/50 border-blue-200' :
-                    enr.status === 'PENDING_PAYMENT' ? 'bg-amber-50/50 border-amber-200' :
-                    'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    enr.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' :
-                    enr.status === 'COMPLETED' ? 'bg-blue-100 text-blue-600' :
-                    enr.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-600' :
-                    'bg-slate-100 text-slate-500'
-                  }`}>
-                    {enr.status === 'ACTIVE' ? <TrendingUp className="w-5 h-5" /> :
-                     enr.status === 'COMPLETED' ? <CheckCircle2 className="w-5 h-5" /> :
-                     enr.status === 'PENDING_PAYMENT' ? <Clock className="w-5 h-5" /> :
-                     <X className="w-5 h-5" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-bold text-sm text-slate-900">{enr.program_name || enr.sub_program_name || 'Program'}</h4>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${STATUS_STYLES[enr.status] || 'bg-slate-100 text-slate-600'}`}>
-                        {enr.status === 'PENDING_PAYMENT' ? 'Pending' : enr.status.charAt(0) + enr.status.slice(1).toLowerCase()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {enr.class_name && <span>{enr.class_name} · </span>}
-                      {enr.branch_name && <span>{enr.branch_name} · </span>}
-                      {enr.enrolled_at?.slice(0, 10)}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Achievements / Badges */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-500" />
-              <h3 className="font-black text-lg text-slate-900">Achievements</h3>
-            </div>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">{currentUser.badges.length} badges</span>
-          </div>
-
-          {currentUser.badges.length === 0 ? (
-            <div className="py-8 text-center text-slate-400">
-              <Award className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">Complete challenges to earn badges!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {currentUser.badges.map((badge, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-200 hover:-translate-y-1 hover:border-amber-200 transition-all"
-                >
-                  <span className="text-2xl mb-2">
-                    {['🏆', '🛡️', '⭐', '🎯', '💎', '🔥', '🌟', '📜', '🔬', '⚡', '🧠', '🎖️'][i % 12]}
-                  </span>
-                  <span className="font-bold text-xs text-slate-700 text-center leading-tight">{badge}</span>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-5 pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 font-medium">Account Status</span>
-              <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                <Shield className="w-3.5 h-3.5" /> Active
-              </span>
-            </div>
-          </div>
-        </div>
+        {pwError && <p className="text-xs text-red-600 mt-2">{pwError}</p>}
       </div>
     </div>
   );

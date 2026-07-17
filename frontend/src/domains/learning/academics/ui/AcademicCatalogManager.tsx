@@ -25,7 +25,7 @@ import {
   X,
   Check,
 } from 'lucide-react';
-import type { Program, SubProgram } from '@/src/shared/types';
+import type { Program, SubProgram } from '@/shared/types';
 import {
   createProgramApi,
   createSubProgramApi,
@@ -37,7 +37,7 @@ import {
   updateSubProgramApi,
   type AcademicProgramPayload,
   type AcademicSubProgramPayload,
-} from '@/src/domains/learning/academics/api/academicApi';
+} from '@/domains/learning/academics/api/academicApi';
 
 type ProgramForm = AcademicProgramPayload & { id?: string };
 type SubProgramForm = AcademicSubProgramPayload & { id?: string };
@@ -110,6 +110,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
       name: programForm.name.trim(),
       slug: programForm.slug || slugify(programForm.name),
       description: programForm.description,
+      image: programForm.image || undefined,
       supports_group: programForm.supports_group,
       supports_individual: programForm.supports_individual,
     };
@@ -133,6 +134,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
       name: subProgramForm.name.trim(),
       slug: subProgramForm.slug || slugify(subProgramForm.name),
       description: subProgramForm.description,
+      image: subProgramForm.image || undefined,
       duration: subProgramForm.duration ? Number(subProgramForm.duration) : null,
       duration_unit: subProgramForm.duration_unit || null,
       fee: subProgramForm.fee || '0.00',
@@ -232,13 +234,30 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
         </div>
       </div>
 
-      {/* Error */}
+      {/* Error Modal */}
       <AnimatePresence>
         {error && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
-          </motion.div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setError('')}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 mx-auto">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mb-2">Action Failed</h3>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6 bg-red-50 p-3 rounded-lg border border-red-100 font-mono text-left max-h-32 overflow-y-auto">
+                  {error}
+                </p>
+                <button onClick={() => setError('')}
+                  className="w-full bg-slate-900 text-white text-sm font-bold py-2.5 px-4 rounded-xl hover:bg-slate-800 transition-colors shadow-sm"
+                >
+                  Okay, understood
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -257,6 +276,26 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
             <FormField label="Description">
               <textarea value={programForm.description || ''} onChange={e => setProgramForm(p => ({ ...p, description: e.target.value }))}
                 rows={3} className="form-input resize-none" />
+            </FormField>
+            <FormField label="Image">
+              <div className="flex items-center gap-3">
+                {programForm.image && typeof programForm.image === 'string' && (
+                  <img src={programForm.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
+                )}
+                <label className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-brand-red/50 transition-colors text-sm text-slate-500">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setProgramForm(p => ({ ...p, image: file }));
+                  }} />
+                  {programForm.image instanceof File ? programForm.image.name : 'Choose image...'}
+                </label>
+                {programForm.image && (
+                  <button type="button" onClick={() => setProgramForm(p => ({ ...p, image: undefined }))}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </FormField>
             <div className="grid grid-cols-2 gap-3">
               <ToggleSwitch label="Group classes" checked={programForm.supports_group} onChange={v => setProgramForm(p => ({ ...p, supports_group: v }))} />
@@ -286,6 +325,26 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
               <textarea value={subProgramForm.description || ''} onChange={e => setSubProgramForm(p => ({ ...p, description: e.target.value }))}
                 rows={2} className="form-input resize-none" />
             </FormField>
+            <FormField label="Image">
+              <div className="flex items-center gap-3">
+                {subProgramForm.image && typeof subProgramForm.image === 'string' && (
+                  <img src={subProgramForm.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
+                )}
+                <label className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-brand-red/50 transition-colors text-sm text-slate-500">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setSubProgramForm(p => ({ ...p, image: file }));
+                  }} />
+                  {subProgramForm.image instanceof File ? subProgramForm.image.name : 'Choose image...'}
+                </label>
+                {subProgramForm.image && (
+                  <button type="button" onClick={() => setSubProgramForm(p => ({ ...p, image: undefined }))}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </FormField>
             <div className="grid grid-cols-3 gap-3">
               <FormField label="Duration">
                 <input type="number" value={subProgramForm.duration ?? ''} onChange={e => setSubProgramForm(p => ({ ...p, duration: e.target.value ? Number(e.target.value) : null }))}
@@ -299,7 +358,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                   <option value="MONTH">Month</option>
                 </select>
               </FormField>
-              <FormField label="Fee (ETB)">
+              <FormField label="Fee (Birr)">
                 <input value={subProgramForm.fee} onChange={e => setSubProgramForm(p => ({ ...p, fee: e.target.value }))}
                   placeholder="5000" className="form-input" />
               </FormField>
@@ -334,9 +393,13 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
               {filteredPrograms.map(program => (
                 <div key={program.id} className="hover:bg-slate-50 transition-colors">
                   <div className="flex items-center gap-3 px-5 py-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${program.is_active ? 'bg-brand-red/10 text-brand-red' : 'bg-slate-100 text-slate-400'}`}>
-                      <BookOpen className="w-4 h-4" />
-                    </div>
+                    {program.image ? (
+                      <img src={program.image} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-slate-200" />
+                    ) : (
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${program.is_active ? 'bg-brand-red/10 text-brand-red' : 'bg-slate-100 text-slate-400'}`}>
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{program.name}</p>
                       <p className="text-xs text-slate-400 truncate font-mono">{program.slug}</p>
@@ -366,7 +429,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                           <div key={sp.id} className="flex items-center gap-2 pl-6 py-1.5 text-xs text-slate-600 border-l-2 border-brand-red/20">
                             <span className="w-1.5 h-1.5 rounded-full bg-brand-red/30 shrink-0" />
                             <span className="font-medium">{sp.name}</span>
-                            <span className="text-slate-400">{Number(sp.fee).toLocaleString()} ETB</span>
+                            <span className="text-slate-400">{Number(sp.fee).toLocaleString()} Birr</span>
                             {sp.duration && <span className="text-slate-400">({sp.duration} {sp.duration_unit?.toLowerCase()})</span>}
                           </div>
                         ))
@@ -413,15 +476,19 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                 const parentProgram = programs.find(p => p.id === sp.program);
                 return (
                   <div key={sp.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${sp.is_active ? 'bg-purple-50 text-purple-500' : 'bg-slate-100 text-slate-400'}`}>
-                      <Layers3 className="w-4 h-4" />
-                    </div>
+                    {sp.image ? (
+                      <img src={sp.image} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 border border-slate-200" />
+                    ) : (
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${sp.is_active ? 'bg-purple-50 text-purple-500' : 'bg-slate-100 text-slate-400'}`}>
+                        <Layers3 className="w-4 h-4" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{sp.name}</p>
                       <p className="text-xs text-slate-400 truncate">{parentProgram?.name || '—'}</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-500 shrink-0">
-                      {Number(sp.fee) > 0 && <span className="font-bold text-slate-700">{Number(sp.fee).toLocaleString()} ETB</span>}
+                      {Number(sp.fee) > 0 && <span className="font-bold text-slate-700">{Number(sp.fee).toLocaleString()} Birr</span>}
                       {sp.duration && <span className="text-slate-400">| {sp.duration}{sp.duration_unit?.charAt(0)?.toLowerCase()}</span>}
                     </div>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sp.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -500,7 +567,7 @@ function ToggleSwitch({ label, checked, onChange }: { label: string; checked: bo
 function ActionButton({ loading, label, disabled }: { loading: boolean; label: string; disabled?: boolean }) {
   return (
     <button type="submit" disabled={loading || disabled}
-      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand-red to-red-700 text-white text-sm font-black px-4 py-2.5 rounded-xl shadow-lg shadow-brand-red/20 hover:shadow-xl hover:shadow-brand-red/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand-blue to-brand-blue-dark text-white text-sm font-black px-4 py-2.5 rounded-xl shadow-lg shadow-brand-blue/20 hover:shadow-xl hover:shadow-brand-blue/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
       {label}
     </button>

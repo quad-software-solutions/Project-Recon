@@ -5,7 +5,7 @@ import Navbar from '../shared/ui/Navbar';
 import AboutTab from '../domains/learning/programs/ui/AboutTab';
 import StudentRegistration from '../domains/auth/register/ui/StudentRegistration';
 import VexSimulator from '../domains/learning/simulator/ui/VexSimulator';
-import LabConsultancy from '../domains/learning/consultancy/ui/LabConsultancy';
+
 import EventCommandCenter from '../domains/competition/events/ui/EventCommandCenter';
 
 import AnimatedParticles from '../shared/ui/AnimatedParticles';
@@ -17,20 +17,31 @@ import HomePage from '../pages/HomePage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import StorePage from '../pages/store/StorePage';
 import CompetitionPage from '../pages/competition/CompetitionPage';
-import CommunityPage from '../pages/community/CommunityPage';
+import CertificateVerifyPage from '../pages/certificate/CertificateVerifyPage';
+
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import OrderHistoryPage from '../domains/store/orders/ui/OrderHistoryPage';
+import OrderDetailPage from '../domains/store/orders/ui/OrderDetailPage';
 
 import { useAuth } from '../shared/hooks/useAuth';
-import { useCart } from '../shared/hooks/useCart';
+import { CartProvider, useCartContext } from '../shared/context/CartContext';
 import { useNavigation } from '../shared/hooks/useNavigation';
 import { hasPermission } from '../shared/auth/permissions';
 
-import { ActiveTab, CartItem, UserProfile } from '../shared/types';
+import { ActiveTab, UserProfile, ProgramDisplay, PendingOrder } from '../shared/types';
 
 const LoginView = React.lazy(() => import('../domains/auth/login/ui/LoginView'));
 const AuthModal = React.lazy(() => import('../domains/auth/modal/ui/AuthModal'));
 
 export default function App() {
+  return (
+    <CartProvider>
+      <AppInner />
+    </CartProvider>
+  );
+}
+
+function AppInner() {
   const {
     currentUser, setCurrentUser,
     authModalOpen, setAuthModalOpen, authInitialMode,
@@ -38,10 +49,14 @@ export default function App() {
   } = useAuth();
 
   const {
-    cart, setCart, cartOpen, checkoutStep, setCheckoutStep,
-    handleAddToCart, handleUpdateCartQuantity, handleRemoveFromCart,
-    getCartTotal, getCartItemsCount, openCart, closeCart,
-  } = useCart();
+    cart, cartOpen, loading,
+    fetchCart, handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, clearCart,
+    openCart, closeCart,
+  } = useCartContext();
+
+  const handleCheckoutSuccess = (_pendingOrder: PendingOrder) => {
+    fetchCart();
+  };
 
   const { activeTab, handleTabChange, forceNavigate } = useNavigation(currentUser);
 
@@ -50,41 +65,14 @@ export default function App() {
     forceNavigate('login');
   };
 
-  const [selectedProgramSpec, setSelectedProgramSpec] = useState<any>(null);
+  const [selectedProgramSpec, setSelectedProgramSpec] = useState<ProgramDisplay | null>(null);
 
   const handleEnrollInProgram = (_programId: string) => {
     if (!currentUser) {
-      handleTabChange('login');
+      handleTabChange('register');
       return;
     }
-    const updatedUser: UserProfile = {
-      ...currentUser,
-      xpPoints: currentUser.xpPoints + 50,
-      badges: currentUser.badges.includes('Class Pioneer')
-        ? currentUser.badges
-        : [...currentUser.badges, 'Class Pioneer']
-    };
-    setCurrentUser(updatedUser);
     handleTabChange('dashboard');
-  };
-
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCheckoutStep('submitting');
-    setTimeout(() => {
-      setCheckoutStep('success');
-      setCart([]);
-      if (currentUser) {
-        const updated = {
-          ...currentUser,
-          xpPoints: currentUser.xpPoints + 40,
-          badges: currentUser.badges.includes('Tech Sponsor')
-            ? currentUser.badges
-            : [...currentUser.badges, 'Tech Sponsor']
-        };
-        setCurrentUser(updated);
-      }
-    }, 1500);
   };
 
   const onAuthSuccess = (userProfile: UserProfile) => {
@@ -140,7 +128,7 @@ export default function App() {
           onOpenAuth={(mode) => {
             handleTabChange(mode === 'register' ? 'registration' : 'login');
           }}
-          cartCount={getCartItemsCount()}
+          cartCount={cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
           onOpenCart={openCart}
         />
       )}
@@ -163,14 +151,19 @@ export default function App() {
           )}
 
           {activeTab === 'store' && (
-            <StorePage
-              cart={cart}
-              onAddToCart={handleAddToCart}
-              onUpdateQuantity={handleUpdateCartQuantity}
-              onRemoveFromCart={handleRemoveFromCart}
-              cartTotal={getCartTotal()}
-              onCheckout={() => setCart([])}
-            />
+            <StorePage openCart={openCart} />
+          )}
+
+          {activeTab === 'store-orders' && (
+            <motion.div key="store-orders-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <OrderHistoryPage />
+            </motion.div>
+          )}
+
+          {activeTab === 'store-order-detail' && (
+            <motion.div key="store-order-detail-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <OrderDetailPage />
+            </motion.div>
           )}
 
           {activeTab === 'simulator' && (
@@ -180,12 +173,15 @@ export default function App() {
           )}
 
           {activeTab === 'competitions' && (
-            <CompetitionPage currentUser={currentUser} />
+            <CompetitionPage
+              currentUser={currentUser}
+              onNavigateLogin={() => handleTabChange('login')}
+            />
           )}
 
-          {activeTab === 'consultancy' && (
-            <motion.div key="consultancy-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-              <LabConsultancy />
+          {activeTab === 'cert-verify' && (
+            <motion.div key="cert-verify-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <CertificateVerifyPage onNavigateHome={() => handleTabChange('home')} />
             </motion.div>
           )}
 
@@ -200,21 +196,24 @@ export default function App() {
               <DashboardPage currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
             </motion.div>
           )}
+
+          {activeTab === 'command-center' && currentUser && hasPermission(currentUser, 'command-center:view') && (
+            <motion.div key="command-center-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <EventCommandCenter currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
       <CartDrawer
         cartOpen={cartOpen}
         cart={cart}
-        checkoutStep={checkoutStep}
-        currentUser={currentUser}
-        getCartTotal={getCartTotal}
+        loading={loading}
         onClose={closeCart}
-        onUpdateQuantity={handleUpdateCartQuantity}
+        currentUser={currentUser}
+        onUpdateQuantity={handleUpdateQuantity}
         onRemoveFromCart={handleRemoveFromCart}
-        onCheckoutSubmit={handleCheckoutSubmit}
-        onSetCheckoutStep={setCheckoutStep}
-        onSetCart={setCart}
+        onCheckoutSuccess={handleCheckoutSuccess}
       />
 
       <ProgramDetailModal

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Sparkles, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, Award, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 
 interface DemoSlide {
   tag: string;
   title: string;
   quote: string;
   body: string;
-  video: string;
+  video?: string | null;
+  poster?: string;
 }
 
 interface DemoSliderProps {
@@ -16,6 +17,11 @@ interface DemoSliderProps {
 
 export default function DemoSlider({ slides, onCta }: DemoSliderProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [failedVideos, setFailedVideos] = useState<Record<number, boolean>>({});
+
+  const markVideoFailed = (idx: number) => {
+    setFailedVideos(prev => (prev[idx] ? prev : { ...prev, [idx]: true }));
+  };
 
   const goTo = (index: number) => {
     setActiveIndex(Math.max(0, Math.min(index, slides.length - 1)));
@@ -63,20 +69,32 @@ export default function DemoSlider({ slides, onCta }: DemoSliderProps) {
                     <span>Start Your Journey</span>
                   </button>
                 </div>
-                {/* Video Panel */}
-                <div className="w-full md:w-1/2 relative aspect-video md:aspect-auto md:min-h-[450px] bg-white overflow-hidden">
-                  {slide.video ? (
-                  <video
-                    src={slide.video}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    preload="none"
-                    className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-500"
-                  />
+                {/* Video / poster panel */}
+                <div className="w-full md:w-1/2 relative aspect-video md:aspect-auto md:min-h-[450px] bg-slate-900 overflow-hidden">
+                  {slide.video && !failedVideos[idx] ? (
+                    <video
+                      key={slide.video}
+                      src={slide.video}
+                      poster={slide.poster}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                      onError={() => markVideoFailed(idx)}
+                      className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity duration-500"
+                    />
+                  ) : slide.poster ? (
+                    <img
+                      src={slide.poster}
+                      alt={slide.title}
+                      className="w-full h-full object-cover opacity-90"
+                    />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-400 text-sm">Video unavailable</div>
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400 gap-2">
+                      <Play className="w-10 h-10 opacity-40" />
+                      <span className="text-sm">Demo video coming soon</span>
+                    </div>
                   )}
                   {/* Gradient edge for seamless blend */}
                   <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none" />

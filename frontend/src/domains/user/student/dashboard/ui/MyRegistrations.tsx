@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff } from 'lucide-react';
-import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf } from '@/src/domains/learning/academics/api/academicApi';
-import type { Enrollment, StudentCertificate } from '@/src/shared/types';
+import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff, ArrowRight } from 'lucide-react';
+import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf, fetchBranchesApi, fetchClassesApi, requestTransferApi } from '@/domains/learning/academics/api/academicApi';
+import type { Enrollment, StudentCertificate, AcademicClass } from '@/shared/types';
+
+type Branch = { id: string; name: string; code?: string };
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
-  PENDING_PAYMENT: 'bg-amber-100 text-amber-700',
+  PENDING_VERIFICATION: 'bg-amber-100 text-amber-700',
   COMPLETED: 'bg-blue-100 text-blue-600',
   CANCELLED: 'bg-red-100 text-red-600',
 };
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
   ACTIVE: CheckCircle,
-  PENDING_PAYMENT: Clock,
+  PENDING_VERIFICATION: Clock,
   COMPLETED: AlertCircle,
   CANCELLED: XCircle,
 };
@@ -26,6 +28,14 @@ export default function MyRegistrations({ studentId }: Props) {
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<Enrollment | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [classes, setClasses] = useState<AcademicClass[]>([]);
+  const [transferBranch, setTransferBranch] = useState('');
+  const [transferClass, setTransferClass] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [transferDone, setTransferDone] = useState(false);
 
   useEffect(() => {
     fetchEnrollmentsApi(studentId).then(setRegistrations).catch(() => {
@@ -39,6 +49,33 @@ export default function MyRegistrations({ studentId }: Props) {
       await cancelEnrollmentApi(id);
       setRegistrations(prev => prev.map(r => r.id === id ? { ...r, status: 'CANCELLED' as const } : r));
     } catch {}
+  };
+
+  const openTransfer = async (reg: Enrollment) => {
+    setTransferTarget(reg);
+    setTransferBranch('');
+    setTransferClass('');
+    setTransferDone(false);
+    setTransferError(null);
+    try {
+      const [b, c] = await Promise.all([fetchBranchesApi(), fetchClassesApi()]);
+      setBranches(b);
+      setClasses(c);
+    } catch {}
+  };
+
+  const handleTransfer = async () => {
+    if (!transferTarget || !transferBranch || !transferClass) return;
+    setTransferring(true);
+    setTransferError(null);
+    try {
+      await requestTransferApi({ enrollment: transferTarget.id, to_branch: transferBranch, target_class: transferClass });
+      setTransferDone(true);
+    } catch (e: unknown) {
+      setTransferError(e instanceof Error ? e.message : 'Transfer request failed');
+    } finally {
+      setTransferring(false);
+    }
   };
 
   const filtered = registrations.filter(r => {
@@ -69,7 +106,7 @@ export default function MyRegistrations({ studentId }: Props) {
               <p className="text-sm font-medium text-slate-700 mb-3">Your Certificates ({certificates.length})</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {certificates.map(c => (
-                  <span key={c.id} className="inline-flex items-center gap-1.5 text-xs font-medium bg-brand-red/5 text-brand-red px-3 py-1.5 rounded-full border border-brand-red/10">
+                  <span key={c.id} className="inline-flex items-center gap-1.5 text-xs font-medium bg-blue-600/5 text-blue-600 px-3 py-1.5 rounded-full border border-blue-600/10">
                     <Shield className="w-3.5 h-3.5" />
                     {c.certificate_title || c.sub_program_name || 'Certificate'}
                   </span>
@@ -77,7 +114,7 @@ export default function MyRegistrations({ studentId }: Props) {
               </div>
               <button
                 onClick={() => downloadEnrollmentReportPdf(studentId)}
-                className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red px-4 py-2 rounded-lg hover:bg-brand-red-dark transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" /> Download PDF Report
               </button>
@@ -94,8 +131,8 @@ export default function MyRegistrations({ studentId }: Props) {
         {[
           { label: 'Total', value: registrations.length.toString(), color: 'text-brand-blue' },
           { label: 'Active', value: registrations.filter(r => r.status === 'ACTIVE').length.toString(), color: 'text-emerald-600' },
-          { label: 'Pending', value: registrations.filter(r => r.status === 'PENDING_PAYMENT').length.toString(), color: 'text-amber-600' },
-          { label: 'Completed', value: registrations.filter(r => r.status === 'COMPLETED').length.toString(), color: 'text-brand-red' },
+          { label: 'Pending', value: registrations.filter(r => r.status === 'PENDING_VERIFICATION').length.toString(), color: 'text-amber-600' },
+          { label: 'Completed', value: registrations.filter(r => r.status === 'COMPLETED').length.toString(), color: 'text-blue-600' },
         ].map((s, i) => (
           <div key={i} className="bg-white border border-brand-border rounded-xl px-4 py-3">
             <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{s.label}</p>
@@ -109,15 +146,15 @@ export default function MyRegistrations({ studentId }: Props) {
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-brand-red"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
             />
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-brand-red"
+            className="px-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
           >
             <option value="all">All Status</option>
             <option value="ACTIVE">Active</option>
-            <option value="PENDING_PAYMENT">Pending</option>
+            <option value="PENDING_VERIFICATION">Pending</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
@@ -149,15 +186,22 @@ export default function MyRegistrations({ studentId }: Props) {
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[reg.status] || 'bg-slate-100 text-slate-600'}`}>
                         <StatusIcon className="w-3 h-3" />
-                        {reg.status === 'PENDING_PAYMENT' ? 'Pending' : reg.status.charAt(0) + reg.status.slice(1).toLowerCase()}
+                        {reg.status === 'PENDING_VERIFICATION' ? 'Pending' : reg.status.charAt(0) + reg.status.slice(1).toLowerCase()}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {reg.status === 'ACTIVE' || reg.status === 'PENDING_PAYMENT' ? (
-                        <button onClick={() => cancelRegistration(reg.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" title="Cancel">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      ) : null}
+                      <div className="flex items-center justify-center gap-1">
+                        {reg.status === 'ACTIVE' && (
+                          <button onClick={() => openTransfer(reg)} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50" title="Request transfer">
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {reg.status === 'ACTIVE' || reg.status === 'PENDING_VERIFICATION' ? (
+                          <button onClick={() => cancelRegistration(reg.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" title="Cancel">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -169,6 +213,57 @@ export default function MyRegistrations({ studentId }: Props) {
           </table>
         </div>
       </div>
+
+      {transferTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setTransferTarget(null)}>
+          <div className="bg-white rounded-2xl border border-brand-border max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-brand-border/50">
+              <h3 className="font-bold text-brand-ink text-sm flex items-center gap-2"><ArrowRight className="w-4 h-4" /> Transfer request</h3>
+              <button onClick={() => setTransferTarget(null)} className="p-1 rounded-lg hover:bg-brand-surface transition-colors"><XCircle className="w-5 h-5 text-brand-muted" /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              {transferDone ? (
+                <div className="text-center py-6">
+                  <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+                  <p className="font-semibold text-brand-ink">Transfer requested</p>
+                  <p className="text-xs text-brand-muted mt-1">Staff will review your request.</p>
+                  <button onClick={() => setTransferTarget(null)} className="mt-4 px-4 py-2 bg-brand-blue text-white text-sm font-semibold rounded-xl">Done</button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-brand-muted">Request transfer for <span className="font-semibold text-brand-ink">{transferTarget.program_name || transferTarget.sub_program_name}</span></p>
+                  <div>
+                    <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">To branch</label>
+                    <select value={transferBranch} onChange={e => setTransferBranch(e.target.value)}
+                      className="form-input w-full">
+                      <option value="">Select branch...</option>
+                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-brand-muted uppercase tracking-wide mb-1 block">Target class</label>
+                    <select value={transferClass} onChange={e => setTransferClass(e.target.value)}
+                      className="form-input w-full">
+                      <option value="">Select class...</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  {transferError && (
+                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {transferError}
+                    </div>
+                  )}
+                  <button onClick={handleTransfer} disabled={transferring || !transferBranch || !transferClass}
+                    className="w-full py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                    {transferring ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                    {transferring ? 'Requesting...' : 'Request transfer'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

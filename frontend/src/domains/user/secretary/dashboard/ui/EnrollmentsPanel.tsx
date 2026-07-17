@@ -1,17 +1,36 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download } from 'lucide-react';
-import { Enrollment, StudentProfile, AcademicClass } from '@/src/shared/types';
-import { fetchEnrollmentsApi, fetchStudentsApi, fetchClassesApi, enrollStudentApi, cancelEnrollmentApi, completeEnrollmentApi, searchStudentsApi } from '@/src/domains/learning/academics/api/academicApi';
+import { Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign, Shield, ChevronLeft, ChevronRight, ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { Enrollment, StudentProfile, AcademicClass, UserProfile } from '@/shared/types';
+import {
+  fetchEnrollmentsPaginatedApi, fetchStudentsApi, fetchClassesApi, enrollStudentApi,
+  cancelEnrollmentApi, completeEnrollmentApi, searchStudentsApi, recordPaymentApi,
+  rejectPaymentApi, setUnderReviewApi, moveEnrollmentApi, switchSubProgramApi,
+} from '@/domains/learning/academics/api/academicApi';
 
-export default function EnrollmentsPanel() {
+const PAGE_SIZE = 20;
+
+const statusBadge = (s: string) => {
+  if (s === 'ACTIVE') return 'bg-emerald-100 text-emerald-700';
+  if (s === 'PENDING_VERIFICATION') return 'bg-amber-100 text-amber-700';
+  if (s === 'CANCELLED') return 'bg-red-100 text-red-600';
+  if (s === 'COMPLETED') return 'bg-brand-blue/10 text-brand-blue';
+  if (s === 'REJECTED') return 'bg-red-100 text-red-600';
+  return 'bg-slate-100 text-slate-500';
+};
+
+export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selected, setSelected] = useState<Enrollment | null>(null);
   const [showEnroll, setShowEnroll] = useState(false);
+  const [showPayment, setShowPayment] = useState<Enrollment | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount: '', payment_date: new Date().toISOString().slice(0, 10) });
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,23 +38,40 @@ export default function EnrollmentsPanel() {
   const [studentResults, setStudentResults] = useState<StudentProfile[]>([]);
   const [searching, setSearching] = useState(false);
   const [form, setForm] = useState({ student: '', enrolled_class: '', remarks: '' });
+  const [classAction, setClassAction] = useState<{ enrollment: Enrollment; mode: 'move' | 'switch' } | null>(null);
+  const [targetClassId, setTargetClassId] = useState('');
+  const [classActionBusy, setClassActionBusy] = useState(false);
 
-  const loadData = useCallback(() => {
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const loadData = useCallback((p = 1) => {
     setLoading(true);
-    Promise.all([
-      fetchEnrollmentsApi(),
+    setError(null);
+    Promise.allSettled([
+      fetchEnrollmentsPaginatedApi(p, PAGE_SIZE),
       fetchStudentsApi(),
-      fetchClassesApi(),
-    ]).then(([enrollmentRes, studentRes, classRes]) => {
-      const studentList = Array.isArray(studentRes) ? studentRes : [];
-      const classList = (Array.isArray(classRes) ? classRes : []).filter(c => c.is_active !== false);
-      setEnrollments(Array.isArray(enrollmentRes) ? enrollmentRes : []);
-      setStudents(studentList);
-      setClasses(classList);
-    }).catch(() => setError('Failed to load enrollment data')).finally(() => setLoading(false));
+      fetchClassesApi().catch(() => []),
+    ]).then(([enr, stu, cls]) => {
+      if (enr.status === 'fulfilled') {
+        setEnrollments(enr.value.results || []);
+        setTotalCount(enr.value.count);
+      } else {
+        setError('Failed to load enrollments');
+      }
+      if (stu.status === 'fulfilled') {
+        setStudents(Array.isArray(stu.value) ? stu.value : []);
+      }
+      if (cls.status === 'fulfilled') {
+        setClasses((Array.isArray(cls.value) ? cls.value : []).filter(c => c.is_active !== false));
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(page); }, [page, loadData]);
+
+  const goToPage = (p: number) => {
+    if (p >= 1 && p <= totalPages) setPage(p);
+  };
 
   useEffect(() => {
     if (studentSearch.trim().length < 2) { setStudentResults([]); return; }
@@ -43,27 +79,75 @@ export default function EnrollmentsPanel() {
     const timer = setTimeout(() => {
       searchStudentsApi(studentSearch).then(res => {
         setStudentResults(Array.isArray(res) ? res : []);
-      }).catch(() => {}).finally(() => setSearching(false));
+      }).catch(() => setStudentResults([])).finally(() => setSearching(false));
     }, 300);
     return () => clearTimeout(timer);
   }, [studentSearch]);
 
-  const statusBadge = (s: string) => {
-    if (s === 'ACTIVE') return 'bg-emerald-100 text-emerald-700';
-    if (s === 'PENDING_PAYMENT') return 'bg-amber-100 text-amber-700';
-    if (s === 'CANCELLED') return 'bg-red-100 text-red-600';
-    if (s === 'COMPLETED') return 'bg-brand-blue/10 text-brand-blue';
-    return 'bg-slate-100 text-slate-500';
-  };
-
   const handleCancel = async (id: string) => {
-    try { await cancelEnrollmentApi(id); setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'CANCELLED' as any } : e)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed to cancel enrollment'); }
+    try {
+      await cancelEnrollmentApi(id);
+      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'CANCELLED' as const } : e));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to cancel enrollment');
+    }
   };
 
   const handleComplete = async (id: string) => {
-    try { await completeEnrollmentApi(id); setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'COMPLETED' as any } : e)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed to complete enrollment'); }
+    try {
+      await completeEnrollmentApi(id);
+      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'COMPLETED' as const } : e));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to complete enrollment');
+    }
+  };
+
+  const handleCashPayment = async () => {
+    if (!showPayment || !paymentForm.amount) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await recordPaymentApi({
+        enrollment: showPayment.id,
+        amount: paymentForm.amount,
+        payment_method: 'CASH',
+        payment_date: paymentForm.payment_date || undefined,
+      });
+      setEnrollments(prev => prev.map(e =>
+        e.id === showPayment.id ? { ...e, status: 'ACTIVE' as const, payment_status: 'PAID' as const, payment_method: 'CASH' as const } : e
+      ));
+      setShowPayment(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to record payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openClassAction = (enrollment: Enrollment, mode: 'move' | 'switch') => {
+    setClassAction({ enrollment, mode });
+    setTargetClassId('');
+  };
+
+  const handleClassAction = async () => {
+    if (!classAction || !targetClassId) return;
+    setClassActionBusy(true);
+    setError(null);
+    try {
+      if (classAction.mode === 'move') {
+        const updated = await moveEnrollmentApi(classAction.enrollment.id, { target_class: targetClassId });
+        setEnrollments(prev => prev.map(e => e.id === updated.id ? updated : e));
+      } else {
+        await switchSubProgramApi(classAction.enrollment.id, { target_class: targetClassId });
+      }
+      setClassAction(null);
+      setTargetClassId('');
+      loadData(page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Failed to ${classAction.mode} enrollment`);
+    } finally {
+      setClassActionBusy(false);
+    }
   };
 
   const handleEnroll = async () => {
@@ -72,6 +156,7 @@ export default function EnrollmentsPanel() {
     setError(null);
     try {
       const enrollment = await enrollStudentApi(form);
+      setTotalCount(prev => prev + 1);
       setEnrollments(prev => [enrollment, ...prev]);
       setForm(prev => ({ ...prev, remarks: '', student: '' }));
       setStudentSearch('');
@@ -84,15 +169,26 @@ export default function EnrollmentsPanel() {
     }
   };
 
-  const filtered = enrollments.filter(e => {
-    if (statusFilter !== 'all' && e.status !== statusFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const name = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''}`.toLowerCase();
-      if (!name.includes(q)) return false;
-    }
-    return true;
-  });
+  const filtered = useMemo(() =>
+    enrollments.filter(e => {
+      if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const name = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''}`.toLowerCase();
+        if (!name.includes(q)) return false;
+      }
+      return true;
+    }),
+    [enrollments, statusFilter, searchQuery]
+  );
+
+  const statusCounts = useMemo(() => ({
+    ACTIVE: enrollments.filter(e => e.status === 'ACTIVE').length,
+    PENDING_VERIFICATION: enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length,
+    COMPLETED: enrollments.filter(e => e.status === 'COMPLETED').length,
+    CANCELLED: enrollments.filter(e => e.status === 'CANCELLED').length,
+    REJECTED: enrollments.filter(e => e.status === 'REJECTED').length,
+  }), [enrollments]);
 
   const exportCsv = () => {
     const headers = ['Student', 'Class', 'Program', 'Branch', 'Date', 'Status'];
@@ -115,9 +211,11 @@ export default function EnrollmentsPanel() {
           <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
-          <button onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-brand-red text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-red-dark transition-colors">
-            <Plus className="w-3.5 h-3.5" /> Enroll Student
-          </button>
+          {classes.length > 0 && (
+            <button onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Enroll Student
+            </button>
+          )}
         </div>
       </div>
 
@@ -131,22 +229,24 @@ export default function EnrollmentsPanel() {
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search enrollments..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search enrollments..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
           <option value="all">All Status</option>
           <option value="ACTIVE">Active</option>
-          <option value="PENDING_PAYMENT">Pending Payment</option>
+          <option value="PENDING_VERIFICATION">Pending Verification</option>
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
+          <option value="REJECTED">Rejected</option>
         </select>
       </div>
 
       <div className="flex items-center gap-3 text-[10px] text-slate-500">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Active ({enrollments.filter(e => e.status === 'ACTIVE').length})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Pending ({enrollments.filter(e => e.status === 'PENDING_PAYMENT').length})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-brand-blue" /> Completed ({enrollments.filter(e => e.status === 'COMPLETED').length})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Cancelled ({enrollments.filter(e => e.status === 'CANCELLED').length})</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Active ({statusCounts.ACTIVE})</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Pending ({statusCounts.PENDING_VERIFICATION})</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-brand-blue" /> Completed ({statusCounts.COMPLETED})</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Cancelled ({statusCounts.CANCELLED})</span>
+        {statusCounts.REJECTED > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600" /> Rejected ({statusCounts.REJECTED})</span>}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -173,10 +273,17 @@ export default function EnrollmentsPanel() {
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => setSelected(e)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details"><Eye className="w-3.5 h-3.5" /></button>
-                      {e.status === 'ACTIVE' && (
-                        <button onClick={() => handleComplete(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark completed"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                      {e.status === 'PENDING_VERIFICATION' && (
+                        <button onClick={() => { setPaymentForm({ amount: '', payment_date: new Date().toISOString().slice(0, 10) }); setShowPayment(e); }} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Record cash payment"><DollarSign className="w-3.5 h-3.5" /></button>
                       )}
-                      {(e.status === 'ACTIVE' || e.status === 'PENDING_PAYMENT') && (
+                      {e.status === 'ACTIVE' && (
+                        <>
+                          <button onClick={() => openClassAction(e, 'move')} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Move to another class"><ArrowRightLeft className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openClassAction(e, 'switch')} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Switch sub-program"><RefreshCw className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleComplete(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark completed"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                        </>
+                      )}
+                      {(e.status === 'ACTIVE' || e.status === 'PENDING_VERIFICATION') && (
                         <button onClick={() => handleCancel(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel enrollment"><X className="w-3.5 h-3.5" /></button>
                       )}
                     </div>
@@ -186,8 +293,26 @@ export default function EnrollmentsPanel() {
             </tbody>
           </table>
         </div>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+          <span className="text-[11px] text-slate-500">{totalCount} total enrollments</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => goToPage(page - 1)} disabled={page <= 1}
+              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-[11px] font-mono text-slate-600 px-2">
+              {page} / {totalPages}
+            </span>
+            <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages}
+              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
+      {/* Detail modal */}
       {selected && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setSelected(null)}>
           <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
@@ -210,6 +335,90 @@ export default function EnrollmentsPanel() {
         </motion.div>
       )}
 
+      {/* Cash Payment modal */}
+      {showPayment && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowPayment(null)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-base text-slate-900">Record Cash Payment</h3>
+              <button onClick={() => setShowPayment(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Student: <span className="font-medium text-slate-700">{showPayment.student_name || showPayment.student_email}</span>
+              <br />
+              Class: <span className="font-medium text-slate-700">{showPayment.class_name || '—'}</span>
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Amount (Birr)</label>
+                <input type="number" step="0.01" min="0" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                  placeholder="e.g. 5000" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Payment Date</label>
+                <input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+              <button onClick={() => setShowPayment(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+              <button onClick={handleCashPayment} disabled={submitting || !paymentForm.amount}
+                className="bg-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
+                {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                {submitting ? 'Recording...' : 'Confirm Payment'}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Move / Switch class modal */}
+      {classAction && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setClassAction(null)}>
+          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-base text-slate-900">
+                {classAction.mode === 'move' ? 'Move to class' : 'Switch sub-program'}
+              </h3>
+              <button onClick={() => setClassAction(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Student: <span className="font-medium text-slate-700">{classAction.enrollment.student_name || classAction.enrollment.student_email}</span>
+              <br />
+              Current: <span className="font-medium text-slate-700">{classAction.enrollment.class_name || '—'}</span>
+            </p>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Target class</label>
+              {classes.length === 0 ? (
+                <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-400">No classes available</div>
+              ) : (
+                <select value={targetClassId} onChange={e => setTargetClassId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                  <option value="">Select class...</option>
+                  {classes
+                    .filter(c => c.id !== (classAction.enrollment as { enrolled_class?: string }).enrolled_class)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>
+                    ))}
+                </select>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+              <button onClick={() => setClassAction(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+              <button onClick={handleClassAction} disabled={classActionBusy || !targetClassId}
+                className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                {classActionBusy && <Loader2 className="w-3 h-3 animate-spin" />}
+                {classActionBusy ? 'Saving...' : classAction.mode === 'move' ? 'Move' : 'Switch'}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Enroll Student modal */}
       <AnimatePresence>
         {showEnroll && (
           <>
@@ -229,7 +438,7 @@ export default function EnrollmentsPanel() {
                     <div className="relative">
                       <input value={studentSearch} onChange={e => { setStudentSearch(e.target.value); setForm(p => ({ ...p, student: '' })); }}
                         placeholder="Search student by name or email..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" />
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                       {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-slate-400" />}
                     </div>
                     {studentResults.length > 0 && !form.student && (
@@ -254,17 +463,21 @@ export default function EnrollmentsPanel() {
                     )}
                   </div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Class</label>
-                    <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
-                      <option value="">Select class...</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>)}
-                    </select>
+                    {classes.length === 0 ? (
+                      <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-400">Classes unavailable — check your permissions</div>
+                    ) : (
+                      <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                        <option value="">Select class...</option>
+                        {classes.map(c => <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>)}
+                      </select>
+                    )}
                   </div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Remarks</label><input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10" placeholder="Optional note" /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Remarks</label><input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="Optional note" /></div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
                   <button onClick={() => setShowEnroll(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                   <button onClick={handleEnroll} disabled={submitting || !form.student || !form.enrolled_class}
-                    className="bg-brand-red text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-red-dark disabled:opacity-50 flex items-center gap-1.5">
+                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
                     {submitting ? 'Enrolling...' : 'Enroll'}
                   </button>

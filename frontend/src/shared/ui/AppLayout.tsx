@@ -2,6 +2,7 @@ import React, { ReactNode, useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Sidebar, NavItem } from './Sidebar';
 import { TopNavbar } from './TopNavbar';
+import { getSidebarCollapsed, setSidebarCollapsed as persistSidebarCollapsed } from '@/shared/utils/storage';
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => {
@@ -42,18 +43,14 @@ interface AppLayoutProps {
 export function AppLayout({ sidebar, topNavbar, onLogout, children }: AppLayoutProps) {
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('sidebar-collapsed') === 'true'; }
-    catch { return false; }
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => getSidebarCollapsed());
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleCollapseToggle = useCallback(() => {
     setSidebarCollapsed(prev => {
       const next = !prev;
-      try { localStorage.setItem('sidebar-collapsed', String(next)); }
-      catch { /* noop */ }
+      persistSidebarCollapsed(next);
       return next;
     });
   }, []);
@@ -97,6 +94,9 @@ export function AppLayout({ sidebar, topNavbar, onLogout, children }: AppLayoutP
         <TopNavbar
           title={topNavbar.title}
           subtitle={topNavbar.subtitle}
+          onSearch={topNavbar.onSearch}
+          searchValue={topNavbar.searchValue}
+          actions={topNavbar.actions}
           userName={sidebar.userName}
           userRole={sidebar.userRole}
           onLogout={onLogout}

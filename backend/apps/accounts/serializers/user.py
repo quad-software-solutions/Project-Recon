@@ -60,9 +60,24 @@ class UserUpdateSerializer(serializers.Serializer):
     profile_picture = serializers.ImageField(required=False, allow_null=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_null=True)
-    
 
+    def validate_email(self, value):
+        qs = User.objects.filter(email=value)
+        if getattr(self, 'instance', None):
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
 
+    def validate_phone_number(self, value):
+        if not value:
+            return None
+        qs = User.objects.filter(phone_number=value)
+        if getattr(self, 'instance', None):
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A user with this phone number already exists.")
+        return value
 class CreateStaffUserSerializer(serializers.Serializer):
     """Validate staff user creation request."""
 
@@ -76,6 +91,18 @@ class CreateStaffUserSerializer(serializers.Serializer):
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_null=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
 
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_phone_number(self, value):
+        if not value:
+            return None
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("A user with this phone number already exists.")
+        return value
+
 
 class CreateBranchManagerSerializer(serializers.Serializer):
     """Validate branch manager creation request."""
@@ -88,6 +115,18 @@ class CreateBranchManagerSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_null=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_phone_number(self, value):
+        if not value:
+            return None
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("A user with this phone number already exists.")
+        return value
 
 
 class ChangeEmailSerializer(serializers.Serializer):

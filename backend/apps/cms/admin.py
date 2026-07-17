@@ -7,6 +7,8 @@ from apps.cms.models import (
     AboutUs,
     ContactRequest,
     FAQ,
+    MapNode,
+    Gallery,
 )
 
 
@@ -52,4 +54,19 @@ class ContactRequestAdmin(admin.ModelAdmin):
 class FAQAdmin(admin.ModelAdmin):
     list_display = ("question", "is_active", "created_at")
     search_fields = ("question",)
+    readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(MapNode)
+class MapNodeAdmin(admin.ModelAdmin):
+    list_display = ("title", "city", "country", "category", "is_active", "created_at")
+    search_fields = ("title", "city", "country")
+    list_filter = ("category", "is_active")
+    readonly_fields = ("id", "created_at", "updated_at")
+
+@admin.register(Gallery)
+class GalleryAdmin(admin.ModelAdmin):
+    list_display = ("title", "is_active", "created_at")
+    search_fields = ("title",)
+    list_filter = ("is_active",)
     readonly_fields = ("id", "created_at", "updated_at")

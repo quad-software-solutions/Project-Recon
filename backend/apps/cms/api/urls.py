@@ -21,6 +21,14 @@ from apps.cms.api.views import (
     PublicFAQListView,
     AdminFAQListCreateView,
     AdminFAQRetrieveUpdateDestroyView,
+    PublicMapNodeListView,
+    AdminMapNodeListCreateView,
+    AdminMapNodeRetrieveUpdateDestroyView,
+    PublicGalleryListView,
+    PublicGalleryDetailView,
+    AdminGalleryListCreateView,
+    AdminGalleryRetrieveUpdateDestroyView,
+    PublicPlatformStatsView,
 )
 
 urlpatterns = [
@@ -33,6 +41,7 @@ urlpatterns = [
     path("about/<slug:slug>/", PublicAboutUsDetailView.as_view(), name="cms-about-detail"),
     path("faqs/", PublicFAQListView.as_view(), name="cms-faq-list"),
     path("contact-requests/", PublicCreateContactRequestView.as_view(), name="cms-contact-request-create"),
+    path("stats/", PublicPlatformStatsView.as_view(), name="cms-stats"),
     # Admin
     path("admin/hero-banners/", AdminHeroBannerListCreateView.as_view(), name="cms-admin-hero-banner-list"),
     path(
@@ -73,5 +82,30 @@ urlpatterns = [
         "admin/contact-requests/<uuid:pk>/",
         AdminContactRequestRetrieveUpdateDestroyView.as_view(),
         name="cms-admin-contact-request-detail",
+    ),
+    # Map Nodes
+    path("map-nodes/", PublicMapNodeListView.as_view(), name="cms-map-node-list"),
+    path(
+        "admin/map-nodes/",
+        AdminMapNodeListCreateView.as_view(),
+        name="cms-admin-map-node-list",
+    ),
+    path(
+        "admin/map-nodes/<uuid:pk>/",
+        AdminMapNodeRetrieveUpdateDestroyView.as_view(),
+        name="cms-admin-map-node-detail",
+    ),
+    # Gallery
+    path("gallery/", PublicGalleryListView.as_view(), name="cms-gallery-list"),
+    path("gallery/<uuid:pk>/", PublicGalleryDetailView.as_view(), name="cms-gallery-detail"),
+    path(
+        "admin/gallery/",
+        AdminGalleryListCreateView.as_view(),
+        name="cms-admin-gallery-list",
+    ),
+    path(
+        "admin/gallery/<uuid:pk>/",
+        AdminGalleryRetrieveUpdateDestroyView.as_view(),
+        name="cms-admin-gallery-detail",
     ),
 ]

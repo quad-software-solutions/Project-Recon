@@ -23,3 +23,11 @@ class ContactPriority(models.TextChoices):
     MEDIUM = "MEDIUM", "Medium"
     HIGH = "HIGH", "High"
     URGENT = "URGENT", "Urgent"
+
+
+class MapNodeCategory(models.TextChoices):
+    CHAMPIONSHIP = "CHAMPIONSHIP", "Championship"
+    ACADEMIC = "ACADEMIC", "Academic"
+    RESEARCH = "RESEARCH", "Research"
+    STRATEGY = "STRATEGY", "Strategy"
+    ALLIANCE = "ALLIANCE", "Alliance"

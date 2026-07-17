@@ -7,7 +7,6 @@ from apps.academic.views import (
     AttendanceRecordDetailView,
     AttendanceReportView,
     AvailableStaffView,
-    CashPaymentCreateView,
     CertificatePublicVerifyView,
     CertificateReportView,
     CertificateTemplateActivateView,
@@ -39,9 +38,11 @@ from apps.academic.views import (
     MilestoneListCreateView,
     MilestoneRetrieveUpdateView,
     OnlineEnrollmentView,
-    OnlinePaymentVerifyView,
-    OnlinePaymentWebhookView,
+    PaymentCreateView,
     PaymentListView,
+    EnrollmentVerificationQueueView,
+    EnrollmentUnderReviewView,
+    EnrollmentRejectView,
     ProgramActivateView,
     ProgramDeactivateView,
     ProgramListCreateView,
@@ -72,6 +73,14 @@ from apps.academic.views import (
     SubProgramReportView,
     SubProgramRetrieveUpdateView,
     UpdateProgressView,
+)
+from apps.academic.views.enrollment_move import EnrollmentMoveView, ClassSplitView
+from apps.academic.views.transfer_views import (
+    BranchTransferApproveView,
+    BranchTransferListView,
+    BranchTransferRejectView,
+    BranchTransferRequestView,
+    EnrollmentSwitchSubProgramView,
 )
 
 urlpatterns = [
@@ -116,11 +125,15 @@ urlpatterns = [
     path("enrollments/<uuid:pk>/cancel/", EnrollmentCancelView.as_view(), name="enrollment-cancel"),
     path("enrollments/<uuid:pk>/complete/", EnrollmentCompleteView.as_view(), name="enrollment-complete"),
     path("enrollments/online/", OnlineEnrollmentView.as_view(), name="enrollment-online"),
-    path("enrollments/online/verify/", OnlinePaymentVerifyView.as_view(), name="enrollment-online-verify"),
-    path("enrollments/online/webhook/", OnlinePaymentWebhookView.as_view(), name="enrollment-online-webhook"),
+    path("enrollments/<uuid:pk>/move/", EnrollmentMoveView.as_view(), name="enrollment-move"),
+    # Class Split
+    path("classes/<uuid:pk>/split/", ClassSplitView.as_view(), name="class-split"),
     # Payments
-    path("payments/cash/", CashPaymentCreateView.as_view(), name="payment-cash-create"),
-    path("payments/", PaymentListView.as_view(), name="payment-list"),
+    path("payments/", PaymentCreateView.as_view(), name="payment-create"),
+    path("payments/list/", PaymentListView.as_view(), name="payment-list"),
+    path("payments/verification-queue/", EnrollmentVerificationQueueView.as_view(), name="payment-verification-queue"),
+    path("payments/<uuid:pk>/under-review/", EnrollmentUnderReviewView.as_view(), name="payment-under-review"),
+    path("payments/<uuid:pk>/reject/", EnrollmentRejectView.as_view(), name="payment-reject"),
     # Learning Milestones
     path("learning-milestones/", MilestoneListCreateView.as_view(), name="milestone-list-create"),
     path("learning-milestones/<uuid:pk>/", MilestoneRetrieveUpdateView.as_view(), name="milestone-retrieve-update"),
@@ -152,6 +165,12 @@ urlpatterns = [
     path("student-certificates/", StudentCertificateListView.as_view(), name="student-cert-list"),
     path("student-certificates/<uuid:pk>/", StudentCertificateRetrieveView.as_view(), name="student-cert-retrieve"),
     path("certificates/verify/<str:number>/", CertificatePublicVerifyView.as_view(), name="cert-verify"),
+    # Transfers
+    path("transfers/request/", BranchTransferRequestView.as_view(), name="transfer-request"),
+    path("transfers/", BranchTransferListView.as_view(), name="transfer-list"),
+    path("transfers/<uuid:pk>/approve/", BranchTransferApproveView.as_view(), name="transfer-approve"),
+    path("transfers/<uuid:pk>/reject/", BranchTransferRejectView.as_view(), name="transfer-reject"),
+    path("enrollments/<uuid:pk>/switch-subprogram/", EnrollmentSwitchSubProgramView.as_view(), name="enrollment-switch-subprogram"),
     # Reports
     path("reports/students/<uuid:pk>/academic/", StudentAcademicReportView.as_view(), name="report-student-academic"),
     path("reports/students/<uuid:pk>/enrollments/", EnrollmentReportView.as_view(), name="report-student-enrollments"),

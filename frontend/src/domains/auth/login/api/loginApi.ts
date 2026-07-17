@@ -1,6 +1,8 @@
 import { http } from '../../../../shared/api/http';
 import type { UserProfile } from '../../../../shared/types';
 import type { LoginCredentials, AuthResponse } from '../../model/types';
+import { setTokens, getRefreshToken, clearTokens } from '@/shared/utils/auth';
+import { clearSessionStorage, getOrCreateDeviceId, getCachedStudentId, setCachedStudentId } from '@/shared/utils/storage';
 
 /**
  * Custom error thrown when login fails because the user's email is not verified.
@@ -85,8 +87,7 @@ function resolveRole(assignments: Array<{ role: string; is_primary?: boolean; is
  *  4. Map backend user to frontend UserProfile
  */
 export async function loginApi(credentials: LoginCredentials): Promise<AuthResponse> {
-  const deviceId = localStorage.getItem('device_id') || crypto.randomUUID();
-  localStorage.setItem('device_id', deviceId);
+  const deviceId = getOrCreateDeviceId();
 
   // Step 1: Authenticate – get JWT tokens
   const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
@@ -119,8 +120,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
   const tokenData = loginBody as { access: string; refresh: string };
 
   // Step 2: Persist tokens
-  localStorage.setItem('access_token', tokenData.access);
-  localStorage.setItem('refresh_token', tokenData.refresh);
+  setTokens(tokenData.access, tokenData.refresh);
 
   // Step 3: Decode token for user_id, then fetch user profile
   const payload = parseJwt(tokenData.access);
@@ -172,8 +172,16 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
         date_of_birth: userData.date_of_birth || '',
         gender: userData.gender || '',
         role,
-        xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
-        badges: role === 'Admin' ? ['System Admin', 'Root Access'] : role === 'Manager' ? ['System Admin'] : role === 'Instructor' ? ['Master Instructor'] : ['Starter Badge'],
+        assignments: userData.assignments.map(a => ({
+          id: a.id,
+          branch_id: a.branch_id,
+          branch_name: a.branch_name,
+          role: a.role,
+          is_primary: a.is_primary,
+          is_active: a.is_active,
+        })),
+        xpPoints: 0,
+        badges: [],
       };
     } catch (err) {
       // If user detail fetch fails (e.g. permission), use token claims
@@ -183,8 +191,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
 
   // Step 4: For students, try to discover student ID from localStorage or certificates
   if (userProfile.role === 'Student') {
-    const storedKey = `studentId_${userProfile.email}`;
-    const storedId = localStorage.getItem(storedKey);
+    const storedId = getCachedStudentId(userProfile.email);
     if (storedId) {
       userProfile.studentId = storedId;
     } else {
@@ -193,7 +200,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
         const certList = Array.isArray(certBody) ? certBody : certBody.results;
         if (certList.length > 0 && certList[0].student) {
           userProfile.studentId = certList[0].student;
-          localStorage.setItem(storedKey, certList[0].student);
+          setCachedStudentId(userProfile.email, certList[0].student);
         }
       } catch {
         // Student has no certificates yet — no fallback available
@@ -216,7 +223,7 @@ export async function socialLoginApi(_provider: 'google' | 'github'): Promise<Au
  * Call the backend logout endpoint to blacklist the refresh token.
  */
 export async function logoutApi(): Promise<void> {
-  const refresh = localStorage.getItem('refresh_token');
+  const refresh = getRefreshToken();
   if (refresh) {
     try {
       await http.post('/accounts/logout/', { refresh });
@@ -225,8 +232,8 @@ export async function logoutApi(): Promise<void> {
       console.warn('Backend logout failed, clearing local tokens anyway.');
     }
   }
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
+  clearTokens();
+  clearSessionStorage();
 }
 
 /**
@@ -258,8 +265,7 @@ export async function requestEmailVerificationApi(email: string): Promise<void> 
  * Verify an email OTP and receive JWT tokens on success (public, no auth required).
  */
 export async function verifyEmailOtpApi(email: string, otp: string): Promise<AuthResponse> {
-  const deviceId = localStorage.getItem('device_id') || crypto.randomUUID();
-  localStorage.setItem('device_id', deviceId);
+  const deviceId = getOrCreateDeviceId();
 
   const tokenData = await http.post<{ access: string; refresh: string }>(
     '/accounts/public/email-verification/verify/',
@@ -273,8 +279,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
   );
 
   // Persist tokens
-  localStorage.setItem('access_token', tokenData.access);
-  localStorage.setItem('refresh_token', tokenData.refresh);
+  setTokens(tokenData.access, tokenData.refresh);
 
   // Decode token for user_id, then fetch user profile
   const payload = parseJwt(tokenData.access);
@@ -316,8 +321,16 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
         email: userData.email,
         name: userData.full_name || `${userData.first_name} ${userData.last_name}`.trim() || userData.email.split('@')[0],
         role,
-        xpPoints: role === 'Admin' ? 99999 : role === 'Manager' ? 9999 : role === 'Instructor' ? 500 : 150,
-        badges: role === 'Admin' ? ['System Admin', 'Root Access'] : role === 'Manager' ? ['System Admin'] : role === 'Instructor' ? ['Master Instructor'] : ['Starter Badge'],
+        assignments: userData.assignments.map(a => ({
+          id: a.id,
+          branch_id: a.branch_id,
+          branch_name: a.branch_name,
+          role: a.role,
+          is_primary: a.is_primary,
+          is_active: a.is_active,
+        })),
+        xpPoints: 0,
+        badges: [],
       };
     } catch (err) {
       console.warn('Could not fetch user profile after verification:', err);
@@ -326,8 +339,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
 
   // Step 4: For students, try to discover student ID from localStorage or certificates
   if (userProfile.role === 'Student') {
-    const storedKey = `studentId_${userProfile.email}`;
-    const storedId = localStorage.getItem(storedKey);
+    const storedId = getCachedStudentId(userProfile.email);
     if (storedId) {
       userProfile.studentId = storedId;
     } else {
@@ -336,7 +348,7 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
         const certList = Array.isArray(certBody) ? certBody : certBody.results;
         if (certList.length > 0 && certList[0].student) {
           userProfile.studentId = certList[0].student;
-          localStorage.setItem(storedKey, certList[0].student);
+          setCachedStudentId(userProfile.email, certList[0].student);
         }
       } catch {
         // Student has no certificates yet — no fallback available

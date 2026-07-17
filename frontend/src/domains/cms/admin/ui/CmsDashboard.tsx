@@ -1,19 +1,22 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  LayoutDashboard, Image, FileText, Handshake, Building,
-  MessageSquare, HelpCircle, X, CheckCircle, AlertCircle,
+  Image, FileText, Handshake, Building,
+  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock, Camera,
 } from 'lucide-react';
-import CMSBranding from '@/src/domains/user/manager/dashboard/ui/CMSBranding';
 import HeroBannerManager from './HeroBannerManager';
 import NewsManager from './NewsManager';
 import CmsPartnerManager from './CmsPartnerManager';
 import AboutUsManager from './AboutUsManager';
 import ContactRequestManager from './ContactRequestManager';
 import FaqManager from './FaqManager';
+import MapNodeManager from './MapNodeManager';
+import GalleryManager from './GalleryManager';
 import { api } from '../api/cmsApi';
+import type { UserProfile } from '@/shared/types';
+import { canManageCms } from '@/shared/auth/permissions';
 
-type CmsSection = 'branding' | 'hero-banners' | 'news' | 'partners' | 'about' | 'contact-requests' | 'faqs';
+type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests' | 'gallery';
 
 export interface Toast {
   id: string;
@@ -33,14 +36,17 @@ interface SectionCounts {
   partners: number;
   faqs: number;
   'contact-requests': number;
+  'map-nodes': number;
+  gallery: number;
 }
 
 const SUB_NAV: CmsSubNavItem[] = [
-  { id: 'branding', label: 'Branding', icon: LayoutDashboard },
   { id: 'hero-banners', label: 'Hero Banners', icon: Image },
   { id: 'news', label: 'News & Announcements', icon: FileText },
   { id: 'partners', label: 'Partners & Sponsors', icon: Handshake },
   { id: 'about', label: 'About Us', icon: Building },
+  { id: 'map-nodes', label: 'Map Nodes', icon: MapPin },
+  { id: 'gallery', label: 'Gallery', icon: Camera },
   { id: 'faqs', label: 'FAQs', icon: HelpCircle },
   { id: 'contact-requests', label: 'Contact Requests', icon: MessageSquare },
 ];
@@ -51,23 +57,30 @@ const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.Elem
   { key: 'partners', label: 'Partners', icon: Handshake, color: 'text-amber-500 bg-amber-50' },
   { key: 'faqs', label: 'FAQs', icon: HelpCircle, color: 'text-cyan-500 bg-cyan-50' },
   { key: 'contact-requests', label: 'Contacts', icon: MessageSquare, color: 'text-rose-500 bg-rose-50' },
+  { key: 'map-nodes', label: 'Map Nodes', icon: MapPin, color: 'text-orange-500 bg-orange-50' },
+  { key: 'gallery', label: 'Gallery', icon: Camera, color: 'text-pink-500 bg-pink-50' },
 ];
 
 let toastCounter = 0;
 
-export default function CmsDashboard() {
-  const [section, setSection] = useState<CmsSection>('branding');
+interface Props {
+  currentUser: UserProfile;
+}
+
+export default function CmsDashboard({ currentUser }: Props) {
+  const canManage = canManageCms(currentUser);
+  const [section, setSection] = useState<CmsSection>('hero-banners');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
-    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1,
+    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1, gallery: -1,
   });
 
   useEffect(() => {
     (async () => {
       try {
-        const [heroBanners, news, partners, faqs, contactRequests] = await Promise.all([
+        const [heroBanners, news, partners, faqs, contactRequests, mapNodes, gallery] = await Promise.all([
           api.getAll('hero-banners'), api.getAll('news'), api.getAll('partners'),
-          api.getAll('faqs'), api.getAll('contact-requests'),
+          api.getAll('faqs'), api.getAll('contact-requests'), api.getAll('map-nodes'), api.getAll('gallery'),
         ]);
         setCounts({
           'hero-banners': heroBanners.length,
@@ -75,8 +88,12 @@ export default function CmsDashboard() {
           partners: partners.length,
           faqs: faqs.length,
           'contact-requests': contactRequests.length,
+          'map-nodes': mapNodes.length,
+          gallery: gallery.length,
         });
-      } catch {}
+      } catch {
+        setCounts(prev => Object.fromEntries(Object.entries(prev).map(([k]) => [k, 0])) as SectionCounts);
+      }
     })();
   }, []);
 
@@ -92,16 +109,30 @@ export default function CmsDashboard() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-sm text-amber-800">
+        <div className="flex items-start gap-3">
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted</p>
+            <p className="mt-1 text-amber-700">CMS administration is only available to Super Admin users.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {STAT_SECTIONS.map(({ key, label, icon: Icon, color }) => {
           const c = counts[key];
           return (
             <button key={key} onClick={() => setSection(key)}
               className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
                 section === key
-                  ? 'border-brand-red/30 bg-brand-red/5 shadow-sm'
+                  ? 'border-blue-500/30 bg-blue-50 shadow-sm'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
               }`}
             >
@@ -127,7 +158,7 @@ export default function CmsDashboard() {
             <button key={item.id} onClick={() => setSection(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                 isActive
-                  ? 'bg-brand-red text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
               }`}
             >
@@ -141,13 +172,14 @@ export default function CmsDashboard() {
       <div className="relative">
         <AnimatePresence mode="wait">
           <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
-            {section === 'branding' && <CMSBranding />}
             {section === 'hero-banners' && <HeroBannerManager addToast={addToast} />}
             {section === 'news' && <NewsManager addToast={addToast} />}
             {section === 'partners' && <CmsPartnerManager addToast={addToast} />}
             {section === 'about' && <AboutUsManager addToast={addToast} />}
             {section === 'faqs' && <FaqManager addToast={addToast} />}
             {section === 'contact-requests' && <ContactRequestManager addToast={addToast} />}
+            {section === 'map-nodes' && <MapNodeManager addToast={addToast} />}
+            {section === 'gallery' && <GalleryManager addToast={addToast} />}
           </motion.div>
         </AnimatePresence>
       </div>

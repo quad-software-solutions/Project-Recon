@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Building, RefreshCw, Plus } from 'lucide-react';
-import { branchesApi, assignmentsApi, type BranchResponse } from '@/src/domains/user/shared/api/adminApi';
+import { branchesApi, assignmentsApi, type BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchListTable } from './BranchListTable';
 import { BranchFormModal, type BranchFormData } from './BranchFormModal';
 import { BranchDetailPanel } from './BranchDetailPanel';
 import { AssignManagerModal } from './AssignManagerModal';
+import type { UserProfile } from '@/shared/types';
+import { isSuperAdmin } from '@/shared/auth/permissions';
 
 interface UserOption {
   id: string;
@@ -12,7 +14,12 @@ interface UserOption {
   email: string;
 }
 
-export function BranchSectionShell() {
+interface Props {
+  currentUser: UserProfile;
+}
+
+export function BranchSectionShell({ currentUser }: Props) {
+  const canManage = isSuperAdmin(currentUser);
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -55,54 +62,60 @@ export function BranchSectionShell() {
 
   useEffect(() => { if (assignTarget) loadManagers(); }, [assignTarget, loadManagers]);
 
-  const handleCreate = async (data: BranchFormData) => {
+  const handleCreate = useCallback(async (data: BranchFormData) => {
     await branchesApi.create(data);
     await load();
-  };
+  }, [load]);
 
-  const handleUpdate = async (data: BranchFormData) => {
+  const handleUpdate = useCallback(async (data: BranchFormData) => {
     if (!editingBranch) return;
     await branchesApi.update(editingBranch.id, data);
     setEditingBranch(null);
     await load();
-  };
+  }, [editingBranch, load]);
 
-  const handleToggleActive = async (id: string) => {
+  const handleToggleActive = useCallback(async (id: string) => {
     const branch = branches.find(b => b.id === id);
     if (!branch) return;
     await branchesApi.toggleActive(id, branch.status === 'Active');
     await load();
-  };
+  }, [branches, load]);
 
-  const handleArchive = async (id: string) => {
+  const handleArchive = useCallback(async (id: string) => {
     await branchesApi.archive(id);
     setSelectedBranch(p => p?.id === id ? null : p);
     await load();
-  };
+  }, [load]);
 
-  const handleAssignManager = async (userId: string) => {
-    if (!assignTarget) return;
-    await branchesApi.assignManager(assignTarget.id, userId);
-    setAssignTarget(null);
-    await load();
-  };
+  const handleAssignManager = useCallback(async (userId: string): Promise<string | null> => {
+    if (!assignTarget) return 'No branch selected.';
+    try {
+      await branchesApi.assignManager(assignTarget.id, userId);
+      setAssignTarget(null);
+      await load();
+      return null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to assign manager.';
+      return msg;
+    }
+  }, [assignTarget, load]);
 
-  const handleFormSubmit = async (data: BranchFormData) => {
+  const handleFormSubmit = useCallback(async (data: BranchFormData) => {
     if (editingBranch) await handleUpdate(data);
     else await handleCreate(data);
-  };
+  }, [editingBranch, handleUpdate, handleCreate]);
 
-  const openForm = (b?: BranchResponse) => {
+  const openForm = useCallback((b?: BranchResponse) => {
     setEditingBranch(b || null);
     setShowForm(true);
-  };
+  }, []);
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: branches.length,
     active: branches.filter(b => b.status === 'Active').length,
     inactive: branches.filter(b => b.status === 'Inactive').length,
     archived: branches.filter(b => b.status === 'Archived').length,
-  };
+  }), [branches]);
 
   return (
     <div className="space-y-4">
@@ -132,10 +145,12 @@ export function BranchSectionShell() {
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
-          <button onClick={() => openForm()}
-            className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark transition-colors">
-            <Plus className="w-4 h-4" /> Add Branch
-          </button>
+          {canManage && (
+            <button onClick={() => openForm()}
+              className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark transition-colors">
+              <Plus className="w-4 h-4" /> Add Branch
+            </button>
+          )}
         </div>
       </div>
 

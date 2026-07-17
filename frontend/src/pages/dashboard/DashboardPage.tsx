@@ -15,14 +15,12 @@ export default function DashboardPage({ currentUser, onLogout }: DashboardPagePr
     case 'Admin':
       return <AdminDashboard currentUser={currentUser} onLogout={onLogout} />;
     case 'Manager':
-    case 'EventManager':
       return <ManagerDashboard currentUser={currentUser} onLogout={onLogout} />;
     case 'Instructor':
       return <TeacherDashboard currentUser={currentUser} onLogout={onLogout} />;
     case 'Secretary':
       return <SecretaryDashboard currentUser={currentUser} onLogout={onLogout} />;
     case 'Student':
-    case 'Parent':
     default:
       return <StudentDashboard currentUser={currentUser} onLogout={onLogout} />;
   }

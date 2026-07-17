@@ -4,7 +4,7 @@ export const securityApi = {
   /**
    * Change logged-in user's password
    */
-  changePassword: (data: any) => http.put('/accounts/password/change/', data),
+  changePassword: (data: { old_password: string; new_password: string }) => http.put('/accounts/password/change/', data),
 
   /**
    * Email Verification flow
