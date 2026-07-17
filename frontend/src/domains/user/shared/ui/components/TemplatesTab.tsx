@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Award, FileText, Eye, RotateCcw, X, CheckCircle2, Loader2, Upload, Shield } from 'lucide-react';
+import { Search, Plus, Award, FileText, Eye, RotateCcw, X, CheckCircle2, Loader2, Upload, Shield, ScrollText, Hash, GraduationCap } from 'lucide-react';
 import { Certificate } from '@/shared/types';
 import { decodeBodyWithSignatory, updateCertificateTemplateApi, createCertificateTemplateApi, setCertificateTemplateActiveApi } from '@/domains/learning/academics/api/academicApi';
 import BrandLogo from '@/shared/ui/BrandLogo';
@@ -343,80 +343,118 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
         )}
       </AnimatePresence>
 
-      {/* Preview Modal */}
+      {/* Preview Modal — professional certificate design */}
       <AnimatePresence>
         {preview && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setPreview(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+              onClick={() => setPreview(null)} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-lg overflow-hidden">
+              <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
                 {(() => {
                   const decoded = decodeBodyWithSignatory(preview.body_text || '');
+                  const hasBg = preview.background_url;
                   return (
                     <>
-                      <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
-                        {/* Ornamental top border */}
-                        <div className="flex items-center justify-center gap-1 pt-6 px-8">
-                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
-                          <div className="flex items-center gap-0.5">
-                            <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
-                            <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
-                            <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
+                      <div className={`relative text-center ${hasBg ? '' : 'bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark'}`}
+                        style={hasBg ? {
+                          backgroundImage: `url(${preview.background_url})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        } : {}}>
+                        {/* Overlay for bg image readability */}
+                        {hasBg && <div className="absolute inset-0 bg-black/30" />}
+
+                        <div className="relative px-8 pb-8 pt-6 flex flex-col items-center gap-3">
+                          {/* Corner ornaments */}
+                          <div className="absolute top-4 left-4 w-10 h-10 border-l-2 border-t-2 border-white/30 rounded-tl-xl" />
+                          <div className="absolute top-4 right-4 w-10 h-10 border-r-2 border-t-2 border-white/30 rounded-tr-xl" />
+                          <div className="absolute bottom-4 left-4 w-10 h-10 border-l-2 border-b-2 border-white/30 rounded-bl-xl" />
+                          <div className="absolute bottom-4 right-4 w-10 h-10 border-r-2 border-b-2 border-white/30 rounded-br-xl" />
+
+                          {/* Gold seal */}
+                          <div className="w-14 h-14 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-600/30 ring-2 ring-white/20">
+                            <Award className="w-7 h-7 text-white" />
                           </div>
-                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
-                        </div>
-                        <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
-                          <div className="w-28 h-auto">
-                            <BrandLogo className="w-full h-auto" />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-1 h-1 bg-brand-cyan rounded-full" />
-                            <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
-                            <div className="w-1 h-1 bg-brand-cyan rounded-full" />
-                          </div>
-                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent" />
-                          <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
-                          <p className="font-black text-2xl text-white tracking-tight">[Student Name]</p>
-                          <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
-                          <p className="font-bold text-base text-blue-600">{preview.title}</p>
-                          {decoded.body && (
-                            <p className="text-slate-400 text-[10px] max-w-xs leading-relaxed">{decoded.body}</p>
-                          )}
-                          <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent mt-1" />
-                          <div className="flex items-center gap-3 mt-1">
-                            <div className="flex items-center gap-1.5 text-slate-400">
-                              <Shield className="w-2.5 h-2.5 text-brand-cyan" />
-                              <p className="font-mono text-[9px]">CERT-XXXX-0001</p>
+
+                          {/* Brand logo */}
+                          {preview.institute_logo_url ? (
+                            <img src={preview.institute_logo_url} alt="" className="h-10 object-contain brightness-0 invert" />
+                          ) : (
+                            <div className="w-28 h-auto">
+                              <BrandLogo className="w-full h-auto brightness-0 invert" />
                             </div>
-                            <span className="text-slate-600 text-[9px]">|</span>
-                            <p className="font-mono text-[9px] text-slate-400">{new Date().toISOString().slice(0, 10)}</p>
+                          )}
+
+                          {/* Certificate label */}
+                          <div className="flex items-center gap-2">
+                            <div className="h-px w-8 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+                            <span className="text-[7px] text-white/80 uppercase tracking-[0.35em] font-bold">Certificate of Completion</span>
+                            <div className="h-px w-8 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
                           </div>
-                          {/* Signature area */}
+
+                          {/* Decorative divider */}
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                            <ScrollText className="w-3.5 h-3.5 text-amber-400" />
+                            <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                          </div>
+
+                          <p className="text-white/70 text-[11px] tracking-wide">This certifies that</p>
+                          <p className="font-black text-2xl text-white tracking-tight font-serif">[Student Name]</p>
+                          <p className="text-white/70 text-[11px] tracking-wide">has successfully completed</p>
+
+                          {/* Program badge */}
+                          <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white text-sm font-bold px-4 py-1.5 rounded-full border border-white/20">
+                            <GraduationCap className="w-4 h-4" />
+                            {preview.title}
+                          </div>
+
+                          {decoded.body && (
+                            <p className="text-white/60 text-[10px] max-w-xs leading-relaxed">{decoded.body}</p>
+                          )}
+
+                          <div className="w-40 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+
+                          {/* Meta row */}
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 text-white/50">
+                              <Hash className="w-2.5 h-2.5" />
+                              <span className="font-mono text-[8px]">CERT-XXXX-0001</span>
+                            </div>
+                            <span className="text-white/30 text-[8px]">|</span>
+                            <span className="font-mono text-[8px] text-white/50">{new Date().toISOString().slice(0, 10)}</span>
+                          </div>
+
+                          {/* Signature */}
                           {(preview.signature_url || decoded.signatory_name) && (
-                            <div className="flex items-end justify-center gap-8 mt-2 pt-2 border-t border-white/10 w-full max-w-xs">
+                            <div className="flex items-end justify-center gap-8 mt-1 pt-3 border-t border-white/15 w-full max-w-xs">
                               {decoded.signatory_name && (
                                 <div className="text-center">
                                   {preview.signature_url && (
-                                    <img src={preview.signature_url} alt="Signature" className="h-8 mx-auto mb-0.5 object-contain" />
+                                    <img src={preview.signature_url} alt="Signature" className="h-9 mx-auto mb-1 object-contain" />
                                   )}
-                                  <div className="w-20 h-px bg-white/30 mx-auto mb-0.5" />
-                                  <p className="text-white text-[9px] font-bold leading-tight">{decoded.signatory_name}</p>
-                                  <p className="text-brand-cyan text-[7px] uppercase tracking-wider font-bold">{decoded.signatory_title || 'Principal'}</p>
+                                  <div className="w-24 h-px bg-white/30 mx-auto mb-1" />
+                                  <p className="text-white text-[10px] font-bold leading-tight">{decoded.signatory_name}</p>
+                                  <p className="text-amber-300 text-[7px] uppercase tracking-widest font-bold">{decoded.signatory_title || 'Principal'}</p>
                                 </div>
                               )}
                             </div>
                           )}
                         </div>
-                        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-600 via-brand-cyan to-blue-600 opacity-60" />
+
+                        {/* Bottom accent bar */}
+                        <div className="relative h-1 bg-gradient-to-r from-amber-400/60 via-amber-300 to-amber-400/60" />
                       </div>
-                      <div className="p-3 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
+
+                      {/* Footer */}
+                      <div className="p-3 flex items-center justify-between bg-slate-50 border-t border-slate-200">
                         <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Template Preview
                         </span>
-                        <button onClick={() => setPreview(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">Close</button>
+                        <button onClick={() => setPreview(null)} className="px-3 py-1 text-[10px] font-medium text-slate-500 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg transition-colors">Close</button>
                       </div>
                     </>
                   );
