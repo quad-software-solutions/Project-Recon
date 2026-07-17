@@ -53,6 +53,7 @@ from apps.accounts.views import (
     EmailVerificationRequestView,
     EmailVerificationVerifyView,
     ForgotPasswordView,
+    LogoutAllView,
     LoginView,
     LogoutView,
     PublicEmailVerificationRequestView,
@@ -70,6 +71,7 @@ urlpatterns = [
     # Auth
     path("login/", LoginView.as_view(), name="accounts-login"),
     path("logout/", LogoutView.as_view(), name="accounts-logout"),
+    path("logout/all/", LogoutAllView.as_view(), name="accounts-logout-all"),
     path("token/refresh/", TokenRefreshView.as_view(), name="accounts-token-refresh"),
     path(
         "email-verification/request/",

@@ -1,5 +1,4 @@
 from rest_framework import generics, status
-from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from apps.store.api.permissions import IsStoreStaff
@@ -23,7 +22,7 @@ from apps.store.services.pending_order_service import get_pending_order_or_404
 
 
 class PaymentEvidenceSubmitView(generics.GenericAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsStoreStaff]
     serializer_class = PaymentEvidenceSerializer
 
     def post(self, request, *args, **kwargs):

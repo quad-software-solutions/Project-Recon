@@ -1,5 +1,6 @@
 """Authentication request and response serializers."""
 
+from django.conf import settings
 from rest_framework import serializers
 
 from apps.accounts.serializers.device import DeviceInfoSerializer
@@ -108,11 +109,11 @@ class ResetPasswordSerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     otp = serializers.CharField(write_only=True, min_length=4, max_length=12)
-    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password = serializers.CharField(write_only=True, min_length=settings.PASSWORD_MIN_LENGTH)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
     """Change password for authenticated user."""
 
     old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password = serializers.CharField(write_only=True, min_length=settings.PASSWORD_MIN_LENGTH)

@@ -97,12 +97,14 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
 
     user = User.objects.filter(email__iexact=email).prefetch_related("assignments").first()
     if not user:
+        log_action(None, "LOGIN_FAILED", "User", None, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
     cache_key = f"login_attempts:{email.lower()}"
     attempts = cache.get(cache_key, 0)
     max_attempts = settings.AUTH_MAX_LOGIN_ATTEMPTS
     if max_attempts and attempts >= max_attempts:
+        log_action(None, "LOGIN_FAILED_LOCKED", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
     if user.status == AccountStatus.SUSPENDED:
@@ -114,6 +116,7 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
     if not user.check_password(password):
         lock_mins = settings.AUTH_ACCOUNT_LOCK_MINUTES
         cache.set(cache_key, attempts + 1, lock_mins * 60)
+        log_action(None, "LOGIN_FAILED", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
     cache.delete(cache_key)
@@ -135,7 +138,7 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
         if not device_service.is_device_trusted(user, ctx["fingerprint"]):
             raise PermissionDenied("Device verification required.")
 
-    log_action(user, "LOGIN", "User", user.id)
+    log_action(user, "LOGIN", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
     return issue_tokens(user)
 
 
@@ -165,6 +168,27 @@ def logout(user, refresh_token_str: str) -> None:
     """
     blacklist_refresh_token(refresh_token_str)
     log_action(user, "LOG", "User", user.id)
+
+
+def logout_all(user) -> int:
+    """
+    Blacklist all outstanding refresh tokens for a user.
+
+    Args:
+        user: Authenticated User instance.
+
+    Returns:
+        Number of tokens blacklisted.
+    """
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+    tokens = OutstandingToken.objects.filter(user=user)
+    count = 0
+    for token in tokens:
+        BlacklistedToken.objects.get_or_create(token=token)
+        count += 1
+    log_action(user, "LOGOUT_ALL", "User", user.id)
+    return count
 
 
 def refresh_token(refresh_token_str: str) -> dict:
@@ -351,6 +375,7 @@ def reset_password(email: str, otp: str, new_password: str) -> None:
     ).order_by("-created_at").first()
 
     if not challenge or not check_password(otp, challenge.otp_code):
+        log_action(None, "PASSWORD_RESET_FAILED", "OTPChallenge", challenge.id if challenge else None)
         raise ValidationError("Invalid OTP code.")
 
     try:

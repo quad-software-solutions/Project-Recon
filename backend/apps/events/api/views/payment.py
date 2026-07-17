@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiPara
 from rest_framework import generics, status
 from rest_framework.response import Response
 
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 from apps.events.api.permissions import IsEventRegistrationStaff
 from apps.events.api.serializers import (
     CashPaymentSerializer,
@@ -130,4 +131,7 @@ class AdminPaymentListView(generics.ListAPIView):
     def get_queryset(self):
         event_id = self.request.query_params.get("event")
         status_filter = self.request.query_params.get("status")
-        return list_payments(event_id=event_id, status=status_filter)
+        branch_ids = None
+        if not user_is_super_admin(self.request.user):
+            branch_ids = get_active_branch_ids(self.request.user)
+        return list_payments(event_id=event_id, status=status_filter, branch_ids=branch_ids)

@@ -5,7 +5,19 @@ record auditable events. The action string is caller-defined — there is
 no predefined enum.
 """
 
+SENSITIVE_KEYS = {"password", "new_password", "current_password",
+                  "otp", "token", "secret", "refresh", "access",
+                  "transaction_reference", "bank_account"}
+
 from apps.shared.audit.models.audit_log import AuditLog
+
+
+def _sanitise_details(details: dict | None) -> dict | None:
+    """Strip sensitive keys from the details dict before persisting."""
+    if not details:
+        return details
+    return {k: v for k, v in details.items()
+            if k.lower() not in SENSITIVE_KEYS}
 
 
 def log_action(
@@ -43,5 +55,5 @@ def log_action(
         branch=branch,
         ip_address=ip_address,
         user_agent=user_agent,
-        details=details,
+        details=_sanitise_details(details),
     )

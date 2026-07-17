@@ -1,11 +1,10 @@
 """User serializers for accounts API."""
-
-from rest_framework import serializers
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
 
 from apps.accounts.constants import Gender, Roles
 from apps.accounts.models import User, UserAssignment
-
 
 class UserAssignmentNestedSerializer(serializers.ModelSerializer):
     """Read-only nested assignment summary on user detail responses."""
@@ -81,13 +80,15 @@ class UserUpdateSerializer(serializers.Serializer):
         if qs.exists():
             raise serializers.ValidationError("A user with this phone number already exists.")
         return value
+
+
 class CreateStaffUserSerializer(serializers.Serializer):
     """Validate staff user creation request."""
 
     email = serializers.EmailField()
     first_name = serializers.CharField(max_length=100)
     last_name = serializers.CharField(max_length=100)
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=settings.PASSWORD_MIN_LENGTH)
     branch_id = serializers.UUIDField()
     role = serializers.ChoiceField(choices=Roles.choices, default=Roles.INSTRUCTOR)
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
@@ -97,6 +98,14 @@ class CreateStaffUserSerializer(serializers.Serializer):
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_role(self, value):
+        request = self.context.get("request")
+        if request and not request.user.is_anonymous:
+            from apps.accounts.permissions.roles import user_is_super_admin
+            if not user_is_super_admin(request.user) and value == Roles.SUPER_ADMIN:
+                raise serializers.ValidationError("Cannot assign Super Admin role.")
         return value
 
     def validate_phone_number(self, value):
@@ -113,7 +122,7 @@ class CreateBranchManagerSerializer(serializers.Serializer):
     email = serializers.EmailField()
     first_name = serializers.CharField(max_length=100)
     last_name = serializers.CharField(max_length=100)
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=settings.PASSWORD_MIN_LENGTH)
     branch_id = serializers.UUIDField()
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_null=True)

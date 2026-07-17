@@ -86,6 +86,9 @@ class AssignmentListCreateView(generics.ListCreateAPIView):
         elif not user_is_super_admin(request.user):
             raise PermissionDenied("Only Super Admin can assign Super Admin role.")
 
+        if not user_is_super_admin(request.user) and serializer.validated_data["role"] == Roles.BRANCH_MANAGER:
+            raise PermissionDenied("Only Super Admin can assign Branch Manager role.")
+
         assignment = assign_role(
             user,
             serializer.validated_data["role"],

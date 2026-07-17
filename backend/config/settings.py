@@ -36,6 +36,8 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()
 ]
+if not DEBUG and "*" in ALLOWED_HOSTS:
+    raise ValueError("ALLOWED_HOSTS cannot contain '*' when DEBUG is False")
 
 FRONTEND_ORIGINS = [
     o.strip() for o in os.getenv("FRONTEND_ORIGINS", "").split(",") if o.strip()
@@ -121,6 +123,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "csp.middleware.CSPMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -262,8 +265,8 @@ elif STATIC_BACKEND == "s3":
     AWS_ACCESS_KEY_ID = _static_access_key
     AWS_SECRET_ACCESS_KEY = _static_secret_key
     AWS_S3_ENDPOINT_URL = _static_endpoint
-    AWS_S3_FILE_OVERWRITE = True
-    AWS_DEFAULT_ACL = "public-read"
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = "private"
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_CUSTOM_DOMAIN = _static_custom_domain
 
@@ -509,6 +512,7 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
+        "anon": os.getenv("THROTTLE_ANON", "20/min"),
         "login": os.getenv("THROTTLE_LOGIN", "10/min"),
         "anon_login": os.getenv("THROTTLE_LOGIN", "10/min"),
         "otp_send": os.getenv("THROTTLE_OTP_SEND", "5/hour"),
@@ -525,7 +529,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "60"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "15"))),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "1"))),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -547,6 +551,17 @@ SPECTACULAR_SETTINGS = {
         "persistAuthorization": True,
     },
 }
+
+
+# ── Content Security Policy ───────────────────────────────────────────────
+
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_FONT_SRC = ("'self'",)
+CSP_FORM_ACTION = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
 
 
 # ── SSL / HTTPS ───────────────────────────────────────────────────────────
@@ -577,6 +592,7 @@ AUTH_MAX_OTP_ATTEMPTS = int(os.getenv("AUTH_MAX_OTP_ATTEMPTS", "3"))
 AUTH_MAX_OTP_RESENDS = int(os.getenv("AUTH_MAX_OTP_RESENDS", "3"))
 AUTH_MAX_LOGIN_ATTEMPTS = int(os.getenv("AUTH_MAX_LOGIN_ATTEMPTS", "5"))
 AUTH_ACCOUNT_LOCK_MINUTES = int(os.getenv("AUTH_ACCOUNT_LOCK_MINUTES", "15"))
+PASSWORD_MIN_LENGTH = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
 
 REPORT_INSTITUTE_NAME = os.getenv("REPORT_INSTITUTE_NAME", "Institute")
 

@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from apps.cms.api.permissions import IsCMSStaff
 from apps.cms.api.serializers import (
@@ -20,6 +21,7 @@ from apps.cms.services.contact_request_service import (
 
 class PublicCreateContactRequestView(generics.CreateAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
     serializer_class = ContactRequestCreateSerializer
 
     @extend_schema(

@@ -28,7 +28,7 @@ def get_payment_or_404(pk):
         raise NotFound("Payment not found.")
 
 
-def list_payments(registration_id=None, status=None, event_id=None):
+def list_payments(registration_id=None, status=None, event_id=None, branch_ids=None):
     """
     Return payments, optionally filtered.
 
@@ -36,6 +36,7 @@ def list_payments(registration_id=None, status=None, event_id=None):
         registration_id: Optional registration UUID to filter by.
         status: Optional payment status to filter by.
         event_id: Optional event UUID to filter by.
+        branch_ids: Optional set of branch UUIDs to scope by.
 
     Returns:
         QuerySet of EventPayment objects.
@@ -49,6 +50,8 @@ def list_payments(registration_id=None, status=None, event_id=None):
         qs = qs.filter(status=status)
     if event_id:
         qs = qs.filter(registration__event_id=event_id)
+    if branch_ids:
+        qs = qs.filter(registration__event__branch_id__in=branch_ids)
     return qs
 
 

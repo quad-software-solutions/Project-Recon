@@ -7,6 +7,7 @@ from apps.accounts.views.auth import (
     EmailVerificationRequestView,
     EmailVerificationVerifyView,
     ForgotPasswordView,
+    LogoutAllView,
     LoginView,
     LogoutView,
     PublicEmailVerificationRequestView,
@@ -44,6 +45,7 @@ from apps.accounts.views.device import DeviceDetailView, DeviceListView, DeviceR
 __all__ = [
     "LoginView",
     "LogoutView",
+    "LogoutAllView",
     "TokenRefreshView",
     "EmailVerificationRequestView",
     "EmailVerificationVerifyView",

@@ -1,9 +1,11 @@
 import os
 import re
+import uuid
 
 import magic
 
 from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.utils.deconstruct import deconstructible
 
 
@@ -43,6 +45,12 @@ def sanitize_filename(name):
     if not root:
         root = "untitled"
     return f"{root}{ext}"
+
+
+def generate_uuid_filename(instance, filename):
+    """Replace filename with UUID to prevent path traversal and name collisions."""
+    ext = os.path.splitext(filename)[1].lower()
+    return f"{uuid.uuid4()}{ext}"
 
 
 def validate_file_extension(value):
@@ -100,3 +108,30 @@ class FileSizeValidator:
 class UploadedFileValidator:
     def __call__(self, value):
         validate_uploaded_file(value)
+
+
+@deconstructible
+class HttpsUrlValidator:
+    """
+    Validate a URL uses https and does not point to a private/reserved IP.
+    """
+
+    message = "Only HTTPS URLs are allowed."
+
+    def __call__(self, value):
+        URLValidator(schemes=["https"])(value)
+        self._reject_private_ip(value)
+
+    @staticmethod
+    def _reject_private_ip(url):
+        from urllib.parse import urlparse
+        import ipaddress
+        host = urlparse(url).hostname
+        if host is None:
+            return
+        try:
+            addr = ipaddress.ip_address(host)
+            if addr.is_private or addr.is_loopback or addr.is_link_local:
+                raise ValidationError("URL must not point to a private or internal IP.")
+        except ValueError:
+            pass

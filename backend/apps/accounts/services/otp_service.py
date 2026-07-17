@@ -100,16 +100,16 @@ def verify(user, purpose, code: str) -> bool:
         raise NotFound("No active OTP challenge found.")
 
     if challenge.expires_at < timezone.now():
-        raise ValidationError("OTP has expired.")
+        raise ValidationError("Invalid or expired OTP code.")
 
     if challenge.attempts >= settings.AUTH_MAX_OTP_ATTEMPTS:
-        raise Throttled(detail="Maximum OTP verification attempts exceeded.")
+        raise Throttled(detail="Invalid or expired OTP code.")
 
     challenge.attempts += 1
 
     if not check_password(code, challenge.otp_code):
         challenge.save(update_fields=["attempts"])
-        raise ValidationError("Invalid OTP code.")
+        raise ValidationError("Invalid or expired OTP code.")
 
     challenge.is_used = True
     challenge.save(update_fields=["attempts", "is_used"])

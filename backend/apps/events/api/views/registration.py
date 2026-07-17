@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiPara
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from apps.academic.models import Student
 from apps.accounts.permissions.roles import (
@@ -31,6 +32,7 @@ from apps.events.services.registration_service import (
 )
 class EventRegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
     serializer_class = PublicRegistrationSerializer
 
     def create(self, request, *args, **kwargs):

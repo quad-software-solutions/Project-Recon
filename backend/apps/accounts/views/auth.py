@@ -3,6 +3,7 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from apps.accounts.serializers.auth import (
@@ -30,13 +31,14 @@ from apps.accounts.services.authentication_service import (
     forgot_password,
     login,
     logout,
+    logout_all,
     refresh_token,
-    request_email_verification,
     reset_password,
-    verify_email_otp,
-    request_device_verification,
-    verify_device_otp,
     change_password,
+    verify_email_otp,
+    verify_device_otp,
+    request_email_verification,
+    request_device_verification,
     public_request_email_verification,
     public_verify_email_otp,
 )
@@ -102,6 +104,21 @@ class LogoutView(APIView):
         return Response(status=204)
 
 
+class LogoutAllView(APIView):
+    """
+    Blacklist all refresh tokens for the authenticated user.
+
+    Invalidates all sessions, forcing login on all devices.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["Auth"], responses={200: None})
+    def post(self, request):
+        count = logout_all(request.user)
+        return Response({"blacklisted": count})
+
+
 class TokenRefreshView(APIView):
     """
     Rotate refresh token and return a new token pair.
@@ -111,6 +128,7 @@ class TokenRefreshView(APIView):
     """
 
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     @extend_schema(
         tags=["Auth"],
