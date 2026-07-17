@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, DollarSign, Download, Eye, Filter, Calendar, BookOpen, CreditCard, Banknote, CheckCircle2, Clock, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, DollarSign, Download, Eye, Filter, Calendar, BookOpen, CreditCard, Banknote, CheckCircle2, XCircle, Clock, ChevronLeft, ChevronRight, Shield, Store } from 'lucide-react';
 import { EnrollmentPayment, Enrollment } from '@/shared/types';
 import { fetchPaymentsListApi, fetchEnrollmentsPaginatedApi, recordPaymentApi, fetchVerificationQueueApi, setUnderReviewApi, rejectPaymentApi } from '@/domains/learning/academics/api/academicApi';
+import * as eventsApi from '@/domains/competition/api/eventsApi';
+import type { BackendEventPayment } from '@/domains/competition/api/eventsApi';
 
 const PAGE_SIZE = 50;
 
@@ -28,6 +30,8 @@ const PAYMENT_METHODS = [
   { value: 'CHEQUE', label: 'Cheque' },
 ];
 
+type PaymentTab = 'enrollment' | 'enrollment-verification' | 'event';
+
 export default function PaymentsPanel() {
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -41,9 +45,20 @@ export default function PaymentsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<EnrollmentPayment | null>(null);
-  const [activeTab, setActiveTab] = useState<'payments' | 'verification'>('payments');
+  const [activeTab, setActiveTab] = useState<PaymentTab>('enrollment');
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState<EnrollmentPayment | null>(null);
+
+  const [eventPayments, setEventPayments] = useState<BackendEventPayment[]>([]);
+  const [eventPaymentsLoading, setEventPaymentsLoading] = useState(false);
+  const [eventSearch, setEventSearch] = useState('');
+  const [eventStatusFilter, setEventStatusFilter] = useState('');
+  const [eventActionLoading, setEventActionLoading] = useState<string | null>(null);
+  const [eventDetail, setEventDetail] = useState<BackendEventPayment | null>(null);
+  const [eventRejectModal, setEventRejectModal] = useState<BackendEventPayment | null>(null);
+  const [eventRejectNotes, setEventRejectNotes] = useState('');
+  const [eventVerifyModal, setEventVerifyModal] = useState<BackendEventPayment | null>(null);
+  const [eventVerifyNotes, setEventVerifyNotes] = useState('');
 
   const loadData = () => {
     setLoading(true);
@@ -116,7 +131,8 @@ export default function PaymentsPanel() {
   };
 
   const filtered = useMemo(() => {
-    let list = activeTab === 'verification' ? verificationQueue : [...payments];
+    if (activeTab === 'enrollment-verification') return verificationQueue;
+    let list = [...payments];
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(p =>
@@ -130,6 +146,65 @@ export default function PaymentsPanel() {
     if (statusFilter !== 'all') list = list.filter(p => p.status === statusFilter);
     return list;
   }, [payments, verificationQueue, searchQuery, methodFilter, statusFilter, activeTab]);
+
+  const loadEventPayments = () => {
+    setEventPaymentsLoading(true);
+    eventsApi.adminListPayments(eventStatusFilter ? { status: eventStatusFilter } : undefined)
+      .then(setEventPayments)
+      .catch(() => {})
+      .finally(() => setEventPaymentsLoading(false));
+  };
+
+  useEffect(() => {
+    if (activeTab === 'event') loadEventPayments();
+  }, [activeTab, eventStatusFilter]);
+
+  const handleEventVerify = async () => {
+    if (!eventVerifyModal) return;
+    setEventActionLoading(eventVerifyModal.id);
+    try {
+      await eventsApi.adminVerifyPayment(eventVerifyModal.registration, { verification_notes: eventVerifyNotes || undefined });
+      setEventVerifyModal(null);
+      setEventVerifyNotes('');
+      loadEventPayments();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setEventActionLoading(null);
+    }
+  };
+
+  const handleEventReject = async () => {
+    if (!eventRejectModal || !eventRejectNotes.trim()) return;
+    setEventActionLoading(eventRejectModal.id);
+    try {
+      await eventsApi.adminRejectPayment(eventRejectModal.registration, { verification_notes: eventRejectNotes });
+      setEventRejectModal(null);
+      setEventRejectNotes('');
+      loadEventPayments();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setEventActionLoading(null);
+    }
+  };
+
+  const eventFiltered = useMemo(() => {
+    if (!eventSearch.trim()) return eventPayments;
+    const q = eventSearch.toLowerCase();
+    return eventPayments.filter(p =>
+      (p.student_name || '').toLowerCase().includes(q) ||
+      (p.event_title || '').toLowerCase().includes(q) ||
+      (p.transaction_reference || '').toLowerCase().includes(q)
+    );
+  }, [eventPayments, eventSearch]);
+
+  const eventStats = useMemo(() => ({
+    total: eventPayments.length,
+    pending: eventPayments.filter(p => p.status === 'PENDING_VERIFICATION').length,
+    verified: eventPayments.filter(p => p.status === 'VERIFIED').length,
+    rejected: eventPayments.filter(p => p.status === 'REJECTED').length,
+  }), [eventPayments]);
 
   const totalAmount = filtered.reduce((sum, p) => sum + (p.status === 'PAID' || p.status === 'VERIFIED' ? Number(p.amount) : 0), 0);
   const paidCount = payments.filter(p => p.status === 'PAID').length;
@@ -192,12 +267,16 @@ export default function PaymentsPanel() {
       </div>
 
       <div className="flex items-center gap-4 border-b border-brand-border">
-        <button onClick={() => setActiveTab('payments')} className={`pb-2 text-xs font-bold transition-colors ${activeTab === 'payments' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
-          All Payments
+        <button onClick={() => setActiveTab('enrollment')} className={`pb-2 text-xs font-bold transition-colors ${activeTab === 'enrollment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+          Enrollment Payments
         </button>
-        <button onClick={() => setActiveTab('verification')} className={`pb-2 text-xs font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'verification' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+        <button onClick={() => setActiveTab('enrollment-verification')} className={`pb-2 text-xs font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'enrollment-verification' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
           <Shield className="w-3.5 h-3.5" /> Verification Queue
           {queueCount > 0 && <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">{queueCount}</span>}
+        </button>
+        <button onClick={() => setActiveTab('event')} className={`pb-2 text-xs font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'event' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+          <Store className="w-3.5 h-3.5" /> Event Payments
+          {eventStats.pending > 0 && <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">{eventStats.pending}</span>}
         </button>
       </div>
 
@@ -226,7 +305,7 @@ export default function PaymentsPanel() {
             <option value="FAILED">Failed</option>
             <option value="REFUNDED">Refunded</option>
             <option value="CANCELLED">Cancelled</option>
-            {activeTab === 'verification' && (
+            {activeTab === 'enrollment-verification' && (
               <>
                 <option value="SUBMITTED">Submitted</option>
                 <option value="UNDER_REVIEW">Under Review</option>
@@ -238,79 +317,302 @@ export default function PaymentsPanel() {
         </div>
       </div>
 
-      <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-brand-border">
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Student</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">Program</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Amount</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">Method</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden md:table-cell">Date</th>
-                <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-border">
-              {loading ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-xs text-slate-400">
-                  {activeTab === 'verification' ? 'No payments pending verification' : 'No payments recorded yet'}
-                </td></tr>
-              ) : filtered.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-brand-blue/5 flex items-center justify-center">
-                        <DollarSign className="w-3.5 h-3.5 text-brand-blue" />
-                      </div>
-                      <span className="text-xs font-semibold text-slate-900">{p.student_name || p.id.slice(0, 8)}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">
-                    <div className="flex flex-col">
-                      <span>{p.sub_program_name || '—'}</span>
-                      {p.class_name && <span className="text-[10px] text-slate-400">{p.class_name}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                      {p.payment_method === 'CASH' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
-                      {PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{p.payment_date?.slice(0, 10) || '—'}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_STYLES[p.status] || VERIFICATION_STYLES[p.status] || 'bg-slate-100 text-slate-500'}`}>{p.status}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => setSelectedPayment(p)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details">
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      {activeTab === 'verification' && p.status !== 'UNDER_REVIEW' && p.status !== 'VERIFIED' && p.status !== 'REJECTED' && (
-                        <>
-                          <button onClick={() => handleUnderReview(p)} className="p-1 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors" title="Mark under review">
-                            <Shield className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => { setShowReject(p); setRejectReason(''); }} className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Reject">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+      {(activeTab === 'enrollment' || activeTab === 'enrollment-verification') && (
+        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-brand-border">
+                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Student</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">Program</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Amount</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">Method</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden md:table-cell">Date</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-brand-border">
+                {loading ? (
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-xs text-slate-400">No payments recorded yet</td></tr>
+                ) : filtered.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-brand-blue/5 flex items-center justify-center">
+                          <DollarSign className="w-3.5 h-3.5 text-brand-blue" />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-900">{p.student_name || p.id.slice(0, 8)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">
+                      <div className="flex flex-col">
+                        <span>{p.sub_program_name || '—'}</span>
+                        {p.class_name && <span className="text-[10px] text-slate-400">{p.class_name}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                        {p.payment_method === 'CASH' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                        {PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{p.payment_date?.slice(0, 10) || '—'}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_STYLES[p.status] || VERIFICATION_STYLES[p.status] || 'bg-slate-100 text-slate-500'}`}>{p.status}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => setSelectedPayment(p)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details">
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        {activeTab === 'enrollment-verification' && p.status !== 'UNDER_REVIEW' && p.status !== 'VERIFIED' && p.status !== 'REJECTED' && (
+                          <>
+                            <button onClick={() => handleUnderReview(p)} className="p-1 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors" title="Mark under review">
+                              <Shield className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => { setShowReject(p); setRejectReason(''); }} className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Reject">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'event' && (
+        <div className="space-y-4">
+          {/* Event payment stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Total', value: eventStats.total, icon: DollarSign, color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
+              { label: 'Pending', value: eventStats.pending, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+              { label: 'Verified', value: eventStats.verified, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { label: 'Rejected', value: eventStats.rejected, icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
+            ].map((s, i) => {
+              const SIcon = s.icon;
+              return (
+                <div key={i} className="bg-white border border-brand-border rounded-xl px-4 py-3">
+                  <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}>
+                    <SIcon className={`w-4 h-4 ${s.color}`} />
+                  </div>
+                  <p className="font-black text-lg text-slate-900 leading-tight">{typeof s.value === 'number' ? s.value.toLocaleString() : s.value}</p>
+                  <p className="text-[10px] font-medium text-slate-500">{s.label}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input value={eventSearch} onChange={e => setEventSearch(e.target.value)}
+                placeholder="Search by student, event, reference..."
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select value={eventStatusFilter} onChange={e => setEventStatusFilter(e.target.value)}
+                className="px-2.5 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
+              >
+                <option value="">All Status</option>
+                <option value="PENDING_VERIFICATION">Pending</option>
+                <option value="VERIFIED">Verified</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Event payments table */}
+          <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-brand-border">
+                    <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Student</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">Event</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Amount</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">Method</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-border">
+                  {eventPaymentsLoading ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                  ) : eventFiltered.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-400">No event payments found</td></tr>
+                  ) : eventFiltered.map(p => (
+                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-semibold text-slate-900">{p.student_name || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{p.event_title || '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                          {p.payment_method === 'CASH' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                          {p.payment_method}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                          p.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' :
+                          p.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                          p.status === 'CANCELLED' ? 'bg-slate-100 text-slate-500' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>{p.status}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => setEventDetail(p)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          {p.status === 'PENDING_VERIFICATION' && (
+                            <>
+                              <button onClick={() => { setEventVerifyModal(p); setEventVerifyNotes(''); }}
+                                className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors" title="Verify"
+                                disabled={eventActionLoading === p.id}>
+                                {eventActionLoading === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              </button>
+                              <button onClick={() => { setEventRejectModal(p); setEventRejectNotes(''); }}
+                                className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Reject"
+                                disabled={eventActionLoading === p.id}>
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Event payment detail modal */}
+          <AnimatePresence>
+            {eventDetail && (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEventDetail(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between p-4 border-b border-brand-border">
+                      <h3 className="font-bold text-base text-slate-900">Event Payment Details</h3>
+                      <button onClick={() => setEventDetail(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="p-4 space-y-3 text-sm">
+                      <div className="flex justify-between"><span className="text-slate-500">Student</span><span className="font-semibold">{eventDetail.student_name || '—'}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Event</span><span className="font-semibold">{eventDetail.event_title || '—'}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-emerald-600">{Number(eventDetail.amount).toLocaleString()} Birr</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Method</span><span>{eventDetail.payment_method}</span></div>
+                      {eventDetail.transaction_reference && <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-mono text-[10px]">{eventDetail.transaction_reference}</span></div>}
+                      {eventDetail.bank_name && <div className="flex justify-between"><span className="text-slate-500">Bank</span><span>{eventDetail.bank_name}</span></div>}
+                      <div className="flex justify-between"><span className="text-slate-500">Status</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          eventDetail.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' :
+                          eventDetail.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'
+                        }`}>{eventDetail.status}</span>
+                      </div>
+                      {eventDetail.verified_at && <div className="flex justify-between"><span className="text-slate-500">Verified At</span><span className="font-medium">{new Date(eventDetail.verified_at).toLocaleString()}</span></div>}
+                      {eventDetail.verification_notes && <div className="flex justify-between"><span className="text-slate-500">Notes</span><span className="text-right max-w-[200px]">{eventDetail.verification_notes}</span></div>}
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Event verify modal */}
+          <AnimatePresence>
+            {eventVerifyModal && (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEventVerifyModal(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between p-4 border-b border-brand-border">
+                      <h3 className="font-bold text-base text-slate-900">Verify Event Payment</h3>
+                      <button onClick={() => setEventVerifyModal(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <p className="text-xs text-slate-500">Student: <strong>{eventVerifyModal.student_name}</strong></p>
+                      <p className="text-xs text-slate-500">Amount: <strong>{Number(eventVerifyModal.amount).toLocaleString()} Birr</strong></p>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Notes (optional)</label>
+                        <textarea value={eventVerifyNotes} onChange={e => setEventVerifyNotes(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-emerald-500"
+                          rows={2} placeholder="Verification notes..." />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
+                      <button onClick={() => setEventVerifyModal(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                      <button onClick={handleEventVerify} disabled={eventActionLoading === eventVerifyModal.id}
+                        className="bg-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
+                        {eventActionLoading === eventVerifyModal.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                        Verify Payment
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Event reject modal */}
+          <AnimatePresence>
+            {eventRejectModal && (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEventRejectModal(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between p-4 border-b border-brand-border">
+                      <h3 className="font-bold text-base text-slate-900">Reject Event Payment</h3>
+                      <button onClick={() => setEventRejectModal(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <p className="text-xs text-slate-500">Student: <strong>{eventRejectModal.student_name}</strong></p>
+                      <p className="text-xs text-slate-500">Amount: <strong>{Number(eventRejectModal.amount).toLocaleString()} Birr</strong></p>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Rejection Reason *</label>
+                        <textarea value={eventRejectNotes} onChange={e => setEventRejectNotes(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-red-500"
+                          rows={2} placeholder="Explain why..." />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
+                      <button onClick={() => setEventRejectModal(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                      <button onClick={handleEventReject} disabled={eventActionLoading === eventRejectModal.id || !eventRejectNotes.trim()}
+                        className="bg-red-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5">
+                        Reject Payment
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Payment Detail Modal */}
       <AnimatePresence>

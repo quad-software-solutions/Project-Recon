@@ -106,6 +106,21 @@ export interface FAQ {
   isActive?: boolean;
 }
 
+export interface GalleryItem {
+  id: string;
+  title: string;
+  description: string;
+  image: string | null;
+  video_url: string | null;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  imageUrl?: string;
+  videoUrl?: string | null;
+  isActive?: boolean;
+}
+
 export interface MapNodeModel {
   id: string;
   city: string;

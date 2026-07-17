@@ -7,7 +7,9 @@ export interface HeroBannerResponse {
   id: string;
   title: string;
   subtitle: string;
+  description: string;
   image: string;
+  video_url: string | null;
   button_text: string | null;
   button_url: string | null;
   order: number;
@@ -63,6 +65,18 @@ export interface TeamMemberResponse {
   order?: number;
 }
 
+export interface GalleryItemResponse {
+  id: string;
+  title: string;
+  description: string;
+  image: string | null;
+  video_url: string | null;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PlatformStats {
   students_trained: number;
   program_tracks: number;
@@ -87,6 +101,11 @@ export const cmsPublicApi = {
     const row = await http.get<AboutUsResponse>(`/cms/about/${slug}/`);
     return { ...row, content: row.description, image: row.image ?? '' };
   },
+  getGallery: async (signal?: AbortSignal) => {
+    const res = await http.get<GalleryItemResponse[] | { results: GalleryItemResponse[] }>('/cms/gallery/', { signal });
+    return Array.isArray(res) ? res : (res.results ?? []);
+  },
+  getGalleryDetail: (id: string) => http.get<GalleryItemResponse>(`/cms/gallery/${id}/`),
   getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
   /** No backend endpoint — returns empty list for compatibility */
   getTeamMembers: async () => [] as TeamMemberResponse[],

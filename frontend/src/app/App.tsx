@@ -17,13 +17,14 @@ import HomePage from '../pages/HomePage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import StorePage from '../pages/store/StorePage';
 import CompetitionPage from '../pages/competition/CompetitionPage';
+import CertificateVerifyPage from '../pages/certificate/CertificateVerifyPage';
 
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import OrderHistoryPage from '../domains/store/orders/ui/OrderHistoryPage';
 import OrderDetailPage from '../domains/store/orders/ui/OrderDetailPage';
 
 import { useAuth } from '../shared/hooks/useAuth';
-import { useCart } from '../shared/hooks/useCart';
+import { CartProvider, useCartContext } from '../shared/context/CartContext';
 import { useNavigation } from '../shared/hooks/useNavigation';
 import { hasPermission } from '../shared/auth/permissions';
 
@@ -33,6 +34,14 @@ const LoginView = React.lazy(() => import('../domains/auth/login/ui/LoginView'))
 const AuthModal = React.lazy(() => import('../domains/auth/modal/ui/AuthModal'));
 
 export default function App() {
+  return (
+    <CartProvider>
+      <AppInner />
+    </CartProvider>
+  );
+}
+
+function AppInner() {
   const {
     currentUser, setCurrentUser,
     authModalOpen, setAuthModalOpen, authInitialMode,
@@ -43,7 +52,7 @@ export default function App() {
     cart, cartOpen, loading,
     fetchCart, handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, clearCart,
     openCart, closeCart,
-  } = useCart();
+  } = useCartContext();
 
   const handleCheckoutSuccess = (_pendingOrder: any) => {
     fetchCart();
@@ -168,6 +177,12 @@ export default function App() {
               currentUser={currentUser}
               onNavigateLogin={() => handleTabChange('login')}
             />
+          )}
+
+          {activeTab === 'cert-verify' && (
+            <motion.div key="cert-verify-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <CertificateVerifyPage onNavigateHome={() => handleTabChange('home')} />
+            </motion.div>
           )}
 
           {activeTab === 'registration' && (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowRight, Calendar, MapPin, Search, Sparkles, Trophy, Video, Zap,
-  AlertCircle, RotateCcw, Layers3, Users,
+  AlertCircle, RotateCcw, Layers3, Users, Clock, CheckCircle2, XCircle,
 } from 'lucide-react';
 import type { UserProfile } from '@/shared/types';
 import * as eventsApi from '@/domains/competition/api/eventsApi';
@@ -29,6 +29,34 @@ function clampText(text: string, fallback = '—'): string {
   return t.length ? t : fallback;
 }
 
+function computedState(e: eventsApi.BackendEvent): 'live' | 'upcoming' | 'ended' {
+  const start = new Date(e.start_datetime).getTime();
+  const end = e.end_datetime ? new Date(e.end_datetime).getTime() : NaN;
+  const now = Date.now();
+  const isValidStart = Number.isFinite(start);
+  const isValidEnd = Number.isFinite(end);
+  if (e.status === 'CANCELLED' || e.status === 'COMPLETED') return 'ended';
+  if (isValidStart && isValidEnd && now >= start && now <= end) return 'live';
+  if (isValidStart && now < start) return 'upcoming';
+  return 'ended';
+}
+
+function EventBadge({ e, state: st }: { e: eventsApi.BackendEvent; state: ReturnType<typeof computedState> }) {
+  if (e.status === 'CANCELLED') {
+    return <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-700 px-2.5 py-1 rounded-full border border-red-200"><XCircle className="w-3 h-3" /> Cancelled</span>;
+  }
+  if (st === 'ended' || e.status === 'COMPLETED') {
+    return <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-500 px-2.5 py-1 rounded-full"><CheckCircle2 className="w-3 h-3" /> Ended</span>;
+  }
+  if (st === 'live') {
+    return <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-2.5 py-1 rounded-full shadow-sm"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live</span>;
+  }
+  if (st === 'upcoming') {
+    return <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200"><Clock className="w-3 h-3" /> Upcoming</span>;
+  }
+  return null;
+}
+
 function EventCard({
   e,
   onOpen,
@@ -36,12 +64,7 @@ function EventCard({
   e: eventsApi.BackendEvent;
   onOpen: () => void;
 }) {
-  const isLive = useMemo(() => {
-    const start = new Date(e.start_datetime).getTime();
-    const end = new Date(e.end_datetime).getTime();
-    const now = Date.now();
-    return Number.isFinite(start) && Number.isFinite(end) && now >= start && now <= end;
-  }, [e.start_datetime, e.end_datetime]);
+  const state = useMemo(() => computedState(e), [e]);
 
   return (
     <button
@@ -67,11 +90,7 @@ function EventCard({
           <span className="text-[10px] font-black uppercase tracking-widest bg-white/90 text-slate-900 px-2.5 py-1 rounded-full border border-white/60">
             {e.event_type}
           </span>
-          {isLive && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-2.5 py-1 rounded-full shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
-            </span>
-          )}
+          <EventBadge e={e} state={state} />
         </div>
         <div className="absolute bottom-3 left-3 right-3">
           <h3 className="text-white font-black text-base leading-snug line-clamp-2 drop-shadow">{clampText(e.title)}</h3>

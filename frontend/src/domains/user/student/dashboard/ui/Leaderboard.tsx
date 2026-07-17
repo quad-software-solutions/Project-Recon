@@ -17,6 +17,7 @@ export default function Leaderboard() {
   const [tournamentFilter, setTournamentFilter] = useState('all');
 
   const fetchLeaderboard = async () => {
+    setLoading(true);
     try {
       const data = await getPublicTeams();
       const sorted = [...data].sort((a, b) => b.points - a.points || b.wins - a.wins || b.totalScore - a.totalScore);
@@ -27,9 +28,19 @@ export default function Leaderboard() {
 
   useEffect(() => { fetchLeaderboard(); }, []);
 
+  const computeRank = (index: number, arr: PublicTeamEntry[]) => {
+    if (index === 0) return 1;
+    const prev = arr[index - 1];
+    const curr = arr[index];
+    if (curr.points === prev.points && curr.wins === prev.wins && curr.totalScore === prev.totalScore) {
+      return computeRank(index - 1, arr);
+    }
+    return index + 1;
+  };
+
   const tournaments = [...new Set(teams.map(t => t.tournamentName))];
   const filtered = teams.filter(t => {
-    const matchesSearch = t.teamName.toLowerCase().includes(search.toLowerCase()) || t.organization?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = t.teamName.toLowerCase().includes(search.toLowerCase());
     const matchesTournament = tournamentFilter === 'all' || t.tournamentName === tournamentFilter;
     return matchesSearch && matchesTournament;
   });
@@ -108,7 +119,7 @@ export default function Leaderboard() {
                 {filtered.map((team, idx) => (
                   <motion.tr key={team.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}
                     className={`hover:bg-slate-50/50 transition-colors ${idx < 3 ? 'bg-amber-50/30' : ''}`}>
-                    <td className="px-4 py-3"><RankIcon rank={idx + 1} /></td>
+                    <td className="px-4 py-3"><RankIcon rank={computeRank(idx, filtered)} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red/10 to-brand-red/5 flex items-center justify-center"><Users className="w-4 h-4 text-brand-red" /></div>

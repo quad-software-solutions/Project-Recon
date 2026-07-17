@@ -173,7 +173,7 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
       case 'sponsors': return <SponsorManagement currentUser={currentUser} />;
       case 'schools': return <SchoolManagement currentUser={currentUser} />;
-      case 'enrollments': return <RegistrationSection />;
+      case 'enrollments': return <EnrollmentsPanel />;
       case 'transfers': return <TransferRequestsPanel />;
       case 'event-registrations': return <RegistrationManager />;
       case 'store': return <StoreDashboard currentUser={currentUser} />;

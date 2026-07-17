@@ -5,7 +5,7 @@ import {
   Info, ShoppingBag, Bot, Trophy, Users, LayoutDashboard,
   LogIn, UserPlus, Home, ChevronDown, GraduationCap,
   Cpu, Globe, Wrench, Laptop, Sparkles,
-  Award, Calendar, MapPin, Search
+  Award, Calendar, MapPin, Search, ShieldCheck,
 } from 'lucide-react';
 
 import SearchOverlay from './SearchOverlay';
@@ -69,6 +69,7 @@ const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> 
       { label: 'Workshops', desc: 'Hands-on training sessions', icon: GraduationCap, tab: 'competitions', section: 'events' },
       { label: 'Event Calendar', desc: 'Upcoming dates & deadlines', icon: Calendar, tab: 'competitions', section: 'events' },
       { label: 'Venues', desc: 'Lab locations & maps', icon: MapPin, tab: 'competitions', section: 'venues' },
+      { label: 'Verify Certificate', desc: 'Check certificate authenticity', icon: ShieldCheck, tab: 'cert-verify' },
     ],
   },
 };
@@ -81,6 +82,7 @@ const NAV_ITEMS: NavItem[] = [
   { tab: 'registration', label: 'Programs', icon: GraduationCap, mega: 'programs', auth: 'guest' },
   { tab: 'store', label: 'Store', icon: ShoppingBag, mega: 'store', auth: 'guest' },
   { tab: 'competitions', label: 'Events', icon: Trophy, mega: 'events', auth: 'guest' },
+  { tab: 'cert-verify', label: 'Verify', icon: ShieldCheck, auth: 'guest' },
 ];
 
 const getMegaPanelAlignment = (mega?: string) =>

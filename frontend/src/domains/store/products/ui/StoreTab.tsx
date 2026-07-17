@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, ShoppingCart, Store, ShoppingBag } from 'lucide-react';
-import { useCart } from '@/shared/hooks/useCart';
+import { useCartContext } from '@/shared/context/CartContext';
 import { listProducts } from '@/domains/store/products/api/productApi';
 import { listActiveCategories } from '@/domains/store/categories/api/categoriesApi';
 import type { Product, ProductCategory, BranchInventory } from '@/domains/store/model/types';
@@ -56,7 +56,7 @@ export default function StoreTab({ openCart }: StoreTabProps) {
     cart, loading: cartLoading, error: cartError,
     handleAddToCart, handleUpdateQuantity, handleRemoveFromCart,
     clearCartError,
-  } = useCart();
+  } = useCartContext();
 
   useEffect(() => {
     const sync = () => setView(parseStorePath(window.location.pathname));

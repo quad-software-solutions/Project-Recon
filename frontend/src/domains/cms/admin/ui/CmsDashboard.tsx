@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Image, FileText, Handshake, Building,
-  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock,
+  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock, Camera,
 } from 'lucide-react';
 import HeroBannerManager from './HeroBannerManager';
 import NewsManager from './NewsManager';
@@ -11,11 +11,12 @@ import AboutUsManager from './AboutUsManager';
 import ContactRequestManager from './ContactRequestManager';
 import FaqManager from './FaqManager';
 import MapNodeManager from './MapNodeManager';
+import GalleryManager from './GalleryManager';
 import { api } from '../api/cmsApi';
 import type { UserProfile } from '@/shared/types';
 import { canManageCms } from '@/shared/auth/permissions';
 
-type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests';
+type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests' | 'gallery';
 
 export interface Toast {
   id: string;
@@ -36,6 +37,7 @@ interface SectionCounts {
   faqs: number;
   'contact-requests': number;
   'map-nodes': number;
+  gallery: number;
 }
 
 const SUB_NAV: CmsSubNavItem[] = [
@@ -44,6 +46,7 @@ const SUB_NAV: CmsSubNavItem[] = [
   { id: 'partners', label: 'Partners & Sponsors', icon: Handshake },
   { id: 'about', label: 'About Us', icon: Building },
   { id: 'map-nodes', label: 'Map Nodes', icon: MapPin },
+  { id: 'gallery', label: 'Gallery', icon: Camera },
   { id: 'faqs', label: 'FAQs', icon: HelpCircle },
   { id: 'contact-requests', label: 'Contact Requests', icon: MessageSquare },
 ];
@@ -55,6 +58,7 @@ const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.Elem
   { key: 'faqs', label: 'FAQs', icon: HelpCircle, color: 'text-cyan-500 bg-cyan-50' },
   { key: 'contact-requests', label: 'Contacts', icon: MessageSquare, color: 'text-rose-500 bg-rose-50' },
   { key: 'map-nodes', label: 'Map Nodes', icon: MapPin, color: 'text-orange-500 bg-orange-50' },
+  { key: 'gallery', label: 'Gallery', icon: Camera, color: 'text-pink-500 bg-pink-50' },
 ];
 
 let toastCounter = 0;
@@ -68,15 +72,15 @@ export default function CmsDashboard({ currentUser }: Props) {
   const [section, setSection] = useState<CmsSection>('hero-banners');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
-    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1,
+    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1, gallery: -1,
   });
 
   useEffect(() => {
     (async () => {
       try {
-        const [heroBanners, news, partners, faqs, contactRequests, mapNodes] = await Promise.all([
+        const [heroBanners, news, partners, faqs, contactRequests, mapNodes, gallery] = await Promise.all([
           api.getAll('hero-banners'), api.getAll('news'), api.getAll('partners'),
-          api.getAll('faqs'), api.getAll('contact-requests'), api.getAll('map-nodes'),
+          api.getAll('faqs'), api.getAll('contact-requests'), api.getAll('map-nodes'), api.getAll('gallery'),
         ]);
         setCounts({
           'hero-banners': heroBanners.length,
@@ -85,6 +89,7 @@ export default function CmsDashboard({ currentUser }: Props) {
           faqs: faqs.length,
           'contact-requests': contactRequests.length,
           'map-nodes': mapNodes.length,
+          gallery: gallery.length,
         });
       } catch {
         setCounts(prev => Object.fromEntries(Object.entries(prev).map(([k]) => [k, 0])) as SectionCounts);
@@ -174,6 +179,7 @@ export default function CmsDashboard({ currentUser }: Props) {
             {section === 'faqs' && <FaqManager addToast={addToast} />}
             {section === 'contact-requests' && <ContactRequestManager addToast={addToast} />}
             {section === 'map-nodes' && <MapNodeManager addToast={addToast} />}
+            {section === 'gallery' && <GalleryManager addToast={addToast} />}
           </motion.div>
         </AnimatePresence>
       </div>

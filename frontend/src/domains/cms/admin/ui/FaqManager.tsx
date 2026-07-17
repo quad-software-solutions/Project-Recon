@@ -100,7 +100,7 @@ export default function FaqManager({ addToast }: Props) {
           <h2 className="font-bold text-slate-800">FAQs</h2>
           <p className="text-xs text-slate-400 mt-0.5">Manage frequently asked questions</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-red-700">
+        <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700">
           <Plus className="w-3.5 h-3.5" /> Add FAQ
         </button>
       </div>
@@ -199,7 +199,7 @@ export default function FaqManager({ addToast }: Props) {
             <div className="flex gap-2 justify-end p-4 border-t border-slate-200">
               <button onClick={closeForm} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
               <button onClick={save} disabled={saving}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-red-700 disabled:opacity-50">
+                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
                 {saving ? 'Saving...' : editing.id ? 'Update' : 'Create'}
               </button>
             </div>

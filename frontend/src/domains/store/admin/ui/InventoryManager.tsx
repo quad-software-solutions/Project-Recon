@@ -78,14 +78,15 @@ export default function InventoryManager({ addToast }: Props) {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [data, branchData, productData] = await Promise.all([
-        storeAdminApi.inventory.list(),
-        branchesApi.list(),
-        storeAdminApi.products.list(),
-      ]);
+      const data = await storeAdminApi.inventory.list();
       setItems(data);
-      setBranches(branchData.map((b: any) => ({ id: b.id || b.uuid, name: b.name })));
-      setProducts(productData);
+      Promise.all([
+        branchesApi.list().catch(() => []),
+        storeAdminApi.products.list().catch(() => []),
+      ]).then(([branchData, productData]) => {
+        setBranches(branchData.map((b: any) => ({ id: b.id || b.uuid, name: b.name })));
+        setProducts(productData);
+      });
     } catch (e: any) {
       addToast(e.message || 'Failed to load inventory', 'error');
     } finally {

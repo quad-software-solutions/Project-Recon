@@ -20,6 +20,7 @@ function tabFromPath(path: string): ActiveTab {
   if (path.startsWith('/forgot-password')) return 'forgot-password';
   if (path.startsWith('/reset-password')) return 'reset-password';
   if (path.startsWith('/registration')) return 'registration';
+  if (path.startsWith('/cert-verify')) return 'cert-verify';
   return 'home';
 }
 

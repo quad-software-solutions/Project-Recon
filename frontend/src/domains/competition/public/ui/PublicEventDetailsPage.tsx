@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft, Calendar, ExternalLink, Image as ImageIcon, Loader2, MapPin, RotateCcw,
-  ShieldAlert, Sparkles, Ticket, Trophy, Users, Video,
+  ShieldAlert, Sparkles, Ticket, Trophy, Users, Video, Clock, CheckCircle2, XCircle,
 } from 'lucide-react';
 import type { UserProfile } from '@/shared/types';
 import * as eventsApi from '@/domains/competition/api/eventsApi';
@@ -34,6 +34,18 @@ function formatDate(value?: string | null): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatDuration(ms: number): string {
+  const total = Math.max(0, ms);
+  const days = Math.floor(total / 86400000);
+  const hours = Math.floor((total % 86400000) / 3600000);
+  const minutes = Math.floor((total % 3600000) / 60000);
+  const seconds = Math.floor((total % 60000) / 1000);
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
 function isPermissionError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return msg.includes('403') || msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('forbidden');
@@ -48,6 +60,65 @@ function Section({ title, icon: Icon, children }: { title: string; icon?: any; c
       </div>
       {children}
     </section>
+  );
+}
+
+function StatusBadge({ status, derived }: { status: string; derived: { isLive: boolean; isUpcoming: boolean; isPast: boolean } | null }) {
+  if (status === 'CANCELLED') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-700 px-3 py-1.5 rounded-full border border-red-200">
+        <XCircle className="w-3 h-3" />
+        Cancelled
+      </span>
+    );
+  }
+  if (status === 'COMPLETED' || derived?.isPast) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full border border-slate-300">
+        <CheckCircle2 className="w-3 h-3" />
+        Completed
+      </span>
+    );
+  }
+  if (derived?.isLive) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-3 py-1.5 rounded-full shadow-lg shadow-red-600/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+        Live
+      </span>
+    );
+  }
+  if (derived?.isUpcoming) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200">
+        <Clock className="w-3 h-3" />
+        Upcoming
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-white/10 text-white px-3 py-1.5 rounded-full border border-white/15">
+      {status}
+    </span>
+  );
+}
+
+function Countdown({ target, label }: { target: number; label: string }) {
+  const [delta, setDelta] = useState(() => target - Date.now());
+
+  useEffect(() => {
+    setDelta(target - Date.now());
+    const id = setInterval(() => setDelta(target - Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [target]);
+
+  if (delta <= 0) return null;
+
+  return (
+    <div className="bg-slate-900/80 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3 text-center">
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-1 text-xl font-black text-white tabular-nums tracking-tight">{formatDuration(delta)}</p>
+    </div>
   );
 }
 
@@ -73,6 +144,7 @@ export default function PublicEventDetailsPage({
   const [state, setState] = useState<DetailState>('loading');
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const [event, setEvent] = useState<eventsApi.BackendEvent | null>(null);
 
@@ -86,7 +158,12 @@ export default function PublicEventDetailsPage({
   const [registeredIds, setRegisteredIds] = useState<string[]>([]);
   const [regTarget, setRegTarget] = useState<Tournament | Workshop | null>(null);
 
-  const load = () => {
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  const load = useCallback(() => {
     setState('loading');
     setError(null);
     setPermissionDenied(false);
@@ -97,7 +174,6 @@ export default function PublicEventDetailsPage({
         setEvent(e);
         setState('ready');
 
-        // Related events (same type)
         try {
           const rel = await eventsApi.getPublicEvents({ event_type: e.event_type, status: 'PUBLISHED' });
           setRelated((rel || []).filter(x => x.id !== e.id).slice(0, 6));
@@ -105,7 +181,6 @@ export default function PublicEventDetailsPage({
           setRelated([]);
         }
 
-        // Tournament-specific public data
         if (e.event_type === 'TOURNAMENT') {
           try {
             const tid = await resolveTournamentIdForEvent(e.id);
@@ -139,15 +214,15 @@ export default function PublicEventDetailsPage({
       .catch((err) => {
         if (isPermissionError(err)) {
           setPermissionDenied(true);
-          setError('You don’t have permission to view this event.');
+          setError('You don\'t have permission to view this event.');
         } else {
           setError(err instanceof Error ? err.message : 'Failed to load event');
         }
         setState('error');
       });
-  };
+  }, [eventId]);
 
-  useEffect(() => { load(); }, [eventId]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (!currentUser) { setRegisteredIds([]); return; }
@@ -165,13 +240,22 @@ export default function PublicEventDetailsPage({
   const derived = useMemo(() => {
     if (!event) return null;
     const start = new Date(event.start_datetime).getTime();
-    const end = new Date(event.end_datetime).getTime();
-    const now = Date.now();
-    const isLive = Number.isFinite(start) && Number.isFinite(end) && now >= start && now <= end;
-    const isUpcoming = Number.isFinite(start) && now < start;
-    const isPast = Number.isFinite(end) && now > end;
-    return { isLive, isUpcoming, isPast };
-  }, [event]);
+    const endStr = event.end_datetime;
+    const end = endStr ? new Date(endStr).getTime() : NaN;
+    const isValidStart = Number.isFinite(start);
+    const isValidEnd = Number.isFinite(end);
+    const isLive = isValidStart && isValidEnd && now >= start && now <= end;
+    const isUpcoming = isValidStart && now < start;
+    const isPast = (isValidEnd && now > end) || (isValidStart && !isValidEnd && now > start);
+    return { isLive, isUpcoming, isPast, start, end: isValidEnd ? end : null };
+  }, [event, now]);
+
+  const countdownTarget = useMemo(() => {
+    if (!derived || !event) return null;
+    if (derived.isUpcoming && derived.start) return { target: derived.start, label: 'Starts in' };
+    if (derived.isLive && derived.end) return { target: derived.end, label: 'Ends in' };
+    return null;
+  }, [derived, event]);
 
   if (state === 'loading') {
     return (
@@ -239,15 +323,7 @@ export default function PublicEventDetailsPage({
                   <Sparkles className="w-3.5 h-3.5 text-brand-red" />
                   {event.event_type}
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-white/10 text-white px-3 py-1.5 rounded-full border border-white/15">
-                  {event.status}
-                </span>
-                {derived?.isLive && (
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-3 py-1.5 rounded-full shadow-lg shadow-red-600/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    Live
-                  </span>
-                )}
+                <StatusBadge status={event.status} derived={derived} />
               </div>
               <h1 className="text-white font-black tracking-tight" style={{ fontSize: 'clamp(22px, 4vw, 40px)' }}>
                 {event.title}
@@ -390,9 +466,15 @@ export default function PublicEventDetailsPage({
           )}
         </div>
 
-        {/* Registration / CTA column (UI only; registration flow upgraded separately) */}
+        {/* Registration / CTA column */}
         <aside className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 sticky top-24">
+            {countdownTarget && (
+              <div className="mb-4">
+                <Countdown target={countdownTarget.target} label={countdownTarget.label} />
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <Ticket className="w-4 h-4 text-brand-red" />
               <p className="text-xs font-black uppercase tracking-widest text-slate-700">Registration</p>
@@ -465,4 +547,3 @@ export default function PublicEventDetailsPage({
     </div>
   );
 }
-

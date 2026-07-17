@@ -47,6 +47,7 @@ const FULL_NAV: NavItem[] = [
 ];
 
 const BRANCH_NAV: NavItem[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'inventory', label: 'Inventory', icon: Archive },
 ];
 
@@ -85,31 +86,52 @@ export default function StoreDashboard({ currentUser }: Props) {
   };
 
   const loadOverview = useCallback(async () => {
-    if (!canManageFull) return;
     setOverviewLoading(true);
     setOverviewError(null);
     try {
-      const [productStats, sales, lowStock, ordersReport, orders] = await Promise.all([
-        storeAdminApi.reports.products(),
-        storeAdminApi.reports.sales(),
-        storeAdminApi.reports.lowStock(),
-        storeAdminApi.reports.orders(),
-        storeAdminApi.orders.list(),
-      ]);
+      if (canManageFull) {
+        const [productStats, sales, lowStock, ordersReport, orders] = await Promise.all([
+          storeAdminApi.reports.products(),
+          storeAdminApi.reports.sales(),
+          storeAdminApi.reports.lowStock(),
+          storeAdminApi.reports.orders(),
+          storeAdminApi.orders.list(),
+        ]);
 
-      const revenue = sumBy(sales, r => r.total_revenue);
-      const salesOrderCount = sumBy(sales, r => r.order_count);
-      const reportOrderCount = sumBy(ordersReport, r => r.order_count);
+        const revenue = sumBy(sales, r => r.total_revenue);
+        const salesOrderCount = sumBy(sales, r => r.order_count);
+        const reportOrderCount = sumBy(ordersReport, r => r.order_count);
 
-      setOverview({
-        totalProducts: productStats.summary.total_products,
-        activeProducts: productStats.summary.active_products,
-        revenue,
-        orderCount: salesOrderCount || reportOrderCount,
-        lowStockCount: lowStock.length,
-        lowStock: lowStock.slice(0, 5),
-        recentOrders: orders.slice(0, 5),
-      });
+        setOverview({
+          totalProducts: productStats.summary.total_products,
+          activeProducts: productStats.summary.active_products,
+          revenue,
+          orderCount: salesOrderCount || reportOrderCount,
+          lowStockCount: lowStock.length,
+          lowStock: lowStock.slice(0, 5),
+          recentOrders: orders.slice(0, 5),
+        });
+      } else {
+        const inventory = await storeAdminApi.inventory.list();
+        const lowStock = inventory.filter(i => i.quantity <= i.minimum_quantity);
+        setOverview({
+          totalProducts: inventory.length,
+          activeProducts: inventory.length,
+          revenue: 0,
+          orderCount: 0,
+          lowStockCount: lowStock.length,
+          lowStock: lowStock.slice(0, 5).map(i => ({
+            branch_id: i.branch,
+            branch_name: i.branch_name,
+            product_id: i.product,
+            product_name: i.product_name || i.product_detail?.name || 'Unknown',
+            sku: i.product_detail?.sku || i.product_sku || '',
+            quantity: i.quantity,
+            minimum_quantity: i.minimum_quantity,
+          })),
+          recentOrders: [],
+        });
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to load overview';
       setOverviewError(message);
@@ -120,10 +142,10 @@ export default function StoreDashboard({ currentUser }: Props) {
   }, [canManageFull]);
 
   useEffect(() => {
-    if (canManageFull && section === 'overview') {
+    if (section === 'overview') {
       void loadOverview();
     }
-  }, [canManageFull, section, loadOverview]);
+  }, [section, loadOverview]);
 
   if (!canInventory) {
     return (
@@ -183,15 +205,16 @@ export default function StoreDashboard({ currentUser }: Props) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            {canManageFull && section === 'overview' && (
-              <OverviewPanel
-                loading={overviewLoading}
-                error={overviewError}
-                data={overview}
-                onRetry={loadOverview}
-                onOpenSection={setSection}
-              />
-            )}
+            {section === 'overview' && (
+                <OverviewPanel
+                  loading={overviewLoading}
+                  error={overviewError}
+                  data={overview}
+                  onRetry={loadOverview}
+                  onOpenSection={setSection}
+                  isBranchManager={!canManageFull}
+                />
+              )}
             {canManageFull && section === 'categories' && <CategoryManager addToast={addToast} />}
             {canManageFull && section === 'products' && <ProductManager addToast={addToast} />}
             {section === 'inventory' && <InventoryManager addToast={addToast} />}
@@ -243,12 +266,14 @@ function OverviewPanel({
   data,
   onRetry,
   onOpenSection,
+  isBranchManager,
 }: {
   loading: boolean;
   error: string | null;
   data: OverviewData | null;
   onRetry: () => void;
   onOpenSection: (section: Section) => void;
+  isBranchManager?: boolean;
 }) {
   if (loading && !data) {
     return (
@@ -294,36 +319,53 @@ function OverviewPanel({
 
   if (!data) return null;
 
-  const kpis = [
-    {
-      label: 'Products',
-      value: data.totalProducts.toLocaleString(),
-      hint: `${data.activeProducts.toLocaleString()} active`,
-      icon: Package,
-      onClick: () => onOpenSection('products'),
-    },
-    {
-      label: 'Revenue (30d)',
-      value: formatMoney(data.revenue),
-      hint: 'Sum of paid sales',
-      icon: TrendingUp,
-      onClick: () => onOpenSection('orders'),
-    },
-    {
-      label: 'Orders (30d)',
-      value: data.orderCount.toLocaleString(),
-      hint: 'From sales report',
-      icon: ShoppingCart,
-      onClick: () => onOpenSection('orders'),
-    },
-    {
-      label: 'Low stock',
-      value: data.lowStockCount.toLocaleString(),
-      hint: 'Below minimum quantity',
-      icon: AlertTriangle,
-      onClick: () => onOpenSection('inventory'),
-    },
-  ];
+  const kpis = isBranchManager
+    ? [
+        {
+          label: 'Inventory Items',
+          value: data.totalProducts.toLocaleString(),
+          hint: 'Across your branches',
+          icon: Package,
+          onClick: () => onOpenSection('inventory'),
+        },
+        {
+          label: 'Low Stock',
+          value: data.lowStockCount.toLocaleString(),
+          hint: 'Below minimum quantity',
+          icon: AlertTriangle,
+          onClick: () => onOpenSection('inventory'),
+        },
+      ]
+    : [
+        {
+          label: 'Products',
+          value: data.totalProducts.toLocaleString(),
+          hint: `${data.activeProducts.toLocaleString()} active`,
+          icon: Package,
+          onClick: () => onOpenSection('products'),
+        },
+        {
+          label: 'Revenue (30d)',
+          value: formatMoney(data.revenue),
+          hint: 'Sum of paid sales',
+          icon: TrendingUp,
+          onClick: () => onOpenSection('orders'),
+        },
+        {
+          label: 'Orders (30d)',
+          value: data.orderCount.toLocaleString(),
+          hint: 'From sales report',
+          icon: ShoppingCart,
+          onClick: () => onOpenSection('orders'),
+        },
+        {
+          label: 'Low stock',
+          value: data.lowStockCount.toLocaleString(),
+          hint: 'Below minimum quantity',
+          icon: AlertTriangle,
+          onClick: () => onOpenSection('inventory'),
+        },
+      ];
 
   return (
     <div className="space-y-4">
