@@ -11,8 +11,11 @@ def get_enrollment_period_or_404(pk):
     )
 
 
-def list_enrollment_periods():
-    return EnrollmentPeriod.objects.select_related("branch", "program", "sub_program").all()
+def list_enrollment_periods(branch_ids=None):
+    qs = EnrollmentPeriod.objects.select_related("branch", "program", "sub_program")
+    if branch_ids:
+        qs = qs.filter(branch_id__in=branch_ids)
+    return qs.all()
 
 
 def create_enrollment_period(

@@ -106,6 +106,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     """Complete password reset with OTP."""
 
+    email = serializers.EmailField()
     otp = serializers.CharField(write_only=True, min_length=4, max_length=12)
     new_password = serializers.CharField(write_only=True, min_length=8)
 

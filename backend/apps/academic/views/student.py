@@ -16,6 +16,7 @@ from apps.academic.services.student_service import (
     activate_student,
     deactivate_student,
 )
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 
 
 @extend_schema_view(
@@ -53,7 +54,10 @@ class StudentListView(generics.GenericAPIView):
     serializer_class = StudentListSerializer
 
     def get(self, request):
-        students = list_students()
+        branch_ids = None
+        if not user_is_super_admin(request.user):
+            branch_ids = get_active_branch_ids(request.user)
+        students = list_students(branch_ids=branch_ids)
         return Response(StudentListSerializer(students, many=True).data)
 
 
@@ -69,7 +73,10 @@ class StudentSearchView(generics.GenericAPIView):
         if not query:
             return Response([])
 
-        students = search_students(query)
+        branch_ids = None
+        if not user_is_super_admin(request.user):
+            branch_ids = get_active_branch_ids(request.user)
+        students = search_students(query, branch_ids=branch_ids)
         return Response(StudentListSerializer(students, many=True).data)
 
 

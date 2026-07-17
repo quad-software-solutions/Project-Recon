@@ -6,6 +6,8 @@ from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from rest_framework.exceptions import PermissionDenied
+
 from apps.academic.constants import EnrollmentStatus, VerificationStatus
 from apps.academic.models import Enrollment
 from apps.academic.permissions import IsAcademicStaff
@@ -22,6 +24,7 @@ from apps.academic.services.payment_service import (
     list_payments,
     get_payment_or_404,
 )
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 
 
 @extend_schema_view(
@@ -32,7 +35,10 @@ class PaymentListView(generics.GenericAPIView):
     serializer_class = EnrollmentPaymentListSerializer
 
     def get(self, request):
-        payments = list_payments()
+        branch_ids = None
+        if not user_is_super_admin(request.user):
+            branch_ids = get_active_branch_ids(request.user)
+        payments = list_payments(branch_ids=branch_ids)
         serializer = self.get_serializer(payments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -50,6 +56,10 @@ class PaymentCreateView(generics.GenericAPIView):
 
         data = serializer.validated_data
         enrollment = get_object_or_404(Enrollment, pk=data.pop("enrollment"))
+
+        branch_ids = get_active_branch_ids(request.user)
+        if not user_is_super_admin(request.user) and enrollment.enrolled_class.branch_id not in branch_ids:
+            raise PermissionDenied("You do not have access to this enrollment.")
 
         try:
             payment = record_payment(
@@ -77,7 +87,11 @@ class EnrollmentVerificationQueueView(generics.GenericAPIView):
     serializer_class = EnrollmentPaymentListSerializer
 
     def get(self, request):
-        enrollments = Enrollment.objects.filter(
+        branch_ids = None
+        if not user_is_super_admin(request.user):
+            branch_ids = get_active_branch_ids(request.user)
+
+        qs = Enrollment.objects.filter(
             status=EnrollmentStatus.PENDING_VERIFICATION,
             verification_status__in=[
                 VerificationStatus.SUBMITTED,
@@ -86,6 +100,9 @@ class EnrollmentVerificationQueueView(generics.GenericAPIView):
         ).select_related(
             "student__user", "enrolled_class__sub_program", "enrolled_class__branch"
         )
+        if branch_ids is not None:
+            qs = qs.filter(enrolled_class__branch_id__in=branch_ids)
+        enrollments = qs
 
         payments = [
             e.payment for e in enrollments
@@ -107,6 +124,9 @@ class EnrollmentUnderReviewView(generics.GenericAPIView):
 
     def post(self, request, pk):
         enrollment = get_object_or_404(Enrollment, pk=pk)
+        branch_ids = get_active_branch_ids(request.user)
+        if not user_is_super_admin(request.user) and enrollment.enrolled_class.branch_id not in branch_ids:
+            raise PermissionDenied("You do not have access to this enrollment.")
         try:
             set_under_review(request.user, enrollment=enrollment)
         except DjangoValidationError as exc:
@@ -131,6 +151,9 @@ class EnrollmentRejectView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         enrollment = get_object_or_404(Enrollment, pk=pk)
+        branch_ids = get_active_branch_ids(request.user)
+        if not user_is_super_admin(request.user) and enrollment.enrolled_class.branch_id not in branch_ids:
+            raise PermissionDenied("You do not have access to this enrollment.")
         try:
             reject_payment(
                 request.user,

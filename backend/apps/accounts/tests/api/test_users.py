@@ -106,7 +106,7 @@ class UserAPITestCase(AccountsAPITestCase):
         self.authenticate_as(self.student)
         response = self.client.patch(
             f"{self.base_url}/users/{self.student.id}/",
-            {"email": "newemail@test.com"},
+            {"email": "newemail@test.com", "current_password": self.password},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)

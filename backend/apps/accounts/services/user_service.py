@@ -233,15 +233,28 @@ def update_user(user, actor=None, **fields) -> User:
     return user
 
 
-def change_email(user, new_email: str, actor=None) -> None:
+def change_email(user, new_email: str, password: str = None, actor=None) -> None:
     """
     Change a user's email and reset email-verified status.
+
+    Requires the current password for confirmation.
 
     Args:
         user: User instance.
         new_email: New email address.
+        password: Current password to confirm the change.
         actor: Optional actor for audit logging.
+
+    Raises:
+        AuthenticationFailed: If password is missing or incorrect.
     """
+    from rest_framework.exceptions import AuthenticationFailed
+
+    if not password:
+        raise AuthenticationFailed("Current password is required to change email.")
+    if not user.check_password(password):
+        raise AuthenticationFailed("Current password is incorrect.")
+
     with transaction.atomic():
         user.email = new_email.strip().lower()
         user.is_email_verified = False
@@ -324,6 +337,9 @@ def _check_user_scope(request, user) -> None:
         from apps.accounts.permissions.roles import user_is_super_admin, get_active_branch_ids
         if user_is_super_admin(request.user):
             return
+        if user_is_super_admin(user):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have access to this user.")
         branch_ids = get_active_branch_ids(request.user)
         if not any(a.branch_id in branch_ids and a.is_active for a in user.assignments.all()):
             from rest_framework.exceptions import PermissionDenied

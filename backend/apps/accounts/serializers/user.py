@@ -54,6 +54,9 @@ class UserUpdateSerializer(serializers.Serializer):
     """Validate profile fields for UserService.update_user."""
 
     email = serializers.EmailField(required=False)
+    current_password = serializers.CharField(
+        write_only=True, required=False, style={"input_type": "password"},
+    )
     first_name = serializers.CharField(max_length=100, required=False)
     last_name = serializers.CharField(max_length=100, required=False)
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)

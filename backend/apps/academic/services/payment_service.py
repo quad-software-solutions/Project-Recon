@@ -24,11 +24,14 @@ def get_payment_or_404(pk):
     )
 
 
-def list_payments():
-    return EnrollmentPayment.objects.select_related(
+def list_payments(branch_ids=None):
+    qs = EnrollmentPayment.objects.select_related(
         "enrollment__student__user",
         "enrollment__enrolled_class__sub_program",
-    ).all()
+    )
+    if branch_ids:
+        qs = qs.filter(enrollment__enrolled_class__branch_id__in=branch_ids)
+    return qs.all()
 
 
 def record_payment(

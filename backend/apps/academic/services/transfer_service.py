@@ -24,11 +24,16 @@ def get_transfer_request_or_404(pk):
     )
 
 
-def list_transfer_requests():
-    return BranchTransferRequest.objects.select_related(
+def list_transfer_requests(branch_ids=None):
+    qs = BranchTransferRequest.objects.select_related(
         "enrollment", "from_branch", "to_branch", "target_class",
         "requested_by", "approved_by",
-    ).all()
+    )
+    if branch_ids:
+        qs = qs.filter(
+            Q(from_branch_id__in=branch_ids) | Q(to_branch_id__in=branch_ids)
+        )
+    return qs.all()
 
 
 def request_transfer(actor, *, enrollment, target_class, to_branch):

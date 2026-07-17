@@ -287,8 +287,9 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         
         reset_password(
-            serializer.validated_data["otp"],
-            serializer.validated_data["new_password"],
+            email=serializer.validated_data["email"],
+            otp=serializer.validated_data["otp"],
+            new_password=serializer.validated_data["new_password"],
         )
         return Response(status=204)
 

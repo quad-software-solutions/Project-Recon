@@ -87,9 +87,11 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
         new_email = data.pop("email", None)
         if new_email is not None and new_email != user.email:
+            current_password = data.pop("current_password", None)
             change_email(
                 user=user,
                 new_email=new_email,
+                password=current_password,
                 actor=self.request.user,
             )
 

@@ -64,10 +64,13 @@ def get_enrollment_or_404(pk):
     )
 
 
-def list_enrollments():
-    return Enrollment.objects.select_related(
+def list_enrollments(branch_ids=None):
+    qs = Enrollment.objects.select_related(
         "student__user", "enrolled_class__sub_program", "enrolled_class__branch"
-    ).all()
+    )
+    if branch_ids:
+        qs = qs.filter(enrolled_class__branch_id__in=branch_ids)
+    return qs.all()
 
 
 def _validate_enrollment_period(enrolled_class):

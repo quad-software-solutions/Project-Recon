@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from apps.academic.models import BranchTransferRequest, Enrollment
@@ -28,6 +28,7 @@ from apps.academic.services.transfer_service import (
     reject_transfer,
     request_transfer,
 )
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 from apps.accounts.services.branch_service import get_branch_or_404
 
 
@@ -48,6 +49,9 @@ class BranchTransferRequestView(generics.GenericAPIView):
 
         try:
             enrollment = get_enrollment_or_404(serializer.validated_data["enrollment"])
+            branch_ids = get_active_branch_ids(request.user)
+            if not user_is_super_admin(request.user) and enrollment.enrolled_class.branch_id not in branch_ids:
+                raise PermissionDenied("You do not have access to this enrollment.")
             target_class = get_active_class_or_404(serializer.validated_data["target_class"])
             to_branch = get_branch_or_404(serializer.validated_data["to_branch"])
 
@@ -77,7 +81,10 @@ class BranchTransferListView(generics.GenericAPIView):
     serializer_class = BranchTransferRequestSerializer
 
     def get(self, request):
-        transfers = list_transfer_requests()
+        branch_ids = None
+        if not user_is_super_admin(request.user):
+            branch_ids = get_active_branch_ids(request.user)
+        transfers = list_transfer_requests(branch_ids=branch_ids)
         return Response(
             BranchTransferRequestSerializer(transfers, many=True).data,
             status=status.HTTP_200_OK,
@@ -98,6 +105,12 @@ class BranchTransferApproveView(generics.GenericAPIView):
     def post(self, request, pk):
         try:
             transfer_request = get_transfer_request_or_404(pk)
+            branch_ids = get_active_branch_ids(request.user)
+            if not user_is_super_admin(request.user) and (
+                transfer_request.from_branch_id not in branch_ids
+                and transfer_request.to_branch_id not in branch_ids
+            ):
+                raise PermissionDenied("You do not have access to this transfer request.")
             new_enrollment, updated_request = approve_transfer(
                 request.user,
                 transfer_request=transfer_request,
@@ -131,6 +144,12 @@ class BranchTransferRejectView(generics.GenericAPIView):
 
         try:
             transfer_request = get_transfer_request_or_404(pk)
+            branch_ids = get_active_branch_ids(request.user)
+            if not user_is_super_admin(request.user) and (
+                transfer_request.from_branch_id not in branch_ids
+                and transfer_request.to_branch_id not in branch_ids
+            ):
+                raise PermissionDenied("You do not have access to this transfer request.")
             updated_request = reject_transfer(
                 request.user,
                 transfer_request=transfer_request,
@@ -162,6 +181,9 @@ class EnrollmentSwitchSubProgramView(generics.GenericAPIView):
 
         try:
             enrollment = get_enrollment_or_404(pk)
+            branch_ids = get_active_branch_ids(request.user)
+            if not user_is_super_admin(request.user) and enrollment.enrolled_class.branch_id not in branch_ids:
+                raise PermissionDenied("You do not have access to this enrollment.")
             target_class = get_active_class_or_404(serializer.validated_data["target_class"])
 
             new_enrollment, amount_due = switch_subprogram(

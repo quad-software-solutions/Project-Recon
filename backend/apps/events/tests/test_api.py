@@ -93,7 +93,7 @@ class PublicEventApiTest(EventApiTestCase):
         self.assertEqual(len(response.data["results"]), 0)
 
     def test_event_detail(self):
-        event = self._create_event()
+        event = self._create_event(status=EventStatus.PUBLISHED, is_active=True)
         response = self.client.get(f"{self.base_url}/events/{event.id}/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], event.title)

@@ -253,11 +253,12 @@ class CertificatePublicVerifyView(generics.GenericAPIView):
         try:
             sc = get_student_certificate_by_number(number)
         except Http404:
-            return Response(
-                {"detail": "Certificate not found.", "valid": False},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = self.get_serializer(sc)
-        data = serializer.data
-        data["valid"] = True
-        return Response(data)
+            return Response({"valid": False}, status=status.HTTP_404_NOT_FOUND)
+        return Response({
+            "valid": True,
+            "student_name": sc.student.user.full_name,
+            "certificate_number": sc.certificate_number,
+            "sub_program_name": sc.sub_program.name,
+            "certificate_title": sc.certificate.title,
+            "issued_at": sc.issued_at,
+        })

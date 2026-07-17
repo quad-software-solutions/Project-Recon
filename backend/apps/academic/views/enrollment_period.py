@@ -15,6 +15,7 @@ from apps.academic.services.enrollment_period_service import (
     activate_enrollment_period,
     deactivate_enrollment_period,
 )
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 
 
 @extend_schema_view(
@@ -30,7 +31,10 @@ class EnrollmentPeriodListCreateView(generics.ListCreateAPIView):
         return EnrollmentPeriodSerializer
 
     def get_queryset(self):
-        return list_enrollment_periods()
+        branch_ids = None
+        if not user_is_super_admin(self.request.user):
+            branch_ids = get_active_branch_ids(self.request.user)
+        return list_enrollment_periods(branch_ids=branch_ids)
 
     def perform_create(self, serializer):
         instance = create_enrollment_period(self.request.user, **serializer.validated_data)

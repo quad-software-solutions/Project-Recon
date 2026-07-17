@@ -53,17 +53,23 @@ def update_student(student, actor=None, **kwargs):
     return student
 
 
-def list_students():
-    return Student.objects.select_related("user", "branch").all()
+def list_students(branch_ids=None):
+    qs = Student.objects.select_related("user", "branch")
+    if branch_ids:
+        qs = qs.filter(branch_id__in=branch_ids)
+    return qs.all()
 
 
-def search_students(query):
-    return Student.objects.select_related("user", "branch").filter(
+def search_students(query, branch_ids=None):
+    qs = Student.objects.select_related("user", "branch").filter(
         Q(user__first_name__icontains=query)
         | Q(user__last_name__icontains=query)
         | Q(user__email__icontains=query)
         | Q(user__phone_number__icontains=query)
     )
+    if branch_ids:
+        qs = qs.filter(branch_id__in=branch_ids)
+    return qs
 
 
 def activate_student(student, actor=None):

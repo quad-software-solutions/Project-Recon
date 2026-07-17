@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import filters, generics, status
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
@@ -28,6 +29,7 @@ from apps.academic.services.enrollment_service import (
     list_enrollments,
     get_enrollment_or_404,
 )
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 
 
 @extend_schema_view(
@@ -54,7 +56,10 @@ class EnrollmentListCreateView(generics.ListCreateAPIView):
     ordering = ["-enrolled_at"]
 
     def get_queryset(self):
-        return list_enrollments()
+        branch_ids = None
+        if not user_is_super_admin(self.request.user):
+            branch_ids = get_active_branch_ids(self.request.user)
+        return list_enrollments(branch_ids=branch_ids)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -114,7 +119,7 @@ class EnrollmentCompleteView(generics.GenericAPIView):
 )
 class OnlineEnrollmentView(generics.GenericAPIView):
     serializer_class = OnlineEnrollmentSerializer
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)

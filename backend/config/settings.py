@@ -510,12 +510,17 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
         "login": os.getenv("THROTTLE_LOGIN", "10/min"),
+        "anon_login": os.getenv("THROTTLE_LOGIN", "10/min"),
         "otp_send": os.getenv("THROTTLE_OTP_SEND", "5/hour"),
         "otp_verify": os.getenv("THROTTLE_OTP_VERIFY", "5/min"),
+        "user_otp_request": os.getenv("THROTTLE_OTP_SEND", "5/hour"),
+        "user_otp_verify": os.getenv("THROTTLE_OTP_VERIFY", "5/min"),
         "email_verify": os.getenv("THROTTLE_EMAIL_VERIFY", "10/min"),
         "verification_resend": os.getenv("THROTTLE_VERIFICATION_RESEND", "5/hour"),
         "forgot_password": os.getenv("THROTTLE_FORGOT_PASSWORD", "3/min"),
+        "anon_forgot_password": os.getenv("THROTTLE_FORGOT_PASSWORD", "3/min"),
         "reset_password": os.getenv("THROTTLE_RESET_PASSWORD", "5/min"),
+        "anon_reset_password": os.getenv("THROTTLE_RESET_PASSWORD", "5/min"),
     },
 }
 

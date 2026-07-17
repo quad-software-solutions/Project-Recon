@@ -1,3 +1,5 @@
+from django.shortcuts import get_object_or_404
+
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
@@ -15,6 +17,7 @@ from apps.events.api.pagination import StandardResultsSetPagination
 from apps.events.api.permissions import IsEventStaff
 from apps.events.api.serializers import EventSerializer, EventAdminSerializer
 from apps.events.constants import EventType
+from apps.events.models import Event
 from apps.events.services.event_service import (
     list_events,
     create_event,
@@ -73,7 +76,7 @@ class PublicEventDetailView(generics.RetrieveAPIView):
     lookup_url_kwarg = "pk"
 
     def get_object(self):
-        return get_event_or_404(self.kwargs["pk"])
+        return get_object_or_404(PublicEventsQuery.execute(), id=self.kwargs["pk"])
 
 
 @extend_schema_view(

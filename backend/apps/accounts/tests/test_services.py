@@ -137,7 +137,7 @@ class ServicesTestCase(TestCase):
 
     def test_password_reset_scan_and_match(self):
         _, raw_code = otp_service.generate(self.user, OTPPurpose.PASSWORD_RESET)
-        authentication_service.reset_password(raw_code, "NewP@ssw0rd!2026")
+        authentication_service.reset_password(self.user.email, raw_code, "NewP@ssw0rd!2026")
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewP@ssw0rd!2026"))
 
@@ -362,10 +362,10 @@ class EmailVerificationServiceTests(TestCase):
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_reset_password_full_flow(self):
         _, raw_code = otp_service.generate(self.user, OTPPurpose.PASSWORD_RESET)
-        authentication_service.reset_password(raw_code, "NewP@ssw0rd!2026")
+        authentication_service.reset_password(self.user.email, raw_code, "NewP@ssw0rd!2026")
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewP@ssw0rd!2026"))
 
     def test_reset_password_invalid_otp_raises_error(self):
         with self.assertRaises(ValidationError):
-            authentication_service.reset_password("000000", "NewP@ssw0rd!2026")
+            authentication_service.reset_password(self.user.email, "000000", "NewP@ssw0rd!2026")
