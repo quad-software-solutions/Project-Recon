@@ -174,7 +174,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
       if (statusFilter !== 'all' && e.status !== statusFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const name = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''}`.toLowerCase();
+        const name = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''} ${e.pending_code || ''} ${e.student_email || ''}`.toLowerCase();
         if (!name.includes(q)) return false;
       }
       return true;
@@ -191,10 +191,10 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   }), [enrollments]);
 
   const exportCsv = () => {
-    const headers = ['Student', 'Class', 'Program', 'Branch', 'Date', 'Status'];
+    const headers = ['Student', 'Email', 'Class', 'Program', 'Branch', 'Pending Code', 'Date', 'Status', 'Payment'];
     const rows = filtered.map(e => [
-      e.student_name || '', e.class_name || '', e.sub_program_name || '', e.branch_name || '',
-      e.enrolled_at?.slice(0, 10) || '', e.status
+      e.student_name || '', e.student_email || '', e.class_name || '', e.sub_program_name || '', e.branch_name || '',
+      e.pending_code || e.enrollment_number || '', e.enrolled_at?.slice(0, 10) || '', e.status, e.payment_status || '',
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -255,19 +255,21 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
             <thead><tr className="bg-slate-50 border-b border-slate-200">
               <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Student</th>
               <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Class</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase hidden md:table-cell">Reference</th>
               <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase hidden sm:table-cell">Date</th>
               <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Status</th>
               <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-xs text-slate-400">No enrollments found</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-xs text-slate-400">No enrollments found</td></tr>
               ) : filtered.map(e => (
                 <tr key={e.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3 text-sm font-medium text-slate-900">{e.student_name || e.student_email || 'Unknown'}</td>
                   <td className="px-4 py-3 text-xs text-slate-700">{e.class_name || e.sub_program_name || '—'}</td>
+                  <td className="px-4 py-3 text-xs font-mono text-brand-blue hidden md:table-cell">{e.pending_code || e.enrollment_number || '—'}</td>
                   <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{e.enrolled_at?.slice(0, 10) || '—'}</td>
                   <td className="px-4 py-3 text-center"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(e.status)}`}>{e.status.replace('_', ' ')}</span></td>
                   <td className="px-4 py-3 text-center">
@@ -327,9 +329,13 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
               <div className="flex justify-between"><span className="text-slate-500">Class</span><span>{selected.class_name || '—'}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Program</span><span>{selected.program_name || selected.sub_program_name || '—'}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Branch</span><span>{selected.branch_name || '—'}</span></div>
+              {(selected.pending_code || selected.enrollment_number) && (
+                <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-mono text-brand-blue font-bold">{selected.pending_code || selected.enrollment_number}</span></div>
+              )}
               <div className="flex justify-between"><span className="text-slate-500">Enrolled</span><span>{selected.enrolled_at?.slice(0, 10) || '—'}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Status</span><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(selected.status)}`}>{selected.status?.replace('_', ' ')}</span></div>
-              {selected.payment_status && <div className="flex justify-between"><span className="text-slate-500">Payment</span><span>{selected.payment_status}</span></div>}
+              {selected.payment_status && <div className="flex justify-between"><span className="text-slate-500">Payment Status</span><span>{String(selected.payment_status).replace(/_/g, ' ')}</span></div>}
+              {selected.payment_method && <div className="flex justify-between"><span className="text-slate-500">Payment Method</span><span>{String(selected.payment_method).replace(/_/g, ' ')}</span></div>}
             </div>
           </motion.div>
         </motion.div>

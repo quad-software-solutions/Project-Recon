@@ -46,11 +46,13 @@ export type AcademicSubProgramPayload = {
 };
 
 export type OnlineEnrollmentPayload = {
-  enrolled_class: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  password?: string;
+  sub_program: string;
+  class_type: 'GROUP' | 'INDIVIDUAL';
+  branch: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
   phone_number?: string;
   guardian_name?: string;
   guardian_phone?: string;
@@ -58,12 +60,7 @@ export type OnlineEnrollmentPayload = {
   payment_method: string;
   transaction_reference?: string;
   bank_name?: string;
-  transfer_reference?: string;
-};
-
-export type OnlineEnrollmentResponse = {
-  enrollment: Enrollment;
-  student?: string;
+  attachment?: File | null;
 };
 
 export type RecordPaymentPayload = {
@@ -180,7 +177,10 @@ export async function fetchProgramsApi(): Promise<Program[]> {
 }
 
 export async function fetchSubProgramsApi(programId?: string): Promise<SubProgram[]> {
-  return unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/${queryString({ program: programId })}`));
+  // Backend SearchFilter only matches name/slug — filter by program FK from the response.
+  const rows = unwrapList(await http.get<ListResponse<SubProgram>>(`${BASE}/sub-programs/`));
+  if (!programId) return rows;
+  return rows.filter((s) => s.program === programId);
 }
 
 function toProgramFormData(payload: Partial<AcademicProgramPayload>): FormData | typeof payload {
@@ -278,8 +278,41 @@ export async function enrollStudentApi(payload: StaffEnrollmentPayload): Promise
   return http.post<Enrollment>(`${BASE}/enrollments/`, payload);
 }
 
-export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<OnlineEnrollmentResponse> {
-  return http.post<OnlineEnrollmentResponse>(`${BASE}/enrollments/online/`, payload);
+function toOnlineEnrollmentBody(payload: OnlineEnrollmentPayload): FormData | Record<string, string> {
+  const entries: [string, string | File][] = [];
+  const append = (key: string, value: string | File | null | undefined) => {
+    if (value === undefined || value === null || value === '') return;
+    entries.push([key, value]);
+  };
+
+  append('sub_program', payload.sub_program);
+  append('class_type', payload.class_type);
+  append('branch', payload.branch);
+  append('email', payload.email);
+  append('first_name', payload.first_name);
+  append('last_name', payload.last_name);
+  append('password', payload.password);
+  append('phone_number', payload.phone_number);
+  append('guardian_name', payload.guardian_name);
+  append('guardian_phone', payload.guardian_phone);
+  append('guardian_email', payload.guardian_email);
+  append('payment_method', payload.payment_method);
+  append('transaction_reference', payload.transaction_reference);
+  append('bank_name', payload.bank_name);
+
+  if (payload.attachment instanceof File) {
+    const fd = new FormData();
+    for (const [key, value] of entries) fd.append(key, value);
+    fd.append('attachment', payload.attachment);
+    return fd;
+  }
+
+  return Object.fromEntries(entries.map(([k, v]) => [k, String(v)]));
+}
+
+/** Public online enrollment — backend returns the Enrollment serializer payload (HTTP 201). */
+export async function onlineEnrollApi(payload: OnlineEnrollmentPayload): Promise<Enrollment> {
+  return http.post<Enrollment>(`${BASE}/enrollments/online/`, toOnlineEnrollmentBody(payload));
 }
 
 export async function cancelEnrollmentApi(id: string): Promise<Enrollment> {
@@ -678,7 +711,12 @@ export type Branch = {
   id: string;
   name: string;
   code?: string;
+  city?: string;
 };
+
+export async function fetchAvailableBranchesApi(subProgramId: string, classType: string): Promise<Branch[]> {
+  return http.get<Branch[]>(`${BASE}/enrollments/available-branches/${queryString({ sub_program: subProgramId, class_type: classType })}`);
+}
 
 export async function fetchBranchesApi(): Promise<Branch[]> {
   return http.get<Branch[]>('/accounts/branches/');

@@ -1,60 +1,54 @@
-import { onlineEnrollApi, type OnlineEnrollmentResponse } from '@/domains/learning/academics/api/academicApi';
+import { onlineEnrollApi, type OnlineEnrollmentPayload } from '@/domains/learning/academics/api/academicApi';
 import { cacheStudentId } from '@/domains/user/student/api/studentContext';
+import type { Enrollment, PaymentMethod } from '@/shared/types';
 
-export type PaymentMethodType = 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE' | 'CASH';
+export type PaymentMethodType = PaymentMethod;
 
 export interface StudentRegistrationRequest {
-  name: string;
-  studentEmail: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   password: string;
-  age?: string;
-  grade?: string;
-  school?: string;
-  parentName: string;
-  parentPhone: string;
-  parentEmail: string;
-  enrolledClassId: string;
+  phoneNumber: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  subProgramId: string;
+  classType: 'GROUP' | 'INDIVIDUAL';
+  branchId: string;
   paymentMethod: PaymentMethodType;
-  bank_name?: string;
-  transaction_reference?: string;
-  transfer_reference?: string;
+  bankName?: string;
+  transactionReference?: string;
+  attachment?: File | null;
 }
 
-function splitName(fullName: string): { first_name: string; last_name: string } {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return { first_name: parts[0], last_name: parts[0] };
-  return { first_name: parts[0], last_name: parts.slice(1).join(' ') };
-}
-
-export async function registerApi(data: StudentRegistrationRequest): Promise<OnlineEnrollmentResponse> {
-  const { first_name, last_name } = splitName(data.name);
-
-  const payload: Record<string, unknown> = {
-    enrolled_class: data.enrolledClassId,
-    email: data.studentEmail,
-    first_name,
-    last_name,
+export async function registerApi(data: StudentRegistrationRequest): Promise<Enrollment> {
+  const payload: OnlineEnrollmentPayload = {
+    sub_program: data.subProgramId,
+    class_type: data.classType,
+    branch: data.branchId,
+    email: data.email.trim(),
+    first_name: data.firstName.trim(),
+    last_name: data.lastName.trim(),
     password: data.password,
-    phone_number: data.parentPhone || undefined,
-    guardian_name: data.parentName || '',
-    guardian_phone: data.parentPhone || '',
-    guardian_email: data.parentEmail || '',
+    phone_number: data.phoneNumber.trim() || undefined,
+    guardian_name: data.guardianName.trim(),
+    guardian_phone: data.guardianPhone.trim(),
+    guardian_email: data.guardianEmail.trim(),
     payment_method: data.paymentMethod,
-    bank_name: data.bank_name || '',
-    transaction_reference: data.transaction_reference || '',
-    transfer_reference: data.transfer_reference || '',
   };
 
-  console.log('[Enrollment Payload]', JSON.stringify(payload, null, 2));
-
-  const result = await onlineEnrollApi(payload as OnlineEnrollmentPayload);
-
-  const studentId =
-    result.student ||
-    (result.enrollment as { student?: string })?.student;
-  if (studentId && data.studentEmail) {
-    cacheStudentId(data.studentEmail, studentId);
+  if (data.paymentMethod !== 'CASH') {
+    payload.transaction_reference = data.transactionReference?.trim() || '';
+    payload.bank_name = data.bankName?.trim() || '';
+    if (data.attachment) payload.attachment = data.attachment;
   }
 
-  return result;
+  const enrollment = await onlineEnrollApi(payload);
+
+  if (enrollment.student && data.email) {
+    cacheStudentId(data.email.trim(), enrollment.student);
+  }
+
+  return enrollment;
 }

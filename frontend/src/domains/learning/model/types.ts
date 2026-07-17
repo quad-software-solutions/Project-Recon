@@ -158,6 +158,8 @@ export interface Enrollment {
   rejection_reason?: string;
   enrollment_number?: string;
   pending_code?: string;
+  payment_status?: PaymentStatus | string | null;
+  payment_method?: PaymentMethod | string | null;
   transferred_from?: string;
   remarks?: string;
   created_at: string;
