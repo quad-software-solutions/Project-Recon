@@ -27,12 +27,12 @@ export function DesktopCartSidebar({
           <div className="px-5 py-4 border-b border-brand-border/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-brand-blue" />
-              <h3 className="font-semibold text-sm text-brand-ink">
-                Cart {itemCount > 0 && <span className="text-brand-muted font-normal">({itemCount})</span>}
+              <h3 className="font-bold text-sm text-brand-ink">
+                Cart {itemCount > 0 && <span className="text-brand-muted font-semibold">({itemCount})</span>}
               </h3>
             </div>
             {itemCount > 0 && (
-              <button type="button" onClick={onOpenCart} className="text-xs font-medium text-brand-blue hover:text-brand-blue-dark">
+              <button type="button" onClick={onOpenCart} className="text-xs font-bold text-brand-blue hover:text-brand-blue-dark">
                 View full cart
               </button>
             )}
@@ -56,8 +56,8 @@ export function DesktopCartSidebar({
                 <div className="w-14 h-14 rounded-xl bg-brand-surface border border-brand-border flex items-center justify-center mx-auto mb-3">
                   <ShoppingBag className="w-6 h-6 text-brand-border" />
                 </div>
-                <p className="text-sm font-medium text-brand-muted mb-1">Your cart is empty</p>
-                <p className="text-xs text-brand-muted/70">Add items to get started</p>
+                <p className="text-sm font-bold text-brand-ink mb-1">Your cart is empty</p>
+                <p className="text-xs font-medium text-brand-muted/70">Add items to get started</p>
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -67,22 +67,22 @@ export function DesktopCartSidebar({
                       <Package className="w-5 h-5 text-brand-muted" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-semibold text-brand-ink truncate">{item.product_name}</h4>
-                      <p className="text-[11px] text-brand-muted truncate">{item.branch_name}</p>
+                      <h4 className="text-xs font-bold text-brand-ink truncate">{item.product_name}</h4>
+                      <p className="text-[11px] font-medium text-brand-muted truncate">{item.branch_name}</p>
                       <div className="mt-0.5">
-                        <PriceDisplay amount={item.product_price} size="sm" className="text-brand-blue text-xs" />
+                        <PriceDisplay amount={item.product_price} size="sm" className="text-brand-blue text-xs font-bold" />
                       </div>
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        <div className="flex items-center bg-white border border-brand-border rounded-md">
-                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)} className="p-1 text-brand-muted" disabled={item.quantity <= 1}>
+                        <div className="flex items-center bg-white border border-brand-border rounded-md overflow-hidden">
+                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)} className="p-1.5 text-brand-muted hover:bg-brand-surface hover:text-brand-ink" disabled={item.quantity <= 1}>
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="text-[11px] font-semibold px-1.5 min-w-[16px] text-center">{item.quantity}</span>
-                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1 text-brand-muted">
+                          <span className="text-[11px] font-bold px-1.5 min-w-[18px] text-center tabular-nums text-brand-ink">{item.quantity}</span>
+                          <button type="button" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1.5 text-brand-muted hover:bg-brand-surface hover:text-brand-ink">
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
-                        <button type="button" onClick={() => onRemove(item.id)} className="p-1 text-brand-muted hover:text-red-500">
+                        <button type="button" onClick={() => onRemove(item.id)} className="p-1.5 text-brand-muted hover:text-red-500 hover:bg-red-50 rounded-md">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
@@ -95,12 +95,12 @@ export function DesktopCartSidebar({
 
           {cart && cart.items.length > 0 && (
             <div className="px-5 py-4 border-t border-brand-border/50 bg-brand-surface/50">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-brand-muted">Subtotal</span>
+              <div className="flex items-center justify-between mb-3.5 gap-3">
+                <span className="text-xs font-bold text-brand-ink">Subtotal</span>
                 <PriceDisplay amount={cart.total} size="sm" />
               </div>
-              <Button onClick={onOpenCart} className="w-full" size="sm">
-                Proceed to checkout
+              <Button onClick={onOpenCart} className="w-full font-bold" size="sm">
+                View full cart
               </Button>
             </div>
           )}
@@ -109,8 +109,8 @@ export function DesktopCartSidebar({
         <div className="flex items-start gap-3 px-4 py-3 bg-white rounded-[var(--radius-card)] border border-brand-border">
           <Package className="w-4 h-4 text-brand-blue mt-0.5 shrink-0" />
           <div>
-            <p className="text-xs font-medium text-brand-ink">Branch pickup</p>
-            <p className="text-[11px] text-brand-muted leading-relaxed">
+            <p className="text-xs font-bold text-brand-ink">Branch pickup</p>
+            <p className="text-[11px] font-medium text-brand-ink/70 leading-relaxed">
               Choose a branch at checkout. Paid orders are prepared for pickup.
             </p>
           </div>

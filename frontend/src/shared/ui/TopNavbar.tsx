@@ -9,7 +9,6 @@ interface TopNavbarProps {
   actions?: React.ReactNode;
   userName?: string;
   userRole?: string;
-  userAvatar?: string;
   onLogout?: () => void;
 }
 
@@ -32,6 +31,12 @@ export function TopNavbar({
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setProfileOpen(false); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   const initials = userName
