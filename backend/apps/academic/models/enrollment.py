@@ -45,6 +45,7 @@ class Enrollment(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["student", "enrolled_class"],
+                condition=models.Q(status=EnrollmentStatus.ACTIVE),
                 name="unique_active_enrollment_per_student_class",
             )
         ]

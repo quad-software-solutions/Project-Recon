@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, Loader2, Shield, XCircle, Award, Share2, Printer, Clock, BadgeCheck, Hash, GraduationCap } from 'lucide-react';
 import { http } from '@/shared/api/http';
@@ -24,9 +24,10 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const handleVerify = async () => {
-    const trimmed = number.trim();
+  const handleVerify = async (value = number) => {
+    const trimmed = value.trim();
     if (!trimmed) return;
     setLoading(true);
     setResult(null);
@@ -34,8 +35,12 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
     setVerifiedAt(null);
     try {
       const data = await http.get<VerifyResult>(`/academic/certificates/verify/${encodeURIComponent(trimmed)}/`);
-      setResult(data);
-      setVerifiedAt(new Date().toISOString());
+      if (!data.valid) {
+        setError('This certificate could not be verified. Please check the number and try again.');
+      } else {
+        setResult(data);
+        setVerifiedAt(new Date().toISOString());
+      }
     } catch (err: any) {
       const status = err?.response?.status || err?.status;
       const body = err?.response?.data || err?.data;
@@ -49,6 +54,25 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
       }
     }
     setLoading(false);
+  };
+
+  useEffect(() => {
+    const sharedNumber = new URLSearchParams(window.location.search).get('number');
+    if (sharedNumber?.trim()) {
+      setNumber(sharedNumber);
+      void handleVerify(sharedNumber);
+    }
+  }, []);
+
+  const verificationUrl = `${window.location.origin}/cert-verify?number=${encodeURIComponent(result?.certificate_number || number.trim())}`;
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(verificationUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError('Unable to copy the verification link. Please copy the URL from your browser.');
+    }
   };
 
   return (
@@ -239,7 +263,7 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
                         </div>
                         <div className="text-right">
                           <span className="text-[7px] text-white/30 uppercase tracking-[0.15em] font-bold">Verify at</span>
-                          <p className="text-[8px] text-white/45 font-mono mt-0.5 tracking-wider">{window.location.origin}/verify</p>
+                          <p className="text-[8px] text-white/45 font-mono mt-0.5 tracking-wider">{window.location.origin}/cert-verify</p>
                         </div>
                       </div>
                     </div>
@@ -256,9 +280,9 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
                       <span>Verified {verifiedAt ? new Date(verifiedAt).toLocaleString() : ''}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/cert-verify?number=' + result.certificate_number); }}
+                      <button onClick={handleShare}
                         className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                      ><Share2 className="w-3 h-3" /> Share</button>
+                      ><Share2 className="w-3 h-3" /> {copied ? 'Copied' : 'Share'}</button>
                       <button onClick={() => window.print()}
                         className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-amber-300 flex items-center gap-1 transition-colors"
                       ><Printer className="w-3 h-3" /> Print</button>
