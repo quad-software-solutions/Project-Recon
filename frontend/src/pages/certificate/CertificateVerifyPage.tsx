@@ -55,16 +55,17 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
     <>
       <style>{`
         @media print {
+          html, body { height: auto; overflow: visible; margin: 0; padding: 0; }
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
-          .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .print-area { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; page-break-after: avoid; page-break-inside: avoid; }
           .no-print { display: none !important; }
           .print-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-cert { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { margin: 0.5in; }
+          .print-cert { -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-inside: avoid; }
+          @page { margin: 0; size: auto; }
         }
       `}</style>
-      <div className="min-h-[calc(100vh-76px)] bg-gradient-to-b from-white via-brand-paper to-white relative overflow-x-hidden">
+      <div className="min-h-[calc(100vh-76px)] bg-gradient-to-b from-white via-brand-paper to-white relative overflow-x-hidden print:min-h-0 print:overflow-visible">
         <div className="absolute inset-0 pointer-events-none opacity-[0.15] no-print"
           style={{
             backgroundImage: `
@@ -73,8 +74,8 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
             `,
             backgroundSize: '60px 60px',
           }} />
-        <div className="relative z-10 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+        <div className="relative z-10 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16 print:px-0 print:py-0 print:max-w-full">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 print:space-y-2">
             {/* Header */}
             <div className="text-center no-print">
               <div className="w-14 h-14 rounded-2xl bg-brand-red/10 flex items-center justify-center mx-auto mb-4">
@@ -128,13 +129,13 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 print-area">
                 {/* Verification seal banner */}
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} transition={{ delay: 0.15 }}
-                  className="print-badge bg-emerald-600 text-white rounded-2xl px-5 py-3 flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20">
+                  className="print-badge bg-emerald-600 text-white rounded-2xl px-5 py-3 flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20 print:rounded-none print:shadow-none">
                   <BadgeCheck className="w-6 h-6" />
                   <span className="font-bold text-sm tracking-wide">Verified Authentic Certificate</span>
                 </motion.div>
 
                 {/* Certificate document — matches template design */}
-                <div className="print-cert relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark rounded-3xl overflow-hidden shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]">
+                <div className="print-cert relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark rounded-3xl overflow-hidden shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)] print:rounded-none print:shadow-none print:overflow-visible">
                   <div className="relative px-8 pb-8 pt-6 flex flex-col items-center gap-3">
                     {/* Corner ornaments */}
                     <div className="absolute top-4 left-4 w-10 h-10 border-l-2 border-t-2 border-white/30 rounded-tl-xl" />
