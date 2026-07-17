@@ -21,14 +21,68 @@ import environ
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-env = environ.Env(
-    DEBUG=(bool, False)
-)
-environ.Env.read_env(BASE_DIR / '.env')
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-placeholder-for-local-dev-must-be-long-enough')
-DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+
+# ── Core ─────────────────────────────────────────────────────────────────
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY is not set. Add it to .env or environment.")
+
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()
+]
+if not DEBUG and "*" in ALLOWED_HOSTS:
+    raise ValueError("ALLOWED_HOSTS cannot contain '*' when DEBUG is False")
+
+FRONTEND_ORIGINS = [
+    o.strip() for o in os.getenv("FRONTEND_ORIGINS", "").split(",") if o.strip()
+]
+if not FRONTEND_ORIGINS and not DEBUG:
+    raise ValueError("FRONTEND_ORIGINS must be set in .env for production")
+
+
+# ── CORS ─────────────────────────────────────────────────────────────────
+
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = FRONTEND_ORIGINS
+
+CSRF_TRUSTED_ORIGINS = FRONTEND_ORIGINS
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+
+# ── Apps ─────────────────────────────────────────────────────────────────
+
+HAS_ANYMAIL = find_spec("anymail") is not None
+HAS_STORAGES = find_spec("storages") is not None
+HAS_WHITENOISE = find_spec("whitenoise") is not None
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -60,13 +114,16 @@ if HAS_ANYMAIL:
 # ── Middleware ────────────────────────────────────────────────────────────
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    # whitenoise.middleware.WhiteNoiseMiddleware inserted here if STATIC_BACKEND=whitenoise
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "csp.middleware.CSPMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -143,11 +200,293 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'static'
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# ── Static Files ──────────────────────────────────────────────────────────
+#
+# STATIC_BACKEND options:
+#   local       — Django does NOT serve static files; nginx/caddy must serve STATIC_ROOT
+#   whitenoise  — Django serves static files itself (good for Heroku/Render/Railway)
+#   s3          — AWS S3 or any S3-compatible service (R2, Spaces, MinIO)
+#   azure       — Azure Blob Storage
+#   gcs         — Google Cloud Storage
+
+STATIC_BACKEND = os.getenv("STATIC_BACKEND", "local").lower()
+STATIC_URL = os.getenv("STATIC_URL", "/static/").rstrip("/") + "/"
+STATIC_ROOT = Path(os.getenv("STATIC_ROOT", str(BASE_DIR / "staticfiles")))
+
+if STATIC_BACKEND == "local":
+    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+    if not DEBUG:
+        warnings.warn(
+            "STATIC_BACKEND=local in production: Django will not serve static files. "
+            "Ensure nginx/caddy is configured to serve STATIC_ROOT, "
+            "or switch to STATIC_BACKEND=whitenoise.",
+            stacklevel=2,
+        )
+
+elif STATIC_BACKEND == "whitenoise":
+    if not HAS_WHITENOISE:
+        raise ValueError(
+            "STATIC_BACKEND=whitenoise requires whitenoise. "
+            "Run: pip install whitenoise"
+        )
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    _security_idx = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    MIDDLEWARE.insert(_security_idx + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+elif STATIC_BACKEND == "s3":
+    if not HAS_STORAGES:
+        raise ValueError(
+            "STATIC_BACKEND=s3 requires django-storages. "
+            "Run: pip install django-storages boto3"
+        )
+    _static_bucket = os.getenv("STATIC_BUCKET_NAME", os.getenv("STORAGE_BUCKET_NAME"))
+    _static_access_key = os.getenv("STATIC_ACCESS_KEY", os.getenv("STORAGE_ACCESS_KEY"))
+    _static_secret_key = os.getenv("STATIC_SECRET_KEY", os.getenv("STORAGE_SECRET_KEY"))
+    _static_region = os.getenv("STATIC_REGION", os.getenv("STORAGE_REGION"))
+    _static_endpoint = os.getenv("STATIC_ENDPOINT_URL", os.getenv("STORAGE_ENDPOINT_URL"))
+    _static_custom_domain = os.getenv("STATIC_CUSTOM_DOMAIN", os.getenv("STORAGE_CUSTOM_DOMAIN"))
+    _static_location = os.getenv("STATIC_LOCATION", "static")
+
+    if not _static_bucket:
+        raise ValueError(
+            "STORAGE_BUCKET_NAME (or STATIC_BUCKET_NAME) is required when STATIC_BACKEND=s3"
+        )
+    if not _static_access_key or not _static_secret_key:
+        raise ValueError(
+            "STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY are required when STATIC_BACKEND=s3. "
+            "For IAM roles omit these and boto3 will use the role automatically."
+        )
+
+    STATICFILES_STORAGE = "storages.backends.s3boto3.S3ManifestStaticStorage"
+    STATIC_LOCATION = _static_location
+    AWS_STORAGE_BUCKET_NAME = _static_bucket
+    AWS_S3_REGION_NAME = _static_region
+    AWS_ACCESS_KEY_ID = _static_access_key
+    AWS_SECRET_ACCESS_KEY = _static_secret_key
+    AWS_S3_ENDPOINT_URL = _static_endpoint
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = "private"
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_CUSTOM_DOMAIN = _static_custom_domain
+
+    _static_url_override = os.getenv("STATIC_URL")
+    if _static_url_override:
+        STATIC_URL = _static_url_override.rstrip("/") + "/"
+    elif _static_custom_domain:
+        STATIC_URL = f"https://{_static_custom_domain}/{_static_location}/"
+    elif _static_endpoint:
+        STATIC_URL = f"{_static_endpoint.rstrip('/')}/{_static_bucket}/{_static_location}/"
+    else:
+        STATIC_URL = f"https://{_static_bucket}.s3.amazonaws.com/{_static_location}/"
+
+elif STATIC_BACKEND == "azure":
+    if not HAS_STORAGES:
+        raise ValueError(
+            "STATIC_BACKEND=azure requires django-storages. "
+            "Run: pip install django-storages azure-storage-blob"
+        )
+    _az_account = os.getenv("STATIC_ACCOUNT_NAME", os.getenv("STORAGE_ACCOUNT_NAME"))
+    _az_key = os.getenv("STATIC_ACCOUNT_KEY", os.getenv("STORAGE_ACCOUNT_KEY"))
+    _az_container = os.getenv("STATIC_CONTAINER_NAME", os.getenv("STORAGE_CONTAINER_NAME"))
+    _az_custom_domain = os.getenv("STATIC_CUSTOM_DOMAIN", os.getenv("STORAGE_CUSTOM_DOMAIN"))
+
+    if not all([_az_account, _az_key, _az_container]):
+        raise ValueError(
+            "STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY, and STORAGE_CONTAINER_NAME "
+            "are required when STATIC_BACKEND=azure"
+        )
+
+    STATICFILES_STORAGE = "storages.backends.azure_storage.AzureStorage"
+    AZURE_ACCOUNT_NAME = _az_account
+    AZURE_ACCOUNT_KEY = _az_key
+    AZURE_CONTAINER = _az_container
+    AZURE_SSL = True
+
+    _static_url_override = os.getenv("STATIC_URL")
+    if _static_url_override:
+        STATIC_URL = _static_url_override.rstrip("/") + "/"
+    elif _az_custom_domain:
+        STATIC_URL = f"https://{_az_custom_domain}/{_az_container}/"
+    else:
+        STATIC_URL = f"https://{_az_account}.blob.core.windows.net/{_az_container}/"
+
+elif STATIC_BACKEND == "gcs":
+    if not HAS_STORAGES:
+        raise ValueError(
+            "STATIC_BACKEND=gcs requires django-storages. "
+            "Run: pip install django-storages google-cloud-storage"
+        )
+    _gcs_bucket = os.getenv("STATIC_BUCKET_NAME", os.getenv("STORAGE_BUCKET_NAME"))
+    _gcs_credentials = os.getenv(
+        "STATIC_GCS_CREDENTIALS_FILE", os.getenv("STORAGE_GCS_CREDENTIALS_FILE")
+    )
+    _gcs_custom_domain = os.getenv("STATIC_CUSTOM_DOMAIN", os.getenv("STORAGE_CUSTOM_DOMAIN"))
+
+    if not _gcs_bucket:
+        raise ValueError(
+            "STORAGE_BUCKET_NAME (or STATIC_BUCKET_NAME) is required when STATIC_BACKEND=gcs"
+        )
+
+    STATICFILES_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+    GS_BUCKET_NAME = _gcs_bucket
+    GS_DEFAULT_ACL = "publicRead"
+    if _gcs_credentials:
+        GS_CREDENTIALS = _gcs_credentials
+
+    _static_url_override = os.getenv("STATIC_URL")
+    if _static_url_override:
+        STATIC_URL = _static_url_override.rstrip("/") + "/"
+    elif _gcs_custom_domain:
+        STATIC_URL = f"https://{_gcs_custom_domain}/"
+    else:
+        STATIC_URL = f"https://storage.googleapis.com/{_gcs_bucket}/static/"
+
+else:
+    raise ValueError(
+        f"Unsupported STATIC_BACKEND: '{STATIC_BACKEND}'. "
+        "Choose from: local, whitenoise, s3, azure, gcs"
+    )
+
+
+# ── Media Files ───────────────────────────────────────────────────────────
+#
+# MEDIA_BACKEND options:
+#   local  — stores files on disk at MEDIA_ROOT
+#   s3     — AWS S3 or any S3-compatible service (R2, Spaces, MinIO)
+#   azure  — Azure Blob Storage
+#   gcs    — Google Cloud Storage
+
+MEDIA_BACKEND = os.getenv("MEDIA_BACKEND", "local").lower()
+
+if MEDIA_BACKEND == "local":
+    MEDIA_URL = os.getenv("MEDIA_URL", "/media/").rstrip("/") + "/"
+    MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+
+elif MEDIA_BACKEND == "s3":
+    if not HAS_STORAGES:
+        raise ValueError(
+            "MEDIA_BACKEND=s3 requires django-storages. "
+            "Run: pip install django-storages boto3"
+        )
+    _s3_bucket = os.getenv("STORAGE_BUCKET_NAME")
+    _s3_access_key = os.getenv("STORAGE_ACCESS_KEY")
+    _s3_secret_key = os.getenv("STORAGE_SECRET_KEY")
+    _s3_region = os.getenv("STORAGE_REGION")
+    _s3_endpoint = os.getenv("STORAGE_ENDPOINT_URL")
+    _s3_custom_domain = os.getenv("STORAGE_CUSTOM_DOMAIN")
+
+    if not _s3_bucket:
+        raise ValueError("STORAGE_BUCKET_NAME is required when MEDIA_BACKEND=s3")
+    if not _s3_access_key or not _s3_secret_key:
+        warnings.warn(
+            "STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY not set for MEDIA_BACKEND=s3. "
+            "boto3 will attempt IAM role authentication.",
+            stacklevel=2,
+        )
+
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    _media_bucket = _s3_bucket
+    _media_custom_domain = _s3_custom_domain
+    _media_endpoint = _s3_endpoint
+    AWS_STORAGE_BUCKET_NAME = _media_bucket
+    AWS_S3_REGION_NAME = _s3_region
+    AWS_ACCESS_KEY_ID = _s3_access_key
+    AWS_SECRET_ACCESS_KEY = _s3_secret_key
+    AWS_S3_ENDPOINT_URL = _media_endpoint
+    AWS_S3_FILE_OVERWRITE = os.getenv("STORAGE_FILE_OVERWRITE", "false").lower() == "true"
+    AWS_DEFAULT_ACL = os.getenv("STORAGE_DEFAULT_ACL", "private")
+    AWS_QUERYSTRING_AUTH = os.getenv("STORAGE_QUERYSTRING_AUTH", "true").lower() == "true"
+    AWS_S3_CUSTOM_DOMAIN = _media_custom_domain
+
+    _media_url_override = os.getenv("MEDIA_URL")
+    if _media_url_override:
+        MEDIA_URL = _media_url_override.rstrip("/") + "/"
+    elif _media_custom_domain:
+        MEDIA_URL = f"https://{_media_custom_domain}/"
+    elif _media_endpoint:
+        MEDIA_URL = f"{_media_endpoint.rstrip('/')}/{_media_bucket}/"
+    else:
+        MEDIA_URL = f"https://{_media_bucket}.s3.amazonaws.com/"
+
+elif MEDIA_BACKEND == "azure":
+    if not HAS_STORAGES:
+        raise ValueError(
+            "MEDIA_BACKEND=azure requires django-storages. "
+            "Run: pip install django-storages azure-storage-blob"
+        )
+    _az_account = os.getenv("STORAGE_ACCOUNT_NAME")
+    _az_key = os.getenv("STORAGE_ACCOUNT_KEY")
+    _az_container = os.getenv("STORAGE_CONTAINER_NAME")
+    _az_custom_domain = os.getenv("STORAGE_CUSTOM_DOMAIN")
+
+    if not all([_az_account, _az_key, _az_container]):
+        raise ValueError(
+            "STORAGE_ACCOUNT_NAME, STORAGE_ACCOUNT_KEY, and STORAGE_CONTAINER_NAME "
+            "are required when MEDIA_BACKEND=azure"
+        )
+
+    DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
+    AZURE_ACCOUNT_NAME = _az_account
+    AZURE_ACCOUNT_KEY = _az_key
+    AZURE_CONTAINER = _az_container
+    AZURE_CUSTOM_DOMAIN = _az_custom_domain
+    AZURE_SSL = os.getenv("STORAGE_USE_SSL", "true").lower() == "true"
+
+    _media_url_override = os.getenv("MEDIA_URL")
+    if _media_url_override:
+        MEDIA_URL = _media_url_override.rstrip("/") + "/"
+    elif _az_custom_domain:
+        MEDIA_URL = f"https://{_az_custom_domain}/{_az_container}/"
+    else:
+        MEDIA_URL = f"https://{_az_account}.blob.core.windows.net/{_az_container}/"
+
+elif MEDIA_BACKEND == "gcs":
+    if not HAS_STORAGES:
+        raise ValueError(
+            "MEDIA_BACKEND=gcs requires django-storages. "
+            "Run: pip install django-storages google-cloud-storage"
+        )
+    _gcs_bucket = os.getenv("STORAGE_BUCKET_NAME")
+    _gcs_credentials = os.getenv("STORAGE_GCS_CREDENTIALS_FILE")
+    _gcs_custom_domain = os.getenv("STORAGE_CUSTOM_DOMAIN")
+
+    if not _gcs_bucket:
+        raise ValueError("STORAGE_BUCKET_NAME is required when MEDIA_BACKEND=gcs")
+
+    DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+    GS_BUCKET_NAME = _gcs_bucket
+    GS_DEFAULT_ACL = os.getenv("STORAGE_DEFAULT_ACL", "projectPrivate")
+    if _gcs_credentials:
+        GS_CREDENTIALS = _gcs_credentials
+
+    _media_url_override = os.getenv("MEDIA_URL")
+    if _media_url_override:
+        MEDIA_URL = _media_url_override.rstrip("/") + "/"
+    elif _gcs_custom_domain:
+        MEDIA_URL = f"https://{_gcs_custom_domain}/"
+    else:
+        MEDIA_URL = f"https://storage.googleapis.com/{_gcs_bucket}/"
+
+else:
+    raise ValueError(
+        f"Unsupported MEDIA_BACKEND: '{MEDIA_BACKEND}'. "
+        "Choose from: local, s3, azure, gcs"
+    )
+
+STORAGES = {
+    "default": {
+        "BACKEND": DEFAULT_FILE_STORAGE,
+    },
+    "staticfiles": {
+        "BACKEND": STATICFILES_STORAGE,
+    },
+}
+
+
+# ── File Upload ──────────────────────────────────────────────────────────
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
@@ -173,12 +512,29 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
-        "anon_login": "5/min",
-        "anon_forgot_password": "3/min",
-        "anon_reset_password": "5/min",
-        "user_otp_request": "3/min",
-        "user_otp_verify": "5/min",
+        "anon": os.getenv("THROTTLE_ANON", "20/min"),
+        "login": os.getenv("THROTTLE_LOGIN", "10/min"),
+        "anon_login": os.getenv("THROTTLE_LOGIN", "10/min"),
+        "otp_send": os.getenv("THROTTLE_OTP_SEND", "5/hour"),
+        "otp_verify": os.getenv("THROTTLE_OTP_VERIFY", "5/min"),
+        "user_otp_request": os.getenv("THROTTLE_OTP_SEND", "5/hour"),
+        "user_otp_verify": os.getenv("THROTTLE_OTP_VERIFY", "5/min"),
+        "email_verify": os.getenv("THROTTLE_EMAIL_VERIFY", "10/min"),
+        "verification_resend": os.getenv("THROTTLE_VERIFICATION_RESEND", "5/hour"),
+        "forgot_password": os.getenv("THROTTLE_FORGOT_PASSWORD", "3/min"),
+        "anon_forgot_password": os.getenv("THROTTLE_FORGOT_PASSWORD", "3/min"),
+        "reset_password": os.getenv("THROTTLE_RESET_PASSWORD", "5/min"),
+        "anon_reset_password": os.getenv("THROTTLE_RESET_PASSWORD", "5/min"),
     },
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "15"))),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "1"))),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 SPECTACULAR_SETTINGS = {
@@ -186,8 +542,61 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Accounts and platform API documentation.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [{"jwtAuth": []}],
+    "AUTHENTICATION_WHITELIST": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+    },
 }
 
 
-# ─── Integration configs (provider selection + credentials) ───
-from config.integrations.email import *  # noqa: F401,F403
+# ── Content Security Policy ───────────────────────────────────────────────
+
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_FONT_SRC = ("'self'",)
+CSP_FORM_ACTION = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
+
+
+# ── SSL / HTTPS ───────────────────────────────────────────────────────────
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = (
+    os.getenv("SECURE_SSL_REDIRECT", "true" if not DEBUG else "false").lower() == "true"
+)
+SESSION_COOKIE_SECURE = (
+    os.getenv("SESSION_COOKIE_SECURE", "true" if not DEBUG else "false").lower() == "true"
+)
+CSRF_COOKIE_SECURE = (
+    os.getenv("CSRF_COOKIE_SECURE", "true" if not DEBUG else "false").lower() == "true"
+)
+
+SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+
+
+# ── Feature Flags ─────────────────────────────────────────────────────────
+
+AUTH_REQUIRE_EMAIL_VERIFICATION = os.getenv("AUTH_REQUIRE_EMAIL_VERIFICATION", "True").lower() == "true"
+AUTH_REQUIRE_DEVICE_VERIFICATION = os.getenv("AUTH_REQUIRE_DEVICE_VERIFICATION", "True").lower() == "true"
+AUTH_OTP_LENGTH = int(os.getenv("AUTH_OTP_LENGTH", "6"))
+AUTH_OTP_EXPIRY_MINUTES = int(os.getenv("AUTH_OTP_EXPIRY_MINUTES", "10"))
+AUTH_MAX_OTP_ATTEMPTS = int(os.getenv("AUTH_MAX_OTP_ATTEMPTS", "3"))
+AUTH_MAX_OTP_RESENDS = int(os.getenv("AUTH_MAX_OTP_RESENDS", "3"))
+AUTH_MAX_LOGIN_ATTEMPTS = int(os.getenv("AUTH_MAX_LOGIN_ATTEMPTS", "5"))
+AUTH_ACCOUNT_LOCK_MINUTES = int(os.getenv("AUTH_ACCOUNT_LOCK_MINUTES", "15"))
+PASSWORD_MIN_LENGTH = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
+
+REPORT_INSTITUTE_NAME = os.getenv("REPORT_INSTITUTE_NAME", "Institute")
+
+
+# ── Email ─────────────────────────────────────────────────────────────────
+
+from config.integrations.email import *  # noqa: E402, F401, F403
