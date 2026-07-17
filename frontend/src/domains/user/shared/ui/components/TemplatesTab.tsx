@@ -381,10 +381,10 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
 
                           {/* Brand logo */}
                           {preview.institute_logo_url ? (
-                            <img src={preview.institute_logo_url} alt="" className="h-10 object-contain brightness-0 invert" />
+                            <img src={preview.institute_logo_url} alt="" className="h-10 object-contain" />
                           ) : (
                             <div className="w-28 h-auto">
-                              <BrandLogo className="w-full h-auto brightness-0 invert" />
+                              <BrandLogo className="w-full h-auto" />
                             </div>
                           )}
 
