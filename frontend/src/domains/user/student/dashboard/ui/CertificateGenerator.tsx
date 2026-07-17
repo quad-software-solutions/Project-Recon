@@ -115,7 +115,7 @@ export default function CertificateGenerator({ studentId }: Props) {
                   <CheckCircle2 className="w-3 h-3" /> Verified & Authentic
                 </div>
                 <div className="flex gap-1.5">
-                  <button onClick={() => downloadCertificateReportPdf(studentId || '')}
+                  <button onClick={() => downloadCertificateReportPdf(studentId || '').catch(() => {})}
                     className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors">
                     <Download className="w-2.5 h-2.5" /> Download Report
                   </button>
