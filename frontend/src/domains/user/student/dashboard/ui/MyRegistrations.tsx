@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff, ArrowRight } from 'lucide-react';
 import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf, fetchBranchesApi, fetchClassesApi, requestTransferApi } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment, StudentCertificate, AcademicClass } from '@/shared/types';
-import { isForbiddenError } from '@/shared/api/http';
+import { isApiError, isForbiddenError } from '@/shared/api/http';
 
 type Branch = { id: string; name: string; code?: string };
 
@@ -77,7 +77,11 @@ export default function MyRegistrations({ studentId }: Props) {
       await requestTransferApi({ enrollment: transferTarget.id, to_branch: transferBranch, target_class: transferClass });
       setTransferDone(true);
     } catch (e: unknown) {
-      setTransferError(e instanceof Error ? e.message : 'Transfer request failed');
+      setTransferError(
+        isApiError(e) && e.status >= 500
+          ? 'Transfer requests are temporarily unavailable. Please contact support and try again later.'
+          : e instanceof Error ? e.message : 'Transfer request failed',
+      );
     } finally {
       setTransferring(false);
     }

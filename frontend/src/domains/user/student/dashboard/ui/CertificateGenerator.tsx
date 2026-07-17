@@ -115,6 +115,10 @@ export default function CertificateGenerator({ studentId }: Props) {
                   <CheckCircle2 className="w-3 h-3" /> Verified & Authentic
                 </div>
                 <div className="flex gap-1.5">
+                  <a href={`/cert-verify?number=${encodeURIComponent(selected.certificate_number)}`}
+                    className="flex items-center gap-1 text-[10px] font-bold text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                    <ExternalLink className="w-2.5 h-2.5" /> Verify Online
+                  </a>
                   <button onClick={() => downloadCertificateReportPdf(studentId || '').catch(() => {})}
                     className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors">
                     <Download className="w-2.5 h-2.5" /> Download Report

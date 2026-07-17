@@ -6,6 +6,7 @@ import {
   rejectTransferApi,
   type BranchTransferRequest,
 } from '@/domains/learning/academics/api/academicApi';
+import { isApiError } from '@/shared/api/http';
 
 interface Props {
   addToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -19,6 +20,13 @@ export default function TransferRequestsPanel({ addToast }: Props) {
   const [rejectReason, setRejectReason] = useState('');
   const [error, setError] = useState('');
 
+  const formatTransferError = (err: unknown, fallback: string) => {
+    if (isApiError(err) && err.status >= 500) {
+      return 'Transfer requests are temporarily unavailable. Please ask support to repair the transfer service, then try again.';
+    }
+    return err instanceof Error ? err.message : fallback;
+  };
+
   const load = async () => {
     setLoading(true);
     setError('');
@@ -26,7 +34,7 @@ export default function TransferRequestsPanel({ addToast }: Props) {
       const data = await listTransferRequestsApi();
       setItems(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load transfer requests');
+      setError(formatTransferError(err, 'Failed to load transfer requests'));
       setItems([]);
     } finally {
       setLoading(false);
@@ -42,7 +50,7 @@ export default function TransferRequestsPanel({ addToast }: Props) {
       addToast?.('Transfer approved', 'success');
       await load();
     } catch (err) {
-      addToast?.(err instanceof Error ? err.message : 'Approve failed', 'error');
+      addToast?.(formatTransferError(err, 'Approve failed'), 'error');
     } finally {
       setActingId(null);
     }
@@ -58,7 +66,7 @@ export default function TransferRequestsPanel({ addToast }: Props) {
       setRejectReason('');
       await load();
     } catch (err) {
-      addToast?.(err instanceof Error ? err.message : 'Reject failed', 'error');
+      addToast?.(formatTransferError(err, 'Reject failed'), 'error');
     } finally {
       setActingId(null);
     }

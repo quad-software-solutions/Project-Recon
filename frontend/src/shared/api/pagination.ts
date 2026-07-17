@@ -16,7 +16,7 @@ export function unwrapList<T>(data: T[] | PaginatedResponse<T> | null | undefine
  * Stops when `next` is null or after `maxPages` (safety cap).
  */
 export async function fetchAllPages<T>(
-  fetchPage: (page: number) => Promise<PaginatedResponse<T>>,
+  fetchPage: (page: number) => Promise<PaginatedResponse<T> | T[]>,
   maxPages = 20,
 ): Promise<T[]> {
   const all: T[] = [];
@@ -25,6 +25,7 @@ export async function fetchAllPages<T>(
 
   while (hasMore && page <= maxPages) {
     const res = await fetchPage(page);
+    if (Array.isArray(res)) return res;
     all.push(...(res.results ?? []));
     hasMore = Boolean(res.next);
     page += 1;

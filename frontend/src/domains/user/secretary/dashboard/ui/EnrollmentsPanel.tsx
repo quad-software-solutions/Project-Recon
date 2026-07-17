@@ -1,46 +1,78 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign, ChevronLeft, ChevronRight, ArrowRightLeft, RefreshCw } from 'lucide-react';
-import { Enrollment, StudentProfile, AcademicClass, UserProfile } from '@/shared/types';
 import {
-  fetchEnrollmentsPaginatedApi, fetchStudentsApi, fetchClassesApi, enrollStudentApi,
+  Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign,
+  ChevronLeft, ChevronRight, ArrowRightLeft, RefreshCw, ThumbsDown, Clock,
+  User, Mail, BookOpen, Building2, Hash, CalendarDays, CreditCard, Ban, CheckSquare, Tag,
+} from 'lucide-react';
+import { Enrollment, StudentProfile, AcademicClass, SubProgram, UserProfile } from '@/shared/types';
+import {
+  fetchEnrollmentsPaginatedApi, fetchStudentsApi, fetchClassesApi, fetchSubProgramsApi, enrollStudentApi,
   cancelEnrollmentApi, completeEnrollmentApi, searchStudentsApi, recordPaymentApi,
   moveEnrollmentApi, switchSubProgramApi,
+  setUnderReviewApi, rejectPaymentApi,
 } from '@/domains/learning/academics/api/academicApi';
 
 const PAGE_SIZE = 20;
 
-const statusBadge = (s: string) => {
-  if (s === 'ACTIVE') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'PENDING_VERIFICATION') return 'bg-amber-100 text-amber-700';
-  if (s === 'CANCELLED') return 'bg-red-100 text-red-600';
-  if (s === 'COMPLETED') return 'bg-brand-blue/10 text-brand-blue';
-  if (s === 'REJECTED') return 'bg-red-100 text-red-600';
-  return 'bg-slate-100 text-slate-500';
+type StatusTab = 'all' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
+
+const statusMeta: Record<string, { color: string; dot: string; label: string }> = {
+  ACTIVE:              { color: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', label: 'Active' },
+  PENDING_VERIFICATION: { color: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500', label: 'Pending' },
+  COMPLETED:           { color: 'text-blue-700 bg-blue-50 border-blue-200', dot: 'bg-blue-500', label: 'Completed' },
+  CANCELLED:           { color: 'text-red-700 bg-red-50 border-red-200', dot: 'bg-red-500', label: 'Cancelled' },
+  REJECTED:            { color: 'text-rose-700 bg-rose-50 border-rose-200', dot: 'bg-rose-500', label: 'Rejected' },
 };
+
+const verificationMeta: Record<string, { color: string; label: string }> = {
+  SUBMITTED:    { color: 'text-amber-600 bg-amber-50', label: 'Submitted' },
+  UNDER_REVIEW: { color: 'text-blue-600 bg-blue-50', label: 'Under Review' },
+  VERIFIED:     { color: 'text-emerald-600 bg-emerald-50', label: 'Verified' },
+  REJECTED:     { color: 'text-red-600 bg-red-50', label: 'Rejected' },
+};
+
+const tabs: { id: StatusTab; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'PENDING_VERIFICATION', label: 'Pending' },
+  { id: 'ACTIVE', label: 'Active' },
+  { id: 'COMPLETED', label: 'Completed' },
+  { id: 'CANCELLED', label: 'Cancelled' },
+  { id: 'REJECTED', label: 'Rejected' },
+];
 
 export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [students, setStudents] = useState<StudentProfile[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
+  const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selected, setSelected] = useState<Enrollment | null>(null);
   const [showEnroll, setShowEnroll] = useState(false);
   const [showPayment, setShowPayment] = useState<Enrollment | null>(null);
+  const [showReject, setShowReject] = useState<Enrollment | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [paymentForm, setPaymentForm] = useState({ amount: '', payment_date: new Date().toISOString().slice(0, 10) });
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusTab, setStatusTab] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [studentResults, setStudentResults] = useState<StudentProfile[]>([]);
+  const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [form, setForm] = useState({ student: '', enrolled_class: '', remarks: '' });
   const [classAction, setClassAction] = useState<{ enrollment: Enrollment; mode: 'move' | 'switch' } | null>(null);
   const [targetClassId, setTargetClassId] = useState('');
   const [classActionBusy, setClassActionBusy] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchApprove, setShowBatchApprove] = useState(false);
+  const [showBatchReject, setShowBatchReject] = useState(false);
+  const [batchAmount, setBatchAmount] = useState('');
+  const [batchRejectReason, setBatchRejectReason] = useState('');
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -49,29 +81,31 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setError(null);
     Promise.allSettled([
       fetchEnrollmentsPaginatedApi(p, PAGE_SIZE),
-      fetchStudentsApi(),
-      fetchClassesApi().catch(() => []),
-    ]).then(([enr, stu, cls]) => {
+      fetchClassesApi().catch(() => [] as AcademicClass[]),
+      fetchSubProgramsApi().catch(() => [] as SubProgram[]),
+    ]).then(([enr, cls, sp]) => {
       if (enr.status === 'fulfilled') {
         setEnrollments(enr.value.results || []);
         setTotalCount(enr.value.count);
       } else {
-        setError('Failed to load enrollments');
-      }
-      if (stu.status === 'fulfilled') {
-        setStudents(Array.isArray(stu.value) ? stu.value : []);
+        const reason = enr.reason;
+        console.error('[EnrollmentsPanel] fetch failed:', reason);
+        setError(typeof reason === 'string' ? reason : reason?.message || 'Failed to load enrollments');
       }
       if (cls.status === 'fulfilled') {
         setClasses((Array.isArray(cls.value) ? cls.value : []).filter(c => c.is_active !== false));
+      }
+      if (sp.status === 'fulfilled') {
+        setSubPrograms(Array.isArray(sp.value) ? sp.value : []);
       }
     }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadData(page); }, [page, loadData]);
 
-  const goToPage = (p: number) => {
-    if (p >= 1 && p <= totalPages) setPage(p);
-  };
+  useEffect(() => {
+    if (showEnroll) fetchStudentsApi().then(setAllStudents).catch(() => {});
+  }, [showEnroll]);
 
   useEffect(() => {
     if (studentSearch.trim().length < 2) { setStudentResults([]); return; }
@@ -84,10 +118,16 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     return () => clearTimeout(timer);
   }, [studentSearch]);
 
+  const flashSuccess = (msg: string) => {
+    setActionSuccess(msg);
+    setTimeout(() => setActionSuccess(null), 3000);
+  };
+
   const handleCancel = async (id: string) => {
     try {
       await cancelEnrollmentApi(id);
       setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'CANCELLED' as const } : e));
+      flashSuccess('Enrollment cancelled');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to cancel enrollment');
     }
@@ -97,8 +137,110 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     try {
       await completeEnrollmentApi(id);
       setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'COMPLETED' as const } : e));
+      flashSuccess('Enrollment marked completed');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to complete enrollment');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!showReject || !rejectReason.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await rejectPaymentApi(showReject.id, { rejection_reason: rejectReason.trim() });
+      setEnrollments(prev => prev.map(e =>
+        e.id === showReject.id ? { ...e, status: 'REJECTED' as const, verification_status: 'REJECTED' as const, rejection_reason: rejectReason.trim() } : e
+      ));
+      setShowReject(null);
+      setRejectReason('');
+      flashSuccess('Enrollment rejected');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reject');
+      setShowReject(null);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === pendingFiltered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingFiltered.map(e => e.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBatchApprove = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length || !batchAmount) return;
+    setSubmitting(true);
+    setError(null);
+    let success = 0;
+    for (const id of ids) {
+      try {
+        await recordPaymentApi({
+          enrollment: id, amount: batchAmount, payment_method: 'CASH',
+          payment_date: new Date().toISOString().slice(0, 10),
+        });
+        setEnrollments(prev => prev.map(e =>
+          e.id === id ? { ...e, status: 'ACTIVE' as const, payment_status: 'PAID' as const } : e
+        ));
+        success++;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : `Failed to approve ${id}`);
+      }
+    }
+    setSelectedIds(new Set());
+    setBatchAmount('');
+    setShowBatchApprove(false);
+    flashSuccess(`Approved ${success} of ${ids.length} enrollments`);
+    setSubmitting(false);
+  };
+
+  const handleBatchReject = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length || !batchRejectReason.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    let success = 0;
+    for (const id of ids) {
+      try {
+        await rejectPaymentApi(id, { rejection_reason: batchRejectReason.trim() });
+        setEnrollments(prev => prev.map(e =>
+          e.id === id ? { ...e, status: 'REJECTED' as const, verification_status: 'REJECTED' as const, rejection_reason: batchRejectReason.trim() } : e
+        ));
+        success++;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : `Failed to reject ${id}`);
+      }
+    }
+    setSelectedIds(new Set());
+    setBatchRejectReason('');
+    setShowBatchReject(false);
+    flashSuccess(`Rejected ${success} of ${ids.length} enrollments`);
+    setSubmitting(false);
+  };
+
+  const handleUnderReview = async (id: string) => {
+    try {
+      await setUnderReviewApi(id);
+      setEnrollments(prev => prev.map(e =>
+        e.id === id ? { ...e, verification_status: 'UNDER_REVIEW' as const } : e
+      ));
+      flashSuccess('Marked as under review');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to mark as under review');
     }
   };
 
@@ -117,8 +259,10 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         e.id === showPayment.id ? { ...e, status: 'ACTIVE' as const, payment_status: 'PAID' as const, payment_method: 'CASH' as const } : e
       ));
       setShowPayment(null);
+      flashSuccess('Enrollment approved — payment recorded');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to record payment');
+      setShowPayment(null);
     } finally {
       setSubmitting(false);
     }
@@ -143,8 +287,10 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
       setClassAction(null);
       setTargetClassId('');
       loadData(page);
+      flashSuccess(`Enrollment ${classAction.mode === 'move' ? 'moved' : 'switched'}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : `Failed to ${classAction.mode} enrollment`);
+      setClassAction(null);
     } finally {
       setClassActionBusy(false);
     }
@@ -162,25 +308,13 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
       setStudentSearch('');
       setStudentResults([]);
       setShowEnroll(false);
+      flashSuccess('Student enrolled successfully');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to enroll student');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const filtered = useMemo(() =>
-    enrollments.filter(e => {
-      if (statusFilter !== 'all' && e.status !== statusFilter) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const name = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''} ${e.pending_code || ''} ${e.student_email || ''}`.toLowerCase();
-        if (!name.includes(q)) return false;
-      }
-      return true;
-    }),
-    [enrollments, statusFilter, searchQuery]
-  );
 
   const statusCounts = useMemo(() => ({
     ACTIVE: enrollments.filter(e => e.status === 'ACTIVE').length,
@@ -190,8 +324,42 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     REJECTED: enrollments.filter(e => e.status === 'REJECTED').length,
   }), [enrollments]);
 
+  const feeMap = useMemo(() => {
+    const map = new Map<string, { group_fee: number; individual_fee?: number | null }>();
+    for (const sp of subPrograms) {
+      if (sp.name) map.set(sp.name.toLowerCase(), { group_fee: sp.group_fee, individual_fee: sp.individual_fee });
+    }
+    return map;
+  }, [subPrograms]);
+
+  const getFeeHint = (subProgramName?: string): string | null => {
+    if (!subProgramName) return null;
+    const key = subProgramName.toLowerCase();
+    const fee = feeMap.get(key);
+    if (!fee) return null;
+    const amounts = [fee.group_fee, fee.individual_fee].filter(Boolean);
+    return amounts.length ? `Suggested: ${amounts[0]} Birr` : null;
+  };
+
+  const pendingFiltered = useMemo(() =>
+    enrollments.filter(e => e.status === 'PENDING_VERIFICATION'),
+  [enrollments]);
+
+  const filtered = useMemo(() =>
+    enrollments.filter(e => {
+      if (statusTab !== 'all' && e.status !== statusTab) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const haystack = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''} ${e.pending_code || ''} ${e.student_email || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    }),
+    [enrollments, statusTab, searchQuery]
+  );
+
   const exportCsv = () => {
-    const headers = ['Student', 'Email', 'Class', 'Program', 'Branch', 'Pending Code', 'Date', 'Status', 'Payment'];
+    const headers = ['Student', 'Email', 'Class', 'Program', 'Branch', 'Reference', 'Date', 'Status', 'Payment'];
     const rows = filtered.map(e => [
       e.student_name || '', e.student_email || '', e.class_name || '', e.sub_program_name || '', e.branch_name || '',
       e.pending_code || e.enrollment_number || '', e.enrolled_at?.slice(0, 10) || '', e.status, e.payment_status || '',
@@ -204,89 +372,224 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="font-bold text-lg text-slate-900">Enrollments</h2>
+        <div>
+          <h2 className="font-bold text-lg text-slate-900">Enrollments</h2>
+          <p className="text-xs text-slate-500 mt-0.5">{totalCount} total · {statusCounts.PENDING_VERIFICATION} pending</p>
+        </div>
         <div className="flex items-center gap-2">
-          <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+          <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
+          <button onClick={() => loadData(page)} disabled={loading}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
           {classes.length > 0 && (
-            <button onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            <button onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
               <Plus className="w-3.5 h-3.5" /> Enroll Student
             </button>
           )}
         </div>
       </div>
 
+      {/* ── Flash messages ── */}
+      <AnimatePresence>
+        {actionSuccess && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> {actionSuccess}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
-          <button onClick={() => setError(null)} className="ml-auto"><X className="w-3 h-3" /></button>
+        <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+          <div className="flex-1" />
+          <button onClick={() => loadData(page)} className="text-xs font-semibold underline hover:no-underline shrink-0">Retry</button>
+          <button onClick={() => setError(null)} className="p-0.5 rounded hover:bg-red-100"><X className="w-3 h-3" /></button>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-2">
+      {/* ── Search & Filter tabs ── */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search enrollments..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by name, class, or reference..."
+            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 shadow-sm" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
-          <option value="all">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="PENDING_VERIFICATION">Pending Verification</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="CANCELLED">Cancelled</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
       </div>
 
-      <div className="flex items-center gap-3 text-[10px] text-slate-500">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Active ({statusCounts.ACTIVE})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Pending ({statusCounts.PENDING_VERIFICATION})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-brand-blue" /> Completed ({statusCounts.COMPLETED})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Cancelled ({statusCounts.CANCELLED})</span>
-        {statusCounts.REJECTED > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600" /> Rejected ({statusCounts.REJECTED})</span>}
+      {/* ── Status tabs ── */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {tabs.map(tab => {
+          const count = statusCounts[tab.id as keyof typeof statusCounts] ?? 0;
+          const active = statusTab === tab.id;
+          return (
+            <button key={tab.id} onClick={() => setStatusTab(tab.id)}
+              className={`shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all ${
+                active
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm'
+              }`}>
+              {tab.label}
+              {(tab.id !== 'all' && count > 0) && (
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                  active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                }`}>{count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      {/* ── Bulk action bar ── */}
+      {selectedIds.size > 0 && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 bg-slate-900 text-white rounded-xl px-4 py-2.5 shadow-lg">
+          <span className="text-xs font-semibold">{selectedIds.size} selected</span>
+          <div className="flex-1" />
+          <button onClick={clearSelection} className="text-[11px] text-slate-300 hover:text-white transition-colors">Clear</button>
+          <div className="w-px h-4 bg-slate-700" />
+          <button onClick={() => setShowBatchApprove(true)}
+            className="flex items-center gap-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-colors">
+            <DollarSign className="w-3 h-3" /> Approve All
+          </button>
+          <button onClick={() => setShowBatchReject(true)}
+            className="flex items-center gap-1.5 text-[11px] font-bold bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg transition-colors">
+            <ThumbsDown className="w-3 h-3" /> Reject All
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── Table ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="bg-slate-50 border-b border-slate-200">
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Student</th>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Class</th>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase hidden md:table-cell">Reference</th>
-              <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase hidden sm:table-cell">Date</th>
-              <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-              <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
-            </tr></thead>
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="w-10 px-2 py-3 text-center">
+                  <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === pendingFiltered.length}
+                    onChange={toggleSelectAll}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                </th>
+                <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-500 uppercase">Student</th>
+                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase hidden sm:table-cell">Class</th>
+                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase hidden md:table-cell">Reference</th>
+                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase hidden lg:table-cell">Date</th>
+                <th className="text-center px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
+                <th className="text-center px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={7} className="px-4 py-16 text-center text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                  <span className="text-xs">Loading enrollments...</span>
+                </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-xs text-slate-400">No enrollments found</td></tr>
+                <tr><td colSpan={7} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3 text-slate-400">
+                    <BookOpen className="w-10 h-10" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">No enrollments found</p>
+                      <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filter{classes.length > 0 ? ', or enroll a new student' : ''}</p>
+                    </div>
+                    {classes.length > 0 && (
+                      <button onClick={() => setShowEnroll(true)}
+                        className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
+                        <Plus className="w-3.5 h-3.5" /> Enroll Student
+                      </button>
+                    )}
+                  </div>
+                </td></tr>
               ) : filtered.map(e => (
-                <tr key={e.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900">{e.student_name || e.student_email || 'Unknown'}</td>
-                  <td className="px-4 py-3 text-xs text-slate-700">{e.class_name || e.sub_program_name || '—'}</td>
+                <tr key={e.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(e.id) ? 'bg-blue-50/50' : ''}`}>
+                  <td className="px-2 py-3 text-center">
+                    <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)}
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-brand-blue/10 flex items-center justify-center text-[10px] font-bold text-brand-blue shrink-0">
+                        {(e.student_name || '?').charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{e.student_name || e.student_email || 'Unknown'}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{e.student_email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-700 hidden sm:table-cell">
+                    <p className="truncate max-w-[160px]">{e.class_name || '—'}</p>
+                    <p className="text-[10px] text-slate-400">{e.branch_name}</p>
+                  </td>
                   <td className="px-4 py-3 text-xs font-mono text-brand-blue hidden md:table-cell">{e.pending_code || e.enrollment_number || '—'}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{e.enrolled_at?.slice(0, 10) || '—'}</td>
-                  <td className="px-4 py-3 text-center"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(e.status)}`}>{e.status.replace('_', ' ')}</span></td>
+                  <td className="px-4 py-3 text-xs text-slate-500 hidden lg:table-cell">{e.enrolled_at?.slice(0, 10) || '—'}</td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusMeta[e.status]?.color || 'text-slate-600 bg-slate-50 border-slate-200'}`}>
+                        {statusMeta[e.status]?.label || e.status.replace('_', ' ')}
+                      </span>
+                      {e.verification_status && e.verification_status !== 'VERIFIED' && (
+                        <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${verificationMeta[e.verification_status]?.color || ''}`}>
+                          {verificationMeta[e.verification_status]?.label || e.verification_status.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => setSelected(e)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details"><Eye className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setSelected(e)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors" title="View details">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+
                       {e.status === 'PENDING_VERIFICATION' && (
-                        <button onClick={() => { setPaymentForm({ amount: '', payment_date: new Date().toISOString().slice(0, 10) }); setShowPayment(e); }} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Record cash payment"><DollarSign className="w-3.5 h-3.5" /></button>
-                      )}
-                      {e.status === 'ACTIVE' && (
                         <>
-                          <button onClick={() => openClassAction(e, 'move')} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Move to another class"><ArrowRightLeft className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => openClassAction(e, 'switch')} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Switch sub-program"><RefreshCw className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleComplete(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark completed"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                          {e.verification_status === 'SUBMITTED' && (
+                            <button onClick={() => handleUnderReview(e.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Mark under review">
+                              <Clock className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button onClick={() => { setPaymentForm(p => ({ ...p, amount: '' })); setShowPayment(e); }}
+                            className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors" title="Approve & record payment">
+                            <DollarSign className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => { setShowReject(e); setRejectReason(''); }}
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Reject">
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                          </button>
                         </>
                       )}
+
+                      {e.status === 'ACTIVE' && (
+                        <>
+                          <button onClick={() => openClassAction(e, 'move')}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Move class">
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => openClassAction(e, 'switch')}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Switch sub-program">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleComplete(e.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Mark completed">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+
                       {(e.status === 'ACTIVE' || e.status === 'PENDING_VERIFICATION') && (
-                        <button onClick={() => handleCancel(e.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel enrollment"><X className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleCancel(e.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Cancel">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -296,17 +599,16 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
           </table>
         </div>
 
+        {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50">
-          <span className="text-[11px] text-slate-500">{totalCount} total enrollments</span>
+          <span className="text-[11px] text-slate-500">{totalCount} total</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => goToPage(page - 1)} disabled={page <= 1}
+            <button onClick={() => { setPage(p => Math.max(1, p - 1)); }} disabled={page <= 1}
               className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-[11px] font-mono text-slate-600 px-2">
-              {page} / {totalPages}
-            </span>
-            <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages}
+            <span className="text-[11px] font-mono text-slate-600 px-2">{page} / {totalPages}</span>
+            <button onClick={() => { setPage(p => Math.min(totalPages, p + 1)); }} disabled={page >= totalPages}
               className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -314,176 +616,439 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         </div>
       </div>
 
-      {/* Detail modal */}
-      {selected && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setSelected(null)}>
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-900">{selected.student_name || 'Enrollment'}</h3>
-              <button onClick={() => setSelected(null)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex flex-col gap-2 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Student</span><span className="font-medium">{selected.student_name || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Email</span><span>{selected.student_email || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Class</span><span>{selected.class_name || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Program</span><span>{selected.program_name || selected.sub_program_name || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Branch</span><span>{selected.branch_name || '—'}</span></div>
-              {(selected.pending_code || selected.enrollment_number) && (
-                <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-mono text-brand-blue font-bold">{selected.pending_code || selected.enrollment_number}</span></div>
-              )}
-              <div className="flex justify-between"><span className="text-slate-500">Enrolled</span><span>{selected.enrolled_at?.slice(0, 10) || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Status</span><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(selected.status)}`}>{selected.status?.replace('_', ' ')}</span></div>
-              {selected.payment_status && <div className="flex justify-between"><span className="text-slate-500">Payment Status</span><span>{String(selected.payment_status).replace(/_/g, ' ')}</span></div>}
-              {selected.payment_method && <div className="flex justify-between"><span className="text-slate-500">Payment Method</span><span>{String(selected.payment_method).replace(/_/g, ' ')}</span></div>}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Cash Payment modal */}
-      {showPayment && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowPayment(null)}>
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base text-slate-900">Record Cash Payment</h3>
-              <button onClick={() => setShowPayment(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Student: <span className="font-medium text-slate-700">{showPayment.student_name || showPayment.student_email}</span>
-              <br />
-              Class: <span className="font-medium text-slate-700">{showPayment.class_name || '—'}</span>
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Amount (Birr)</label>
-                <input type="number" step="0.01" min="0" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
-                  placeholder="e.g. 5000" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Payment Date</label>
-                <input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
-              <button onClick={() => setShowPayment(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-              <button onClick={handleCashPayment} disabled={submitting || !paymentForm.amount}
-                className="bg-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
-                {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                {submitting ? 'Recording...' : 'Confirm Payment'}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Move / Switch class modal */}
-      {classAction && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setClassAction(null)}>
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base text-slate-900">
-                {classAction.mode === 'move' ? 'Move to class' : 'Switch sub-program'}
-              </h3>
-              <button onClick={() => setClassAction(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Student: <span className="font-medium text-slate-700">{classAction.enrollment.student_name || classAction.enrollment.student_email}</span>
-              <br />
-              Current: <span className="font-medium text-slate-700">{classAction.enrollment.class_name || '—'}</span>
-            </p>
-            <div>
-              <label className="text-[11px] font-bold text-slate-600 mb-1 block">Target class</label>
-              {classes.length === 0 ? (
-                <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-400">No classes available</div>
-              ) : (
-                <select value={targetClassId} onChange={e => setTargetClassId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600">
-                  <option value="">Select class...</option>
-                  {classes
-                    .filter(c => c.id !== (classAction.enrollment as { enrolled_class?: string }).enrolled_class)
-                    .map(c => (
-                      <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>
-                    ))}
-                </select>
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
-              <button onClick={() => setClassAction(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-              <button onClick={handleClassAction} disabled={classActionBusy || !targetClassId}
-                className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
-                {classActionBusy && <Loader2 className="w-3 h-3 animate-spin" />}
-                {classActionBusy ? 'Saving...' : classAction.mode === 'move' ? 'Move' : 'Switch'}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Enroll Student modal */}
+      {/* ── Detail slide-over ── */}
       <AnimatePresence>
-        {showEnroll && (
+        {selected && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEnroll(false)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelected(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-2xl border-l border-slate-200 overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
+                <h3 className="font-bold text-slate-900">Enrollment Details</h3>
+                <button onClick={() => setSelected(null)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                  <div className="w-10 h-10 rounded-full bg-brand-blue/10 flex items-center justify-center text-sm font-bold text-brand-blue">
+                    {(selected.student_name || '?').charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">{selected.student_name || 'Unknown'}</p>
+                    <p className="text-xs text-slate-500">{selected.student_email}</p>
+                  </div>
+                </div>
+
+                <DetailRow icon={<BookOpen className="w-3.5 h-3.5" />} label="Class" value={selected.class_name || '—'} />
+                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Branch" value={selected.branch_name || '—'} />
+                <DetailRow icon={<User className="w-3.5 h-3.5" />} label="Program" value={selected.program_name || selected.sub_program_name || '—'} />
+                {(() => {
+                  const hint = getFeeHint(selected.sub_program_name);
+                  return hint ? <DetailRow icon={<Tag className="w-3.5 h-3.5" />} label="Fee" value={hint.replace('Suggested: ', '')} /> : null;
+                })()}
+                <DetailRow icon={<Hash className="w-3.5 h-3.5" />} label="Reference" value={selected.pending_code || selected.enrollment_number || '—'} mono />
+                <DetailRow icon={<CalendarDays className="w-3.5 h-3.5" />} label="Enrolled" value={selected.enrolled_at?.slice(0, 10) || '—'} />
+
+                {selected.remarks && (
+                  <div className="pt-3 border-t border-slate-100">
+                    <DetailRow icon={<Mail className="w-3.5 h-3.5" />} label="Remarks" value={selected.remarks} />
+                  </div>
+                )}
+
+                <div className="pt-3 border-t border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">Status</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusMeta[selected.status]?.color || ''}`}>
+                      {statusMeta[selected.status]?.label || selected.status?.replace('_', ' ')}
+                    </span>
+                  </div>
+                  {selected.verification_status && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Verification</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${verificationMeta[selected.verification_status]?.color || ''}`}>
+                        {verificationMeta[selected.verification_status]?.label || selected.verification_status?.replace('_', ' ')}
+                      </span>
+                    </div>
+                  )}
+                  {selected.rejection_reason && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500">Rejection reason</span>
+                      <span className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{selected.rejection_reason}</span>
+                    </div>
+                  )}
+                  {selected.payment_status && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Payment</span>
+                      <span className="text-[10px] font-semibold flex items-center gap-1">
+                        <CreditCard className="w-3 h-3" />
+                        {String(selected.payment_status).replace(/_/g, ' ')}
+                        {selected.payment_method && <> · {String(selected.payment_method).replace(/_/g, ' ')}</>}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Approve / Payment modal ── */}
+      <AnimatePresence>
+        {showPayment && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowPayment(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            >
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm">
-                <div className="flex items-center justify-between p-4 border-b border-slate-100">
-                  <h3 className="font-bold text-base text-slate-900">Enroll Student</h3>
-                  <button onClick={() => setShowEnroll(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+              onClick={() => setShowPayment(null)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div>
+                    <h3 className="font-bold text-slate-900">Verify & Approve</h3>
+                  </div>
+                  <button onClick={() => setShowPayment(null)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
                 </div>
-                <div className="p-4 space-y-3">
+                <div className="p-5 space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-start gap-2">
+                    <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>Recording payment will activate this enrollment. A confirmation email will be sent to <strong>{showPayment.student_email}</strong>.</span>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3 text-sm space-y-1">
+                    <p><span className="text-slate-500">Student:</span> <span className="font-medium text-slate-900">{showPayment.student_name || showPayment.student_email}</span></p>
+                    <p><span className="text-slate-500">Class:</span> <span className="font-medium text-slate-900">{showPayment.class_name || '—'}</span></p>
+                    <p><span className="text-slate-500">Reference:</span> <span className="font-mono text-brand-blue font-medium">{showPayment.pending_code || showPayment.enrollment_number || '—'}</span></p>
+                  </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Student</label>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">
+                      Amount (Birr)
+                      {(() => {
+                        const hint = getFeeHint(showPayment.sub_program_name);
+                        return hint ? (
+                          <button type="button" onClick={() => {
+                            const match = hint.match(/([\d.]+)/);
+                            if (match) setPaymentForm(p => ({ ...p, amount: match[1] }));
+                          }} className="ml-2 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full hover:bg-emerald-100 transition-colors">
+                            {hint}
+                          </button>
+                        ) : null;
+                      })()}
+                    </label>
+                    <input type="number" step="0.01" min="0" value={paymentForm.amount}
+                      onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                      placeholder="Enter fee amount" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Payment Date</label>
+                    <input type="date" value={paymentForm.payment_date}
+                      onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+                  <button onClick={() => setShowPayment(null)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                  <button onClick={handleCashPayment} disabled={submitting || !paymentForm.amount}
+                    className="bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
+                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {submitting ? 'Processing...' : 'Confirm & Approve'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Reject modal ── */}
+      <AnimatePresence>
+        {showReject && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowReject(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowReject(null)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><Ban className="w-4 h-4 text-red-600" /></div>
+                    <h3 className="font-bold text-slate-900">Reject Enrollment</h3>
+                  </div>
+                  <button onClick={() => setShowReject(null)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-800 flex items-start gap-2">
+                    <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>An email with this rejection reason will be sent to <strong>{showReject.student_email}</strong>.</span>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3 text-sm space-y-1">
+                    <p><span className="text-slate-500">Student:</span> <span className="font-medium text-slate-900">{showReject.student_name || showReject.student_email}</span></p>
+                    <p><span className="text-slate-500">Class:</span> <span className="font-medium text-slate-900">{showReject.class_name || '—'}</span></p>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Reason for rejection</label>
+                    <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-600/10 min-h-[90px] resize-none"
+                      placeholder="Explain why this enrollment is being rejected..." />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+                  <button onClick={() => setShowReject(null)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                  <button onClick={handleReject} disabled={submitting || !rejectReason.trim()}
+                    className="bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
+                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {submitting ? 'Rejecting...' : 'Reject Enrollment'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Batch Approve modal ── */}
+      <AnimatePresence>
+        {showBatchApprove && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowBatchApprove(false)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowBatchApprove(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div>
+                    <h3 className="font-bold text-slate-900">Batch Approve ({selectedIds.size})</h3>
+                  </div>
+                  <button onClick={() => setShowBatchApprove(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-start gap-2">
+                    <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>Each student will receive a confirmation email once approved.</span>
+                  </div>
+                  <p className="text-xs text-slate-500">This will approve <strong>{selectedIds.size}</strong> enrollment{selectedIds.size > 1 ? 's' : ''} with the same payment amount.</p>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Amount (Birr) per enrollment</label>
+                    <input type="number" step="0.01" min="0" value={batchAmount}
+                      onChange={e => setBatchAmount(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                      placeholder="e.g. 5000" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+                  <button onClick={() => setShowBatchApprove(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                  <button onClick={handleBatchApprove} disabled={submitting || !batchAmount}
+                    className="bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
+                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {submitting ? 'Processing...' : `Approve ${selectedIds.size} enrollment${selectedIds.size > 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Batch Reject modal ── */}
+      <AnimatePresence>
+        {showBatchReject && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowBatchReject(false)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowBatchReject(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><Ban className="w-4 h-4 text-red-600" /></div>
+                    <h3 className="font-bold text-slate-900">Batch Reject ({selectedIds.size})</h3>
+                  </div>
+                  <button onClick={() => setShowBatchReject(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-800 flex items-start gap-2">
+                    <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>Each student will receive an email with this rejection reason.</span>
+                  </div>
+                  <p className="text-xs text-slate-500">This will reject <strong>{selectedIds.size}</strong> enrollment{selectedIds.size > 1 ? 's' : ''} with the same reason.</p>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Rejection reason</label>
+                    <textarea value={batchRejectReason} onChange={e => setBatchRejectReason(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-600/10 min-h-[90px] resize-none"
+                      placeholder="Explain why these enrollments are being rejected..." />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+                  <button onClick={() => setShowBatchReject(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                  <button onClick={handleBatchReject} disabled={submitting || !batchRejectReason.trim()}
+                    className="bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
+                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {submitting ? 'Rejecting...' : `Reject ${selectedIds.size} enrollment${selectedIds.size > 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Move / Switch class modal ── */}
+      <AnimatePresence>
+        {classAction && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setClassAction(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              onClick={() => setClassAction(null)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      {classAction.mode === 'move' ? <ArrowRightLeft className="w-4 h-4 text-blue-600" /> : <RefreshCw className="w-4 h-4 text-violet-600" />}
+                    </div>
+                    <h3 className="font-bold text-slate-900">
+                      {classAction.mode === 'move' ? 'Move to class' : 'Switch sub-program'}
+                    </h3>
+                  </div>
+                  <button onClick={() => setClassAction(null)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="bg-slate-50 rounded-xl p-3 text-sm space-y-1">
+                    <p><span className="text-slate-500">Student:</span> <span className="font-medium text-slate-900">{classAction.enrollment.student_name || classAction.enrollment.student_email}</span></p>
+                    <p><span className="text-slate-500">Current:</span> <span className="font-medium text-slate-900">{classAction.enrollment.class_name || '—'}</span></p>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Target class</label>
+                    {classes.length === 0 ? (
+                      <div className="px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-400">No classes available</div>
+                    ) : (
+                      <select value={targetClassId} onChange={e => setTargetClassId(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                        <option value="">Select class...</option>
+                        {classes
+                          .filter(c => c.id !== (classAction.enrollment as { enrolled_class?: string }).enrolled_class)
+                          .map(c => (
+                            <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+                  <button onClick={() => setClassAction(null)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                  <button onClick={handleClassAction} disabled={classActionBusy || !targetClassId}
+                    className="bg-blue-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
+                    {classActionBusy && <Loader2 className="w-3 h-3 animate-spin" />}
+                    {classActionBusy ? 'Saving...' : classAction.mode === 'move' ? 'Move' : 'Switch'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Enroll Student modal ── */}
+      <AnimatePresence>
+        {showEnroll && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowEnroll(false)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowEnroll(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center"><Plus className="w-4 h-4 text-blue-600" /></div>
+                    <h3 className="font-bold text-slate-900">Enroll Student</h3>
+                  </div>
+                  <button onClick={() => setShowEnroll(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Student</label>
                     <div className="relative">
                       <input value={studentSearch} onChange={e => { setStudentSearch(e.target.value); setForm(p => ({ ...p, student: '' })); }}
-                        placeholder="Search student by name or email..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
+                        onFocus={() => { setSearchFocused(true); }} onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                        placeholder="Search by name or email..."
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                       {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-slate-400" />}
                     </div>
-                    {studentResults.length > 0 && !form.student && (
-                      <div className="mt-1 border border-slate-200 rounded-lg bg-white max-h-32 overflow-y-auto shadow-sm">
-                        {studentResults.map(s => {
+                    {searchFocused && !form.student && (
+                      <div className="mt-1.5 border border-slate-200 rounded-xl bg-white max-h-48 overflow-y-auto shadow-sm">
+                        {(studentSearch.trim().length === 0 ? allStudents : studentResults).map(s => {
                           const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
                           return (
                             <button key={s.id} type="button" onClick={() => {
                               setForm(p => ({ ...p, student: s.id }));
                               setStudentSearch(name);
-                              setStudentResults([]);
-                            }} className="w-full text-left px-3 py-2 text-xs hover:bg-brand-blue/10 transition-colors flex items-center gap-2">
-                              <div className="w-5 h-5 rounded bg-brand-blue/20 flex items-center justify-center text-[8px] font-bold text-brand-blue">{name.charAt(0)}</div>
-                              {name} <span className="text-slate-400">— {s.email}</span>
+                              setSearchFocused(false);
+                            }} className="w-full text-left px-3 py-2.5 text-xs hover:bg-brand-blue/10 transition-colors flex items-center gap-2.5 border-b border-slate-50 last:border-0">
+                              <div className="w-6 h-6 rounded-full bg-brand-blue/20 flex items-center justify-center text-[9px] font-bold text-brand-blue shrink-0">{name.charAt(0)}</div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-slate-900 truncate">{name}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{s.email}{s.branch_name ? ` · ${s.branch_name}` : ''}</p>
+                              </div>
                             </button>
                           );
                         })}
+                        {studentSearch.trim().length === 0 && allStudents.length === 0 && (
+                          <p className="px-3 py-4 text-[11px] text-slate-400 text-center">Loading students...</p>
+                        )}
+                        {studentSearch.trim().length >= 2 && studentResults.length === 0 && (
+                          <p className="px-3 py-4 text-[11px] text-slate-400 text-center">No students match</p>
+                        )}
                       </div>
                     )}
                     {form.student && !searching && (
-                      <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Student selected</p>
+                      <p className="text-[10px] text-emerald-600 mt-1.5 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Student selected</p>
                     )}
                   </div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Class</label>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Class</label>
                     {classes.length === 0 ? (
-                      <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-400">Classes unavailable — check your permissions</div>
+                      <div className="px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-400">Classes unavailable — check your permissions</div>
                     ) : (
-                      <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                      <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                         <option value="">Select class...</option>
                         {classes.map(c => <option key={c.id} value={c.id}>{c.name} · {c.sub_program_name || 'Program'} · {c.branch_name || 'Branch'}</option>)}
                       </select>
                     )}
                   </div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Remarks</label><input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" placeholder="Optional note" /></div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Remarks</label>
+                    <input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                      placeholder="Optional note" />
+                  </div>
                 </div>
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
-                  <button onClick={() => setShowEnroll(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+                  <button onClick={() => setShowEnroll(false)}
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
                   <button onClick={handleEnroll} disabled={submitting || !form.student || !form.enrolled_class}
-                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                    className="bg-blue-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
                     {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
                     {submitting ? 'Enrolling...' : 'Enroll'}
                   </button>
@@ -493,6 +1058,18 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
           </>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function DetailRow({ icon, label, value, mono }: { icon: ReactNode; label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-slate-400 shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</p>
+        <p className={`text-sm text-slate-900 truncate ${mono ? 'font-mono text-brand-blue' : 'font-medium'}`}>{value}</p>
+      </div>
     </div>
   );
 }
