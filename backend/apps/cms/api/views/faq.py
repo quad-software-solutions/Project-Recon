@@ -1,8 +1,9 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.cms.api.pagination import AdminPagination, PublicPagination
 from apps.cms.api.permissions import IsCMSStaff
 from apps.cms.api.serializers import FAQSerializer, FAQAdminSerializer
 from apps.cms.services.faq_service import (
@@ -18,6 +19,10 @@ from apps.cms.services.faq_service import (
 class PublicFAQListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = FAQSerializer
+    pagination_class = PublicPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["question", "answer"]
+    ordering_fields = ["created_at"]
 
     @extend_schema(tags=["CMS - FAQ"])
     def get_queryset(self):
@@ -27,6 +32,10 @@ class PublicFAQListView(generics.ListAPIView):
 class AdminFAQListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsCMSStaff]
     serializer_class = FAQAdminSerializer
+    pagination_class = AdminPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["question", "answer"]
+    ordering_fields = ["created_at"]
 
     @extend_schema(tags=["CMS - Admin - FAQ"])
     def get_queryset(self):

@@ -143,8 +143,8 @@ class PublicEndpointTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/hero-banners/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        titles = [b["title"] for b in data]
+        self.assertIn("results", data)
+        titles = [b["title"] for b in data["results"]]
         self.assertIn("Hero Banner", titles)
         self.assertNotIn("Inactive Banner", titles)
 
@@ -169,9 +169,8 @@ class PublicEndpointTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/about/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        if data:
-            item = data[0]
+        if data["results"]:
+            item = data["results"][0]
             self.assertIn("image", item)
             self.assertIn("mission", item)
             self.assertIn("vision", item)
@@ -208,8 +207,8 @@ class PublicEndpointTest(CMSApiTestCase):
         self.assertEqual(data["email"], "jane@test.com")
         self.assertEqual(data["subject"], "Issue")
         self.assertEqual(data["description"], "Help!")
-        self.assertEqual(data["status"], "OPEN")
-        self.assertEqual(data["priority"], "MEDIUM")
+        self.assertNotIn("status", data)
+        self.assertNotIn("priority", data)
         self.assertIsNone(data.get("phone"))
 
     def test_create_contact_request_with_phone(self):
@@ -247,8 +246,7 @@ class PublicEndpointTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/map-nodes/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        titles = [n["title"] for n in data]
+        titles = [n["title"] for n in data["results"]]
         self.assertIn("Test Map Node", titles)
         self.assertNotIn("Inactive Map Node", titles)
 
@@ -256,8 +254,7 @@ class PublicEndpointTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/gallery/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        titles = [g["title"] for g in data]
+        titles = [g["title"] for g in data["results"]]
         self.assertIn("Gallery Photo", titles)
         self.assertNotIn("Inactive Gallery", titles)
 
@@ -278,7 +275,7 @@ class PublicEndpointTest(CMSApiTestCase):
     def test_list_map_nodes_public_returns_all_fields(self):
         response = self.client.get(f"{self.base_url}/map-nodes/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        for node in response.json():
+        for node in response.json()["results"]:
             self.assertIn("id", node)
             self.assertIn("city", node)
             self.assertIn("country", node)
@@ -299,7 +296,7 @@ class AdminSuperAdminTest(CMSApiTestCase):
     def test_list_hero_banners_admin(self):
         response = self.client.get(f"{self.base_url}/admin/hero-banners/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        titles = [b["title"] for b in response.json()]
+        titles = [b["title"] for b in response.json()["results"]]
         self.assertIn("Inactive Banner", titles)
 
     def test_create_hero_banner_admin(self):
@@ -419,8 +416,7 @@ class AdminSuperAdminTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/admin/contact-requests/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        self.assertGreaterEqual(len(data), 1)
+        self.assertGreaterEqual(len(data["results"]), 1)
 
     def test_retrieve_contact_request_admin(self):
         response = self.client.get(
@@ -473,8 +469,7 @@ class AdminSuperAdminTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/admin/map-nodes/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        titles = [n["title"] for n in data]
+        titles = [n["title"] for n in data["results"]]
         self.assertIn("Test Map Node", titles)
         self.assertIn("Inactive Map Node", titles)
 
@@ -544,8 +539,7 @@ class AdminSuperAdminTest(CMSApiTestCase):
         response = self.client.get(f"{self.base_url}/admin/gallery/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIsInstance(data, list)
-        titles = [g["title"] for g in data]
+        titles = [g["title"] for g in data["results"]]
         self.assertIn("Gallery Photo", titles)
         self.assertIn("Inactive Gallery", titles)
 
@@ -637,7 +631,7 @@ class AdminSuperAdminTest(CMSApiTestCase):
     def test_delete_map_node_then_list_excludes_it_from_public(self):
         self.client.delete(f"{self.base_url}/admin/map-nodes/{self.map_node.id}/")
         response = self.client.get(f"{self.base_url}/map-nodes/")
-        titles = [n["title"] for n in response.json()]
+        titles = [n["title"] for n in response.json()["results"]]
         self.assertNotIn("Test Map Node", titles)
 
 

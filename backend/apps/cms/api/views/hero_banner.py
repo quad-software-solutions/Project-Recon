@@ -1,8 +1,9 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.cms.api.pagination import AdminPagination, PublicPagination
 from apps.cms.api.permissions import IsCMSStaff
 from apps.cms.api.serializers import HeroBannerSerializer, HeroBannerAdminSerializer
 from apps.cms.services.hero_banner_service import (
@@ -18,6 +19,10 @@ from apps.cms.services.hero_banner_service import (
 class PublicHeroBannerListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = HeroBannerSerializer
+    pagination_class = PublicPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "subtitle"]
+    ordering_fields = ["title", "created_at", "updated_at"]
 
     @extend_schema(tags=["CMS - Hero Banners"])
     def get_queryset(self):
@@ -27,6 +32,10 @@ class PublicHeroBannerListView(generics.ListAPIView):
 class AdminHeroBannerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsCMSStaff]
     serializer_class = HeroBannerAdminSerializer
+    pagination_class = AdminPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "subtitle"]
+    ordering_fields = ["title", "created_at", "updated_at"]
 
     @extend_schema(tags=["CMS - Admin - Hero Banners"])
     def get_queryset(self):

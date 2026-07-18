@@ -59,6 +59,24 @@ class ContactRequestAdminSerializer(serializers.ModelSerializer):
         return value
 
 
+class ContactRequestResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactRequest
+        fields = (
+            "id",
+            "ticket_number",
+            "name",
+            "email",
+            "phone",
+            "subject",
+            "description",
+            "attachment",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
 class ContactRequestCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     email = serializers.EmailField()

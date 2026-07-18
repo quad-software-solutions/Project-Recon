@@ -5,6 +5,7 @@ from .about import AboutUsSerializer, AboutUsAdminSerializer
 from .contact_request import (
     ContactRequestSerializer,
     ContactRequestCreateSerializer,
+    ContactRequestResponseSerializer,
     ContactRequestAdminSerializer,
 )
 from .faq import FAQSerializer, FAQAdminSerializer
@@ -22,6 +23,7 @@ __all__ = [
     "AboutUsAdminSerializer",
     "ContactRequestSerializer",
     "ContactRequestCreateSerializer",
+    "ContactRequestResponseSerializer",
     "ContactRequestAdminSerializer",
     "FAQSerializer",
     "FAQAdminSerializer",

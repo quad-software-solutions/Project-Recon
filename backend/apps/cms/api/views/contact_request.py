@@ -1,12 +1,14 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
+from apps.cms.api.pagination import AdminPagination
 from apps.cms.api.permissions import IsCMSStaff
 from apps.cms.api.serializers import (
     ContactRequestCreateSerializer,
+    ContactRequestResponseSerializer,
     ContactRequestSerializer,
     ContactRequestAdminSerializer,
 )
@@ -27,14 +29,14 @@ class PublicCreateContactRequestView(generics.CreateAPIView):
     @extend_schema(
         tags=["CMS - Contact Requests"],
         request=ContactRequestCreateSerializer,
-        responses={201: ContactRequestSerializer},
+        responses={201: ContactRequestResponseSerializer},
     )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         contact_request = create_contact_request(serializer.validated_data)
         return Response(
-            ContactRequestSerializer(contact_request).data,
+            ContactRequestResponseSerializer(contact_request).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -42,6 +44,10 @@ class PublicCreateContactRequestView(generics.CreateAPIView):
 class AdminContactRequestListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsCMSStaff]
     serializer_class = ContactRequestAdminSerializer
+    pagination_class = AdminPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "email", "subject", "ticket_number"]
+    ordering_fields = ["created_at", "status", "priority", "subject"]
 
     @extend_schema(tags=["CMS - Admin - Contact Requests"])
     def get_queryset(self):

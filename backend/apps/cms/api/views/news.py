@@ -1,8 +1,9 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.cms.api.pagination import AdminPagination, PublicPagination
 from apps.cms.api.permissions import IsCMSStaff
 from apps.cms.api.serializers import NewsArticleSerializer, NewsArticleAdminSerializer
 from apps.cms.services.news_service import (
@@ -19,6 +20,10 @@ from apps.cms.services.news_service import (
 class PublicNewsArticleListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = NewsArticleSerializer
+    pagination_class = PublicPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "summary", "content"]
+    ordering_fields = ["title", "published_at", "created_at", "type"]
 
     @extend_schema(tags=["CMS - News"])
     def get_queryset(self):
@@ -39,6 +44,10 @@ class PublicNewsArticleDetailView(generics.RetrieveAPIView):
 class AdminNewsArticleListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsCMSStaff]
     serializer_class = NewsArticleAdminSerializer
+    pagination_class = AdminPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "summary", "content"]
+    ordering_fields = ["title", "published_at", "created_at", "type"]
 
     @extend_schema(tags=["CMS - Admin - News"])
     def get_queryset(self):

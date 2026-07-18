@@ -5,10 +5,11 @@ journey map nodes.
 """
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.cms.api.pagination import AdminPagination, PublicPagination
 from apps.cms.api.permissions import IsCMSStaff
 from apps.cms.api.serializers import MapNodeSerializer, MapNodeAdminSerializer
 from apps.cms.services.map_node_service import (
@@ -26,6 +27,10 @@ class PublicMapNodeListView(generics.ListAPIView):
 
     permission_classes = [AllowAny]
     serializer_class = MapNodeSerializer
+    pagination_class = PublicPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "city", "country", "achievement"]
+    ordering_fields = ["title", "city", "country", "category"]
 
     @extend_schema(tags=["CMS - Map Nodes"])
     def get_queryset(self):
@@ -37,6 +42,10 @@ class AdminMapNodeListCreateView(generics.ListCreateAPIView):
 
     permission_classes = [IsCMSStaff]
     serializer_class = MapNodeAdminSerializer
+    pagination_class = AdminPagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "city", "country", "achievement"]
+    ordering_fields = ["title", "city", "country", "category"]
 
     @extend_schema(tags=["CMS - Admin - Map Nodes"])
     def get_queryset(self):
