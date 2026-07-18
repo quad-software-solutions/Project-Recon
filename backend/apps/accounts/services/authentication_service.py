@@ -8,11 +8,11 @@ and password management workflows.
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import check_password
-from django.core.cache import cache
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from apps.accounts.models import User, OTPChallenge
 from apps.accounts.constants import AccountStatus, OTPPurpose, Roles
 from apps.accounts.services import otp_service, device_service
@@ -100,10 +100,8 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
         log_action(None, "LOGIN_FAILED", "User", None, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
-    cache_key = f"login_attempts:{email.lower()}"
-    attempts = cache.get(cache_key, 0)
     max_attempts = settings.AUTH_MAX_LOGIN_ATTEMPTS
-    if max_attempts and attempts >= max_attempts:
+    if max_attempts and user.failed_login_attempts >= max_attempts:
         log_action(None, "LOGIN_FAILED_LOCKED", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
@@ -114,12 +112,12 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
         raise PermissionDenied("Account is archived.")
 
     if not user.check_password(password):
-        lock_mins = settings.AUTH_ACCOUNT_LOCK_MINUTES
-        cache.set(cache_key, attempts + 1, lock_mins * 60)
+        User.objects.filter(id=user.id).update(failed_login_attempts=user.failed_login_attempts + 1)
         log_action(None, "LOGIN_FAILED", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
-    cache.delete(cache_key)
+    if user.failed_login_attempts:
+        User.objects.filter(id=user.id).update(failed_login_attempts=0)
 
     if (
         user.status == AccountStatus.PENDING
@@ -163,11 +161,18 @@ def logout(user, refresh_token_str: str) -> None:
         user: Authenticated User instance.
         refresh_token_str: Refresh token to invalidate.
 
+    Raises:
+        AuthenticationFailed: Token does not belong to the given user.
+
     Returns:
         None.
     """
+    token = RefreshToken(refresh_token_str)
+    user_id_from_token = str(token.payload.get("user_id", ""))
+    if user_id_from_token and str(user.id) != user_id_from_token:
+        raise AuthenticationFailed("Token does not belong to this user.")
     blacklist_refresh_token(refresh_token_str)
-    log_action(user, "LOG", "User", user.id)
+    log_action(user, "LOGOUT", "User", user.id)
 
 
 def logout_all(user) -> int:
@@ -389,7 +394,7 @@ def reset_password(email: str, otp: str, new_password: str) -> None:
     challenge.is_used = True
     challenge.save(update_fields=["is_used"])
 
-    log_action(user, "user.password_reset", "User", user.id)
+    log_action(user, "PASSWORD_RESET", "User", user.id)
 
 
 def change_password(user, old_password: str, new_password: str, actor=None) -> None:

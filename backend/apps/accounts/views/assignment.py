@@ -112,6 +112,9 @@ class AssignmentDetailView(APIView):
     @extend_schema(tags=["Assignments"], request=UpdateAssignmentSerializer, responses={200: UserAssignmentSerializer})
     def patch(self, request, pk):
         assignment = get_assignment_or_404(pk)
+
+        if not assignment.branch_id and not user_is_super_admin(request.user):
+            raise PermissionDenied("Cannot update this assignment.")
         
         if assignment.branch_id and not user_manages_branch(request.user, assignment.branch_id):
             if not user_is_super_admin(request.user):
@@ -129,6 +132,10 @@ class AssignmentDetailView(APIView):
     @extend_schema(tags=["Assignments"], responses={204: None})
     def delete(self, request, pk):
         assignment = get_assignment_or_404(pk)
+
+        if not assignment.branch_id and not user_is_super_admin(request.user):
+            raise PermissionDenied("Cannot remove this assignment.")
+
         if assignment.branch_id and not user_manages_branch(request.user, assignment.branch_id):
             if not user_is_super_admin(request.user):
                 raise PermissionDenied("Cannot remove this assignment.")
@@ -145,6 +152,10 @@ class AssignmentMakePrimaryView(APIView):
     @extend_schema(tags=["Assignments"], responses={200: UserAssignmentSerializer})
     def post(self, request, pk):
         assignment = get_assignment_or_404(pk)
+
+        if not assignment.branch_id and not user_is_super_admin(request.user):
+            raise PermissionDenied("Cannot modify this assignment.")
+
         if assignment.branch_id and not user_manages_branch(request.user, assignment.branch_id):
             if not user_is_super_admin(request.user):
                 raise PermissionDenied("Cannot modify this assignment.")

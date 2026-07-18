@@ -19,3 +19,7 @@ class OTPRequestUserThrottle(UserRateThrottle):
 
 class OTPVerifyUserThrottle(UserRateThrottle):
     scope = "user_otp_verify"
+
+
+class ChangePasswordUserThrottle(UserRateThrottle):
+    scope = "user_change_password"

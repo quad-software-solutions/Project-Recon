@@ -64,6 +64,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_index=True,
     )
     is_email_verified = models.BooleanField(default=False, db_index=True)
+    failed_login_attempts = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
