@@ -356,10 +356,6 @@ export async function updateStudentApi(id: string, payload: Partial<AdmitStudent
   return http.patch<StudentProfile>(`${BASE}/students/${id}/`, payload);
 }
 
-export async function setStudentActiveApi(id: string, active: boolean): Promise<StudentProfile> {
-  return http.post<StudentProfile>(`${BASE}/students/${id}/${active ? 'activate' : 'deactivate'}/`, {});
-}
-
 
 
 // ─── Payments ───

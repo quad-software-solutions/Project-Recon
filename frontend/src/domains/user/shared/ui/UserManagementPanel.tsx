@@ -4,7 +4,7 @@ import {
   Users, Search, Plus, X, Loader2, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar, Lock
 } from 'lucide-react';
 import {
-  fetchUsersApi, fetchAllUsersApi, toggleUserStatusApi, archiveUserApi,
+  fetchAllUsersApi, toggleUserStatusApi, archiveUserApi,
   createStaffApi, createBranchManagerApi, updateUserApi, branchesApi,
   type AdminUserResponse, type BranchResponse, type PaginatedResponse,
 } from '../api/adminApi';

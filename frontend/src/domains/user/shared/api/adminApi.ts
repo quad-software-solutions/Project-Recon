@@ -95,39 +95,7 @@ export function resolveRole(assignments: UserAssignmentNested[]): string {
   return 'Student';
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  Pending: 'Pending',
-  Active: 'Active',
-  Suspended: 'Suspended',
-  Archived: 'Archived',
-};
-
-export function displayStatus(status: string): string {
-  return STATUS_LABEL[status] || status;
-}
-
-export function formatRelativeTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return 'Never';
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffSec = Math.floor((now - then) / 1000);
-  if (diffSec < 60) return 'Just now';
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min ago`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} hours ago`;
-  if (diffSec < 2592000) return `${Math.floor(diffSec / 86400)} days ago`;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
-export function formatJoinDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
 /* ─── USER API ─── */
-
-export async function fetchUsersApi(): Promise<PaginatedResponse<AdminUserResponse>> {
-  return http.get<PaginatedResponse<AdminUserResponse>>('/accounts/users/');
-}
 
 export async function fetchAllUsersApi(): Promise<AdminUserResponse[]> {
   return fetchAllPages(page =>
@@ -135,10 +103,6 @@ export async function fetchAllUsersApi(): Promise<AdminUserResponse[]> {
       params: { page: String(page), page_size: '100' },
     }),
   );
-}
-
-export async function fetchUserApi(id: string): Promise<AdminUserResponse> {
-  return http.get<AdminUserResponse>(`/accounts/users/${id}/`);
 }
 
 export async function updateUserApi(userId: string, data: {
@@ -198,8 +162,6 @@ export async function fetchAuditLogsApi(): Promise<AuditLogEntry[]> {
 export const branchesApi = {
   list: () => http.get<BranchResponse[]>('/accounts/branches/'),
 
-  get: (id: string) => http.get<BranchResponse>(`/accounts/branches/${id}/`),
-
   create: (data: {
     name: string;
     code: string;
@@ -222,23 +184,8 @@ export const branchesApi = {
     country: string;
   }>) => http.patch<BranchResponse>(`/accounts/branches/${id}/`, data),
 
-  createWithManager: (data: {
-    name: string;
-    code: string;
-    manager_user_id: string;
-    email?: string;
-    phone_number?: string;
-    address?: string;
-    city?: string;
-    state_region?: string;
-    country?: string;
-  }) => http.post('/accounts/branches/with-manager/', data),
-
   assignManager: (branchId: string, managerUserId: string) =>
     http.post(`/accounts/branches/${branchId}/assign-manager/`, { manager_user_id: managerUserId }),
-
-  changeManager: (branchId: string, managerUserId: string) =>
-    http.post(`/accounts/branches/${branchId}/change-manager/`, { manager_user_id: managerUserId }),
 
   toggleActive: (branchId: string, isActive: boolean) => {
     const action = isActive ? 'deactivate' : 'activate';
@@ -265,14 +212,4 @@ export const assignmentsApi = {
     http.patch<AssignmentResponse>(`/accounts/assignments/${id}/`, data),
 
   delete: (id: string) => http.delete(`/accounts/assignments/${id}/`),
-
-  makePrimary: (id: string) =>
-    http.post(`/accounts/assignments/${id}/make-primary/`, {}),
-
-  transfer: (data: {
-    user_id: string;
-    from_branch_id: string;
-    to_branch_id: string;
-    role: string;
-  }) => http.post('/accounts/assignments/transfer/', data),
 };

@@ -282,6 +282,8 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
       email,
       otp,
       device_id: deviceId,
+      device_name: navigator.platform || 'Browser',
+      device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
       fingerprint: deviceId,
       user_agent: navigator.userAgent,
     }
