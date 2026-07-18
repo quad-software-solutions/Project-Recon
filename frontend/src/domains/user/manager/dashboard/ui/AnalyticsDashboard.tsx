@@ -69,14 +69,17 @@ export default function AnalyticsDashboard() {
     return { program: p.name, count, color: colors[i % colors.length] };
   });
 
+  const prevMonthAmount = monthlyRevenue.length >= 2 ? monthlyRevenue[monthlyRevenue.length - 2]?.amount || 0 : 0;
+  const lastMonthAmount = monthlyRevenue.length >= 2 ? monthlyRevenue[monthlyRevenue.length - 1]?.amount || 0 : 0;
+
   const topMetrics = [
     {
       label: 'Total Revenue',
       value: `${totalRevenue.toLocaleString()} Birr`,
       change: monthlyRevenue.length >= 2
-        ? `${((monthlyRevenue[monthlyRevenue.length - 1]?.amount || 0) / (monthlyRevenue[0]?.amount || 1) * 100 - 100).toFixed(1)}%`
+        ? `${((lastMonthAmount / (prevMonthAmount || 1)) * 100 - 100).toFixed(1)}%`
         : 'N/A',
-      trend: (monthlyRevenue.length >= 2 && (monthlyRevenue[monthlyRevenue.length - 1]?.amount || 0) >= (monthlyRevenue[0]?.amount || 0)) ? 'up' as const : 'down' as const,
+      trend: (monthlyRevenue.length >= 2 && lastMonthAmount >= prevMonthAmount) ? 'up' as const : 'down' as const,
     },
     {
       label: 'Total Students',
@@ -124,7 +127,7 @@ export default function AnalyticsDashboard() {
             <p className="font-display font-extrabold text-2xl text-slate-900 mb-1">{m.value}</p>
             <div className={`flex items-center gap-1 text-xs font-semibold ${m.trend === 'up' ? 'text-emerald-500' : 'text-red-400'}`}>
               {m.trend === 'up' ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}{m.change}
-              <span className="text-slate-400 font-normal ml-1">vs month start</span>
+              <span className="text-slate-400 font-normal ml-1">vs previous month</span>
             </div>
           </motion.div>
         ))}

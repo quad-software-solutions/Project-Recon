@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign,
   ChevronLeft, ChevronRight, ArrowRightLeft, RefreshCw, ThumbsDown, Clock,
-  User, Mail, BookOpen, Building2, Hash, CalendarDays, CreditCard, Ban, CheckSquare, Tag,
+  User, Mail, BookOpen, Building2, Hash, CalendarDays, CreditCard, Ban, CheckSquare,
 } from 'lucide-react';
 import { Enrollment, StudentProfile, AcademicClass, SubProgram, UserProfile } from '@/shared/types';
 import {
@@ -745,65 +745,130 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="p-5 space-y-4">
-                <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-brand-blue/10 flex items-center justify-center text-sm font-bold text-brand-blue">
-                    {(selected.student_name || '?').charAt(0)}
+              <div className="p-5 space-y-5">
+                {/* Hero: status + reference */}
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${statusMeta[selected.status]?.color || 'bg-slate-100 text-slate-600'}`}>
+                      {(selected.student_name || '?').charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-900">{selected.student_name || 'Unknown'}</p>
+                      <p className="text-xs text-slate-500">{selected.student_email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">{selected.student_name || 'Unknown'}</p>
-                    <p className="text-xs text-slate-500">{selected.student_email}</p>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusMeta[selected.status]?.color || ''}`}>
+                    {statusMeta[selected.status]?.label || selected.status?.replace('_', ' ')}
+                  </span>
+                </div>
+
+                {/* Class info cards */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <BookOpen className="w-3 h-3" />
+                      <span className="text-[9px] uppercase tracking-wider font-semibold">Class</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{selected.class_name || '—'}</p>
+                    {selected.class_type && (
+                      <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full ${selected.class_type === 'GROUP' ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50'}`}>
+                        {selected.class_type}
+                      </span>
+                    )}
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Building2 className="w-3 h-3" />
+                      <span className="text-[9px] uppercase tracking-wider font-semibold">Branch</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{selected.branch_name || '—'}</p>
                   </div>
                 </div>
 
-                <DetailRow icon={<BookOpen className="w-3.5 h-3.5" />} label="Class" value={selected.class_name || '—'} />
-                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Branch" value={selected.branch_name || '—'} />
-                <DetailRow icon={<User className="w-3.5 h-3.5" />} label="Program" value={selected.program_name || selected.sub_program_name || '—'} />
-                {(() => {
-                  const hint = getFeeHint(selected.sub_program_name);
-                  return hint ? <DetailRow icon={<Tag className="w-3.5 h-3.5" />} label="Fee" value={hint.replace('Suggested: ', '')} /> : null;
-                })()}
-                <DetailRow icon={<Hash className="w-3.5 h-3.5" />} label="Reference" value={selected.pending_code || selected.enrollment_number || '—'} mono />
-                <DetailRow icon={<CalendarDays className="w-3.5 h-3.5" />} label="Enrolled" value={selected.enrolled_at?.slice(0, 10) || '—'} />
+                {/* Program card (full width) */}
+                <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <User className="w-3 h-3" />
+                    <span className="text-[9px] uppercase tracking-wider font-semibold">Program</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{selected.program_name || selected.sub_program_name || '—'}</p>
+                  {(() => {
+                    const hint = getFeeHint(selected.sub_program_name);
+                    return hint ? <p className="text-[10px] text-slate-500">{hint.replace('Suggested: ', '')}</p> : null;
+                  })()}
+                </div>
 
-                {selected.remarks && (
-                  <div className="pt-3 border-t border-slate-100">
-                    <DetailRow icon={<Mail className="w-3.5 h-3.5" />} label="Remarks" value={selected.remarks} />
+                {/* Reference section */}
+                <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-slate-400">Reference</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500">Number</span>
+                    <span className="text-xs font-mono font-bold text-brand-blue">{selected.pending_code || selected.enrollment_number || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500">Enrolled</span>
+                    <span className="text-xs font-semibold text-slate-900">{selected.enrolled_at?.slice(0, 10) || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500">Created</span>
+                    <span className="text-xs font-semibold text-slate-900">{selected.created_at?.slice(0, 10) || '—'}</span>
+                  </div>
+                </div>
+
+                {/* Transfer info */}
+                {selected.transferred_from && (
+                  <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-600">
+                      <ArrowRightLeft className="w-3.5 h-3.5" />
+                      <span className="text-[9px] uppercase tracking-wider font-semibold">Transferred From</span>
+                    </div>
+                    <p className="text-xs font-semibold text-amber-800">{selected.transferred_from}</p>
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Status</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusMeta[selected.status]?.color || ''}`}>
+                {/* Status badges */}
+                <div className="space-y-2.5">
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-slate-400">Status</span>
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusMeta[selected.status]?.color || 'border-slate-200 text-slate-600 bg-slate-50'}`}>
                       {statusMeta[selected.status]?.label || selected.status?.replace('_', ' ')}
                     </span>
-                  </div>
-                  {selected.verification_status && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Verification</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${verificationMeta[selected.verification_status]?.color || ''}`}>
+                    {selected.verification_status && (
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${verificationMeta[selected.verification_status]?.color || 'bg-slate-100 text-slate-600'}`}>
                         {verificationMeta[selected.verification_status]?.label || selected.verification_status?.replace('_', ' ')}
                       </span>
-                    </div>
-                  )}
-                  {selected.rejection_reason && (
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-500">Rejection reason</span>
-                      <span className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{selected.rejection_reason}</span>
-                    </div>
-                  )}
-                  {selected.payment_status && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Payment</span>
-                      <span className="text-[10px] font-semibold flex items-center gap-1">
-                        <CreditCard className="w-3 h-3" />
+                    )}
+                    {selected.payment_status && (
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                        <CreditCard className="w-2.5 h-2.5" />
                         {String(selected.payment_status).replace(/_/g, ' ')}
-                        {selected.payment_method && <> · {String(selected.payment_method).replace(/_/g, ' ')}</>}
+                        {selected.payment_method && <>({String(selected.payment_method).replace(/_/g, ' ')})</>}
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+
+                {/* Rejection */}
+                {selected.rejection_reason && (
+                  <div className="bg-red-50 rounded-xl p-3 border border-red-200 space-y-1">
+                    <div className="flex items-center gap-1.5 text-red-600">
+                      <Ban className="w-3.5 h-3.5" />
+                      <span className="text-[9px] uppercase tracking-wider font-semibold">Rejection Reason</span>
+                    </div>
+                    <p className="text-xs text-red-700">{selected.rejection_reason}</p>
+                  </div>
+                )}
+
+                {/* Remarks */}
+                {selected.remarks && (
+                  <div className="bg-slate-50 rounded-xl p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Mail className="w-3.5 h-3.5" />
+                      <span className="text-[9px] uppercase tracking-wider font-semibold">Remarks</span>
+                    </div>
+                    <p className="text-xs text-slate-700">{selected.remarks}</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>

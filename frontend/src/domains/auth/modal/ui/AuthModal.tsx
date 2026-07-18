@@ -58,6 +58,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
     }
 
     if (mode === 'login') {
+      setSubmitting(true);
       import('../../login/api/loginApi').then(({ loginApi }) => {
         loginApi({ email, password })
           .then(({ user }) => {
@@ -66,7 +67,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode 
           })
           .catch((err) => {
             setErrorMsg(err instanceof Error ? err.message : 'Login failed');
-          });
+          })
+          .finally(() => setSubmitting(false));
+      }).catch(() => {
+        setSubmitting(false);
+        setErrorMsg('Failed to load login module. Please try again.');
       });
     } else {
       setSubmitting(true);

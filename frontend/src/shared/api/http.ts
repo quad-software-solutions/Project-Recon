@@ -157,9 +157,7 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  if (!init.signal) {
-    init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
-  }
+  if (!init.signal) init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
 
   const res = await fetch(url.toString(), {
     ...init,
@@ -201,9 +199,7 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  if (!init.signal) {
-    init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
-  }
+  if (!init.signal) init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
 
   const res = await fetch(url.toString(), {
     ...init,

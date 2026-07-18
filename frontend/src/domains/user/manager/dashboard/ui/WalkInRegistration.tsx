@@ -206,6 +206,9 @@ export default function WalkInRegistration({ currentUser }: Props) {
             {enrollment.student_name || `${form.firstName} ${form.lastName}`} has been enrolled.
             Collect <strong className="text-slate-900">{fee.toLocaleString()} Birr</strong> cash at the desk.
           </p>
+          <div className="text-xs text-slate-400 bg-slate-50 rounded-xl px-4 py-3 mb-5">
+            Login credentials will be provided to the student via their email address.
+          </div>
           {refCode && (
             <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/[0.04] px-4 py-3 mb-5">
               <p className="text-[10px] font-black uppercase tracking-wider text-brand-blue mb-1">Pending Code</p>

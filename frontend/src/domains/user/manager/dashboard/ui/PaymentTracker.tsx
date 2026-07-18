@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DollarSign, TrendingUp, CreditCard, Loader2, Store, Calendar, Search, X, Plus, Eye, Banknote, BookOpen, Shield, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Loader2, Store, Calendar, Search, X, Plus, Eye, Banknote, BookOpen, Shield, CheckCircle2, Clock, AlertCircle, Building, Smartphone, FileText } from 'lucide-react';
 import { fetchPaymentsApi, fetchEnrollmentsPaginatedApi, fetchVerificationQueueApi, recordPaymentApi, setUnderReviewApi, rejectPaymentApi } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
 import PendingPaymentManager from '@/domains/store/admin/ui/PendingPaymentManager';
@@ -59,6 +59,7 @@ export default function PaymentTracker() {
   const [selectedEnrollPayment, setSelectedEnrollPayment] = useState<any | null>(null);
   const [showRecordPay, setShowRecordPay] = useState(false);
   const [recordForm, setRecordForm] = useState({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', transfer_reference: '', bank_name: '' });
+  const [verifyQueueId, setVerifyQueueId] = useState<string | null>(null);
   const [recordSubmitting, setRecordSubmitting] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<any | null>(null);
   const [rejectQReason, setRejectQReason] = useState('');
@@ -181,6 +182,24 @@ export default function PaymentTracker() {
     }
   };
 
+  const handleQuickVerify = async (queueItem: any) => {
+    setVerifyQueueId(queueItem.id);
+    setError(null);
+    try {
+      await recordPaymentApi({
+        enrollment: queueItem.enrollment,
+        amount: String(queueItem.amount),
+        payment_method: queueItem.payment_method || 'CASH',
+      });
+      loadEnrollmentData();
+      setToast({ message: `${queueItem.student_name || 'Student'} verified`, type: 'success' });
+    } catch (e) {
+      setToast({ message: `Verify failed: ${formatApiError(e)}`, type: 'error' });
+    } finally {
+      setVerifyQueueId(null);
+    }
+  };
+
   const handleRejectFromQueue = async () => {
     if (!rejectTarget || !rejectQReason.trim()) return;
     try {
@@ -194,9 +213,14 @@ export default function PaymentTracker() {
     }
   };
 
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   const addToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
   };
 
   const payStatusBadge = (s?: string) => {
@@ -210,8 +234,20 @@ export default function PaymentTracker() {
   };
 
   const payMethodIcon = (m?: string) => {
-    const map: Record<string, string> = { CASH: '💵', BANK_TRANSFER: '🏦', MOBILE_MONEY: '📱', CHEQUE: '📄' };
-    return map[m || ''] || '💳';
+    const map: Record<string, React.ReactNode> = {
+      CASH: <Banknote className="w-3 h-3 inline" />,
+      BANK_TRANSFER: <Building className="w-3 h-3 inline" />,
+      MOBILE_MONEY: <Smartphone className="w-3 h-3 inline" />,
+      CHEQUE: <FileText className="w-3 h-3 inline" />,
+    };
+    return map[m || ''] || <CreditCard className="w-3 h-3 inline" />;
+  };
+
+  const METHOD_BG: Record<string, string> = {
+    CASH: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    BANK_TRANSFER: 'bg-blue-50 text-blue-600 border-blue-200',
+    MOBILE_MONEY: 'bg-purple-50 text-purple-600 border-purple-200',
+    CHEQUE: 'bg-amber-50 text-amber-600 border-amber-200',
   };
 
   const filteredEventPayments = eventPayments.filter(p => {
@@ -402,8 +438,8 @@ export default function PaymentTracker() {
                           <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                            {p.payment_method === 'CASH' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${METHOD_BG[p.payment_method] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            {payMethodIcon(p.payment_method)}
                             {PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method}
                           </span>
                         </td>
@@ -449,7 +485,8 @@ export default function PaymentTracker() {
                         <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${METHOD_BG[p.payment_method] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                          {payMethodIcon(p.payment_method)}
                           {PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method}
                         </span>
                       </td>
@@ -460,6 +497,11 @@ export default function PaymentTracker() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => handleQuickVerify(p)} disabled={verifyQueueId === p.id}
+                            className="p-1 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-colors disabled:opacity-40" title="Quick verify"
+                          >
+                            {verifyQueueId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          </button>
                           <button onClick={() => handleUnderReview(p.enrollment)}
                             className="p-1 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors" title="Mark under review"
                           >
@@ -519,7 +561,12 @@ export default function PaymentTracker() {
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-600">{p.event_title || '—'}</td>
                       <td className="px-4 py-3 text-center text-xs font-bold text-slate-900">{p.amount}</td>
-                      <td className="px-4 py-3 text-center text-xs">{payMethodIcon(p.payment_method)} {p.payment_method?.replace('_', ' ')}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${METHOD_BG[p.payment_method] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                          {payMethodIcon(p.payment_method)}
+                          {PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method?.replace('_', ' ')}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${payStatusBadge(p.status)}`}>{p.status?.replace('_', ' ')}</span>
                       </td>
@@ -619,7 +666,7 @@ export default function PaymentTracker() {
       {selectedEnrollPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedEnrollPayment(null)} />
-          <div className="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-brand-border z-10">
+          <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-brand-border z-10 overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-brand-border">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-brand-blue/5 flex items-center justify-center">
@@ -629,25 +676,99 @@ export default function PaymentTracker() {
               </div>
               <button onClick={() => setSelectedEnrollPayment(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
+
+            {/* Hero Status Section */}
+            <div className="px-4 py-4 bg-gradient-to-br from-slate-50 to-white border-b border-brand-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</p>
+                  <p className="text-2xl font-black text-slate-900 mt-0.5">{Number(selectedEnrollPayment.amount).toLocaleString()} <span className="text-sm font-bold text-slate-400">Birr</span></p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                  <span className={`inline-block text-[11px] font-bold px-3 py-1 rounded-full ${STATUS_STYLES[selectedEnrollPayment.status] || 'bg-slate-100 text-slate-500'}`}>
+                    {selectedEnrollPayment.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Info */}
             <div className="p-4 space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Student</span><span className="font-semibold text-slate-900">{selectedEnrollPayment.student_name || '—'}</span></div>
-              {selectedEnrollPayment.sub_program_name && <div className="flex justify-between"><span className="text-slate-500">Program</span><span className="font-semibold text-slate-900">{selectedEnrollPayment.sub_program_name}</span></div>}
-              {selectedEnrollPayment.class_name && <div className="flex justify-between"><span className="text-slate-500">Class</span><span className="font-semibold text-slate-900">{selectedEnrollPayment.class_name}</span></div>}
-              <div className="border-t border-brand-border pt-3" />
-              <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold text-emerald-600 text-base">{Number(selectedEnrollPayment.amount).toLocaleString()} Birr</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Method</span>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700">
-                  {selectedEnrollPayment.payment_method === 'CASH' ? <Banknote className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
-                  {PAYMENT_METHODS.find(m => m.value === selectedEnrollPayment.payment_method)?.label || selectedEnrollPayment.payment_method}
-                </span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Student</p>
+                  <p className="font-semibold text-slate-900 text-sm">{selectedEnrollPayment.student_name || '—'}</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Method</p>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                    {selectedEnrollPayment.payment_method === 'CASH' ? <Banknote className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
+                    {PAYMENT_METHODS.find(m => m.value === selectedEnrollPayment.payment_method)?.label || selectedEnrollPayment.payment_method}
+                  </span>
+                </div>
               </div>
-              {selectedEnrollPayment.bank_name && <div className="flex justify-between"><span className="text-slate-500">Bank</span><span className="font-medium">{selectedEnrollPayment.bank_name}</span></div>}
-              {selectedEnrollPayment.transaction_reference && <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="text-[10px] font-mono font-bold text-slate-700">{selectedEnrollPayment.transaction_reference}</span></div>}
-              <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-medium">{selectedEnrollPayment.payment_date?.slice(0, 10) || '—'}</span></div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Status</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_STYLES[selectedEnrollPayment.status] || 'bg-slate-100 text-slate-500'}`}>{selectedEnrollPayment.status}</span>
+
+              {selectedEnrollPayment.sub_program_name && (
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Program</p>
+                  <p className="font-semibold text-slate-900 text-sm">{selectedEnrollPayment.sub_program_name}</p>
+                  {selectedEnrollPayment.class_name && <p className="text-xs text-slate-500 mt-0.5">{selectedEnrollPayment.class_name}</p>}
+                </div>
+              )}
+
+              {/* Reference Details */}
+              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reference Details</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-400">Transaction Ref</span>
+                    <p className="font-mono font-bold text-slate-700 break-all">{selectedEnrollPayment.transaction_reference || '—'}</p>
+                  </div>
+                  {selectedEnrollPayment.bank_name && (
+                    <div>
+                      <span className="text-slate-400">Bank</span>
+                      <p className="font-semibold text-slate-700">{selectedEnrollPayment.bank_name}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-400">Date</span>
+                    <p className="font-semibold text-slate-700">{selectedEnrollPayment.payment_date?.slice(0, 10) || '—'}</p>
+                  </div>
+                </div>
               </div>
+
+              {/* Receipt / Attachment Section */}
+              {(selectedEnrollPayment as any).attachment ? (
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Receipt</p>
+                  <a href={(selectedEnrollPayment as any).attachment} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all">
+                    <FileText className="w-4 h-4" /> View Receipt
+                  </a>
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-xl p-3 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Receipt</p>
+                  <p className="text-xs text-slate-400">No receipt uploaded</p>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="px-4 py-3 border-t border-brand-border bg-slate-50/50 flex items-center gap-2">
+              <button onClick={() => { handleQuickVerify(selectedEnrollPayment); setSelectedEnrollPayment(null); }}
+                className="flex-1 px-3 py-2 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center justify-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Verify
+              </button>
+              <button onClick={() => { handleUnderReview(selectedEnrollPayment.enrollment); setSelectedEnrollPayment(null); }}
+                className="flex-1 px-3 py-2 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 flex items-center justify-center gap-1.5">
+                <Shield className="w-3.5 h-3.5" /> Under Review
+              </button>
+              <button onClick={() => { setRejectTarget(selectedEnrollPayment); setRejectQReason(''); setSelectedEnrollPayment(null); }}
+                className="flex-1 px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 flex items-center justify-center gap-1.5">
+                <X className="w-3.5 h-3.5" /> Reject
+              </button>
             </div>
           </div>
         </div>

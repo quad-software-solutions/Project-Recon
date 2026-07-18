@@ -404,6 +404,10 @@ export async function fetchEnrollmentAttendanceSummaryApi(enrollmentId: string):
   return http.get<Record<string, unknown>>(`${BASE}/attendance/enrollments/${enrollmentId}/summary/`);
 }
 
+export async function fetchEnrollmentAttendanceHistoryApi(enrollmentId: string): Promise<AttendanceRecord[]> {
+  return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/enrollments/${enrollmentId}/history/`));
+}
+
 // ─── Staff Attendance (backend field: `date`, not `session_date`) ───
 
 export async function fetchAvailableStaffApi(params?: { branch?: string; role?: string }): Promise<any[]> {
@@ -518,7 +522,13 @@ export async function archiveMilestoneApi(id: string): Promise<LearningMilestone
   return http.post<LearningMilestone>(`${BASE}/learning-milestones/${id}/archive/`, {});
 }
 
+export async function customizeMilestoneApi(id: string, payload: { scope_class: string; title?: string; description?: string }): Promise<LearningMilestone> {
+  return http.post<LearningMilestone>(`${BASE}/learning-milestones/${id}/customize/`, payload);
+}
 
+export async function fetchAllStudentProgressApi(): Promise<StudentProgress[]> {
+  return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/`));
+}
 
 export async function fetchStudentProgressApi(enrollmentId: string): Promise<StudentProgress[]> {
   return unwrapList(await http.get<ListResponse<StudentProgress>>(`${BASE}/student-progress/enrollments/${enrollmentId}/history/`));
@@ -745,9 +755,9 @@ export async function moveEnrollmentApi(
 
 export async function splitClassApi(
   classId: string,
-  payload: { target_class: string; enrollment_ids?: string[] },
-): Promise<{ detail?: string }> {
-  return http.post(`${BASE}/classes/${classId}/split/`, payload);
+  payload: { target_class: string; enrollment_ids?: string[]; count?: number },
+): Promise<Enrollment[]> {
+  return http.post<Enrollment[]>(`${BASE}/classes/${classId}/split/`, payload);
 }
 
 export async function switchSubProgramApi(

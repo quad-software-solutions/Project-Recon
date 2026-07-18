@@ -11,7 +11,7 @@ let tournamentByEventId: Map<string, eventsApi.BackendTournament> | null = null;
 async function getTournamentIndex(): Promise<Map<string, eventsApi.BackendTournament>> {
   if (tournamentByEventId) return tournamentByEventId;
   const raw = await eventsApi.getPublicTournaments();
-  const list = unwrapList(raw as eventsApi.BackendTournament[] | { results: eventsApi.BackendTournament[] });
+  const list = unwrapList(raw as eventsApi.BackendTournament[]);
   tournamentByEventId = new Map(list.map(t => [t.event, t]));
   return tournamentByEventId;
 }
@@ -431,8 +431,7 @@ export async function getTeamUpcomingMatches(teamId: string): Promise<MatchResul
 
 /* ═══ PUBLIC MATCHES ═══ */
 
-export type { MatchDetail } from './matchMappers';
-import type { MatchDetail } from './matchMappers';
+export { type MatchDetail } from './matchMappers';
 import { getMatchDetail, fetchAllMatches } from './matchApi';
 
 export async function getPublicMatchById(

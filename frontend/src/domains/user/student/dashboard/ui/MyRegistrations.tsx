@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff, ArrowRight } from 'lucide-react';
 import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf, fetchBranchesApi, fetchClassesApi, requestTransferApi } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment, StudentCertificate, AcademicClass } from '@/shared/types';
-import { isApiError, isForbiddenError } from '@/shared/api/http';
+import { isForbiddenError } from '@/shared/api/http';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 type Branch = { id: string; name: string; code?: string };
 
@@ -77,11 +78,7 @@ export default function MyRegistrations({ studentId }: Props) {
       await requestTransferApi({ enrollment: transferTarget.id, to_branch: transferBranch, target_class: transferClass });
       setTransferDone(true);
     } catch (e: unknown) {
-      setTransferError(
-        isApiError(e) && e.status >= 500
-          ? 'Transfer requests are temporarily unavailable. Please contact support and try again later.'
-          : e instanceof Error ? e.message : 'Transfer request failed',
-      );
+      setTransferError(formatApiError(e) || 'Transfer request failed');
     } finally {
       setTransferring(false);
     }
@@ -258,9 +255,12 @@ export default function MyRegistrations({ studentId }: Props) {
                     <select value={transferClass} onChange={e => setTransferClass(e.target.value)}
                       className="form-input w-full">
                       <option value="">Select class...</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {classes.filter(c => !transferBranch || c.branch === transferBranch).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
+                  {transferBranch && classes.filter(c => c.branch === transferBranch).length === 0 && (
+                    <p className="text-xs text-amber-600">No classes available at the selected branch.</p>
+                  )}
                   {transferError && (
                     <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {transferError}

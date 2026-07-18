@@ -30,6 +30,7 @@ export default function SchoolManagement({ currentUser }: Props) {
   const [editing, setEditing] = useState<BranchResponse | null>(null);
   const [form, setForm] = useState<Partial<BranchResponse>>({});
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<BranchResponse | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -86,10 +87,10 @@ export default function SchoolManagement({ currentUser }: Props) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Remove this school?')) return;
     setError(null);
     try {
       await branchesApi.archive(id);
+      setDeleteTarget(null);
       await load();
     } catch (e) {
       setError(formatApiError(e));
@@ -132,12 +133,11 @@ export default function SchoolManagement({ currentUser }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { label: 'Total Schools', value: schools.length, icon: Building, color: 'text-sky-600', bg: 'bg-sky-50' },
           { label: 'Active', value: activeSchools, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Active Schools', value: activeSchools, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Inactive', value: schools.filter(s => s.status !== 'Active').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Inactive / Archived', value: schools.filter(s => s.status !== 'Active').length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((stat, i) => {
           const SIcon = stat.icon;
           return (
@@ -233,7 +233,7 @@ export default function SchoolManagement({ currentUser }: Props) {
                         >
                           {s.status === 'Active' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                         </button>
-                        <button onClick={() => handleDelete(s.id)}
+                        <button onClick={() => setDeleteTarget(s)}
                           className="flex items-center justify-center p-1.5 rounded-lg border border-red-200 text-red-500 bg-red-50 hover:bg-red-100 transition-all">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -247,6 +247,7 @@ export default function SchoolManagement({ currentUser }: Props) {
         </div>
       </div>
 
+      {/* Add / Edit modal */}
       <AnimatePresence>
         {showModal && canManage && (
           <>
@@ -311,6 +312,35 @@ export default function SchoolManagement({ currentUser }: Props) {
                     className="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-sm font-bold px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     {editing ? 'Update' : 'Add School'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Delete confirm modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setDeleteTarget(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-500" /></div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">Archive School</h3>
+                    <p className="text-xs text-slate-500">This action archives the school.</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600 mb-4">Are you sure you want to archive <strong>{deleteTarget.name}</strong>?</p>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setDeleteTarget(null)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-200">Cancel</button>
+                  <button onClick={() => handleDelete(deleteTarget.id)} className="flex-1 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 flex items-center justify-center gap-1.5">
+                    <Trash2 className="w-3.5 h-3.5" /> Archive
                   </button>
                 </div>
               </div>

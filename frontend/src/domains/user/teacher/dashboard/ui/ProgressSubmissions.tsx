@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CheckCircle2, Search, Clock, ChevronDown, Loader2, RotateCcw, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchStudentProgressApi, updateStudentProgressApi, fetchMilestonesApi, recordStudentProgressApi } from '@/domains/learning/academics/api/academicApi';
@@ -20,6 +20,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
   const [progressSearch, setProgressSearch] = useState('');
   const [progressMap, setProgressMap] = useState<Record<string, StudentProgress[]>>({});
   const [loading, setLoading] = useState(true);
+  const [progressError, setProgressError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -28,10 +29,13 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
   const [creatingProgress, setCreatingProgress] = useState<string | null>(null);
   const [createMilestoneId, setCreateMilestoneId] = useState<string>('');
   const [creating, setCreating] = useState(false);
+  const milestoneMapRef = useRef(milestoneMap);
+  milestoneMapRef.current = milestoneMap;
 
   useEffect(() => {
     if (enrollments.length === 0) { setLoading(false); return; }
     setLoading(true);
+    setProgressError(null);
     (async () => {
       const map: Record<string, StudentProgress[]> = {};
       const chunkSize = 3;
@@ -41,7 +45,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
         chunk.forEach((e, j) => { map[e.id] = Array.isArray(chunkResults[j]) ? chunkResults[j] : []; });
       }
       setProgressMap(map);
-    })().catch(() => setProgressMap({})).finally(() => setLoading(false));
+    })().catch(() => { setProgressMap({}); setProgressError('Failed to load progress data'); }).finally(() => setLoading(false));
   }, [enrollments]);
 
   const updateStatus = async (progressId: string, newStatus: string) => {
@@ -110,7 +114,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
   const totalCount = (enrollmentId: string) => getProgress(enrollmentId).length;
 
   const loadMilestones = async (enrollmentId: string, enrolledClass?: string) => {
-    if (milestoneMap[enrollmentId]) return;
+    if (milestoneMapRef.current[enrollmentId]) return;
     try {
       // ponytail: class-scoped only misses shared milestones. Pass sub_program ID too once Enrollment has it.
       const ms = await fetchMilestonesApi(undefined, enrolledClass);
@@ -224,7 +228,20 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
             </thead>
             <tbody className="divide-y divide-brand-border-light/30">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <>
+                  {[1,2,3].map(k => (
+                    <tr key={k} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-200" /><div className="h-3 w-28 bg-slate-200 rounded" /></div></td>
+                      <td className="px-6 py-4"><div className="h-3 w-6 bg-slate-200 rounded mx-auto" /></td>
+                      <td className="px-6 py-4"><div className="h-3 w-6 bg-slate-200 rounded mx-auto" /></td>
+                      <td className="px-6 py-4"><div className="h-3 w-6 bg-slate-200 rounded mx-auto" /></td>
+                      <td className="px-6 py-4"><div className="flex items-center justify-center gap-2"><div className="h-2 w-16 bg-slate-200 rounded-full" /><div className="h-3 w-6 bg-slate-200 rounded" /></div></td>
+                      <td className="px-6 py-4"><div className="h-4 w-4 bg-slate-200 rounded ml-auto" /></td>
+                    </tr>
+                  ))}
+                </>
+              ) : progressError ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center"><p className="text-sm text-red-500 mb-2">{progressError}</p><button onClick={() => window.location.reload()} className="text-xs font-bold text-blue-600 hover:underline">Retry</button></td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-400">No students found.</td></tr>
               ) : filtered.map((row, idx) => {
@@ -273,7 +290,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                     </motion.tr>
                     <AnimatePresence>
                       {isExpanded && (
-                        <motion.tr initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                        <motion.tr key="details-row" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                           <td colSpan={6} className="px-6 py-4 bg-slate-50/50">
                             <div className="space-y-2">
                               {getProgress(row.enrollmentId).length === 0 ? (
