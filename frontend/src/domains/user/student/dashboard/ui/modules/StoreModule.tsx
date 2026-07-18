@@ -18,7 +18,7 @@ import type {
 } from '@/shared/types';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
-import EmptyState from '../../../shared/ui/EmptyState';
+import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 
 interface Props {

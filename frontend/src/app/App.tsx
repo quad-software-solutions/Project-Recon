@@ -111,7 +111,7 @@ function AppInner() {
     );
   }
 
-  if (activeTab === 'forgot-password') {
+  if (activeTab === 'forgot-password' || activeTab === 'reset-password') {
     return (
       <ForgotPasswordPage
         onNavigateHome={() => handleTabChange('home')}

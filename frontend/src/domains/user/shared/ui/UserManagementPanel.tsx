@@ -11,6 +11,7 @@ import {
 import { ErrorModal } from '@/shared/ui/ErrorModal';
 import type { UserProfile } from '@/shared/types';
 import { canManageAccounts } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const ROLE_BADGE: Record<string, string> = {
   Admin: 'bg-purple-50 text-purple-600',
@@ -86,7 +87,7 @@ export default function UserManagementPanel({ title = 'User Management', current
       setData({ count: userList.length, next: null, previous: null, results: userList });
       setBranches(Array.isArray(branchRes) ? branchRes : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load users');
+      setError(formatApiError(e));
     } finally {
       setLoading(false);
     }
@@ -108,13 +109,13 @@ export default function UserManagementPanel({ title = 'User Management', current
   const handleToggle = async (u: AdminUserResponse) => {
     setToggling(u.id);
     try { await toggleUserStatusApi(u.id, u.status); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    catch (e) { setError(formatApiError(e)); }
     finally { setToggling(null); }
   };
 
   const handleArchive = async (u: AdminUserResponse) => {
     try { await archiveUserApi(u.id); setConfirmArchive(null); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    catch (e) { setError(formatApiError(e)); }
   };
 
   const handleCreate = async () => {
@@ -162,7 +163,7 @@ export default function UserManagementPanel({ title = 'User Management', current
       });
       setEditingUser(null);
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    } catch (e) { setError(formatApiError(e)); }
   };
 
   const users = data?.results || [];

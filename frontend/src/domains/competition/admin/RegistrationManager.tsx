@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, Loader2, AlertCircle, Users, CheckCircle, XCircle, Send, CreditCard, Trophy, Clock, Shield, User, Mail, Phone, Building2, Ban } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendEventRegistration } from '../api/eventsApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const STATUS_STYLES: Record<string, { dot: string; bg: string; label: string }> = {
   PENDING: { dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Pending' },
@@ -97,7 +98,7 @@ export default function RegistrationManager() {
         setSelected(updated);
       }
       load();
-    } catch (err: any) { setError(`${action} failed: ${err.message}`); }
+    } catch (err: any) { setError(`${action} failed: ${formatApiError(err)}`); }
     finally { setActionLoading(null); }
   };
 
@@ -112,7 +113,7 @@ export default function RegistrationManager() {
       if (selected?.id === pendingConvertId) {
         try { setSelected(await eventsApi.adminGetRegistration(pendingConvertId)); } catch {}
       }
-    } catch (err: any) { setError(`Convert failed: ${err.message}`); }
+    } catch (err: any) { setError(`Convert failed: ${formatApiError(err)}`); }
   };
 
   const handleCashPayment = async () => {
@@ -123,7 +124,7 @@ export default function RegistrationManager() {
       const updated = await eventsApi.adminGetRegistration(selected.id);
       setSelected(updated);
       load();
-    } catch (err: any) { setError(`Payment failed: ${err.message}`); }
+    } catch (err: any) { setError(`Payment failed: ${formatApiError(err)}`); }
   };
 
   const handleVerifyPayment = async () => {
@@ -134,7 +135,7 @@ export default function RegistrationManager() {
       const updated = await eventsApi.adminGetRegistration(selected.id);
       setSelected(updated);
       load();
-    } catch (err: any) { setError(`Verification failed: ${err.message}`); }
+    } catch (err: any) { setError(`Verification failed: ${formatApiError(err)}`); }
   };
 
   const handleRejectPayment = async () => {
@@ -146,7 +147,7 @@ export default function RegistrationManager() {
       const updated = await eventsApi.adminGetRegistration(selected.id);
       setSelected(updated);
       load();
-    } catch (err: any) { setError(`Rejection failed: ${err.message}`); }
+    } catch (err: any) { setError(`Rejection failed: ${formatApiError(err)}`); }
   };
 
   const filtered = registrations.filter(r => {
@@ -163,7 +164,7 @@ export default function RegistrationManager() {
     tournaments: registrations.filter(r => r.event_type === 'TOURNAMENT').length,
   }), [registrations]);
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -190,9 +191,9 @@ export default function RegistrationManager() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-44 pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-red" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-44 pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-400" />
           </div>
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); load(e.target.value); }} className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-red">
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); load(e.target.value); }} className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-400">
             <option value="all">All</option>
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>
@@ -383,8 +384,8 @@ export default function RegistrationManager() {
                       {selected.registration_status === 'PENDING' ? 'Payment requires review before approval' : 'Payment actions'}
                     </h4>
                     <div className="flex items-center gap-2">
-                      <input type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} placeholder="Amount" className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-brand-red" />
-                      <button onClick={handleCashPayment} className="px-4 py-2 bg-brand-red text-white text-xs font-bold rounded-lg hover:bg-brand-red-dark flex items-center gap-1.5 transition-colors shrink-0">
+                      <input type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} placeholder="Amount" className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-400" />
+                      <button onClick={handleCashPayment} className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shrink-0">
                         <CreditCard className="w-3.5 h-3.5" /> Cash
                       </button>
                     </div>
@@ -422,7 +423,7 @@ export default function RegistrationManager() {
               <h3 className="font-bold text-lg text-slate-900 mb-1">Convert to Team</h3>
               <p className="text-sm text-slate-500 mb-4">Enter a name for the tournament team.</p>
               <input value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="Team name" autoFocus
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-red mb-4" />
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 mb-4" />
               <div className="flex items-center gap-2">
                 <button onClick={() => setShowTeamNameModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
                 <button onClick={handleConvertWithTeamName} disabled={!teamName.trim()}

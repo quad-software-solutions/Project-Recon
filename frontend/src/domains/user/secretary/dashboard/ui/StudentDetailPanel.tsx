@@ -1,8 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, Loader2, AlertCircle, User, Mail, Phone, BookOpen, Calendar, Award, Target, Clock, CheckCircle2, Shield, MapPin, TrendingUp } from 'lucide-react';
+import { Search, X, Loader2, AlertCircle, User, Mail, Phone, BookOpen, Calendar, Award, Target, Clock, CheckCircle2, Shield, MapPin, TrendingUp, Pencil, Save } from 'lucide-react';
 import { StudentProfile, Enrollment, AttendanceRecord, StudentProgress, StudentCertificate } from '@/shared/types';
-import { fetchStudentsApi, fetchEnrollmentsApi, fetchEnrollmentAttendanceSummaryApi, fetchStudentProgressSummaryApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchStudentsApi, fetchEnrollmentsApi, fetchEnrollmentAttendanceSummaryApi, fetchStudentProgressSummaryApi, fetchStudentCertificatesApi, updateStudentApi } from '@/domains/learning/academics/api/academicApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
+import { isApiError } from '@/shared/api/http';
+
+const FIELD_MAP: Record<string, string> = {
+  first_name: 'firstName',
+  last_name: 'lastName',
+  email: 'email',
+  phone_number: 'phoneNumber',
+  guardian_name: 'guardianName',
+  guardian_phone: 'guardianPhone',
+  guardian_email: 'guardianEmail',
+};
+
+const REVERSE_FIELD_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(FIELD_MAP).map(([k, v]) => [v, k])
+);
+
+type EditForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+};
+
+const INITIAL_EDIT_FORM: EditForm = {
+  firstName: '', lastName: '', email: '', phoneNumber: '',
+  guardianName: '', guardianPhone: '', guardianEmail: '',
+};
 
 export default function StudentDetailPanel() {
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -14,6 +45,12 @@ export default function StudentDetailPanel() {
     enrollments: Enrollment[]; attendance: any; progress: any; certificates: StudentCertificate[];
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm>(INITIAL_EDIT_FORM);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     fetchStudentsApi().then(res => {
@@ -24,6 +61,19 @@ export default function StudentDetailPanel() {
   const loadStudentDetail = async (student: StudentProfile) => {
     setSelectedStudent(student);
     setDetailLoading(true);
+    setEditForm({
+      firstName: student.first_name || '',
+      lastName: student.last_name || '',
+      email: student.email || '',
+      phoneNumber: student.phone_number || '',
+      guardianName: student.guardian_name || '',
+      guardianPhone: student.guardian_phone || '',
+      guardianEmail: student.guardian_email || '',
+    });
+    setFieldErrors({});
+    setSaveError(null);
+    setSaveSuccess(false);
+    setIsEditing(false);
     const sid = student.id || student.user;
     try {
       const [enr, att, prog, certs] = await Promise.all([
@@ -42,6 +92,76 @@ export default function StudentDetailPanel() {
     setDetailLoading(false);
   };
 
+  const handleEdit = () => {
+    if (!selectedStudent) return;
+    setEditForm({
+      firstName: selectedStudent.first_name || '',
+      lastName: selectedStudent.last_name || '',
+      email: selectedStudent.email || '',
+      phoneNumber: selectedStudent.phone_number || '',
+      guardianName: selectedStudent.guardian_name || '',
+      guardianPhone: selectedStudent.guardian_phone || '',
+      guardianEmail: selectedStudent.guardian_email || '',
+    });
+    setFieldErrors({});
+    setSaveError(null);
+    setSaveSuccess(false);
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!selectedStudent) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+    setFieldErrors({});
+    try {
+      const payload: Record<string, string> = {};
+      const snap = {
+        firstName: selectedStudent.first_name || '',
+        lastName: selectedStudent.last_name || '',
+        email: selectedStudent.email || '',
+        phoneNumber: selectedStudent.phone_number || '',
+        guardianName: selectedStudent.guardian_name || '',
+        guardianPhone: selectedStudent.guardian_phone || '',
+        guardianEmail: selectedStudent.guardian_email || '',
+      };
+      for (const [camel, snake] of Object.entries(REVERSE_FIELD_MAP)) {
+        if (editForm[camel as keyof EditForm] !== snap[camel as keyof EditForm]) {
+          payload[snake] = editForm[camel as keyof EditForm];
+        }
+      }
+      if (Object.keys(payload).length === 0) {
+        setIsEditing(false);
+        return;
+      }
+      const updated = await updateStudentApi(selectedStudent.id, payload);
+      setSelectedStudent(updated);
+      setSaveSuccess(true);
+      setIsEditing(false);
+    } catch (e) {
+      if (isApiError(e) && e.body && typeof e.body === 'object') {
+        const body = e.body as Record<string, string[]>;
+        const mapped: Record<string, string> = {};
+        for (const [key, msgs] of Object.entries(body)) {
+          const formKey = FIELD_MAP[key];
+          if (formKey) {
+            mapped[formKey] = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          }
+        }
+        if (Object.keys(mapped).length > 0) {
+          setFieldErrors(mapped);
+        } else {
+          setSaveError(formatApiError(e));
+        }
+      } else {
+        setSaveError(formatApiError(e));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filtered = searchQuery.trim()
     ? students.filter(s =>
         `${s.first_name} ${s.last_name} ${s.email}`.toLowerCase().includes(searchQuery.toLowerCase())
@@ -49,6 +169,11 @@ export default function StudentDetailPanel() {
     : students;
 
   const totalActive = students.filter(s => s.is_active).length;
+
+  const inputClass = (error?: string) =>
+    `w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
+      error ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-brand-blue/20'
+    }`;
 
   return (
     <div className="space-y-4">
@@ -151,101 +276,164 @@ export default function StudentDetailPanel() {
                       <p className="text-xs text-slate-500">{selectedStudent.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setSelectedStudent(null); setStudentData(null); }} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-2">
+                    {!isEditing && (
+                      <button onClick={handleEdit} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => { setSelectedStudent(null); setStudentData(null); }} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+                  </div>
                 </div>
 
                 {detailLoading ? (
                   <div className="flex items-center justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
                 ) : (
                   <div className="p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">{selectedStudent.email || '—'}</span></div>
-                        <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">{selectedStudent.phone_number || '—'}</span></div>
-                        <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">{selectedStudent.branch_name || '—'}</span></div>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">Joined {(selectedStudent.date_joined || selectedStudent.created_at)?.slice(0, 10) || '—'}</span></div>
-                        <div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-slate-400" /><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${selectedStudent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{selectedStudent.is_active ? 'Active' : 'Pending'}</span></div>
-                      </div>
-                    </div>
-
-                    {/* Guardian Info */}
-                    {(selectedStudent.guardian_name || selectedStudent.guardian_phone || selectedStudent.guardian_email) && (
-                      <div className="bg-slate-50 rounded-xl p-3">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Guardian</p>
-                        <div className="grid grid-cols-3 gap-3 text-sm">
-                          {selectedStudent.guardian_name && <div><span className="text-[10px] text-slate-400">Name</span><p className="font-medium">{selectedStudent.guardian_name}</p></div>}
-                          {selectedStudent.guardian_phone && <div><span className="text-[10px] text-slate-400">Phone</span><p className="font-medium">{selectedStudent.guardian_phone}</p></div>}
-                          {selectedStudent.guardian_email && <div><span className="text-[10px] text-slate-400">Email</span><p className="font-medium">{selectedStudent.guardian_email}</p></div>}
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        {saveSuccess && (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Student updated successfully.
+                          </div>
+                        )}
+                        {saveError && (
+                          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {saveError}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">First Name</label>
+                            <input value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))} className={inputClass(fieldErrors.firstName)} />
+                            {fieldErrors.firstName && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.firstName}</p>}
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Last Name</label>
+                            <input value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))} className={inputClass(fieldErrors.lastName)} />
+                            {fieldErrors.lastName && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.lastName}</p>}
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Email</label>
+                            <input value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} className={inputClass(fieldErrors.email)} />
+                            {fieldErrors.email && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.email}</p>}
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Phone</label>
+                            <input value={editForm.phoneNumber} onChange={e => setEditForm(p => ({ ...p, phoneNumber: e.target.value }))} className={inputClass(fieldErrors.phoneNumber)} />
+                            {fieldErrors.phoneNumber && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.phoneNumber}</p>}
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Guardian Name</label>
+                            <input value={editForm.guardianName} onChange={e => setEditForm(p => ({ ...p, guardianName: e.target.value }))} className={inputClass(fieldErrors.guardianName)} />
+                            {fieldErrors.guardianName && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.guardianName}</p>}
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Guardian Phone</label>
+                            <input value={editForm.guardianPhone} onChange={e => setEditForm(p => ({ ...p, guardianPhone: e.target.value }))} className={inputClass(fieldErrors.guardianPhone)} />
+                            {fieldErrors.guardianPhone && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.guardianPhone}</p>}
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Guardian Email</label>
+                            <input value={editForm.guardianEmail} onChange={e => setEditForm(p => ({ ...p, guardianEmail: e.target.value }))} className={inputClass(fieldErrors.guardianEmail)} />
+                            {fieldErrors.guardianEmail && <p className="mt-1 text-[10px] text-red-600">{fieldErrors.guardianEmail}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-2">
+                          <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                          <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-brand-blue rounded-lg hover:bg-brand-blue-dark disabled:opacity-50">
+                            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                            {saving ? 'Saving...' : 'Save Changes'}
+                          </button>
                         </div>
                       </div>
-                    )}
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">{selectedStudent.email || '—'}</span></div>
+                            <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">{selectedStudent.phone_number || '—'}</span></div>
+                            <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">{selectedStudent.branch_name || '—'}</span></div>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-slate-400" /><span className="text-slate-600">Joined {(selectedStudent.date_joined || selectedStudent.created_at)?.slice(0, 10) || '—'}</span></div>
+                            <div className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-slate-400" /><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${selectedStudent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{selectedStudent.is_active ? 'Active' : 'Pending'}</span></div>
+                          </div>
+                        </div>
 
-                    {/* Enrollments */}
-                    {studentData?.enrollments && studentData.enrollments.length > 0 && (
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> Enrollments ({studentData.enrollments.length})</h4>
-                        <div className="space-y-1.5">
-                          {studentData.enrollments.map(e => (
-                            <div key={e.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-xs">
-                              <div>
-                                <span className="font-medium text-slate-700">{e.class_name || e.sub_program_name || 'Class'}</span>
-                                {e.pending_code && e.status === 'PENDING_VERIFICATION' && (
-                                  <span className="block text-[10px] font-mono text-brand-blue mt-0.5">{e.pending_code}</span>
-                                )}
-                              </div>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
-                                {e.status?.replace('_', ' ')}
-                              </span>
+                        {(selectedStudent.guardian_name || selectedStudent.guardian_phone || selectedStudent.guardian_email) && (
+                          <div className="bg-slate-50 rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Guardian</p>
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              {selectedStudent.guardian_name && <div><span className="text-[10px] text-slate-400">Name</span><p className="font-medium">{selectedStudent.guardian_name}</p></div>}
+                              {selectedStudent.guardian_phone && <div><span className="text-[10px] text-slate-400">Phone</span><p className="font-medium">{selectedStudent.guardian_phone}</p></div>}
+                              {selectedStudent.guardian_email && <div><span className="text-[10px] text-slate-400">Email</span><p className="font-medium">{selectedStudent.guardian_email}</p></div>}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                          </div>
+                        )}
 
-                    {/* Attendance Summary */}
-                    {studentData?.attendance && (
-                      <div className="rounded-xl bg-emerald-50/50 border border-emerald-100 p-3">
-                        <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><TrendingUp className="w-4 h-4 text-emerald-600" /> Attendance</h4>
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                          <div><p className="text-lg font-bold text-slate-900">{studentData.attendance.present || 0}</p><p className="text-[10px] text-slate-500">Present</p></div>
-                          <div><p className="text-lg font-bold text-slate-900">{studentData.attendance.absent || 0}</p><p className="text-[10px] text-slate-500">Absent</p></div>
-                          <div><p className="text-lg font-bold text-emerald-600">{studentData.attendance.rate || '0%'}</p><p className="text-[10px] text-slate-500">Rate</p></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Progress Summary */}
-                    {studentData?.progress && (
-                      <div className="rounded-xl bg-blue-50/50 border border-blue-100 p-3">
-                        <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><Target className="w-4 h-4 text-brand-blue" /> Progress</h4>
-                        <div className="grid grid-cols-4 gap-3 text-center">
-                          <div><p className="text-lg font-bold text-slate-900">{studentData.progress.completed || 0}</p><p className="text-[10px] text-slate-500">Completed</p></div>
-                          <div><p className="text-lg font-bold text-brand-blue">{studentData.progress.in_progress || 0}</p><p className="text-[10px] text-slate-500">In Progress</p></div>
-                          <div><p className="text-lg font-bold text-slate-400">{studentData.progress.not_started || 0}</p><p className="text-[10px] text-slate-500">Not Started</p></div>
-                          <div><p className="text-lg font-bold text-emerald-600">{studentData.progress.completion_rate || '0%'}</p><p className="text-[10px] text-slate-500">Rate</p></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Certificates */}
-                    {studentData?.certificates && studentData.certificates.length > 0 && (
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><Award className="w-4 h-4" /> Certificates ({studentData.certificates.length})</h4>
-                        <div className="space-y-1.5">
-                          {studentData.certificates.map(c => (
-                            <div key={c.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-xs">
-                              <span className="font-medium text-slate-700">{c.certificate_title || c.sub_program_name || 'Certificate'}</span>
-                              <span className="text-slate-400">{c.issued_at?.slice(0, 10)}</span>
+                        {studentData?.enrollments && studentData.enrollments.length > 0 && (
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> Enrollments ({studentData.enrollments.length})</h4>
+                            <div className="space-y-1.5">
+                              {studentData.enrollments.map(e => (
+                                <div key={e.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-xs">
+                                  <div>
+                                    <span className="font-medium text-slate-700">{e.class_name || e.sub_program_name || 'Class'}</span>
+                                    {e.pending_code && e.status === 'PENDING_VERIFICATION' && (
+                                      <span className="block text-[10px] font-mono text-brand-blue mt-0.5">{e.pending_code}</span>
+                                    )}
+                                  </div>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : e.status === 'COMPLETED' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                                    {e.status?.replace('_', ' ')}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                          </div>
+                        )}
 
-                    {!studentData?.enrollments?.length && !studentData?.attendance && !studentData?.progress && !studentData?.certificates?.length && (
-                      <p className="text-center text-xs text-slate-400 py-4">No enrollment or academic data available</p>
+                        {studentData?.attendance && (
+                          <div className="rounded-xl bg-emerald-50/50 border border-emerald-100 p-3">
+                            <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><TrendingUp className="w-4 h-4 text-emerald-600" /> Attendance</h4>
+                            <div className="grid grid-cols-3 gap-3 text-center">
+                              <div><p className="text-lg font-bold text-slate-900">{studentData.attendance.present || 0}</p><p className="text-[10px] text-slate-500">Present</p></div>
+                              <div><p className="text-lg font-bold text-slate-900">{studentData.attendance.absent || 0}</p><p className="text-[10px] text-slate-500">Absent</p></div>
+                              <div><p className="text-lg font-bold text-emerald-600">{studentData.attendance.rate || '0%'}</p><p className="text-[10px] text-slate-500">Rate</p></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {studentData?.progress && (
+                          <div className="rounded-xl bg-blue-50/50 border border-blue-100 p-3">
+                            <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><Target className="w-4 h-4 text-brand-blue" /> Progress</h4>
+                            <div className="grid grid-cols-4 gap-3 text-center">
+                              <div><p className="text-lg font-bold text-slate-900">{studentData.progress.completed || 0}</p><p className="text-[10px] text-slate-500">Completed</p></div>
+                              <div><p className="text-lg font-bold text-brand-blue">{studentData.progress.in_progress || 0}</p><p className="text-[10px] text-slate-500">In Progress</p></div>
+                              <div><p className="text-lg font-bold text-slate-400">{studentData.progress.not_started || 0}</p><p className="text-[10px] text-slate-500">Not Started</p></div>
+                              <div><p className="text-lg font-bold text-emerald-600">{studentData.progress.completion_rate || '0%'}</p><p className="text-[10px] text-slate-500">Rate</p></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {studentData?.certificates && studentData.certificates.length > 0 && (
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900 mb-2 flex items-center gap-1.5"><Award className="w-4 h-4" /> Certificates ({studentData.certificates.length})</h4>
+                            <div className="space-y-1.5">
+                              {studentData.certificates.map(c => (
+                                <div key={c.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-xs">
+                                  <span className="font-medium text-slate-700">{c.certificate_title || c.sub_program_name || 'Certificate'}</span>
+                                  <span className="text-slate-400">{c.issued_at?.slice(0, 10)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {!studentData?.enrollments?.length && !studentData?.attendance && !studentData?.progress && !studentData?.certificates?.length && (
+                          <p className="text-center text-xs text-slate-400 py-4">No enrollment or academic data available</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

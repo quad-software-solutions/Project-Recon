@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cmsNewsApi } from '../../../../cms/shared/api/cmsApi';
 import type { NewsArticleResponse } from '../../../../cms/shared/api/cmsApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const FILTER_TABS = [
   { key: 'all', label: 'All' },
@@ -47,7 +48,7 @@ export default function AnnouncementsManager() {
     try {
       const res = await cmsNewsApi.list();
       setItems((res || []).filter((a: NewsArticleResponse) => a.type === 'ANNOUNCEMENT' || !a.type));
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to load'); }
+    } catch (e) { setError(formatApiError(e)); }
     setLoading(false);
   };
 
@@ -85,7 +86,7 @@ export default function AnnouncementsManager() {
       }
       setShowForm(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save');
+      setError(formatApiError(e));
     }
     setSaving(false);
   };
@@ -97,7 +98,7 @@ export default function AnnouncementsManager() {
       setDeleteConfirm(null);
       if (expanded === id) setExpanded(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete');
+      setError(formatApiError(e));
     }
   };
 
@@ -132,7 +133,7 @@ export default function AnnouncementsManager() {
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: items.length, icon: Megaphone, color: 'text-rose-600', bg: 'bg-rose-50' },
+          { label: 'Total', value: items.length, icon: Megaphone, color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
           { label: 'Published', value: published, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Drafts', value: drafts, icon: FileText, color: 'text-slate-500', bg: 'bg-slate-100' },
         ].map((s, i) => {
@@ -156,7 +157,7 @@ export default function AnnouncementsManager() {
               <button key={t.key} onClick={() => setStatusTab(t.key as typeof statusTab)}
                 className={`relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 ${
                   statusTab === t.key
-                    ? 'bg-rose-600 text-white shadow-sm'
+                    ? 'bg-brand-blue text-white shadow-sm'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
@@ -166,7 +167,7 @@ export default function AnnouncementsManager() {
               </button>
             ))}
             <button onClick={openCreate}
-              className="ml-auto flex items-center gap-1.5 bg-rose-600 text-white text-xs font-bold px-4 py-1.5 rounded-full hover:bg-rose-700 transition-colors shadow-sm"
+              className="ml-auto flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-4 py-1.5 rounded-full hover:bg-brand-blue-dark transition-colors shadow-sm"
             ><Plus className="w-3.5 h-3.5" /> New</button>
           </div>
           <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
@@ -174,7 +175,7 @@ export default function AnnouncementsManager() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search by title or summary..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-rose-400 placeholder:text-slate-400" />
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-brand-blue placeholder:text-slate-400" />
             </div>
             <span className="text-[11px] text-slate-400 ml-auto">{filtered.length}/{items.length}</span>
           </div>
@@ -195,8 +196,8 @@ export default function AnnouncementsManager() {
                     <button onClick={() => setExpanded(open ? null : a.id)}
                       className="flex items-start gap-3 flex-1 min-w-0 text-left"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-100 to-pink-100 border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
-                        <Megaphone className="w-4 h-4 text-rose-600" />
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-blue/10 to-blue-100 border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
+                        <Megaphone className="w-4 h-4 text-brand-blue" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -214,10 +215,10 @@ export default function AnnouncementsManager() {
                     </button>
                     <div className="flex items-center gap-1 shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEdit(a)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10 transition-colors"
                       ><Edit3 className="w-3.5 h-3.5" /></button>
                       <button onClick={() => setDeleteConfirm(a.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                       ><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -245,12 +246,12 @@ export default function AnnouncementsManager() {
                             </div>
                             {a.video_url && (
                               <a href={a.video_url} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-xs text-brand-blue bg-brand-blue/5 px-3 py-1.5 rounded-lg hover:bg-brand-blue/10 transition-colors"
                               ><ExternalLink className="w-3 h-3" /> Watch Video</a>
                             )}
                             {a.button_url && (
                               <a href={a.button_url} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-rose-600 px-4 py-2 rounded-lg hover:bg-rose-700 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-brand-blue px-4 py-2 rounded-lg hover:bg-brand-blue-dark transition-colors"
                               >{a.button_text || 'Learn More'} <ExternalLink className="w-3 h-3" /></a>
                             )}
                           </div>
@@ -276,7 +277,7 @@ export default function AnnouncementsManager() {
               <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white z-10">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center"><Megaphone className="w-4 h-4 text-rose-600" /></div>
+                    <div className="w-8 h-8 rounded-full bg-brand-blue/5 flex items-center justify-center"><Megaphone className="w-4 h-4 text-brand-blue" /></div>
                     <h3 className="font-bold text-slate-900">{editing ? 'Edit Announcement' : 'New Announcement'}</h3>
                   </div>
                   <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
@@ -285,51 +286,51 @@ export default function AnnouncementsManager() {
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Title *</label>
                     <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10" />
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Summary</label>
                     <input value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10" />
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Content *</label>
                     <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={5}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10 resize-none" />
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 resize-none" />
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Image URL</label>
                     <input value={form.image} onChange={e => setForm(p => ({ ...p, image: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10" />
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Video URL</label>
                       <input value={form.video_url} onChange={e => setForm(p => ({ ...p, video_url: e.target.value }))}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10" />
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
                     </div>
                     <div>
                       <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Button Text</label>
                       <input value={form.button_text} onChange={e => setForm(p => ({ ...p, button_text: e.target.value }))}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10" />
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Button URL</label>
                     <input value={form.button_url} onChange={e => setForm(p => ({ ...p, button_url: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/10" />
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
                   </div>
                   <label className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl cursor-pointer">
                     <input type="checkbox" checked={form.is_active} onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))}
-                      className="w-4 h-4 rounded border-slate-300 text-rose-600 focus:ring-rose-400" />
+                      className="w-4 h-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue" />
                     <div><p className="text-sm font-medium text-slate-700">Published</p><p className="text-[10px] text-slate-400">Visible to students immediately</p></div>
                   </label>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
                   <button onClick={() => setShowForm(false)}
-                    className="px-4 py-2 text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors">Cancel</button>
+                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
                   <button onClick={handleSave} disabled={saving || !form.title.trim() || !form.content.trim()}
-                    className="bg-rose-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
+                    className="bg-brand-blue text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-brand-blue-dark disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {saving ? 'Saving...' : <><Save className="w-3.5 h-3.5" /> {editing ? 'Update' : 'Create'}</>}
                   </button>
@@ -351,8 +352,8 @@ export default function AnnouncementsManager() {
               <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                 <div className="p-5 space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-5 h-5 text-slate-500" />
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-900">Delete Announcement</h3>
@@ -364,7 +365,7 @@ export default function AnnouncementsManager() {
                   <button onClick={() => setDeleteConfirm(null)}
                     className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Keep</button>
                   <button onClick={() => handleDelete(deleteConfirm)}
-                    className="bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-red-700 flex items-center gap-1.5 transition-colors shadow-sm">
+                    className="bg-slate-700 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-slate-800 flex items-center gap-1.5 transition-colors shadow-sm">
                     <Trash2 className="w-3.5 h-3.5" /> Delete
                   </button>
                 </div>

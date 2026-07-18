@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http';
-import { fetchAllPages, type PaginatedResponse } from '@/shared/api/pagination';
+import { fetchAllPages } from '@/shared/api/pagination';
 
 /* ─── Backend-Matching Types ─── */
 
@@ -293,16 +293,8 @@ export function adminCreateEvent(data: Partial<BackendEvent> | FormData) {
   return http.post<BackendEvent>(`${BASE}/admin/events/`, data);
 }
 
-export function adminGetEvent(id: string) {
-  return http.get<BackendEvent>(`${BASE}/admin/events/${id}/`);
-}
-
 export function adminUpdateEvent(id: string, data: Partial<BackendEvent> | FormData) {
   return http.put<BackendEvent>(`${BASE}/admin/events/${id}/`, data);
-}
-
-export function adminPatchEvent(id: string, data: Partial<BackendEvent>) {
-  return http.patch<BackendEvent>(`${BASE}/admin/events/${id}/`, data);
 }
 
 export function adminDeleteEvent(id: string) {
@@ -335,16 +327,8 @@ export function adminCreateTournament(data: Partial<BackendTournament>) {
   return http.post<BackendTournament>(`${BASE}/admin/tournaments/`, data);
 }
 
-export function adminGetTournament(id: string) {
-  return http.get<BackendTournament>(`${BASE}/admin/tournaments/${id}/`);
-}
-
 export function adminUpdateTournament(id: string, data: Partial<BackendTournament>) {
   return http.put<BackendTournament>(`${BASE}/admin/tournaments/${id}/`, data);
-}
-
-export function adminPatchTournament(id: string, data: Partial<BackendTournament>) {
-  return http.patch<BackendTournament>(`${BASE}/admin/tournaments/${id}/`, data);
 }
 
 export function adminDeleteTournament(id: string) {
@@ -385,10 +369,6 @@ export function adminCreateTournamentCategory(data: Partial<BackendTournamentCat
   return http.post<BackendTournamentCategory>(`${BASE}/admin/tournament-categories/`, data);
 }
 
-export function adminGetTournamentCategory(id: string) {
-  return http.get<BackendTournamentCategory>(`${BASE}/admin/tournament-categories/${id}/`);
-}
-
 export function adminUpdateTournamentCategory(id: string, data: Partial<BackendTournamentCategory>) {
   return http.put<BackendTournamentCategory>(`${BASE}/admin/tournament-categories/${id}/`, data);
 }
@@ -405,10 +385,6 @@ export function adminGetTeams(params?: Record<string, string>) {
 
 export function adminCreateTeam(data: Partial<BackendTournamentTeam>) {
   return http.post<BackendTournamentTeam>(`${BASE}/admin/tournament-teams/`, data);
-}
-
-export function adminGetTeam(id: string) {
-  return http.get<BackendTournamentTeam>(`${BASE}/admin/tournament-teams/${id}/`);
 }
 
 export function adminUpdateTeam(id: string, data: Partial<BackendTournamentTeam>) {
@@ -471,10 +447,6 @@ export function adminCreateWorkshop(data: Partial<BackendWorkshop>) {
   return http.post<BackendWorkshop>(`${BASE}/admin/workshops/`, data);
 }
 
-export function adminGetWorkshop(id: string) {
-  return http.get<BackendWorkshop>(`${BASE}/admin/workshops/${id}/`);
-}
-
 export function adminUpdateWorkshop(id: string, data: Partial<BackendWorkshop>) {
   return http.put<BackendWorkshop>(`${BASE}/admin/workshops/${id}/`, data);
 }
@@ -523,6 +495,7 @@ export function adminRejectPayment(registrationId: string, data: { verification_
   return http.post(`${BASE}/admin/registrations/${registrationId}/reject-payment/`, data);
 }
 
-export function adminListPayments(params?: { event?: string; status?: string }) {
-  return http.get<BackendEventPayment[]>(`${BASE}/admin/payments/`, { params });
+export async function adminListPayments(params?: { event?: string; status?: string }) {
+  const raw = await http.get<BackendEventPayment[] | PaginatedResponse<BackendEventPayment>>(`${BASE}/admin/payments/`, { params });
+  return Array.isArray(raw) ? raw : (raw?.results ?? []);
 }

@@ -7,6 +7,7 @@ import {
 import type { UserProfile } from '@/shared/types';
 import { updateUserApi } from '@/domains/user/shared/api/adminApi';
 import { securityApi } from '@/domains/auth/login/api/securityApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
 interface Props {
@@ -54,7 +55,7 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
       onUserUpdate?.(updatedUser);
       setEditing(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update profile');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -85,15 +86,14 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
     setPwError('');
     setPwSuccess(false);
     try {
-      const { http } = await import('@/shared/api/http');
-      await http.patch('/accounts/password/change/', {
-        current_password: pwForm.current_password,
+      await securityApi.changePassword({
+        old_password: pwForm.current_password,
         new_password: pwForm.new_password,
       });
       setPwSuccess(true);
       setPwForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (e: any) {
-      setPwError(e.message || 'Failed to change password');
+      setPwError(formatApiError(e));
     } finally {
       setPwSaving(false);
     }
@@ -303,9 +303,85 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
                 ))}
               </div>
             )}
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <TrustCurrentDevice
+                onTrusted={() => {
+                  setDevicesLoading(true);
+                  securityApi.listDevices()
+                    .then((d: any) => setDevices(Array.isArray(d) ? d : []))
+                    .catch(() => {})
+                    .finally(() => setDevicesLoading(false));
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TrustCurrentDevice({ onTrusted }: { onTrusted: () => void }) {
+  const [phase, setPhase] = useState<'idle' | 'otp'>('idle');
+  const [otp, setOtp] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const requestOtp = async () => {
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      await securityApi.requestDeviceVerification();
+      setPhase('otp');
+      setMsg('OTP sent. Enter the code to trust this browser.');
+    } catch (e: unknown) {
+      const { formatApiError } = await import('@/shared/utils/formatApiError');
+      setErr(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    if (!otp.trim()) return;
+    setBusy(true);
+    setErr('');
+    try {
+      await securityApi.verifyDevice(otp.trim());
+      setPhase('idle');
+      setOtp('');
+      setMsg('This device is now trusted.');
+      onTrusted();
+    } catch (e: unknown) {
+      const { formatApiError } = await import('@/shared/utils/formatApiError');
+      setErr(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Trust this browser</p>
+      {msg && <p className="text-xs text-emerald-600 mb-2">{msg}</p>}
+      {err && <p className="text-xs text-red-600 mb-2">{err}</p>}
+      {phase === 'idle' ? (
+        <button type="button" onClick={requestOtp} disabled={busy}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+          {busy ? 'Sending…' : 'Send verification OTP'}
+        </button>
+      ) : (
+        <div className="flex gap-2">
+          <input value={otp} onChange={e => setOtp(e.target.value)} placeholder="OTP code"
+            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg" />
+          <button type="button" onClick={verify} disabled={busy || !otp.trim()}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 text-white disabled:opacity-50">
+            Verify
+          </button>
+        </div>
+      )}
     </div>
   );
 }

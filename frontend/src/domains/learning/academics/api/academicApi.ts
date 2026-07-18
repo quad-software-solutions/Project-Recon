@@ -60,6 +60,7 @@ export type OnlineEnrollmentPayload = {
   guardian_email?: string;
   payment_method: string;
   transaction_reference?: string;
+  transfer_reference?: string;
   bank_name?: string;
   attachment?: File | null;
 };
@@ -267,12 +268,25 @@ export async function setEnrollmentPeriodActiveApi(id: string, active: boolean):
 }
 
 // ─── Enrollments ───
+// ponytail: backend ignores ?student= query param, so we fetch branch-scoped
+// and filter client-side. Fine for 1-3 enrollments per student.
 export async function fetchEnrollmentsApi(studentId?: string): Promise<Enrollment[]> {
-  return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ student: studentId })}`));
+  const all = unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/`));
+  if (!studentId) return all;
+  return all.filter((e) => e.student === studentId);
 }
 
-export async function fetchEnrollmentsPaginatedApi(page = 1, pageSize = 20): Promise<PaginatedListResponse<Enrollment>> {
-  return http.get<PaginatedListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({ page: String(page), page_size: String(pageSize) })}`);
+export async function fetchEnrollmentsPaginatedApi(
+  page = 1,
+  pageSize = 20,
+  params?: { search?: string; ordering?: string },
+): Promise<PaginatedListResponse<Enrollment>> {
+  return http.get<PaginatedListResponse<Enrollment>>(`${BASE}/enrollments/${queryString({
+    page: String(page),
+    page_size: String(pageSize),
+    search: params?.search,
+    ordering: params?.ordering,
+  })}`);
 }
 
 export async function enrollStudentApi(payload: StaffEnrollmentPayload): Promise<Enrollment> {
@@ -299,6 +313,7 @@ function toOnlineEnrollmentBody(payload: OnlineEnrollmentPayload): FormData | Re
   append('guardian_email', payload.guardian_email);
   append('payment_method', payload.payment_method);
   append('transaction_reference', payload.transaction_reference);
+  append('transfer_reference', payload.transfer_reference);
   append('bank_name', payload.bank_name);
 
   if (payload.attachment instanceof File) {
@@ -332,8 +347,6 @@ export async function fetchStudentsApi(): Promise<StudentProfile[]> {
 export async function searchStudentsApi(query: string): Promise<StudentProfile[]> {
   return unwrapList(await http.get<ListResponse<StudentProfile>>(`${BASE}/students/search/${queryString({ q: query })}`));
 }
-
-
 
 export async function admitStudentApi(payload: AdmitStudentPayload): Promise<StudentProfile> {
   return http.post<StudentProfile>(`${BASE}/admissions/`, payload);
@@ -393,18 +406,6 @@ export async function recordBulkAttendanceApi(sessionId: string, records: { enro
 
 export async function fetchEnrollmentAttendanceSummaryApi(enrollmentId: string): Promise<Record<string, unknown>> {
   return http.get<Record<string, unknown>>(`${BASE}/attendance/enrollments/${enrollmentId}/summary/`);
-}
-
-export async function fetchAttendanceSessionApi(id: string): Promise<AttendanceSession> {
-  return http.get<AttendanceSession>(`${BASE}/attendance/sessions/${id}/`);
-}
-
-export async function fetchAttendanceRecordApi(sessionId: string, recordId: string): Promise<AttendanceRecord> {
-  return http.get<AttendanceRecord>(`${BASE}/attendance/sessions/${sessionId}/records/${recordId}/`);
-}
-
-export async function fetchEnrollmentAttendanceHistoryApi(enrollmentId: string): Promise<AttendanceRecord[]> {
-  return unwrapList(await http.get<ListResponse<AttendanceRecord>>(`${BASE}/attendance/enrollments/${enrollmentId}/history/`));
 }
 
 // ─── Staff Attendance (backend field: `date`, not `session_date`) ───
@@ -539,10 +540,6 @@ export async function updateStudentProgressApi(id: string, payload: { status: st
 
 export async function recordStudentProgressApi(payload: { enrollment: string; milestone: string; status: string; remarks?: string }): Promise<StudentProgress> {
   return http.post<StudentProgress>(`${BASE}/student-progress/`, payload);
-}
-
-export async function customizeMilestoneApi(id: string, payload: { scope_class: string }): Promise<LearningMilestone> {
-  return http.post<LearningMilestone>(`${BASE}/learning-milestones/${id}/customize/`, payload);
 }
 
 // ─── Learning Materials ───

@@ -54,28 +54,6 @@ import {
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
 
-const SECTION_PERMISSION: Partial<Record<AdminSectionId, Permission>> = {
-  users: 'accounts:manage',
-  roles: 'accounts:manage',
-  'staff-attendance': 'academic:attendance:manage',
-  academics: 'academic:catalog:manage',
-  classes: 'academic:catalog:manage',
-  registrations: 'academic:enrollments:manage',
-  transfers: 'academic:enrollments:manage',
-  certificates: 'academic:certificates:manage',
-  events: 'events:manage',
-  tournaments: 'events:manage',
-  'tournament-teams': 'events:manage',
-  matches: 'events:manage',
-  workshops: 'events:manage',
-  'event-registrations': 'events:manage',
-  cms: 'cms:manage',
-  branches: 'branches:manage',
-  store: 'store:manage',
-  'bank-accounts': 'accounts:manage',
-  audit: 'audit:view',
-};
-
 const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'core' },
   { id: 'users', label: 'Accounts & Users', icon: Users, group: 'users' },

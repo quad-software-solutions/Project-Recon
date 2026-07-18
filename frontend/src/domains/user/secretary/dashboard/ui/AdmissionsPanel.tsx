@@ -5,6 +5,7 @@ import { StudentProfile, UserProfile } from '@/shared/types';
 import { fetchStudentsApi, admitStudentApi, fetchClassesApi } from '@/domains/learning/academics/api/academicApi';
 import { branchesApi } from '@/domains/user/shared/api/adminApi';
 import { cacheStudentId } from '@/domains/user/student/api/studentContext';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 export default function AdmissionsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -22,10 +23,6 @@ export default function AdmissionsPanel({ currentUser }: { currentUser?: UserPro
   });
 
   useEffect(() => {
-    if (currentUser?.role === 'Secretary') {
-      setBranchesError('Branches unavailable — not accessible for secretaries');
-      return;
-    }
     branchesApi.list().then(res => {
       const list = Array.isArray(res) ? res : (res as any).results || [];
       setBranches(list.map((b: any) => ({ id: b.id, name: b.name })));
@@ -69,7 +66,7 @@ export default function AdmissionsPanel({ currentUser }: { currentUser?: UserPro
       }));
       setShowForm(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to admit student');
+      setError(formatApiError(e));
     } finally {
       setSubmitting(false);
     }

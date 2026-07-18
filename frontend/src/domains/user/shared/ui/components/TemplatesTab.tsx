@@ -4,6 +4,7 @@ import { Search, Plus, Award, FileText, Eye, RotateCcw, X, CheckCircle2, Loader2
 import { Certificate } from '@/shared/types';
 import { decodeBodyWithSignatory, updateCertificateTemplateApi, createCertificateTemplateApi, setCertificateTemplateActiveApi } from '@/domains/learning/academics/api/academicApi';
 import BrandLogo from '@/shared/ui/BrandLogo';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface TemplateForm {
   sub_program: string;
@@ -96,7 +97,7 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
       resetFileState();
       onRefresh();
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Failed to save template');
+      onError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -107,7 +108,7 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
       await setCertificateTemplateActiveApi(t.id, t.is_active === false);
       onRefresh();
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Failed to toggle template');
+      onError(formatApiError(e));
     }
   };
 
@@ -123,7 +124,7 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
       });
       onRefresh();
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Failed to duplicate template');
+      onError(formatApiError(e));
     }
   };
 

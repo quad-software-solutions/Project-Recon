@@ -8,6 +8,7 @@ import {
 import { cmsContactRequestsApi, ContactRequestResponse } from '../../../../cms/shared/api/cmsApi';
 import type { UserProfile } from '@/shared/types';
 import { canManageContactRequests } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props { currentUser: UserProfile }
 
@@ -48,7 +49,7 @@ export default function CommunicationsCenter({ currentUser }: Props) {
     if (!canManage) { setRequests([]); setLoading(false); return; }
     setLoading(true); setError(null);
     try { setRequests(await cmsContactRequestsApi.list()); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed to load'); }
+    catch (e) { setError(formatApiError(e)); }
     setLoading(false);
   };
 
@@ -58,7 +59,7 @@ export default function CommunicationsCenter({ currentUser }: Props) {
     try {
       await cmsContactRequestsApi.update(id, { status } as Partial<ContactRequestResponse>);
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to update'); }
+    } catch (e) { setError(formatApiError(e)); }
   };
 
   const filtered = requests

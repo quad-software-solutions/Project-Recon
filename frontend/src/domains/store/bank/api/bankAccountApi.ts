@@ -1,6 +1,2 @@
-import { http } from '@/shared/api/http';
-import type { BankAccount } from '@/domains/store/model/types';
-
-export async function listBankAccounts(): Promise<BankAccount[]> {
-  return await http.get<BankAccount[]>('/bank-accounts/');
-}
+/** Public bank-account list — shared with academic registration / admin CRUD. */
+export { fetchBankAccountsApi as listBankAccounts } from '@/domains/learning/academics/api/academicApi';

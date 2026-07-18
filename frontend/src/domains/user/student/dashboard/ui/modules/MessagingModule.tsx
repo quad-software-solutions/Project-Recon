@@ -4,7 +4,7 @@ import { MessageCircle, Megaphone, Headphones, Loader2, ChevronRight } from 'luc
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
-import EmptyState from '../../../shared/ui/EmptyState';
+import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 import ParentFeedback from '../ParentFeedback';
 import type { UserProfile } from '@/shared/types';

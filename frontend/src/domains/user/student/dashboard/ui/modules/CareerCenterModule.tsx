@@ -7,7 +7,7 @@ import { getWorkshops } from '@/domains/competition/api/competitionApi';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
-import EmptyState from '../../../shared/ui/EmptyState';
+import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 import CertificateGenerator from '../CertificateGenerator';
 import type { UserProfile, Workshop } from '@/shared/types';

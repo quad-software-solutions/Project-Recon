@@ -8,6 +8,7 @@ import { cmsPartnersApi, CmsPartnerResponse } from '../../../../cms/shared/api/c
 import { cmsPublicApi } from '../../../../cms/public/api/cmsPublicApi';
 import type { UserProfile } from '@/shared/types';
 import { isSuperAdmin, isSuperAdminOrBranchManager } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props {
   currentUser: UserProfile;
@@ -39,7 +40,7 @@ export default function SponsorManagement({ currentUser }: Props) {
         setSponsors(data);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load sponsors');
+      setError(formatApiError(e));
     }
     setLoading(false);
   };
@@ -75,7 +76,7 @@ export default function SponsorManagement({ currentUser }: Props) {
       setEditing(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save sponsor');
+      setError(formatApiError(e));
     }
     setSaving(false);
   };
@@ -87,7 +88,7 @@ export default function SponsorManagement({ currentUser }: Props) {
       await cmsPartnersApi.delete(id);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to remove sponsor');
+      setError(formatApiError(e));
     }
   };
 
@@ -97,7 +98,7 @@ export default function SponsorManagement({ currentUser }: Props) {
       await cmsPartnersApi.update(s.id, { is_active: !s.is_active });
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update sponsor status');
+      setError(formatApiError(e));
     }
   };
 

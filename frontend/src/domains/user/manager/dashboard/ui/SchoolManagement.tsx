@@ -7,6 +7,7 @@ import {
 import { branchesApi, BranchResponse } from '../../../shared/api/adminApi';
 import type { UserProfile } from '@/shared/types';
 import { isSuperAdmin } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
   Active: { icon: CheckCircle, color: 'text-emerald-500' },
@@ -39,7 +40,7 @@ export default function SchoolManagement({ currentUser }: Props) {
       const data = await branchesApi.list();
       setSchools(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Branches are restricted to super admin.');
+      setError(formatApiError(e));
     }
     setLoading(false);
   };
@@ -79,7 +80,7 @@ export default function SchoolManagement({ currentUser }: Props) {
       setEditing(null);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save school');
+      setError(formatApiError(e));
     }
     setSaving(false);
   };
@@ -91,7 +92,7 @@ export default function SchoolManagement({ currentUser }: Props) {
       await branchesApi.archive(id);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to remove school');
+      setError(formatApiError(e));
     }
   };
 
@@ -101,7 +102,7 @@ export default function SchoolManagement({ currentUser }: Props) {
       await branchesApi.toggleActive(s.id, s.status === 'Active');
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update status');
+      setError(formatApiError(e));
     }
   };
 

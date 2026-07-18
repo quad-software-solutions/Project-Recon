@@ -4,6 +4,7 @@ import { Plus, Search, X, Loader2, AlertCircle, Award, Download, Shield, FileTex
 import { StudentCertificate, StudentProfile, Certificate } from '@/shared/types';
 import { fetchStudentCertificatesApi, fetchStudentsApi, fetchCertificateTemplatesApi, issueStudentCertificateApi, searchStudentsApi, fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
 import BrandLogo from '@/shared/ui/BrandLogo';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 export default function CertificatesPanel() {
   const [certs, setCerts] = useState<StudentCertificate[]>([]);
@@ -82,7 +83,7 @@ export default function CertificatesPanel() {
       setStudentSearch('');
       setStudentResults([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to issue certificate');
+      setError(formatApiError(e));
     } finally {
       setSubmitting(false);
     }

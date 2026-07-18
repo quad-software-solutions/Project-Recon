@@ -1,8 +1,12 @@
 import { fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 import { getCachedStudentId, setCachedStudentId, studentIdKey } from '@/shared/utils/storage';
 
-/** Resolve academic student UUID for the logged-in student (existing API only). */
-export async function resolveStudentId(email: string, cachedId?: string): Promise<string | null> {
+/**
+ * Resolve academic student UUID for the logged-in user.
+ * Students cannot list `/academic/students/` (staff-only), so we only use
+ * local cache (set at registration/login) and certificate responses.
+ */
+export async function resolveStudentId(email: string, _userId?: string, cachedId?: string): Promise<string | null> {
   if (cachedId) return cachedId;
 
   const stored = getCachedStudentId(email);
@@ -15,7 +19,7 @@ export async function resolveStudentId(email: string, cachedId?: string): Promis
       return certs[0].student;
     }
   } catch {
-    /* no certificates yet */
+    /* no certificates yet / not permitted */
   }
 
   return null;

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, Search, Clock, ChevronDown, Loader2, RotateCcw, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchStudentProgressApi, updateStudentProgressApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchStudentProgressApi, updateStudentProgressApi, fetchMilestonesApi, recordStudentProgressApi } from '@/domains/learning/academics/api/academicApi';
 
-import { StudentProfile, Enrollment, StudentProgress } from '@/shared/types';
+import { StudentProfile, Enrollment, StudentProgress, LearningMilestone } from '@/shared/types';
 
 interface Props {
   students: StudentProfile[];
@@ -24,6 +24,10 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showOverview, setShowOverview] = useState(false);
+  const [milestoneMap, setMilestoneMap] = useState<Record<string, LearningMilestone[]>>({});
+  const [creatingProgress, setCreatingProgress] = useState<string | null>(null);
+  const [createMilestoneId, setCreateMilestoneId] = useState<string>('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (enrollments.length === 0) { setLoading(false); return; }
@@ -104,6 +108,33 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
   const completedCount = (enrollmentId: string) => getProgress(enrollmentId).filter(p => p.status === 'COMPLETED').length;
   const inProgressCount = (enrollmentId: string) => getProgress(enrollmentId).filter(p => p.status === 'IN_PROGRESS').length;
   const totalCount = (enrollmentId: string) => getProgress(enrollmentId).length;
+
+  const loadMilestones = async (enrollmentId: string, enrolledClass?: string) => {
+    if (milestoneMap[enrollmentId]) return;
+    try {
+      // ponytail: class-scoped only misses shared milestones. Pass sub_program ID too once Enrollment has it.
+      const ms = await fetchMilestonesApi(undefined, enrolledClass);
+      setMilestoneMap(p => ({ ...p, [enrollmentId]: Array.isArray(ms) ? ms : [] }));
+    } catch {
+      setMilestoneMap(p => ({ ...p, [enrollmentId]: [] }));
+    }
+  };
+
+  const createProgressRecord = async (enrollmentId: string, milestoneId: string) => {
+    if (!milestoneId) return;
+    setCreating(true);
+    try {
+      await recordStudentProgressApi({ enrollment: enrollmentId, milestone: milestoneId, status: 'NOT_STARTED' });
+      const updated = await fetchStudentProgressApi(enrollmentId);
+      setProgressMap(p => ({ ...p, [enrollmentId]: Array.isArray(updated) ? updated : [] }));
+      setCreatingProgress(null);
+      setCreateMilestoneId('');
+    } catch {
+      console.error('Failed to create progress record');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const nextStatus = (current: string) => {
     if (current === 'NOT_STARTED') return 'IN_PROGRESS';
@@ -246,7 +277,30 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                           <td colSpan={6} className="px-6 py-4 bg-slate-50/50">
                             <div className="space-y-2">
                               {getProgress(row.enrollmentId).length === 0 ? (
-                                <p className="text-xs text-slate-400 text-center py-4">No progress records yet</p>
+                                <div className="text-center py-3">
+                                  <p className="text-xs text-slate-400 mb-2">No progress records yet</p>
+                                  {creatingProgress === row.enrollmentId ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <select value={createMilestoneId} onChange={e => setCreateMilestoneId(e.target.value)}
+                                        className="px-2 py-1 border border-slate-200 rounded-lg text-xs max-w-[200px]">
+                                        <option value="">Select milestone...</option>
+                                        {(milestoneMap[row.enrollmentId] || []).map(m => (
+                                          <option key={m.id} value={m.id}>{m.title}</option>
+                                        ))}
+                                      </select>
+                                      <button onClick={() => createProgressRecord(row.enrollmentId, createMilestoneId)} disabled={!createMilestoneId || creating}
+                                        className="text-[10px] font-bold bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                                        {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+                                      </button>
+                                      <button onClick={() => setCreatingProgress(null)} className="text-[10px] text-slate-400 hover:text-slate-600">Cancel</button>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => { setCreatingProgress(row.enrollmentId); loadMilestones(row.enrollmentId, enrollments.find(e => e.id === row.enrollmentId)?.enrolled_class); }}
+                                      className="text-xs font-medium text-brand-blue hover:underline">
+                                      + Add milestone progress
+                                    </button>
+                                  )}
+                                </div>
                               ) : getProgress(row.enrollmentId).map((p, pi) => (
                                 <div key={p.id} className="flex items-center justify-between bg-white rounded-xl p-3 border border-slate-200">
                                   <div className="flex items-center gap-2">

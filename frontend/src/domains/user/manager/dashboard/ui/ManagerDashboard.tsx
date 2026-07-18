@@ -51,6 +51,7 @@ import LearningMaterialsPanel from '@/domains/user/secretary/dashboard/ui/Learni
 import LearningMilestonesManager from '@/domains/user/secretary/dashboard/ui/LearningMilestonesManager';
 import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf, downloadProgressReportPdf, downloadCertificateReportPdf, downloadClassReportPdf, downloadSubProgramReportPdf, downloadProgramReportPdf } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props {
   currentUser: UserProfile;
@@ -438,7 +439,7 @@ function ReportsSection() {
     try {
       await fn();
     } catch (e) {
-      setDownloadError(e instanceof Error ? e.message : 'Download failed. Please try again.');
+      setDownloadError(formatApiError(e));
     } finally {
       setDownloading(null);
     }
@@ -499,7 +500,7 @@ function ReportsSection() {
           >
             <option value="">Select a student...</option>
             {students.map(s => (
-              <option key={s.id} value={s.id}>{s.full_name || s.first_name || s.email}</option>
+              <option key={s.id} value={s.id}>{`${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email}</option>
             ))}
           </select>
         </div>

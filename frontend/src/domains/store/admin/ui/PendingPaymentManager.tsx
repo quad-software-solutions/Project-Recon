@@ -10,6 +10,7 @@ import {
 } from '../../payments/api/paymentApi';
 import type { StorePayment } from '../../model/types';
 import { cn } from '@/shared/utils/cn';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
@@ -57,7 +58,7 @@ export default function PendingPaymentManager({ addToast }: Props) {
       const data = await listPayments(statusFilter ? { status: statusFilter } : undefined);
       setPayments(data);
     } catch (e: unknown) {
-      addToast(e instanceof Error ? e.message : 'Failed to load payments', 'error');
+      addToast(formatApiError(e), 'error');
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ export default function PendingPaymentManager({ addToast }: Props) {
       setPayments(prev => prev.map(x => x.id === p.id ? updated : x));
       if (detail?.id === p.id) setDetail(updated);
     } catch (e: unknown) {
-      addToast(e instanceof Error ? e.message : 'Verification failed', 'error');
+      addToast(formatApiError(e), 'error');
     } finally {
       setActionLoading(null);
     }
@@ -90,7 +91,7 @@ export default function PendingPaymentManager({ addToast }: Props) {
       setRejectModal(null);
       setRejectReason('');
     } catch (e: unknown) {
-      addToast(e instanceof Error ? e.message : 'Rejection failed', 'error');
+      addToast(formatApiError(e), 'error');
     } finally {
       setActionLoading(null);
     }
@@ -111,7 +112,7 @@ export default function PendingPaymentManager({ addToast }: Props) {
       setCashAmount('');
       setCashDate('');
     } catch (e: unknown) {
-      addToast(e instanceof Error ? e.message : 'Cash payment failed', 'error');
+      addToast(formatApiError(e), 'error');
     } finally {
       setActionLoading(null);
     }

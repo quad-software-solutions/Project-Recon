@@ -2,6 +2,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 import { getToken, setTokens, clearTokens, getRefreshToken } from '@/shared/utils/auth';
 import { clearSessionStorage } from '@/shared/utils/storage';
 
+const REQUEST_TIMEOUT = 30_000;
+
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
   _isRetry?: boolean;
@@ -147,6 +149,10 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  if (!init.signal) {
+    init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
+  }
+
   const res = await fetch(url.toString(), {
     ...init,
     headers,
@@ -185,6 +191,10 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (!init.signal) {
+    init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
   }
 
   const res = await fetch(url.toString(), {

@@ -10,13 +10,14 @@ import ProductManager from './ProductManager';
 import InventoryManager from './InventoryManager';
 import OrderManager from './OrderManager';
 import PendingPaymentManager from './PendingPaymentManager';
-import { storeAdminApi, type LowStockReportRow, type SalesReportRow, type OrderReportRow, type ProductStatsReport, type InventoryReportRow } from '../api/storeAdminApi';
+import { storeAdminApi, type LowStockReportRow, type SalesReportRow, type OrderReportRow, type ProductStatsReport, type InventoryReportRow, type BranchSalesReportRow } from '../api/storeAdminApi';
 import type { Order } from '@/domains/store/model/types';
 import type { UserProfile } from '@/shared/types';
 import { canManageStore, canManageStoreInventory } from '@/shared/auth/permissions';
 import { formatMoney } from '@/domains/store/utils/formatMoney';
 import { getOrderStatusLabel, getOrderStatusTone } from '@/domains/store/utils/orderStatus';
 import { cn } from '@/shared/utils/cn';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 type Section = 'overview' | 'categories' | 'products' | 'inventory' | 'orders' | 'payments' | 'reports';
 
@@ -499,12 +500,14 @@ function OverviewPanel({
 }
 
 function ReportsPanel({ addToast }: { addToast: (msg: string, type: 'success' | 'error') => void }) {
-  const [tab, setTab] = useState<'products' | 'sales' | 'inventory' | 'lowstock'>('sales');
+  const [tab, setTab] = useState<'products' | 'sales' | 'inventory' | 'lowstock' | 'orders' | 'branches'>('sales');
   const [loading, setLoading] = useState(false);
   const [productStats, setProductStats] = useState<ProductStatsReport | null>(null);
   const [sales, setSales] = useState<SalesReportRow[]>([]);
   const [inventory, setInventory] = useState<InventoryReportRow[]>([]);
   const [lowStock, setLowStock] = useState<LowStockReportRow[]>([]);
+  const [ordersReport, setOrdersReport] = useState<OrderReportRow[]>([]);
+  const [branchSales, setBranchSales] = useState<BranchSalesReportRow[]>([]);
   const [groupBy, setGroupBy] = useState('day');
 
   useEffect(() => {
@@ -515,8 +518,10 @@ function ReportsPanel({ addToast }: { addToast: (msg: string, type: 'success' | 
         else if (tab === 'sales') setSales(await storeAdminApi.reports.sales({ group_by: groupBy }));
         else if (tab === 'inventory') setInventory(await storeAdminApi.reports.inventory());
         else if (tab === 'lowstock') setLowStock(await storeAdminApi.reports.lowStock());
+        else if (tab === 'orders') setOrdersReport(await storeAdminApi.reports.orders());
+        else if (tab === 'branches') setBranchSales(await storeAdminApi.reports.branchSales());
       } catch (e: unknown) {
-        addToast(e instanceof Error ? e.message : 'Failed to load report', 'error');
+        addToast(formatApiError(e), 'error');
       } finally {
         setLoading(false);
       }
@@ -525,6 +530,8 @@ function ReportsPanel({ addToast }: { addToast: (msg: string, type: 'success' | 
 
   const tabs = [
     { id: 'sales' as const, label: 'Sales', icon: TrendingUp },
+    { id: 'orders' as const, label: 'Orders', icon: ShoppingCart },
+    { id: 'branches' as const, label: 'Branches', icon: LayoutGrid },
     { id: 'products' as const, label: 'Products', icon: Package },
     { id: 'inventory' as const, label: 'Inventory', icon: Archive },
     { id: 'lowstock' as const, label: 'Low Stock', icon: AlertTriangle },
@@ -672,6 +679,48 @@ function ReportsPanel({ addToast }: { addToast: (msg: string, type: 'success' | 
                     <td className="py-2 text-xs font-mono text-brand-muted">{r.sku}</td>
                     <td className="py-2 text-right tabular-nums font-bold text-red-600">{r.quantity}</td>
                     <td className="py-2 text-right tabular-nums text-brand-muted">{r.minimum_quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        ) : tab === 'orders' ? (
+          ordersReport.length === 0 ? (
+            <div className="text-center py-12 text-sm text-brand-muted">No order report data.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-brand-muted border-b border-brand-border/50">
+                <th className="pb-2 font-semibold">Period</th>
+                <th className="pb-2 font-semibold text-right">Orders</th>
+                <th className="pb-2 font-semibold text-right">Value</th>
+              </tr></thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {ordersReport.map((r, i) => (
+                  <tr key={i} className="text-brand-ink">
+                    <td className="py-2 font-medium">{r.period ? new Date(r.period).toLocaleDateString() : 'N/A'}</td>
+                    <td className="py-2 text-right tabular-nums">{r.order_count}</td>
+                    <td className="py-2 text-right tabular-nums font-semibold text-brand-blue">{formatMoney(r.total_value ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        ) : tab === 'branches' ? (
+          branchSales.length === 0 ? (
+            <div className="text-center py-12 text-sm text-brand-muted">No branch sales data.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-brand-muted border-b border-brand-border/50">
+                <th className="pb-2 font-semibold">Branch</th>
+                <th className="pb-2 font-semibold text-right">Orders</th>
+                <th className="pb-2 font-semibold text-right">Revenue</th>
+              </tr></thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {branchSales.map((r, i) => (
+                  <tr key={i} className="text-brand-ink">
+                    <td className="py-2 font-medium">{r.branch_name}</td>
+                    <td className="py-2 text-right tabular-nums">{r.order_count}</td>
+                    <td className="py-2 text-right tabular-nums font-semibold text-brand-blue">{formatMoney(r.total_revenue)}</td>
                   </tr>
                 ))}
               </tbody>

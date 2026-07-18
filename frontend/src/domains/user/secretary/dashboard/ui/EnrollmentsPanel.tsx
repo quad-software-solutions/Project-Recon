@@ -12,8 +12,19 @@ import {
   moveEnrollmentApi, switchSubProgramApi,
   setUnderReviewApi, rejectPaymentApi,
 } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const PAGE_SIZE = 20;
+
+/** Online enrollments already create a payment row — staff cannot POST /payments/ again. */
+function hasExistingPayment(e: Enrollment): boolean {
+  return Boolean(e.payment_status);
+}
+
+function canRecordApproval(e: Enrollment): boolean {
+  return e.status === 'PENDING_VERIFICATION' && !hasExistingPayment(e);
+}
 
 type StatusTab = 'all' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
 
@@ -42,9 +53,7 @@ const tabs: { id: StatusTab; label: string }[] = [
 ];
 
 export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserProfile }) {
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
+  const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +63,18 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const [showPayment, setShowPayment] = useState<Enrollment | null>(null);
   const [showReject, setShowReject] = useState<Enrollment | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [paymentForm, setPaymentForm] = useState({ amount: '', payment_date: new Date().toISOString().slice(0, 10) });
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_method: 'CASH',
+    transaction_reference: '',
+    transfer_reference: '',
+    bank_name: '',
+  });
   const [error, setError] = useState<string | null>(null);
   const [statusTab, setStatusTab] = useState<StatusTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
   const [studentSearch, setStudentSearch] = useState('');
   const [studentResults, setStudentResults] = useState<StudentProfile[]>([]);
   const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
@@ -73,35 +90,60 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const [batchAmount, setBatchAmount] = useState('');
   const [batchRejectReason, setBatchRejectReason] = useState('');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [classesNote, setClassesNote] = useState<string | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-
-  const loadData = useCallback((p = 1) => {
+  const loadData = useCallback(() => {
     setLoading(true);
     setError(null);
     Promise.allSettled([
-      fetchEnrollmentsPaginatedApi(p, PAGE_SIZE),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p, 50), 40),
       fetchClassesApi().catch(() => [] as AcademicClass[]),
       fetchSubProgramsApi().catch(() => [] as SubProgram[]),
     ]).then(([enr, cls, sp]) => {
-      if (enr.status === 'fulfilled') {
-        setEnrollments(enr.value.results || []);
-        setTotalCount(enr.value.count);
+      const rows = enr.status === 'fulfilled' && Array.isArray(enr.value) ? enr.value : [];
+      if (enr.status === 'rejected') {
+        setError(formatApiError(enr.reason));
+        setAllEnrollments([]);
       } else {
-        const reason = enr.reason;
-        console.error('[EnrollmentsPanel] fetch failed:', reason);
-        setError(typeof reason === 'string' ? reason : reason?.message || 'Failed to load enrollments');
+        setAllEnrollments(rows);
       }
-      if (cls.status === 'fulfilled') {
-        setClasses((Array.isArray(cls.value) ? cls.value : []).filter(c => c.is_active !== false));
+
+      let classRows = cls.status === 'fulfilled'
+        ? (Array.isArray(cls.value) ? cls.value : []).filter(c => c.is_active !== false)
+        : [];
+
+      if (classRows.length === 0 && rows.length > 0) {
+        const seen = new Map<string, AcademicClass>();
+        for (const e of rows) {
+          if (!e.enrolled_class || seen.has(e.enrolled_class)) continue;
+          seen.set(e.enrolled_class, {
+            id: e.enrolled_class,
+            name: e.class_name || 'Class',
+            sub_program: '',
+            branch: '',
+            branch_name: e.branch_name,
+            class_type: 'GROUP',
+            is_active: true,
+          } as AcademicClass);
+        }
+        classRows = [...seen.values()];
+        if (classRows.length > 0) {
+          setClassesNote('Showing classes from existing enrollments. Full class catalog requires Branch Manager access.');
+        } else {
+          setClassesNote('Class catalog is not available for Secretary. Ask a Branch Manager to create classes or enroll students into new classes.');
+        }
+      } else {
+        setClassesNote(null);
       }
+      setClasses(classRows);
+
       if (sp.status === 'fulfilled') {
         setSubPrograms(Array.isArray(sp.value) ? sp.value : []);
       }
     }).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadData(page); }, [page, loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     if (showEnroll) fetchStudentsApi().then(setAllStudents).catch(() => {});
@@ -123,23 +165,27 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setTimeout(() => setActionSuccess(null), 3000);
   };
 
+  const patchEnrollment = (id: string, patch: Partial<Enrollment>) => {
+    setAllEnrollments(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  };
+
   const handleCancel = async (id: string) => {
     try {
       await cancelEnrollmentApi(id);
-      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'CANCELLED' as const } : e));
+      patchEnrollment(id, { status: 'CANCELLED' });
       flashSuccess('Enrollment cancelled');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to cancel enrollment');
+      setError(formatApiError(e));
     }
   };
 
   const handleComplete = async (id: string) => {
     try {
       await completeEnrollmentApi(id);
-      setEnrollments(prev => prev.map(e => e.id === id ? { ...e, status: 'COMPLETED' as const } : e));
+      patchEnrollment(id, { status: 'COMPLETED' });
       flashSuccess('Enrollment marked completed');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to complete enrollment');
+      setError(formatApiError(e));
     }
   };
 
@@ -149,14 +195,16 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setError(null);
     try {
       await rejectPaymentApi(showReject.id, { rejection_reason: rejectReason.trim() });
-      setEnrollments(prev => prev.map(e =>
-        e.id === showReject.id ? { ...e, status: 'REJECTED' as const, verification_status: 'REJECTED' as const, rejection_reason: rejectReason.trim() } : e
-      ));
+      patchEnrollment(showReject.id, {
+        status: 'REJECTED',
+        verification_status: 'REJECTED',
+        rejection_reason: rejectReason.trim(),
+      });
       setShowReject(null);
       setRejectReason('');
       flashSuccess('Enrollment rejected');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to reject');
+      setError(formatApiError(e));
       setShowReject(null);
     } finally {
       setSubmitting(false);
@@ -172,17 +220,20 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === pendingFiltered.length) {
+    if (selectedIds.size === selectablePending.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(pendingFiltered.map(e => e.id)));
+      setSelectedIds(new Set(selectablePending.map(e => e.id)));
     }
   };
 
   const clearSelection = () => setSelectedIds(new Set());
 
   const handleBatchApprove = async () => {
-    const ids = [...selectedIds];
+    const ids = [...selectedIds].filter(id => {
+      const row = allEnrollments.find(e => e.id === id);
+      return row && canRecordApproval(row);
+    });
     if (!ids.length || !batchAmount) return;
     setSubmitting(true);
     setError(null);
@@ -193,12 +244,10 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
           enrollment: id, amount: batchAmount, payment_method: 'CASH',
           payment_date: new Date().toISOString().slice(0, 10),
         });
-        setEnrollments(prev => prev.map(e =>
-          e.id === id ? { ...e, status: 'ACTIVE' as const, payment_status: 'PAID' as const } : e
-        ));
+        patchEnrollment(id, { status: 'ACTIVE', payment_status: 'PAID', verification_status: 'VERIFIED' });
         success++;
       } catch (e) {
-        setError(e instanceof Error ? e.message : `Failed to approve ${id}`);
+        setError(formatApiError(e));
       }
     }
     setSelectedIds(new Set());
@@ -217,12 +266,14 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     for (const id of ids) {
       try {
         await rejectPaymentApi(id, { rejection_reason: batchRejectReason.trim() });
-        setEnrollments(prev => prev.map(e =>
-          e.id === id ? { ...e, status: 'REJECTED' as const, verification_status: 'REJECTED' as const, rejection_reason: batchRejectReason.trim() } : e
-        ));
+        patchEnrollment(id, {
+          status: 'REJECTED',
+          verification_status: 'REJECTED',
+          rejection_reason: batchRejectReason.trim(),
+        });
         success++;
       } catch (e) {
-        setError(e instanceof Error ? e.message : `Failed to reject ${id}`);
+        setError(formatApiError(e));
       }
     }
     setSelectedIds(new Set());
@@ -235,33 +286,42 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const handleUnderReview = async (id: string) => {
     try {
       await setUnderReviewApi(id);
-      setEnrollments(prev => prev.map(e =>
-        e.id === id ? { ...e, verification_status: 'UNDER_REVIEW' as const } : e
-      ));
+      patchEnrollment(id, { verification_status: 'UNDER_REVIEW' });
       flashSuccess('Marked as under review');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to mark as under review');
+      setError(formatApiError(e));
     }
   };
 
   const handleCashPayment = async () => {
     if (!showPayment || !paymentForm.amount) return;
+    if (hasExistingPayment(showPayment)) {
+      setError('This enrollment already has a submitted payment. Use Under Review or Reject — recording a second payment is not allowed by the API.');
+      setShowPayment(null);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       await recordPaymentApi({
         enrollment: showPayment.id,
         amount: paymentForm.amount,
-        payment_method: 'CASH',
+        payment_method: paymentForm.payment_method,
         payment_date: paymentForm.payment_date || undefined,
+        transaction_reference: paymentForm.payment_method === 'CASH' ? undefined : paymentForm.transaction_reference || undefined,
+        transfer_reference: paymentForm.payment_method === 'CASH' ? undefined : paymentForm.transfer_reference || undefined,
+        bank_name: paymentForm.payment_method === 'CASH' ? undefined : paymentForm.bank_name || undefined,
       });
-      setEnrollments(prev => prev.map(e =>
-        e.id === showPayment.id ? { ...e, status: 'ACTIVE' as const, payment_status: 'PAID' as const, payment_method: 'CASH' as const } : e
-      ));
+      patchEnrollment(showPayment.id, {
+        status: 'ACTIVE',
+        payment_status: 'PAID',
+        payment_method: paymentForm.payment_method as Enrollment['payment_method'],
+        verification_status: 'VERIFIED',
+      });
       setShowPayment(null);
       flashSuccess('Enrollment approved — payment recorded');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to record payment');
+      setError(formatApiError(e));
       setShowPayment(null);
     } finally {
       setSubmitting(false);
@@ -280,16 +340,16 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     try {
       if (classAction.mode === 'move') {
         const updated = await moveEnrollmentApi(classAction.enrollment.id, { target_class: targetClassId });
-        setEnrollments(prev => prev.map(e => e.id === updated.id ? updated : e));
+        setAllEnrollments(prev => prev.map(e => e.id === updated.id ? updated : e));
       } else {
         await switchSubProgramApi(classAction.enrollment.id, { target_class: targetClassId });
       }
       setClassAction(null);
       setTargetClassId('');
-      loadData(page);
+      loadData();
       flashSuccess(`Enrollment ${classAction.mode === 'move' ? 'moved' : 'switched'}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : `Failed to ${classAction.mode} enrollment`);
+      setError(formatApiError(e));
       setClassAction(null);
     } finally {
       setClassActionBusy(false);
@@ -302,27 +362,26 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setError(null);
     try {
       const enrollment = await enrollStudentApi(form);
-      setTotalCount(prev => prev + 1);
-      setEnrollments(prev => [enrollment, ...prev]);
+      setAllEnrollments(prev => [enrollment, ...prev]);
       setForm(prev => ({ ...prev, remarks: '', student: '' }));
       setStudentSearch('');
       setStudentResults([]);
       setShowEnroll(false);
-      flashSuccess('Student enrolled successfully');
+      flashSuccess('Student enrolled successfully — record cash payment to activate');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to enroll student');
+      setError(formatApiError(e));
     } finally {
       setSubmitting(false);
     }
   };
 
   const statusCounts = useMemo(() => ({
-    ACTIVE: enrollments.filter(e => e.status === 'ACTIVE').length,
-    PENDING_VERIFICATION: enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length,
-    COMPLETED: enrollments.filter(e => e.status === 'COMPLETED').length,
-    CANCELLED: enrollments.filter(e => e.status === 'CANCELLED').length,
-    REJECTED: enrollments.filter(e => e.status === 'REJECTED').length,
-  }), [enrollments]);
+    ACTIVE: allEnrollments.filter(e => e.status === 'ACTIVE').length,
+    PENDING_VERIFICATION: allEnrollments.filter(e => e.status === 'PENDING_VERIFICATION').length,
+    COMPLETED: allEnrollments.filter(e => e.status === 'COMPLETED').length,
+    CANCELLED: allEnrollments.filter(e => e.status === 'CANCELLED').length,
+    REJECTED: allEnrollments.filter(e => e.status === 'REJECTED').length,
+  }), [allEnrollments]);
 
   const feeMap = useMemo(() => {
     const map = new Map<string, { group_fee: number; individual_fee?: number | null }>();
@@ -341,28 +400,47 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     return amounts.length ? `Suggested: ${amounts[0]} Birr` : null;
   };
 
-  const pendingFiltered = useMemo(() =>
-    enrollments.filter(e => e.status === 'PENDING_VERIFICATION'),
-  [enrollments]);
-
   const filtered = useMemo(() =>
-    enrollments.filter(e => {
+    allEnrollments.filter(e => {
       if (statusTab !== 'all' && e.status !== statusTab) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const haystack = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''} ${e.pending_code || ''} ${e.student_email || ''}`.toLowerCase();
+        const haystack = `${e.student_name || ''} ${e.class_name || ''} ${e.sub_program_name || ''} ${e.pending_code || ''} ${e.student_email || ''} ${e.branch_name || ''}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     }),
-    [enrollments, statusTab, searchQuery]
+    [allEnrollments, statusTab, searchQuery]
+  );
+
+  const totalCount = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const enrollments = useMemo(
+    () => filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE),
+    [filtered, pageSafe],
+  );
+
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds(new Set());
+  }, [statusTab, searchQuery]);
+
+  const pendingFiltered = useMemo(() =>
+    filtered.filter(e => e.status === 'PENDING_VERIFICATION'),
+  [filtered]);
+
+  const selectablePending = useMemo(
+    () => pendingFiltered.filter(e => canRecordApproval(e) || hasExistingPayment(e)),
+    [pendingFiltered],
   );
 
   const exportCsv = () => {
-    const headers = ['Student', 'Email', 'Class', 'Program', 'Branch', 'Reference', 'Date', 'Status', 'Payment'];
+    const headers = ['Student', 'Email', 'Class', 'Program', 'Branch', 'Reference', 'Date', 'Status', 'Verification', 'Payment'];
     const rows = filtered.map(e => [
       e.student_name || '', e.student_email || '', e.class_name || '', e.sub_program_name || '', e.branch_name || '',
-      e.pending_code || e.enrollment_number || '', e.enrolled_at?.slice(0, 10) || '', e.status, e.payment_status || '',
+      e.pending_code || e.enrollment_number || '', e.enrolled_at?.slice(0, 10) || '', e.status,
+      e.verification_status || '', e.payment_status || '',
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -377,13 +455,13 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-bold text-lg text-slate-900">Enrollments</h2>
-          <p className="text-xs text-slate-500 mt-0.5">{totalCount} total · {statusCounts.PENDING_VERIFICATION} pending</p>
+          <p className="text-xs text-slate-500 mt-0.5">{allEnrollments.length} total · {statusCounts.PENDING_VERIFICATION} pending verification</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
-          <button onClick={() => loadData(page)} disabled={loading}
+          <button onClick={() => loadData()} disabled={loading}
             className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -394,6 +472,19 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
           )}
         </div>
       </div>
+
+      {classesNote && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          {classesNote}
+        </div>
+      )}
+
+      {statusCounts.PENDING_VERIFICATION > 0 && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50/80 px-4 py-2.5 text-xs text-blue-800">
+          <strong>Pending tip:</strong> Online applications already include a payment slip — use Under Review / Reject.
+          Walk-in or staff enrollments without a payment use Approve to record cash (or bank) and activate.
+        </div>
+      )}
 
       {/* ── Flash messages ── */}
       <AnimatePresence>
@@ -409,7 +500,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs text-red-700">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
           <div className="flex-1" />
-          <button onClick={() => loadData(page)} className="text-xs font-semibold underline hover:no-underline shrink-0">Retry</button>
+          <button onClick={() => loadData()} className="text-xs font-semibold underline hover:no-underline shrink-0">Retry</button>
           <button onClick={() => setError(null)} className="p-0.5 rounded hover:bg-red-100"><X className="w-3 h-3" /></button>
         </div>
       )}
@@ -455,10 +546,15 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
           <div className="flex-1" />
           <button onClick={clearSelection} className="text-[11px] text-slate-300 hover:text-white transition-colors">Clear</button>
           <div className="w-px h-4 bg-slate-700" />
-          <button onClick={() => setShowBatchApprove(true)}
-            className="flex items-center gap-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-colors">
-            <DollarSign className="w-3 h-3" /> Approve All
-          </button>
+          {[...selectedIds].some(id => {
+            const row = allEnrollments.find(e => e.id === id);
+            return row && canRecordApproval(row);
+          }) && (
+            <button onClick={() => setShowBatchApprove(true)}
+              className="flex items-center gap-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-colors">
+              <DollarSign className="w-3 h-3" /> Approve (cash)
+            </button>
+          )}
           <button onClick={() => setShowBatchReject(true)}
             className="flex items-center gap-1.5 text-[11px] font-bold bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg transition-colors">
             <ThumbsDown className="w-3 h-3" /> Reject All
@@ -473,7 +569,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="w-10 px-2 py-3 text-center">
-                  <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === pendingFiltered.length}
+                  <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === selectablePending.length && selectablePending.length > 0}
                     onChange={toggleSelectAll}
                     className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                 </th>
@@ -507,11 +603,15 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                     )}
                   </div>
                 </td></tr>
-              ) : filtered.map(e => (
+              ) : enrollments.map(e => (
                 <tr key={e.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(e.id) ? 'bg-blue-50/50' : ''}`}>
                   <td className="px-2 py-3 text-center">
-                    <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    {e.status === 'PENDING_VERIFICATION' ? (
+                      <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    ) : (
+                      <span className="inline-block w-3.5" />
+                    )}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2.5">
@@ -557,10 +657,24 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                               <Clock className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          <button onClick={() => { setPaymentForm(p => ({ ...p, amount: '' })); setShowPayment(e); }}
-                            className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors" title="Approve & record payment">
-                            <DollarSign className="w-3.5 h-3.5" />
-                          </button>
+                          {canRecordApproval(e) ? (
+                            <button onClick={() => {
+                              setPaymentForm({
+                                amount: '',
+                                payment_date: new Date().toISOString().slice(0, 10),
+                                payment_method: 'CASH',
+                                transaction_reference: '',
+                                transfer_reference: '',
+                                bank_name: '',
+                              });
+                              setShowPayment(e);
+                            }}
+                              className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors" title="Approve & record payment">
+                              <DollarSign className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded" title="Payment already submitted online">Paid slip</span>
+                          )}
                           <button onClick={() => { setShowReject(e); setRejectReason(''); }}
                             className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Reject">
                             <ThumbsDown className="w-3.5 h-3.5" />
@@ -601,14 +715,14 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50">
-          <span className="text-[11px] text-slate-500">{totalCount} total</span>
+          <span className="text-[11px] text-slate-500">Showing {enrollments.length} of {totalCount} filtered · {allEnrollments.length} loaded</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => { setPage(p => Math.max(1, p - 1)); }} disabled={page <= 1}
+            <button onClick={() => { setPage(p => Math.max(1, p - 1)); }} disabled={pageSafe <= 1}
               className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-[11px] font-mono text-slate-600 px-2">{page} / {totalPages}</span>
-            <button onClick={() => { setPage(p => Math.min(totalPages, p + 1)); }} disabled={page >= totalPages}
+            <span className="text-[11px] font-mono text-slate-600 px-2">{pageSafe} / {totalPages}</span>
+            <button onClick={() => { setPage(p => Math.min(totalPages, p + 1)); }} disabled={pageSafe >= totalPages}
               className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -750,6 +864,41 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                       onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10" />
                   </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Method</label>
+                    <select value={paymentForm.payment_method}
+                      onChange={e => setPaymentForm(p => ({ ...p, payment_method: e.target.value }))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                      <option value="CASH">Cash</option>
+                      <option value="BANK_TRANSFER">Bank transfer</option>
+                      <option value="MOBILE_MONEY">Mobile money</option>
+                    </select>
+                  </div>
+                  {paymentForm.payment_method !== 'CASH' && (
+                    <>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Transaction reference</label>
+                        <input value={paymentForm.transaction_reference}
+                          onChange={e => setPaymentForm(p => ({ ...p, transaction_reference: e.target.value }))}
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                          placeholder="Optional bank/TXN ref" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Transfer reference</label>
+                        <input value={paymentForm.transfer_reference}
+                          onChange={e => setPaymentForm(p => ({ ...p, transfer_reference: e.target.value }))}
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                          placeholder="Optional transfer ref" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Bank name</label>
+                        <input value={paymentForm.bank_name}
+                          onChange={e => setPaymentForm(p => ({ ...p, bank_name: e.target.value }))}
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                          placeholder="Optional" />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
                   <button onClick={() => setShowPayment(null)}
@@ -836,9 +985,19 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                 <div className="p-5 space-y-4">
                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-start gap-2">
                     <Mail className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>Each student will receive a confirmation email once approved.</span>
+                    <span>Records cash payment and activates enrollments that do not already have a payment slip. Online applications with a submitted payment are skipped.</span>
                   </div>
-                  <p className="text-xs text-slate-500">This will approve <strong>{selectedIds.size}</strong> enrollment{selectedIds.size > 1 ? 's' : ''} with the same payment amount.</p>
+                  {(() => {
+                    const approveCount = [...selectedIds].filter(id => {
+                      const row = allEnrollments.find(e => e.id === id);
+                      return row && canRecordApproval(row);
+                    }).length;
+                    return (
+                      <p className="text-xs text-slate-500">
+                        Will approve <strong>{approveCount}</strong> of {selectedIds.size} selected (same cash amount each).
+                      </p>
+                    );
+                  })()}
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Amount (Birr) per enrollment</label>
                     <input type="number" step="0.01" min="0" value={batchAmount}
@@ -853,7 +1012,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                   <button onClick={handleBatchApprove} disabled={submitting || !batchAmount}
                     className="bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors shadow-sm">
                     {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {submitting ? 'Processing...' : `Approve ${selectedIds.size} enrollment${selectedIds.size > 1 ? 's' : ''}`}
+                    {submitting ? 'Processing...' : 'Approve selected'}
                   </button>
                 </div>
               </div>

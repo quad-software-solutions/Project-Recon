@@ -3,6 +3,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import type { Enrollment, EnrollmentPayment } from '@/shared/types';
 import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 export default function AdminRegistrationsPanel() {
   const [registrations, setRegistrations] = useState<Enrollment[]>([]);
@@ -16,7 +17,7 @@ export default function AdminRegistrationsPanel() {
         setRegistrations(enrollmentData);
         setPayments(paymentData);
       })
-      .catch(err => setError(err instanceof Error ? err.message : 'Could not load enrollments.'))
+      .catch(err => setError(formatApiError(err)))
       .finally(() => setLoading(false));
   }, []);
 

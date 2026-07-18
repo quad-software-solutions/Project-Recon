@@ -8,7 +8,7 @@ import {
   fetchStudentCertificatesApi,
 } from '@/domains/learning/academics/api/academicApi';
 import { getMyRegistrations } from '@/domains/competition/api/competitionApi';
-import { cacheStudentId } from '@/domains/user/student/api/studentContext';
+import { cacheStudentId, resolveStudentId } from '@/domains/user/student/api/studentContext';
 import { getCachedStudentId } from '@/shared/utils/storage';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';
@@ -103,13 +103,11 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return;
       }
 
-      try {
-        const certs = await fetchStudentCertificatesApi();
-        if (certs.length > 0 && certs[0].student) {
-          await tryLoadForId(certs[0].student);
-          return;
-        }
-      } catch { /* no certificates */ }
+      const resolved = await resolveStudentId(currentUser.email, currentUser.id);
+      if (resolved) {
+        await tryLoadForId(resolved);
+        return;
+      }
 
       await loadSupplementaryStats();
       finish();

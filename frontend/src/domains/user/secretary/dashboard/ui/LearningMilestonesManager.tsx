@@ -4,6 +4,7 @@ import { Plus, Search, X, Loader2, AlertCircle, Target, BookOpen, Archive, Filte
 import { LearningMilestone, UserProfile } from '@/shared/types';
 import { fetchMilestonesApi, createMilestoneApi, updateMilestoneApi, archiveMilestoneApi, fetchSubProgramsApi, fetchClassesApi } from '@/domains/learning/academics/api/academicApi';
 import { isInstructor } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const defaultForm = {
   sub_program: '', title: '', description: '', scope_class: '',
@@ -69,7 +70,7 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
       setForm(defaultForm);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save milestone');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -80,7 +81,7 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
       await archiveMilestoneApi(id);
       setMilestones(prev => prev.filter(m => m.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to archive milestone');
+      setError(formatApiError(e));
     }
   };
 

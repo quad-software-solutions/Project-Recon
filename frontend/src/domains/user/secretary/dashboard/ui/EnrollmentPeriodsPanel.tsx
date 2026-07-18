@@ -4,6 +4,7 @@ import { Plus, Search, X, Loader2, AlertCircle, Calendar, Clock, CheckCircle2, R
 import { EnrollmentPeriod, UserProfile } from '@/shared/types';
 import { fetchEnrollmentPeriodsApi, createEnrollmentPeriodApi, updateEnrollmentPeriodApi, setEnrollmentPeriodActiveApi, fetchProgramsApi, fetchSubProgramsApi } from '@/domains/learning/academics/api/academicApi';
 import { branchesApi } from '@/domains/user/shared/api/adminApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const defaultForm = {
   branch: '', program: '', sub_program: '', class_type: 'GROUP', class_period: '', title: '', start_date: '', end_date: '',
@@ -77,7 +78,7 @@ export default function EnrollmentPeriodsPanel({ currentUser }: { currentUser?: 
       setForm(defaultForm);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save enrollment period');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -88,7 +89,7 @@ export default function EnrollmentPeriodsPanel({ currentUser }: { currentUser?: 
       await setEnrollmentPeriodActiveApi(p.id, p.is_active === false);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to toggle period');
+      setError(formatApiError(e));
     }
   };
 

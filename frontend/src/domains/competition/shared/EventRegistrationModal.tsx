@@ -10,6 +10,7 @@ import {
   getRegistrationEligibility,
   REGISTRATION_MODE_LABELS,
 } from './eventRegistrationUtils';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface EventRegistrationModalProps {
   event: Tournament | Workshop;
@@ -122,7 +123,7 @@ export default function EventRegistrationModal({
       setSuccess(true);
       onSuccess(event.id);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(formatApiError(err));
     } finally {
       setSubmitting(false);
     }

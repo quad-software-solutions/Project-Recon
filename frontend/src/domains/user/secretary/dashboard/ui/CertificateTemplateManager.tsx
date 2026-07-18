@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Award, FileText, Eye, Image, RotateCcw, Shield, CheckCircle2, Upload } from 'lucide-react';
 import { Certificate } from '@/shared/types';
 import { fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi, setCertificateTemplateActiveApi, fetchSubProgramsApi, decodeBodyWithSignatory } from '@/domains/learning/academics/api/academicApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface TemplateForm {
   sub_program: string;
@@ -106,7 +107,7 @@ export default function CertificateTemplateManager() {
       resetFileState();
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save template');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -117,7 +118,7 @@ export default function CertificateTemplateManager() {
       await setCertificateTemplateActiveApi(t.id, t.is_active === false);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to toggle template');
+      setError(formatApiError(e));
     }
   };
 
