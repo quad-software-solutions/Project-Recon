@@ -97,6 +97,12 @@ export function resolveRole(assignments: UserAssignmentNested[]): string {
 
 /* ─── USER API ─── */
 
+export async function uploadProfilePictureApi(userId: string, file: File): Promise<AdminUserResponse> {
+  const fd = new FormData();
+  fd.append('profile_picture', file);
+  return http.patch<AdminUserResponse>(`/accounts/users/${userId}/`, fd);
+}
+
 export async function fetchAllUsersApi(): Promise<AdminUserResponse[]> {
   return fetchAllPages(page =>
     http.get<PaginatedResponse<AdminUserResponse>>('/accounts/users/', {

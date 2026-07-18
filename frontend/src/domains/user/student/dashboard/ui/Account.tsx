@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  User, Mail, Phone, Calendar, BookOpen, CheckCircle2,
+  User, Mail, Phone, Calendar, BookOpen, CheckCircle2, Camera,
   Edit3, Save, X, Loader2, Shield, Star, Target, Lock, Monitor, Smartphone, LogOut,
 } from 'lucide-react';
 import type { UserProfile } from '@/shared/types';
-import { updateUserApi } from '@/domains/user/shared/api/adminApi';
+import { updateUserApi, uploadProfilePictureApi } from '@/domains/user/shared/api/adminApi';
 import { securityApi } from '@/domains/auth/login/api/securityApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
@@ -19,7 +19,9 @@ interface Props {
 export default function Account({ currentUser, onUserUpdate }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     first_name: currentUser.first_name || currentUser.name.split(' ')[0] || '',
@@ -58,6 +60,24 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
       setError(formatApiError(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadPicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser.id) return;
+    if (!file.type.startsWith('image/')) { setError('Only image files are allowed.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB.'); return; }
+    setUploading(true);
+    setError('');
+    try {
+      const updated = await uploadProfilePictureApi(currentUser.id, file);
+      onUserUpdate?.({ ...currentUser, profile_picture: updated.profile_picture || currentUser.profile_picture });
+    } catch (e) {
+      setError(formatApiError(e));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -139,8 +159,16 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
           </button>
         )}
 
-        <div className="w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-slate-50 shadow-md shrink-0">
+        <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-slate-50 shadow-md shrink-0 group">
           <img src={currentUser.profile_picture || profileImg} alt="" className="w-full h-full object-cover" />
+          <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity rounded-full">
+            {uploading ? (
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+            ) : (
+              <Camera className="w-6 h-6 text-white" />
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadPicture} className="hidden" />
+          </label>
         </div>
 
         <div className="flex flex-col flex-1 text-center md:text-left w-full">
