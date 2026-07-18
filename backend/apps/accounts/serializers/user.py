@@ -103,9 +103,12 @@ class CreateStaffUserSerializer(serializers.Serializer):
     def validate_role(self, value):
         request = self.context.get("request")
         if request and not request.user.is_anonymous:
-            from apps.accounts.permissions.roles import user_is_super_admin
-            if not user_is_super_admin(request.user) and value == Roles.SUPER_ADMIN:
-                raise serializers.ValidationError("Cannot assign Super Admin role.")
+            from apps.accounts.permissions.roles import user_is_super_admin, user_is_branch_manager
+            if not user_is_super_admin(request.user):
+                if value == Roles.SUPER_ADMIN:
+                    raise serializers.ValidationError("Cannot assign Super Admin role.")
+                if user_is_branch_manager(request.user) and value == Roles.BRANCH_MANAGER:
+                    raise serializers.ValidationError("Cannot assign Branch Manager role.")
         return value
 
     def validate_phone_number(self, value):

@@ -19,6 +19,7 @@ from apps.accounts.serializers.auth import (
     TokenPairSerializer,
 )
 from apps.accounts.api.throttles import (
+    ChangePasswordUserThrottle,
     ForgotPasswordAnonThrottle,
     LoginAnonThrottle,
     OTPRequestUserThrottle,
@@ -318,6 +319,7 @@ class ChangePasswordView(generics.UpdateAPIView):
 
     serializer_class = ChangePasswordSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ChangePasswordUserThrottle]
 
     def get_object(self):
         return self.request.user

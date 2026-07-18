@@ -49,7 +49,7 @@ class AuthAPITestCase(AccountsAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_logout_blacklists_refresh_token(self):
-        self.authenticate_as()
+        self.authenticate_as(self.student)
         login_resp = self._login()
         refresh = login_resp.json()["refresh"]
         response = self.client.post(

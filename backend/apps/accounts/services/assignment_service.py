@@ -89,7 +89,7 @@ def assign_role(user, role, branch, assigned_by=None, is_primary=False):
             is_primary=is_primary,
             assigned_by=assigned_by,
         )
-        log_action(assigned_by, "assignment.created", "UserAssignment", assignment.id, branch=assignment.branch)
+        log_action(assigned_by, "ASSIGNMENT_CREATED", "UserAssignment", assignment.id, branch=assignment.branch)
         
         return assignment
 
