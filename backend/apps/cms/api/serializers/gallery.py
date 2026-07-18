@@ -41,3 +41,12 @@ class GalleryAdminSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate(self, attrs):
+        image = attrs.get("image")
+        video_url = attrs.get("video_url")
+        if image and video_url:
+            raise serializers.ValidationError(
+                "Only one of image or video_url may be provided, not both."
+            )
+        return attrs

@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 
 from apps.cms.constants import PartnerType
+from apps.shared.validators import HttpsUrlValidator, UploadedFileValidator
 
 
 def partner_upload_to(instance, filename):
@@ -13,8 +14,14 @@ class Partner(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
-    image = models.ImageField(upload_to=partner_upload_to)
-    website_url = models.URLField(max_length=500, null=True, blank=True)
+    image = models.ImageField(
+        upload_to=partner_upload_to,
+        validators=[UploadedFileValidator()],
+    )
+    website_url = models.URLField(
+        max_length=500, null=True, blank=True,
+        validators=[HttpsUrlValidator()],
+    )
     type = models.CharField(
         max_length=20,
         choices=PartnerType.choices,

@@ -2,6 +2,8 @@ import uuid
 
 from django.db import models
 
+from apps.shared.validators import UploadedFileValidator
+
 
 def about_upload_to(instance, filename):
     return f"cms/about/{uuid.uuid4().hex}/{filename}"
@@ -12,7 +14,10 @@ class AboutUs(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True, db_index=True)
     description = models.TextField()
-    image = models.ImageField(upload_to=about_upload_to, null=True, blank=True)
+    image = models.ImageField(
+        upload_to=about_upload_to, null=True, blank=True,
+        validators=[UploadedFileValidator()],
+    )
     mission = models.TextField(blank=True, default="")
     vision = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True, db_index=True)

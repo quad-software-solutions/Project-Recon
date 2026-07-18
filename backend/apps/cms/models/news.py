@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 
 from apps.cms.constants import NewsType
+from apps.shared.validators import HttpsUrlValidator, UploadedFileValidator
 
 
 def news_upload_to(instance, filename):
@@ -15,10 +16,19 @@ class NewsArticle(models.Model):
     slug = models.SlugField(max_length=300, unique=True, db_index=True)
     summary = models.TextField(blank=True, default="")
     content = models.TextField()
-    image = models.ImageField(upload_to=news_upload_to, null=True, blank=True)
-    video_url = models.URLField(max_length=500, null=True, blank=True)
+    image = models.ImageField(
+        upload_to=news_upload_to, null=True, blank=True,
+        validators=[UploadedFileValidator()],
+    )
+    video_url = models.URLField(
+        max_length=500, null=True, blank=True,
+        validators=[HttpsUrlValidator()],
+    )
     button_text = models.CharField(max_length=100, null=True, blank=True)
-    button_url = models.URLField(max_length=500, null=True, blank=True)
+    button_url = models.URLField(
+        max_length=500, null=True, blank=True,
+        validators=[HttpsUrlValidator()],
+    )
     type = models.CharField(
         max_length=20,
         choices=NewsType.choices,

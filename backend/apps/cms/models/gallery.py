@@ -6,6 +6,8 @@ Supports both photo uploads and video links for the CMS gallery.
 import uuid
 from django.db import models
 
+from apps.shared.validators import HttpsUrlValidator, UploadedFileValidator
+
 
 def gallery_upload_to(instance, filename):
     """Generate upload path for gallery images."""
@@ -18,8 +20,14 @@ class Gallery(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True, default="")
-    image = models.ImageField(upload_to=gallery_upload_to, null=True, blank=True)
-    video_url = models.URLField(max_length=500, null=True, blank=True)
+    image = models.ImageField(
+        upload_to=gallery_upload_to, null=True, blank=True,
+        validators=[UploadedFileValidator()],
+    )
+    video_url = models.URLField(
+        max_length=500, null=True, blank=True,
+        validators=[HttpsUrlValidator()],
+    )
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)

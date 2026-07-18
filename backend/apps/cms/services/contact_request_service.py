@@ -3,6 +3,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.cms.models import ContactRequest
 from apps.cms.constants import ContactStatus, ContactPriority
+from apps.shared.audit.services import log_action
 
 
 def get_contact_request_or_404(pk):
@@ -16,7 +17,7 @@ def list_contact_requests():
     return ContactRequest.objects.all()
 
 
-def create_contact_request(data: dict) -> ContactRequest:
+def create_contact_request(data: dict, actor=None) -> ContactRequest:
     if not data.get("name", "").strip():
         raise ValidationError("Name is required.")
     if not data.get("email", "").strip():
@@ -26,7 +27,9 @@ def create_contact_request(data: dict) -> ContactRequest:
     if not data.get("description", "").strip():
         raise ValidationError("Description is required.")
     with transaction.atomic():
-        return ContactRequest.objects.create(**data)
+        request_obj = ContactRequest.objects.create(**data)
+        log_action(actor, "CREATE_CONTACT_REQUEST", "ContactRequest", request_obj.id)
+        return request_obj
 
 
 def update_contact_request(
@@ -42,9 +45,11 @@ def update_contact_request(
         for key, value in updates.items():
             setattr(request_obj, key, value)
         request_obj.save(update_fields=list(updates.keys()))
+    log_action(actor, "UPDATE_CONTACT_REQUEST", "ContactRequest", request_obj.id)
     return request_obj
 
 
 def delete_contact_request(request_obj: ContactRequest, actor=None) -> None:
     with transaction.atomic():
+        log_action(actor, "DELETE_CONTACT_REQUEST", "ContactRequest", request_obj.id)
         request_obj.delete()

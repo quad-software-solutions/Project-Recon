@@ -9,6 +9,7 @@ import uuid
 from django.db import models
 
 from apps.cms.constants import MapNodeCategory
+from apps.shared.validators import UploadedFileValidator
 
 
 def map_node_upload_to(instance, filename):
@@ -47,6 +48,7 @@ class MapNode(models.Model):
         upload_to=map_node_upload_to,
         null=True,
         blank=True,
+        validators=[UploadedFileValidator()],
     )
     category = models.CharField(
         max_length=20,

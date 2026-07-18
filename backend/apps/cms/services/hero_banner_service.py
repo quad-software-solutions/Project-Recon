@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.cms.models import HeroBanner
+from apps.shared.audit.services import log_action
 
 
 def get_hero_banner_or_404(pk):
@@ -24,7 +25,9 @@ def create_hero_banner(data: dict, actor=None) -> HeroBanner:
     _validate_media_conflict(data)
     _validate_button(data)
     with transaction.atomic():
-        return HeroBanner.objects.create(**data)
+        banner = HeroBanner.objects.create(**data)
+        log_action(actor, "CREATE_HERO_BANNER", "HeroBanner", banner.id)
+        return banner
 
 
 def update_hero_banner(banner: HeroBanner, data: dict, actor=None) -> HeroBanner:
@@ -36,11 +39,13 @@ def update_hero_banner(banner: HeroBanner, data: dict, actor=None) -> HeroBanner
         for key, value in data.items():
             setattr(banner, key, value)
         banner.save(update_fields=list(data.keys()))
+    log_action(actor, "UPDATE_HERO_BANNER", "HeroBanner", banner.id)
     return banner
 
 
 def delete_hero_banner(banner: HeroBanner, actor=None) -> None:
     with transaction.atomic():
+        log_action(actor, "DELETE_HERO_BANNER", "HeroBanner", banner.id)
         banner.delete()
 
 

@@ -1,12 +1,14 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
+from rest_framework.throttling import AnonRateThrottle
 
 from apps.academic.models import Student, Program
 from apps.cms.models import Partner, MapNode
 
 class PublicPlatformStatsView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     def get(self, request, *args, **kwargs):
         students_trained = Student.objects.count()
