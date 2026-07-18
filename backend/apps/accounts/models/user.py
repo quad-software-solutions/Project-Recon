@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 
 from apps.accounts.constants import AccountStatus, Gender
 from apps.accounts.validators import normalize_phone_number
+from apps.shared.validators import UploadedFileValidator
 
 
 class UserManager(BaseUserManager):
@@ -42,6 +43,11 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
+def profile_picture_path(instance, filename):
+    ext = filename.split(".")[-1] if "." in filename else ""
+    return f"profiles/{instance.id}_{uuid.uuid4().hex}.{ext}"
+
+
 class User(AbstractBaseUser, PermissionsMixin):
     """
     Core identity model: authentication, profile fields, and account status.
@@ -54,7 +60,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
-    profile_picture = models.ImageField(upload_to="profiles/", null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to=profile_picture_path,
+        null=True, blank=True,
+        validators=[UploadedFileValidator()],
+    )
     date_of_birth = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=20, choices=Gender.choices, null=True, blank=True)
     status = models.CharField(
