@@ -137,20 +137,22 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
             raise PermissionDenied("Device verification required.")
 
     log_action(user, "LOGIN", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
-    return issue_tokens(user)
+    return issue_tokens(user, device_info)
 
 
-def issue_tokens(user) -> dict:
+def issue_tokens(user, device_info: dict | None = None) -> dict:
     """
     Issue JWT access and refresh tokens for a user.
 
     Args:
         user: Authenticated User instance.
+        device_info: Optional device metadata — fingerprint is embedded
+            in the refresh token for proof-of-possession on refresh.
 
     Returns:
         Dict with ``access`` and ``refresh`` string tokens.
     """
-    return issue_tokens_for_user(user)
+    return issue_tokens_for_user(user, device_info)
 
 
 def logout(user, refresh_token_str: str) -> None:
@@ -196,22 +198,25 @@ def logout_all(user) -> int:
     return count
 
 
-def refresh_token(refresh_token_str: str) -> dict:
+def refresh_token(refresh_token_str: str, device_info: dict | None = None) -> dict:
     """
     Rotate a refresh token and return a new token pair.
 
     Args:
         refresh_token_str: Valid refresh token string.
+        device_info: Optional device metadata — fingerprint is verified
+            against the claim stored in the original token.
 
     Returns:
         Dict with new ``access`` and ``refresh`` string tokens.
 
     Raises:
-        AuthenticationFailed: When the refresh token is invalid or blacklisted.
+        AuthenticationFailed: When the refresh token is invalid,
+            blacklisted, or the device fingerprint does not match.
     """
     log_action(None, "TOKEN_REFRESH", "Token", None)
     try:
-        return refresh_access_token(refresh_token_str)
+        return refresh_access_token(refresh_token_str, device_info)
     except TokenError:
         raise AuthenticationFailed("Invalid or expired refresh token.")
 
@@ -304,7 +309,7 @@ def public_verify_email_otp(email: str, otp: str, device_info: dict | None = Non
 
     # Issue tokens so the user is logged in immediately after verification
     log_action(user, "LOGIN", "User", user.id)
-    return issue_tokens(user)
+    return issue_tokens(user, device_info)
 
 
 def request_device_verification(user, device_info: dict) -> None:

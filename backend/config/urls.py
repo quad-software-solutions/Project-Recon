@@ -4,7 +4,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/v1/accounts/", include("apps.accounts.api.urls")),
     path("api/v1/audit/", include("apps.shared.audit.api.urls")),
     path("api/v1/", include("apps.shared.bank.api.urls")),
@@ -15,6 +14,9 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
+    urlpatterns += [
+        path("admin/", admin.site.urls),
+    ]
     from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
     urlpatterns += [
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

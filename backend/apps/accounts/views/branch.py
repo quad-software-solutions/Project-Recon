@@ -7,6 +7,7 @@ from rest_framework.exceptions import NotFound
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsSuperAdmin
+from apps.accounts.api.throttles import AdminUserThrottle
 from apps.accounts.serializers.branch import (
     BranchCreateSerializer,
     BranchSerializer,
@@ -31,6 +32,7 @@ from rest_framework.response import Response
 class BranchListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
     serializer_class = BranchCreateSerializer
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Branches"], responses=BranchSerializer(many=True))
     def get_queryset(self):
@@ -62,6 +64,7 @@ class BranchWithManagerView(generics.CreateAPIView):
     """Create a branch and assign an existing user as manager."""
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Branches"], request=BranchWithManagerSerializer, responses={201: BranchSerializer})
     def create(self, request):
@@ -88,6 +91,7 @@ class BranchDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
     serializer_class = BranchSerializer
     lookup_url_kwarg = "pk"
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         branch = get_branch_or_404(self.kwargs["pk"])
@@ -128,6 +132,7 @@ class BranchAssignManagerView(generics.GenericAPIView):
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
     serializer_class = ManagerActionSerializer
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         return get_branch_or_404(self.kwargs["pk"])
@@ -168,6 +173,7 @@ class BranchChangeManagerView(generics.GenericAPIView):
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
     serializer_class = ManagerActionSerializer
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         return get_branch_or_404(self.kwargs["pk"])
@@ -206,6 +212,7 @@ class BranchActivateView(generics.GenericAPIView):
     """Activate a branch."""
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         return get_branch_or_404(self.kwargs["pk"])
@@ -229,6 +236,7 @@ class BranchDeactivateView(generics.GenericAPIView):
     """Deactivate a branch."""
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         return get_branch_or_404(self.kwargs["pk"])
@@ -252,6 +260,7 @@ class BranchArchiveView(generics.GenericAPIView):
     """Archive a branch."""
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         return get_branch_or_404(self.kwargs["pk"])

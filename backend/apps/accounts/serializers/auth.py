@@ -43,9 +43,23 @@ class LogoutSerializer(serializers.Serializer):
 
 
 class RefreshTokenSerializer(serializers.Serializer):
-    """Validate token refresh request."""
+    """Validate token refresh request with optional device proof-of-possession."""
 
     refresh = serializers.CharField()
+    device_id = serializers.CharField(required=False, allow_blank=True)
+    device_name = serializers.CharField(required=False, allow_blank=True)
+    device_type = serializers.ChoiceField(
+        choices=DeviceInfoSerializer().fields["device_type"].choices,
+        required=False,
+    )
+    fingerprint = serializers.CharField(required=False, allow_blank=True)
+    user_agent = serializers.CharField(required=False, allow_blank=True)
+
+    def get_device_info(self) -> dict | None:
+        """Return device_info when fingerprint is provided."""
+        keys = ("device_id", "device_name", "device_type", "fingerprint", "user_agent")
+        info = {k: self.validated_data[k] for k in keys if k in self.validated_data and self.validated_data[k]}
+        return info or None
 
 
 class OTPVerifySerializer(serializers.Serializer):

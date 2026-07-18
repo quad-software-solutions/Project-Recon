@@ -31,6 +31,7 @@ from apps.accounts.services.user_service import (
     _check_user_scope,
 ) 
 from apps.accounts.permissions.roles import user_is_super_admin
+from apps.accounts.api.throttles import AdminUserThrottle
 from rest_framework.response import Response
 
 
@@ -50,6 +51,7 @@ class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
     pagination_class = UserListPagination
+    throttle_classes = [AdminUserThrottle]
 
     def get_queryset(self):
         """Return a filtered queryset based on the requester role."""
@@ -59,6 +61,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
     lookup_url_kwarg = "pk"
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         user = get_user_or_404(self.kwargs["pk"])
@@ -109,6 +112,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 class CreateStaffUserView(generics.CreateAPIView):
     serializer_class = CreateStaffUserSerializer
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Users"], request=CreateStaffUserSerializer, responses={201: UserSerializer})
     def create(self, request, *args, **kwargs):
@@ -144,6 +148,7 @@ class CreateBranchManagerView(generics.CreateAPIView):
     """Create a Branch Manager (Super Admin only)."""
     serializer_class = CreateBranchManagerSerializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Users"], request=CreateBranchManagerSerializer, responses={201: UserSerializer})
     def create(self, request, *args, **kwargs):
@@ -170,6 +175,7 @@ class CreateBranchManagerView(generics.CreateAPIView):
 
 class UserActivateView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Users"], responses=UserSerializer)
     def post(self, request, pk):
@@ -184,6 +190,7 @@ class UserDeactivateView(APIView):
     """Suspend a user account."""
 
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Users"], responses={200: UserSerializer})
     def post(self, request, pk):
@@ -198,6 +205,7 @@ class UserArchiveView(APIView):
     """Archive a user account."""
 
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Users"], responses={200: UserSerializer})
     def post(self, request, pk):

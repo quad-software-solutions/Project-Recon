@@ -7,6 +7,7 @@ from rest_framework.exceptions import NotFound
 
 from apps.accounts.models import TrustedDevice
 from apps.accounts.serializers.device import RevokeAllDevicesSerializer, TrustedDeviceSerializer
+from apps.accounts.api.throttles import AdminUserThrottle
 from apps.accounts.services.device_service import (
     list_devices,
     remove_device,
@@ -21,6 +22,7 @@ class DeviceListView(generics.ListAPIView):
 
     serializer_class = TrustedDeviceSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AdminUserThrottle]
 
     def get_queryset(self):
         return list_devices(self.request.user)
@@ -36,6 +38,7 @@ class DeviceDetailView(generics.RetrieveDestroyAPIView):
 
     permission_classes = [IsAuthenticated]
     serializer_class = TrustedDeviceSerializer
+    throttle_classes = [AdminUserThrottle]
 
     def get_object(self):
         try:
@@ -68,6 +71,7 @@ class DeviceRevokeAllView(generics.GenericAPIView):
 
     permission_classes = [IsAuthenticated]
     serializer_class = RevokeAllDevicesSerializer
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(
         tags=["Devices"],
