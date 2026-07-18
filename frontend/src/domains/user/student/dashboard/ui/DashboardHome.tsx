@@ -9,7 +9,7 @@ import { fetchStudentCertificatesApi } from '@/domains/learning/academics/api/ac
 import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
-import EmptyState from '../../shared/ui/EmptyState';
+import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../shared/ui/LoadingSkeleton';
 
 export type HomeNavigateTarget =

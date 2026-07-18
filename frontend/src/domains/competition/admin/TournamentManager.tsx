@@ -84,6 +84,13 @@ export default function TournamentManager() {
     } catch (err: any) { setError(err.message); }
   };
 
+  const handleReopen = async (id: string) => {
+    try {
+      await eventsApi.adminReopenTournament(id);
+      load();
+    } catch (err: any) { setError(err.message); }
+  };
+
   const handleDelete = async (id: string) => {
     try { await eventsApi.adminDeleteTournament(id); load(); } catch (err: any) { setError(err.message); }
   };
@@ -218,7 +225,9 @@ export default function TournamentManager() {
                   </div>
                   <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                     {t.is_closed ? (
-                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded flex items-center gap-1"><Lock className="w-3 h-3" />Closed</span>
+                      <button onClick={() => handleReopen(t.id)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors" title="Reopen Tournament">
+                        <Lock className="w-3.5 h-3.5" />
+                      </button>
                     ) : (
                       <button onClick={() => handleClose(t.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Close Tournament">
                         <Lock className="w-3.5 h-3.5" />

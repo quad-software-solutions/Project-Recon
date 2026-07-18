@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Megaphone, Search, Loader2, ChevronRight } from 'lucide-react';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 import PageHeader from '../../../shared/ui/PageHeader';
-import EmptyState from '../../../shared/ui/EmptyState';
+import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 
 interface NewsItem {

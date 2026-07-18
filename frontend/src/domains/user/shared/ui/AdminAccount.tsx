@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  User, Mail, Phone, Calendar, Shield, Edit3, Save, X, Loader2,
+  User, Mail, Phone, Calendar, Shield, Edit3, Save, X, Loader2, Camera,
   Lock, Key, Smartphone, Eye, EyeOff, AlertCircle, Check, RefreshCw,
-  ShieldCheck, Award, Zap, TrendingUp, BookOpen, Star, CheckCircle2
+  ShieldCheck, Award, Zap, TrendingUp, BookOpen, Star, CheckCircle2,
+  LogOut
 } from 'lucide-react';
 import type { UserProfile } from '@/shared/types';
 import { updateUserProfile } from '@/shared/utils/storage';
-import { updateUserApi } from '@/domains/user/shared/api/adminApi';
+import { updateUserApi, uploadProfilePictureApi } from '@/domains/user/shared/api/adminApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 import { securityApi } from '@/domains/auth/login/api/securityApi';
 import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
 
@@ -28,8 +30,10 @@ interface TrustedDevice {
 export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [accountTab, setAccountTab] = useState<'profile' | 'password' | 'email' | 'devices'>('profile');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     first_name: currentUser.first_name || currentUser.name.split(' ')[0] || '',
@@ -67,9 +71,32 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
       onUserUpdate?.(updatedUser);
       setEditing(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update profile');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadPicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser.id) return;
+    if (!file.type.startsWith('image/')) { setError('Only image files are allowed.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB.'); return; }
+    setUploading(true);
+    setError('');
+    try {
+      const updated = await uploadProfilePictureApi(currentUser.id, file);
+      const merged: UserProfile = {
+        ...currentUser,
+        profile_picture: updated.profile_picture || currentUser.profile_picture,
+      };
+      updateUserProfile(merged);
+      onUserUpdate?.(merged);
+    } catch (e) {
+      setError(formatApiError(e));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -96,8 +123,16 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
           </button>
         )}
 
-        <div className="w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-slate-50 shadow-md shrink-0">
+        <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-slate-50 shadow-md shrink-0 group">
           <img src={currentUser.profile_picture || profileImg} alt="" className="w-full h-full object-cover" />
+          <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity rounded-full">
+            {uploading ? (
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+            ) : (
+              <Camera className="w-6 h-6 text-white" />
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadPicture} className="hidden" />
+          </label>
         </div>
 
         <div className="flex flex-col flex-1 text-center md:text-left w-full">
@@ -550,6 +585,91 @@ function TrustedDevicesPanel() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      <TrustThisDevice onTrusted={load} />
+
+      <div className="mt-4 pt-4 border-t border-slate-100">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Sessions</p>
+        <button
+          onClick={() => {
+            if (window.confirm('Log out from all devices and sessions?')) {
+              securityApi.logoutAllSessions().then(() => {
+                window.location.href = '/login';
+              }).catch(() => {
+                window.location.href = '/login';
+              });
+            }
+          }}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1.5"
+        >
+          <LogOut className="w-3.5 h-3.5" /> Logout all sessions
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TrustThisDevice({ onTrusted }: { onTrusted: () => void }) {
+  const [phase, setPhase] = useState<'idle' | 'otp'>('idle');
+  const [otp, setOtp] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const requestOtp = async () => {
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      await securityApi.requestDeviceVerification();
+      setPhase('otp');
+      setMsg('OTP sent. Enter the code to trust this browser.');
+    } catch (e: unknown) {
+      const { formatApiError } = await import('@/shared/utils/formatApiError');
+      setErr(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    if (!otp.trim()) return;
+    setBusy(true);
+    setErr('');
+    try {
+      await securityApi.verifyDevice(otp.trim());
+      setPhase('idle');
+      setOtp('');
+      setMsg('This device is now trusted.');
+      onTrusted();
+    } catch (e: unknown) {
+      const { formatApiError } = await import('@/shared/utils/formatApiError');
+      setErr(formatApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-100">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Trust this browser</p>
+      {msg && <p className="text-xs text-emerald-600 mb-2">{msg}</p>}
+      {err && <p className="text-xs text-red-600 mb-2">{err}</p>}
+      {phase === 'idle' ? (
+        <button type="button" onClick={requestOtp} disabled={busy}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50">
+          {busy ? 'Sending…' : 'Send verification OTP'}
+        </button>
+      ) : (
+        <div className="flex gap-2">
+          <input value={otp} onChange={e => setOtp(e.target.value)} placeholder="OTP code"
+            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg" />
+          <button type="button" onClick={verify} disabled={busy || !otp.trim()}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-purple-600 text-white disabled:opacity-50">
+            Verify
+          </button>
         </div>
       )}
     </div>

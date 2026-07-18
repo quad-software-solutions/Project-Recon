@@ -2,12 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, CheckCircle2, XCircle, Clock, AlertCircle, Loader2, Search,
-  Shield, Ban, ArrowUpRight, Mail, Banknote, DollarSign, X,
+  Ban, Banknote, X,
 } from 'lucide-react';
 import { adminGetRegistrations, adminApproveRegistration, adminRejectRegistration, adminCancelRegistration } from '../../api/competitionApi';
 import * as eventsApi from '../../api/eventsApi';
-
-const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CHEQUE'];
 
 export default function RegistrationDashboard() {
   const [registrations, setRegistrations] = useState<any[]>([]);
@@ -79,7 +77,9 @@ export default function RegistrationDashboard() {
   };
 
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'cancel') => {
+    if ((action === 'reject' || action === 'cancel') && !window.confirm(`Are you sure you want to ${action === 'reject' ? 'reject' : 'cancel'} this registration?`)) return;
     setActionLoading(id);
+    setError(null);
     try {
       if (action === 'approve') await adminApproveRegistration(id);
       else if (action === 'reject') await adminRejectRegistration(id);
@@ -111,7 +111,7 @@ export default function RegistrationDashboard() {
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto"><XCircle className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setError(null)} className="ml-auto"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
 

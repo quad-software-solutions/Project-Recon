@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Users, CheckCircle2, DollarSign, Award, Calendar, Shield, UserPlus, Loader2, RefreshCw, Search } from 'lucide-react';
 import { Enrollment, EnrollmentPayment, StudentCertificate } from '@/shared/types';
-import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 
 import type { SecretarySectionId } from '../secretaryCommandCenter';
 
@@ -20,7 +21,7 @@ export default function Overview({
   const loadData = () => {
     setLoading(true);
     Promise.allSettled([
-      fetchEnrollmentsApi(),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
       fetchStudentsApi(),
       fetchStudentCertificatesApi(),
@@ -92,6 +93,9 @@ export default function Overview({
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{e.student_name || 'Unknown'}</p>
                         <p className="text-[10px] text-slate-500">{e.class_name || e.sub_program_name || '—'}</p>
+                        {e.pending_code && e.status === 'PENDING_VERIFICATION' && (
+                          <p className="text-[10px] font-mono text-brand-blue">{e.pending_code}</p>
+                        )}
                       </div>
                     </div>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : e.status === 'PENDING_VERIFICATION' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>

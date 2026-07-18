@@ -8,11 +8,11 @@ and password management workflows.
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import check_password
-from django.core.cache import cache
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from apps.accounts.models import User, OTPChallenge
 from apps.accounts.constants import AccountStatus, OTPPurpose, Roles
 from apps.accounts.services import otp_service, device_service
@@ -100,10 +100,8 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
         log_action(None, "LOGIN_FAILED", "User", None, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
-    cache_key = f"login_attempts:{email.lower()}"
-    attempts = cache.get(cache_key, 0)
     max_attempts = settings.AUTH_MAX_LOGIN_ATTEMPTS
-    if max_attempts and attempts >= max_attempts:
+    if max_attempts and user.failed_login_attempts >= max_attempts:
         log_action(None, "LOGIN_FAILED_LOCKED", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
@@ -114,12 +112,12 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
         raise PermissionDenied("Account is archived.")
 
     if not user.check_password(password):
-        lock_mins = settings.AUTH_ACCOUNT_LOCK_MINUTES
-        cache.set(cache_key, attempts + 1, lock_mins * 60)
+        User.objects.filter(id=user.id).update(failed_login_attempts=user.failed_login_attempts + 1)
         log_action(None, "LOGIN_FAILED", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
         raise AuthenticationFailed("Invalid credentials.")
 
-    cache.delete(cache_key)
+    if user.failed_login_attempts:
+        User.objects.filter(id=user.id).update(failed_login_attempts=0)
 
     if (
         user.status == AccountStatus.PENDING
@@ -139,20 +137,22 @@ def login(email: str, password: str, device_info: dict | None = None) -> dict:
             raise PermissionDenied("Device verification required.")
 
     log_action(user, "LOGIN", "User", user.id, ip_address=ctx["ip_address"], user_agent=ctx["user_agent"])
-    return issue_tokens(user)
+    return issue_tokens(user, device_info)
 
 
-def issue_tokens(user) -> dict:
+def issue_tokens(user, device_info: dict | None = None) -> dict:
     """
     Issue JWT access and refresh tokens for a user.
 
     Args:
         user: Authenticated User instance.
+        device_info: Optional device metadata — fingerprint is embedded
+            in the refresh token for proof-of-possession on refresh.
 
     Returns:
         Dict with ``access`` and ``refresh`` string tokens.
     """
-    return issue_tokens_for_user(user)
+    return issue_tokens_for_user(user, device_info)
 
 
 def logout(user, refresh_token_str: str) -> None:
@@ -163,11 +163,18 @@ def logout(user, refresh_token_str: str) -> None:
         user: Authenticated User instance.
         refresh_token_str: Refresh token to invalidate.
 
+    Raises:
+        AuthenticationFailed: Token does not belong to the given user.
+
     Returns:
         None.
     """
+    token = RefreshToken(refresh_token_str)
+    user_id_from_token = str(token.payload.get("user_id", ""))
+    if user_id_from_token and str(user.id) != user_id_from_token:
+        raise AuthenticationFailed("Token does not belong to this user.")
     blacklist_refresh_token(refresh_token_str)
-    log_action(user, "LOG", "User", user.id)
+    log_action(user, "LOGOUT", "User", user.id)
 
 
 def logout_all(user) -> int:
@@ -191,22 +198,25 @@ def logout_all(user) -> int:
     return count
 
 
-def refresh_token(refresh_token_str: str) -> dict:
+def refresh_token(refresh_token_str: str, device_info: dict | None = None) -> dict:
     """
     Rotate a refresh token and return a new token pair.
 
     Args:
         refresh_token_str: Valid refresh token string.
+        device_info: Optional device metadata — fingerprint is verified
+            against the claim stored in the original token.
 
     Returns:
         Dict with new ``access`` and ``refresh`` string tokens.
 
     Raises:
-        AuthenticationFailed: When the refresh token is invalid or blacklisted.
+        AuthenticationFailed: When the refresh token is invalid,
+            blacklisted, or the device fingerprint does not match.
     """
     log_action(None, "TOKEN_REFRESH", "Token", None)
     try:
-        return refresh_access_token(refresh_token_str)
+        return refresh_access_token(refresh_token_str, device_info)
     except TokenError:
         raise AuthenticationFailed("Invalid or expired refresh token.")
 
@@ -299,7 +309,7 @@ def public_verify_email_otp(email: str, otp: str, device_info: dict | None = Non
 
     # Issue tokens so the user is logged in immediately after verification
     log_action(user, "LOGIN", "User", user.id)
-    return issue_tokens(user)
+    return issue_tokens(user, device_info)
 
 
 def request_device_verification(user, device_info: dict) -> None:
@@ -389,7 +399,7 @@ def reset_password(email: str, otp: str, new_password: str) -> None:
     challenge.is_used = True
     challenge.save(update_fields=["is_used"])
 
-    log_action(user, "user.password_reset", "User", user.id)
+    log_action(user, "PASSWORD_RESET", "User", user.id)
 
 
 def change_password(user, old_password: str, new_password: str, actor=None) -> None:

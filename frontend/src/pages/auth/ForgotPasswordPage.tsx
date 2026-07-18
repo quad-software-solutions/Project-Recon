@@ -73,7 +73,8 @@ export default function ForgotPasswordPage({ onNavigateHome, onNavigateLogin }: 
         await resetPasswordApi(otp, newPassword);
         setPhase(3);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Invalid OTP or password. Please try again.');
+        const { formatApiError } = await import('@/shared/utils/formatApiError');
+        setError(formatApiError(err));
       } finally {
         setLoading(false);
       }

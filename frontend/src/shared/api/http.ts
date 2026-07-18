@@ -1,6 +1,8 @@
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 import { getToken, setTokens, clearTokens, getRefreshToken } from '@/shared/utils/auth';
-import { clearSessionStorage } from '@/shared/utils/storage';
+import { clearSessionStorage, getOrCreateDeviceId } from '@/shared/utils/storage';
+
+const REQUEST_TIMEOUT = 30_000;
 
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
@@ -96,11 +98,19 @@ async function handleTokenRefresh<T>(retryRequest: () => Promise<T>): Promise<T>
   if (!isRefreshing) {
     isRefreshing = true;
     try {
+      const deviceId = getOrCreateDeviceId();
       const refreshUrl = new URL(`${BASE_URL}/accounts/token/refresh/`, window.location.origin);
       const refreshRes = await fetch(refreshUrl.toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: refreshToken }),
+        body: JSON.stringify({
+          refresh: refreshToken,
+          device_id: deviceId,
+          device_name: navigator.platform || 'Browser',
+          device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+          fingerprint: deviceId,
+          user_agent: navigator.userAgent,
+        }),
       });
 
       if (refreshRes.ok) {
@@ -147,6 +157,10 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  if (!init.signal) {
+    init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
+  }
+
   const res = await fetch(url.toString(), {
     ...init,
     headers,
@@ -185,6 +199,10 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (!init.signal) {
+    init.signal = AbortSignal.timeout(REQUEST_TIMEOUT);
   }
 
   const res = await fetch(url.toString(), {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, Target, Loader2, ShieldOff, Download } from 'lucide-react';
 import { fetchEnrollmentsApi, fetchMilestonesApi, fetchStudentProgressApi, downloadProgressReportPdf } from '@/domains/learning/academics/api/academicApi';
 import type { LearningMilestone, StudentProgress } from '@/shared/types';
@@ -17,7 +17,7 @@ export default function ProgressMilestones({ studentId }: Props) {
       const allProgress: StudentProgress[] = [];
       for (const e of enr) {
         try {
-          const m = await fetchMilestonesApi(e.enrolled_class);
+          const m = await fetchMilestonesApi('', e.enrolled_class);
           allMilestones.push(...m);
           const p = await fetchStudentProgressApi(e.id);
           allProgress.push(...p);

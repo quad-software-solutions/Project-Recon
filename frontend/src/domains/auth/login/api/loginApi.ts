@@ -112,6 +112,15 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
     throw new EmailNotVerifiedError(loginBody.email);
   }
 
+  if (loginRes.status === 403) {
+    const detail = String(loginBody.detail || '');
+    if (/device verification/i.test(detail)) {
+      throw new Error(
+        'This browser is not a trusted device. Sign in from a trusted device first, then use Account → Trust this browser to register it.',
+      );
+    }
+  }
+
   if (!loginRes.ok) {
     const msg = loginBody.detail || Object.values(loginBody).flat().join('; ') || 'Login failed';
     throw new Error(msg);
@@ -273,6 +282,8 @@ export async function verifyEmailOtpApi(email: string, otp: string): Promise<Aut
       email,
       otp,
       device_id: deviceId,
+      device_name: navigator.platform || 'Browser',
+      device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
       fingerprint: deviceId,
       user_agent: navigator.userAgent,
     }

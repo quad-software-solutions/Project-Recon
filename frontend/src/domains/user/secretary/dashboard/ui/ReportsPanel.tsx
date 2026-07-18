@@ -3,13 +3,14 @@ import { motion } from 'motion/react';
 import { FileText, Users, BookOpen, DollarSign, Award, Download, Loader2 } from 'lucide-react';
 import { Enrollment, EnrollmentPayment, StudentProfile, StudentCertificate, AcademicClass, UserProfile } from '@/shared/types';
 import {
-  fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi,
+  fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi,
   fetchClassesApi, fetchProgramsApi, fetchSubProgramsApi,
   downloadStudentReportPdf, downloadEnrollmentReportPdf,
   downloadAttendanceReportPdf, downloadProgressReportPdf,
   downloadCertificateReportPdf, downloadClassReportPdf,
   downloadSubProgramReportPdf, downloadProgramReportPdf
 } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 import type { Program, SubProgram } from '@/shared/types';
 
 export default function ReportsPanel({ currentUser }: { currentUser?: UserProfile }) {
@@ -33,7 +34,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
   useEffect(() => {
     const isSecretary = currentUser?.role === 'Secretary';
     Promise.allSettled([
-      fetchEnrollmentsApi(),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
       fetchStudentsApi(),
       fetchStudentCertificatesApi(),

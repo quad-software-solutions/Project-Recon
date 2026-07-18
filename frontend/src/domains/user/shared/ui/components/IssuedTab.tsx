@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Award, Eye, Download, Loader2, CheckCircle2, Users, Calendar, Shield } from 'lucide-react';
+import { Search, Award, Eye, Download, Loader2, CheckCircle2, Users, Calendar, Shield, ExternalLink } from 'lucide-react';
 import type { StudentCertificate } from '@/shared/types';
 import BrandLogo from '@/shared/ui/BrandLogo';
 
@@ -160,6 +160,10 @@ export default function IssuedTab({ issuedCerts, loading, onRefresh }: {
                   </div>
                   <div className="flex gap-1.5">
                     <button onClick={() => setShowDetail(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">Close</button>
+                    <a href={`/cert-verify?number=${encodeURIComponent(showDetail.certificate_number)}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-bold text-brand-blue border border-brand-blue/20 px-3 py-1 rounded-lg hover:bg-brand-blue/5 transition-colors">
+                      <ExternalLink className="w-2.5 h-2.5" /> Verify Online
+                    </a>
                     {showDetail.pdf && (
                       <a href={showDetail.pdf} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors">

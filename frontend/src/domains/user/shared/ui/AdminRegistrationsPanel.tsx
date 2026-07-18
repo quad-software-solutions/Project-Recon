@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { Enrollment, EnrollmentPayment } from '@/shared/types';
-import { fetchEnrollmentsApi, fetchPaymentsApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 export default function AdminRegistrationsPanel() {
   const [registrations, setRegistrations] = useState<Enrollment[]>([]);
@@ -10,12 +12,12 @@ export default function AdminRegistrationsPanel() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([fetchEnrollmentsApi(), fetchPaymentsApi()])
+    Promise.all([fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)), fetchPaymentsApi()])
       .then(([enrollmentData, paymentData]) => {
         setRegistrations(enrollmentData);
         setPayments(paymentData);
       })
-      .catch(err => setError(err instanceof Error ? err.message : 'Could not load enrollments.'))
+      .catch(err => setError(formatApiError(err)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,7 +30,7 @@ export default function AdminRegistrationsPanel() {
 
   const statusClass = (status: string) => {
     if (status === 'ACTIVE' || status === 'COMPLETED') return 'bg-emerald-50 text-emerald-600';
-    if (status === 'PENDING_PAYMENT') return 'bg-amber-50 text-amber-600';
+    if (status === 'PENDING_VERIFICATION') return 'bg-amber-50 text-amber-600';
     return 'bg-red-50 text-red-600';
   };
 

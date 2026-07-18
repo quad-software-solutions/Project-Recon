@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 export type SecretarySectionId =
-  | 'overview' | 'admissions' | 'enrollments' | 'payments' | 'certificates'
+  | 'overview' | 'admissions' | 'enrollments' | 'transfers' | 'payments' | 'certificates'
   | 'templates' | 'reports' | 'periods' | 'announcements'
   | 'students' | 'event-registrations' | 'account';
 

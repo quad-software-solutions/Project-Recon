@@ -525,6 +525,10 @@ REST_FRAMEWORK = {
         "anon_forgot_password": os.getenv("THROTTLE_FORGOT_PASSWORD", "3/min"),
         "reset_password": os.getenv("THROTTLE_RESET_PASSWORD", "5/min"),
         "anon_reset_password": os.getenv("THROTTLE_RESET_PASSWORD", "5/min"),
+        "user_change_password": os.getenv("THROTTLE_CHANGE_PASSWORD", "5/hour"),
+        "user_logout": os.getenv("THROTTLE_LOGOUT", "10/min"),
+        "admin_user": os.getenv("THROTTLE_ADMIN", "30/min"),
+        "email_otp": os.getenv("THROTTLE_EMAIL_OTP", "3/min"),
     },
 }
 

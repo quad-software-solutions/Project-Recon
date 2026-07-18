@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { TrendingUp, TrendingDown, DollarSign, Users, BarChart3, PieChart, ArrowUpRight, Loader2 } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 import type { Enrollment, EnrollmentPayment, Program, StudentProfile } from '@/shared/types';
 
 export default function AnalyticsDashboard() {
@@ -15,7 +16,7 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     Promise.all([
       fetchStudentsApi(),
-      fetchEnrollmentsApi(),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
       fetchProgramsApi(),
     ]).then(([stu, enr, pay, pro]) => {

@@ -19,6 +19,7 @@ export interface StudentRegistrationRequest {
   paymentMethod: PaymentMethodType;
   bankName?: string;
   transactionReference?: string;
+  transferReference?: string;
   attachment?: File | null;
 }
 
@@ -40,6 +41,7 @@ export async function registerApi(data: StudentRegistrationRequest): Promise<Enr
 
   if (data.paymentMethod !== 'CASH') {
     payload.transaction_reference = data.transactionReference?.trim() || '';
+    payload.transfer_reference = data.transferReference?.trim() || '';
     payload.bank_name = data.bankName?.trim() || '';
     if (data.attachment) payload.attachment = data.attachment;
   }

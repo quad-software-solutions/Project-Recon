@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, BookOpen, FileText, Download, Trash2, ExternalLink, Filter } from 'lucide-react';
 import { LearningMaterial, UserProfile } from '@/shared/types';
 import { fetchLearningMaterialsApi, createLearningMaterialApi, updateLearningMaterialApi, deleteLearningMaterialApi, downloadLearningMaterialApi, fetchSubProgramsApi } from '@/domains/learning/academics/api/academicApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const defaultForm = {
   sub_program: '', title: '', description: '', file_url: '', material_type: 'DOCUMENT',
@@ -69,7 +70,7 @@ export default function LearningMaterialsPanel({ currentUser }: { currentUser?: 
       setForm(defaultForm);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save material');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -80,7 +81,7 @@ export default function LearningMaterialsPanel({ currentUser }: { currentUser?: 
       await deleteLearningMaterialApi(id);
       setMaterials(prev => prev.filter(m => m.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete material');
+      setError(formatApiError(e));
     }
   };
 

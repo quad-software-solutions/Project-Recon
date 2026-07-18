@@ -3,6 +3,7 @@ import { Search, Loader2, CheckCircle2 } from 'lucide-react';
 import type { Certificate, StudentProfile } from '@/shared/types';
 import { searchStudentsApi, issueStudentCertificateApi } from '@/domains/learning/academics/api/academicApi';
 import EventIssuePanel from './EventIssuePanel';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 export default function IssueTab({ templates, students, onRefresh, canManage, onError }: {
   templates: Certificate[];
@@ -55,7 +56,7 @@ export default function IssueTab({ templates, students, onRefresh, canManage, on
       setStudentResults([]);
       onRefresh();
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Failed to issue certificate');
+      onError(formatApiError(e));
     } finally {
       setSubmitting(false);
     }

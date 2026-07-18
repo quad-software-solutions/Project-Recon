@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { UserPlus, Users, DollarSign, Award, FileText, LayoutDashboard, RefreshCw, Shield, Calendar, Search, Megaphone, ArrowRightLeft } from 'lucide-react';
 import { UserProfile } from '@/shared/types';
 import { AppLayout } from '@/shared/ui/AppLayout';
@@ -10,9 +10,10 @@ import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
 import RegistrationManager from '@/domains/competition/admin/RegistrationManager';
 import TransferRequestsPanel from '@/domains/user/shared/ui/TransferRequestsPanel';
 import {
-  fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentCertificatesApi,
+  fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentCertificatesApi,
   fetchCertificateTemplatesApi, fetchEnrollmentPeriodsApi,
 } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 import {
   getSecretaryCommandCenter,
   type SecretarySectionId,
@@ -76,7 +77,7 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
     setHubStats(prev => ({ ...prev, loading: true }));
 
     Promise.allSettled([
-      fetchEnrollmentsApi(),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
       fetchStudentCertificatesApi(),
       fetchCertificateTemplatesApi(),

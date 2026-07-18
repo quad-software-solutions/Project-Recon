@@ -14,8 +14,9 @@ import {
   type BankAccount,
 } from '../../../learning/academics/api/academicApi';
 import type { Program, SubProgram, Enrollment } from '@/shared/types';
-import { isApiError } from '@/shared/api/http';
 import { SelectableCard, CardSkeleton } from './components/SelectableCard';
+import { formatApiError } from '@/shared/utils/formatApiError';
+import { isApiError } from '@/shared/api/http';
 import { ReceiptUpload } from './components/ReceiptUpload';
 import { EnrollmentSuccess } from './components/EnrollmentSuccess';
 import { EnrollmentSummaryPanel } from './components/EnrollmentSummaryPanel';
@@ -37,19 +38,6 @@ const EMPTY_FORM = {
   guardianPhone: '',
   guardianEmail: '',
 };
-
-function formatApiError(err: unknown): string {
-  if (isApiError(err)) {
-    if (err.status === 404) return 'The requested resource was not found. Please refresh and try again.';
-    if (err.status >= 500) return 'Something went wrong on our side. Please try again in a moment.';
-    return err.message || 'Unable to complete enrollment.';
-  }
-  if (err instanceof TypeError || (err instanceof Error && /network|fetch/i.test(err.message))) {
-    return 'Unable to connect. Please check your internet connection and try again.';
-  }
-  if (err instanceof Error) return err.message;
-  return 'Unable to complete enrollment. Please try again.';
-}
 
 function SectionHeader({
   step,
@@ -105,6 +93,7 @@ export default function StudentRegistration() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('BANK_TRANSFER');
   const [bankName, setBankName] = useState('');
   const [transactionReference, setTransactionReference] = useState('');
+  const [transferReference, setTransferReference] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
@@ -241,11 +230,9 @@ export default function StudentRegistration() {
     else if (form.password.length < 8) errors.password = 'Password must be at least 8 characters.';
     if (!form.phoneNumber.trim()) errors.phoneNumber = 'Phone number is required.';
     else if (!/^[+\d][\d\s()-]{6,}$/.test(form.phoneNumber.trim())) errors.phoneNumber = 'Enter a valid phone number.';
-    if (!form.guardianName.trim()) errors.guardianName = 'Guardian name is required.';
-    if (!form.guardianPhone.trim()) errors.guardianPhone = 'Guardian phone is required.';
-    else if (!/^[+\d][\d\s()-]{6,}$/.test(form.guardianPhone.trim())) errors.guardianPhone = 'Enter a valid phone number.';
-    if (!form.guardianEmail.trim()) errors.guardianEmail = 'Guardian email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guardianEmail.trim())) errors.guardianEmail = 'Enter a valid email address.';
+    if (form.guardianName.trim() && !form.guardianPhone.trim()) errors.guardianPhone = 'Phone required when guardian name is provided.';
+    if (form.guardianPhone.trim() && !/^[+\d][\d\s()-]{6,}$/.test(form.guardianPhone.trim())) errors.guardianPhone = 'Enter a valid phone number.';
+    if (form.guardianEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guardianEmail.trim())) errors.guardianEmail = 'Enter a valid email address.';
 
     if (paymentMethod !== 'CASH') {
       if (!transactionReference.trim() && !attachment) {
@@ -298,10 +285,35 @@ export default function StudentRegistration() {
         paymentMethod,
         bankName: paymentMethod === 'CASH' ? undefined : bankName,
         transactionReference: paymentMethod === 'CASH' ? undefined : transactionReference,
+        transferReference: paymentMethod === 'CASH' ? undefined : transferReference,
         attachment: paymentMethod === 'CASH' ? null : attachment,
       });
       setEnrollment(result);
     } catch (err) {
+      if (isApiError(err) && typeof err.body === 'object' && err.body !== null) {
+        const FIELD_MAP: Record<string, string> = {
+          first_name: 'firstName', last_name: 'lastName', email: 'email',
+          password: 'password', phone_number: 'phoneNumber',
+          guardian_name: 'guardianName', guardian_phone: 'guardianPhone', guardian_email: 'guardianEmail',
+          payment_method: 'payment', transaction_reference: 'payment',
+          transfer_reference: 'transferReference', bank_name: 'payment',
+        };
+        const backendErrors = err.body as Record<string, unknown>;
+        const mapped: Record<string, string> = {};
+        let hasFieldError = false;
+        for (const [backendKey, messages] of Object.entries(backendErrors)) {
+          if (backendKey === 'non_field_errors' || backendKey === 'detail') continue;
+          const frontKey = FIELD_MAP[backendKey];
+          if (frontKey) {
+            mapped[frontKey] = Array.isArray(messages) ? messages.join(', ') : String(messages);
+            hasFieldError = true;
+          }
+        }
+        if (hasFieldError) {
+          setFieldErrors((prev) => ({ ...prev, ...mapped }));
+          return;
+        }
+      }
       setSubmitError(formatApiError(err));
     } finally {
       setIsSubmitting(false);
@@ -612,7 +624,7 @@ export default function StudentRegistration() {
                         />
                       </InputIcon>
                     </Field>
-                    <Field label="Guardian Name" required error={fieldErrors.guardianName} className="md:col-span-2">
+                    <Field label="Guardian Name (optional)" error={fieldErrors.guardianName} className="md:col-span-2">
                       <InputIcon icon={<User className="w-4 h-4" />}>
                         <input
                           type="text"
@@ -623,7 +635,7 @@ export default function StudentRegistration() {
                         />
                       </InputIcon>
                     </Field>
-                    <Field label="Guardian Phone" required error={fieldErrors.guardianPhone}>
+                    <Field label="Guardian Phone (optional)" error={fieldErrors.guardianPhone}>
                       <InputIcon icon={<Phone className="w-4 h-4" />}>
                         <input
                           type="tel"
@@ -634,7 +646,7 @@ export default function StudentRegistration() {
                         />
                       </InputIcon>
                     </Field>
-                    <Field label="Guardian Email" required error={fieldErrors.guardianEmail}>
+                    <Field label="Guardian Email (optional)" error={fieldErrors.guardianEmail}>
                       <InputIcon icon={<Mail className="w-4 h-4" />}>
                         <input
                           type="email"
@@ -731,6 +743,28 @@ export default function StudentRegistration() {
                           />
                         </InputIcon>
                       </Field>
+
+                      {(paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'MOBILE_MONEY') && (
+                        <Field label="Transfer Reference (optional)" error={fieldErrors.transferReference}>
+                          <InputIcon icon={<Hash className="w-4 h-4" />}>
+                            <input
+                              type="text"
+                              value={transferReference}
+                              onChange={(e) => {
+                                setTransferReference(e.target.value);
+                                setFieldErrors((prev) => {
+                                  if (!prev.transferReference) return prev;
+                                  const next = { ...prev };
+                                  delete next.transferReference;
+                                  return next;
+                                });
+                              }}
+                              className={inputClass(fieldErrors.transferReference)}
+                              placeholder="Bank / mobile transfer slip number"
+                            />
+                          </InputIcon>
+                        </Field>
+                      )}
 
                       <div>
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">

@@ -1,9 +1,10 @@
 import {
-  fetchEnrollmentsApi,
+  fetchEnrollmentsPaginatedApi,
   fetchStudentsApi,
   fetchClassesApi,
   fetchAttendanceSessionsApi,
 } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 import { http } from '@/shared/api/http';
 import type { AcademicClass, AttendanceSession, Enrollment, StudentProfile } from '@/shared/types';
 
@@ -112,7 +113,7 @@ export async function loadTeacherDashboardData(
 
   if (isAdminOrStaff) {
     const [enrollments, students, classesRaw] = await Promise.all([
-      fetchEnrollmentsApi().catch(() => [] as Enrollment[]),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)).catch(() => [] as Enrollment[]),
       fetchStudentsApi().catch(() => [] as StudentProfile[]),
       fetchClassesApi().catch(() => [] as AcademicClass[]),
     ]);

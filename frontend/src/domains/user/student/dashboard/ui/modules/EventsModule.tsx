@@ -12,9 +12,10 @@ import { cancelMyRegistration, type BackendEventRegistration } from '@/domains/c
 import EventRegistrationModal from '@/domains/competition/shared/EventRegistrationModal';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
-import EmptyState from '../../../shared/ui/EmptyState';
+import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../../shared/ui/LoadingSkeleton';
 import Leaderboard from '../Leaderboard';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props {
   currentUser: UserProfile;
@@ -60,7 +61,7 @@ export default function EventsModule({ currentUser }: Props) {
       setRegistrations(regs);
       setRegisteredIds(new Set(regs.filter(r => r.registration_status !== 'CANCELLED').map(r => r.event)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load events.');
+      setError(formatApiError(e));
     } finally {
       setLoading(false);
     }
@@ -86,7 +87,7 @@ export default function EventsModule({ currentUser }: Props) {
       setRegistrations(prev => prev.map(r => r.id === id ? { ...r, registration_status: 'CANCELLED' as const } : r));
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not cancel registration.');
+      setError(formatApiError(e));
     } finally {
       setCancelling(null);
     }

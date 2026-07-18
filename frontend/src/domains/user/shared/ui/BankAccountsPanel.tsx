@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Loader2, Plus, Trash2, Smartphone, Landmark, StickyNote } from 'lucide-react';
+import { Building2, Loader2, Plus, Trash2, Smartphone, Landmark, StickyNote, Pencil, X, Check } from 'lucide-react';
+import { formatApiError } from '@/shared/utils/formatApiError';
 import {
   fetchBankAccountsApi,
   createBankAccountApi,
+  updateBankAccountApi,
   deleteBankAccountApi,
   type BankAccount,
 } from '@/domains/learning/academics/api/academicApi';
@@ -27,6 +29,19 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editKind, setEditKind] = useState<AccountKind>('BANK');
+  const [editForm, setEditForm] = useState({
+    bank_name: '',
+    account_holder: '',
+    account_number: '',
+    branch: '',
+    swift_code: '',
+    iban: '',
+    notes: '',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const [kind, setKind] = useState<AccountKind>('BANK');
   const [form, setForm] = useState({
     bank_name: '',
@@ -45,7 +60,7 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
       const data = await fetchBankAccountsApi();
       setAccounts(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load bank accounts');
+      setError(formatApiError(err));
       setAccounts([]);
     } finally {
       setLoading(false);
@@ -89,6 +104,51 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
       await load();
     } catch (err) {
       addToast?.(err instanceof Error ? err.message : 'Delete failed', 'error');
+    }
+  };
+
+  const startEdit = (acc: BankAccount) => {
+    setEditingId(acc.id);
+    const isMm = String(acc.bank_name).toLowerCase().includes('tele') || String(acc.bank_name).toLowerCase().includes('m-pesa') || String(acc.bank_name).toLowerCase().includes('cbe') || String(acc.bank_name).toLowerCase().includes('amole');
+    setEditKind(isMm ? 'MOBILE_MONEY' : 'BANK');
+    setEditForm({
+      bank_name: acc.bank_name || '',
+      account_holder: acc.account_holder || '',
+      account_number: acc.account_number || '',
+      branch: acc.branch || '',
+      swift_code: acc.swift_code || '',
+      iban: acc.iban || '',
+      notes: acc.notes || '',
+    });
+    setEditError('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError('');
+  };
+
+  const onEditSave = async (id: string) => {
+    if (!editForm.bank_name.trim() || !editForm.account_holder.trim() || !editForm.account_number.trim()) return;
+    setEditSaving(true);
+    setEditError('');
+    try {
+      await updateBankAccountApi(id, {
+        bank_name: editForm.bank_name.trim(),
+        account_holder: editForm.account_holder.trim(),
+        account_number: editForm.account_number.trim(),
+        branch: editForm.branch.trim() || undefined,
+        swift_code: editForm.swift_code.trim() || undefined,
+        iban: editForm.iban.trim() || undefined,
+        notes: editForm.notes.trim() || undefined,
+      });
+      addToast?.('Bank account updated', 'success');
+      setEditingId(null);
+      await load();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -173,13 +233,26 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
             onChange={(e) => setForm((p) => ({ ...p, account_holder: e.target.value }))}
             className="form-input px-3 py-2 border border-slate-200 rounded-lg text-sm"
           />
-          <input
-            required
-            placeholder={kind === 'MOBILE_MONEY' ? 'Wallet / Phone number' : 'Account number'}
-            value={form.account_number}
-            onChange={(e) => setForm((p) => ({ ...p, account_number: e.target.value }))}
-            className="form-input px-3 py-2 border border-slate-200 rounded-lg text-sm"
-          />
+          {kind === 'MOBILE_MONEY' ? (
+            <div className="relative">
+              <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
+              <input
+                required
+                placeholder="Phone number"
+                value={form.account_number}
+                onChange={(e) => setForm((p) => ({ ...p, account_number: e.target.value }))}
+                className="form-input w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
+              />
+            </div>
+          ) : (
+            <input
+              required
+              placeholder="Account number"
+              value={form.account_number}
+              onChange={(e) => setForm((p) => ({ ...p, account_number: e.target.value }))}
+              className="form-input px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            />
+          )}
           <input placeholder="Branch (optional)" value={form.branch} onChange={(e) => setForm((p) => ({ ...p, branch: e.target.value }))} className="form-input px-3 py-2 border border-slate-200 rounded-lg text-sm" />
           <input placeholder="SWIFT (optional)" value={form.swift_code} onChange={(e) => setForm((p) => ({ ...p, swift_code: e.target.value }))} className="form-input px-3 py-2 border border-slate-200 rounded-lg text-sm" />
           <input placeholder="IBAN (optional)" value={form.iban} onChange={(e) => setForm((p) => ({ ...p, iban: e.target.value }))} className="form-input px-3 py-2 border border-slate-200 rounded-lg text-sm" />
@@ -222,28 +295,81 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {accs.map(acc => (
-                    <div key={acc.account_number} className="bg-white border border-slate-200 rounded-xl p-3 flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-mono text-xs font-bold text-slate-800">{acc.account_number}</p>
-                        <p className="text-xs text-slate-600 mt-0.5 truncate">{acc.account_holder}</p>
-                        {acc.branch && <p className="text-[10px] text-slate-500 truncate">{acc.branch}</p>}
-                        {acc.iban && <p className="text-[10px] text-slate-500 truncate">IBAN: <span className="font-mono">{acc.iban}</span></p>}
-                        {acc.notes && <p className="text-[10px] text-slate-500 mt-1 whitespace-pre-line line-clamp-2">{acc.notes}</p>}
-                      </div>
-                      <div className="flex items-start gap-1 shrink-0">
-                        <button type="button" onClick={() => navigator.clipboard.writeText(acc.account_number)}
-                          className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Copy account number">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                        </button>
-                        {canManage && (
-                          <button type="button" onClick={() => onDelete(acc.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
+                    <div key={acc.id} className="bg-white border border-slate-200 rounded-xl p-3">
+                      {editingId === acc.id ? (
+                        <div className="space-y-2">
+                          {editError && <p className="text-[10px] text-red-600">{editError}</p>}
+                          {editKind === 'MOBILE_MONEY' ? (
+                            <select value={editForm.bank_name} onChange={e => setEditForm(p => ({ ...p, bank_name: e.target.value }))}
+                              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs">
+                              {[...MOBILE_MONEY_PROVIDERS, 'Other'].map(p => (<option key={p} value={p}>{p}</option>))}
+                            </select>
+                          ) : (
+                            <input value={editForm.bank_name} onChange={e => setEditForm(p => ({ ...p, bank_name: e.target.value }))}
+                              placeholder="Bank name" className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                          )}
+                          <input value={editForm.account_holder} onChange={e => setEditForm(p => ({ ...p, account_holder: e.target.value }))}
+                            placeholder="Account holder" className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                          <input value={editForm.account_number} onChange={e => setEditForm(p => ({ ...p, account_number: e.target.value }))}
+                            placeholder="Account number" className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                          <div className="flex gap-2">
+                            <input value={editForm.branch} onChange={e => setEditForm(p => ({ ...p, branch: e.target.value }))}
+                              placeholder="Branch" className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                            <input value={editForm.swift_code} onChange={e => setEditForm(p => ({ ...p, swift_code: e.target.value }))}
+                              placeholder="SWIFT" className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                          </div>
+                          <input value={editForm.iban} onChange={e => setEditForm(p => ({ ...p, iban: e.target.value }))}
+                            placeholder="IBAN" className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                          <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+                            placeholder="Payment instructions" className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs min-h-[56px]" />
+                          <div className="flex justify-end gap-1.5 pt-1">
+                            <button onClick={cancelEdit} className="px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-100 rounded">Cancel</button>
+                            <button onClick={() => onEditSave(acc.id)} disabled={editSaving}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50">
+                              {editSaving ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Check className="w-2.5 h-2.5" />}
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              {String(acc.bank_name).toLowerCase().includes('tele') ? (
+                                <Smartphone className="w-3 h-3 text-blue-500 shrink-0" />
+                              ) : (
+                                <Landmark className="w-3 h-3 text-blue-500 shrink-0" />
+                              )}
+                              <p className="font-mono text-xs font-bold text-slate-800">{acc.account_number}</p>
+                            </div>
+                            <p className="text-xs text-slate-600 truncate">{acc.account_holder}</p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                              {acc.branch && <p className="text-[10px] text-slate-500 truncate">{acc.branch}</p>}
+                              {acc.iban && <p className="text-[10px] text-slate-500">IBAN: <span className="font-mono">{acc.iban}</span></p>}
+                            </div>
+                            {acc.notes && <p className="text-[10px] text-slate-500 mt-1 whitespace-pre-line line-clamp-2">{acc.notes}</p>}
+                          </div>
+                          <div className="flex items-start gap-1 shrink-0">
+                            <button type="button" onClick={() => navigator.clipboard.writeText(acc.account_number)}
+                              className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Copy account number">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                            {canManage && (
+                              <>
+                                <button type="button" onClick={() => startEdit(acc)} className="p-1.5 text-slate-400 hover:text-brand-blue hover:bg-blue-50 rounded-lg" title="Edit">
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button type="button" onClick={() => onDelete(acc.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

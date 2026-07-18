@@ -30,6 +30,7 @@ import PaymentTracker from './PaymentTracker';
 import EventsManagement from './EventsManagement';
 import AnnouncementsManager from './AnnouncementsManager';
 import WalkInRegistration from './WalkInRegistration';
+import EnrollmentPeriodsPanel from '../../../secretary/dashboard/ui/EnrollmentPeriodsPanel';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import SchoolManagement from './SchoolManagement';
 import AcademicCatalogManager from '@/domains/learning/academics/ui/AcademicCatalogManager';
@@ -38,6 +39,7 @@ import StaffAttendanceManager from '@/domains/user/shared/ui/StaffAttendanceMana
 import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
 import TransferRequestsPanel from '@/domains/user/shared/ui/TransferRequestsPanel';
 import EnrollmentsPanel from '@/domains/user/secretary/dashboard/ui/EnrollmentsPanel';
+import StudentDetailPanel from '@/domains/user/secretary/dashboard/ui/StudentDetailPanel';
 import TournamentManager from '@/domains/competition/admin/TournamentManager';
 import WorkshopManager from '@/domains/competition/admin/WorkshopManager';
 import RegistrationManager from '@/domains/competition/admin/RegistrationManager';
@@ -47,7 +49,9 @@ import CertificateManager from '@/domains/user/shared/ui/CertificateManager';
 import StoreDashboard from '@/domains/store/admin/ui/StoreDashboard';
 import LearningMaterialsPanel from '@/domains/user/secretary/dashboard/ui/LearningMaterialsPanel';
 import LearningMilestonesManager from '@/domains/user/secretary/dashboard/ui/LearningMilestonesManager';
-import { fetchEnrollmentsApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf, downloadProgressReportPdf, downloadCertificateReportPdf, downloadClassReportPdf, downloadSubProgramReportPdf, downloadProgramReportPdf } from '@/domains/learning/academics/api/academicApi';
+import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchProgramsApi, fetchSubProgramsApi, fetchClassesApi, downloadStudentReportPdf, downloadEnrollmentReportPdf, downloadAttendanceReportPdf, downloadProgressReportPdf, downloadCertificateReportPdf, downloadClassReportPdf, downloadSubProgramReportPdf, downloadProgramReportPdf } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props {
   currentUser: UserProfile;
@@ -61,6 +65,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'academic-catalog', label: 'Academic Catalog', icon: BookOpen, group: 'academic' },
   { id: 'classes', label: 'Classes', icon: BookOpen, group: 'academic' },
   { id: 'enrollments', label: 'Academic Enrollments', icon: UserPlus, group: 'academic' },
+  { id: 'students', label: 'Students', icon: Users, group: 'academic' },
+  { id: 'periods', label: 'Enrollment Periods', icon: Calendar, group: 'academic' },
   { id: 'transfers', label: 'Branch Transfers', icon: ArrowRightLeft, group: 'academic' },
   { id: 'staff-attendance', label: 'Staff Attendance', icon: Calendar, group: 'academic' },
   { id: 'materials', label: 'Learning Materials', icon: BookOpen, group: 'academic' },
@@ -100,7 +106,7 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
     setLoadError(null);
     Promise.allSettled([
       fetchStudentsApi(),
-      fetchEnrollmentsApi(),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
       fetchProgramsApi(),
     ]).then(([stu, enr, pay, pro]) => {
@@ -174,6 +180,8 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       case 'sponsors': return <SponsorManagement currentUser={currentUser} />;
       case 'schools': return <SchoolManagement currentUser={currentUser} />;
       case 'enrollments': return <EnrollmentsPanel />;
+      case 'periods': return <EnrollmentPeriodsPanel currentUser={currentUser} />;
+      case 'students': return <StudentDetailPanel />;
       case 'transfers': return <TransferRequestsPanel />;
       case 'event-registrations': return <RegistrationManager />;
       case 'store': return <StoreDashboard currentUser={currentUser} />;
@@ -244,14 +252,6 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
   payments: EnrollmentPayment[];
   programs: Program[];
 }) {
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  useEffect(() => {
-    import('@/domains/notification/model/notificationApi').then(m =>
-      m.getNotifications().then(setNotifications)
-    );
-  }, []);
-  const unreadNotifications = notifications.filter(n => !n.read);
-
   const allQuickActions: { id: SectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
     { id: 'academic-catalog', label: 'Academic Catalog', desc: 'Programs & classes', icon: BookOpen, color: 'from-blue-500 to-blue-600' },
     { id: 'enrollments', label: 'Academic Enrollments', desc: 'View student enrollments', icon: UserPlus, color: 'from-emerald-500 to-emerald-600' },
@@ -297,7 +297,7 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
           { label: 'Students', value: String(students.length), icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-50' },
           { label: 'Revenue', value: payments.reduce((s, p) => s + (p.status === 'PAID' ? Number(p.amount) : 0), 0).toLocaleString() + ' Birr', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
           { label: 'Active Enrollments', value: String(enrollments.filter(e => e.status === 'ACTIVE').length), icon: UserCheck, color: 'text-amber-500', bg: 'bg-amber-50' },
-          { label: 'Pending Payments', value: String(enrollments.filter(e => e.status === 'PENDING_PAYMENT').length), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: 'Pending Payments', value: String(enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
         ].map((m, i) => {
           const MIcon = m.icon;
           return (
@@ -356,21 +356,21 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
               </span>
             </div>
             <div className="flex flex-col gap-1.5">
-              {notifications.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4 text-center">No notifications yet</p>
-              ) : notifications.slice(0, 6).map((n, i) => (
-                <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                  className={`flex items-start gap-2 p-2 rounded-lg text-sm transition-all ${n.read ? 'text-slate-500' : 'bg-blue-600/5 border border-blue-600/10 text-slate-900'}`}
+              {enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">No pending enrollments</p>
+              ) : enrollments.filter(e => e.status === 'PENDING_VERIFICATION').slice(0, 6).map((e, i) => (
+                <motion.div key={e.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                  className="flex items-start gap-2 p-2 rounded-lg text-sm bg-brand-blue/[0.04] border border-brand-blue/10"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-sm truncate">{e.student_name || 'Student'}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{e.class_name || e.program_name || 'Enrollment'}</p>
+                    <p className="font-bold text-sm truncate">{e.student_name || e.student_email || 'Student'}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{e.class_name || e.sub_program_name || 'Enrollment'}</p>
+                    {(e.pending_code || e.enrollment_number) && (
+                      <p className="text-[10px] font-mono text-brand-blue mt-0.5">{e.pending_code || e.enrollment_number}</p>
+                    )}
                   </div>
                 </motion.div>
               ))}
-              {enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length === 0 && (
-                <p className="text-xs text-slate-400 py-4 text-center">No pending enrollments</p>
-              )}
             </div>
           </div>
         </div>
@@ -423,7 +423,7 @@ function ReportsSection() {
       fetchClassesApi().catch(() => []),
       fetchProgramsApi().catch(() => []),
       fetchSubProgramsApi().catch(() => []),
-      fetchEnrollmentsApi().catch(() => []),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)).catch(() => []),
     ]).then(([stu, cls, pro, sp, enr]) => {
       setStudents(Array.isArray(stu) ? stu : []);
       setClasses(Array.isArray(cls) ? cls : []);
@@ -439,7 +439,7 @@ function ReportsSection() {
     try {
       await fn();
     } catch (e) {
-      setDownloadError(e instanceof Error ? e.message : 'Download failed. Please try again.');
+      setDownloadError(formatApiError(e));
     } finally {
       setDownloading(null);
     }
@@ -500,7 +500,7 @@ function ReportsSection() {
           >
             <option value="">Select a student...</option>
             {students.map(s => (
-              <option key={s.id} value={s.id}>{s.full_name || s.first_name || s.email}</option>
+              <option key={s.id} value={s.id}>{`${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email}</option>
             ))}
           </select>
         </div>

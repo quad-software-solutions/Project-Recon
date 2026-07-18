@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Shield, Building, ClipboardList, GraduationCap, Users, Search, Plus, Star, X,
-  CheckCircle2, Trash2, ChevronDown, AlertTriangle, Lock, Info, Loader2,
+  CheckCircle2, Trash2, ChevronDown, AlertTriangle, Lock, Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -14,6 +14,7 @@ import {
 } from '../api/adminApi';
 import type { UserProfile } from '@/shared/types';
 import { canManageAccounts } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 /** Backend Roles TextChoices — not editable permission entities. */
 const ROLE_DEFS = [
@@ -88,6 +89,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
   });
   const [userSearch, setUserSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
 
   const clearSuccessLater = () => {
     setTimeout(() => setSuccess(null), 3500);
@@ -106,7 +108,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
       setBranches(branchArr.filter(b => b.status !== 'Archived'));
       setAssignments(assignArr);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load role data');
+      setError(formatApiError(e));
     } finally {
       setLoading(false);
     }
@@ -161,7 +163,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
       clearSuccessLater();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to assign role');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -181,16 +183,21 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
       clearSuccessLater();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update assignment');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemoveAssignment = async (id: string) => {
+    if (!confirmRevoke) {
+      setConfirmRevoke(true);
+      return;
+    }
     if (saving) return;
     setSaving(true);
     setError(null);
+    setConfirmRevoke(false);
     try {
       await assignmentsApi.delete(id);
       setEditAssign(null);
@@ -198,7 +205,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
       clearSuccessLater();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to remove assignment');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -241,23 +248,6 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
           </button>
         </div>
       )}
-
-      {/* Backend limitation notice */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
-        <div className="text-sm text-slate-700 space-y-1">
-          <p className="font-semibold text-slate-900">Role assignment only</p>
-          <p>
-            The backend supports assigning fixed roles to users via{' '}
-            <code className="text-xs bg-white border border-slate-200 px-1 rounded">/accounts/assignments/</code>.
-            Granular Allow/Deny permission editing is not available — permissions are enforced by role in the backend.
-          </p>
-          <p className="text-xs text-slate-500">
-            To support editable permission matrices, the backend would need APIs to list permissions,
-            return a role→permission matrix, and update Allow/Deny per role.
-          </p>
-        </div>
-      </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
@@ -701,7 +691,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
         {editAssign && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
-            onClick={() => !saving && setEditAssign(null)}
+            onClick={() => { if (!saving) { setEditAssign(null); setConfirmRevoke(false); } }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -774,18 +764,32 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
                     type="button"
                     onClick={() => handleRemoveAssignment(editAssign.id)}
                     disabled={saving}
-                    className="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-bold hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+                    className={`px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 ${
+                      confirmRevoke
+                        ? 'bg-red-600 text-white hover:bg-red-700 border border-red-600'
+                        : 'border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300'
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" /> Revoke
+                    <Trash2 className="w-4 h-4" /> {confirmRevoke ? 'Confirm Revoke?' : 'Revoke'}
                   </button>
+                  {confirmRevoke && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRevoke(false)}
+                      disabled={saving}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <div className="flex-1" />
                   <button
                     type="button"
-                    onClick={() => setEditAssign(null)}
+                    onClick={() => { setEditAssign(null); setConfirmRevoke(false); }}
                     disabled={saving}
                     className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
                   >
-                    Cancel
+                    Close
                   </button>
                   <button
                     type="button"

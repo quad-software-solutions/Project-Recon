@@ -10,9 +10,9 @@ export type ManagerSectionId =
   | 'sponsors' | 'store' | 'materials' | 'milestones'
   | 'events' | 'tournaments' | 'tournament-teams'
   | 'matches' | 'workshops' | 'announcements' | 'communications'
-  | 'payments' | 'walkin' | 'reports' | 'schools' | 'enrollments'
+  | 'payments' | 'walkin' | 'reports' | 'schools' | 'enrollments' | 'periods'
   | 'event-registrations' | 'certificates' | 'account'
-  | 'transfers';
+  | 'transfers' | 'students';
 
 export interface ManagerHubStats {
   students: number;
@@ -72,6 +72,18 @@ export function getManagerCommandCenter(
           { label: 'Pending', value: String(pendingPayments), detail: 'awaiting payment', icon: DollarSign, tone: pendingPayments ? 'amber' : 'slate' },
           { label: 'Students', value: String(students), detail: 'registered', icon: Users, tone: 'blue' },
           { label: 'Programs', value: String(programs), detail: 'available', icon: BookOpen, tone: 'slate' },
+        ],
+      };
+
+    case 'periods':
+      return {
+        title: 'Enrollment Periods',
+        subtitle: 'Open and close enrollment windows for group classes.',
+        signals: [
+          { label: 'Active', value: String(activeEnrollments), detail: 'current enrollments', icon: UserPlus, tone: 'emerald' },
+          { label: 'Pending', value: String(pendingPayments), detail: 'awaiting payment', icon: DollarSign, tone: pendingPayments ? 'amber' : 'slate' },
+          { label: 'Programs', value: String(programs), detail: 'programs', icon: BookOpen, tone: 'blue' },
+          { label: 'Students', value: String(students), detail: 'registered', icon: Users, tone: 'slate' },
         ],
       };
 

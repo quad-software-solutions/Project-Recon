@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, BookOpen, Globe, Trophy, ArrowUpRight,
   Globe2, Send, Loader, CheckCircle2,
-  ChevronRight, Sparkles
+   ChevronRight,
 } from 'lucide-react';
 import Hero from '../domains/learning/programs/ui/Hero';
 import DemoSlider from '../domains/learning/programs/ui/DemoSlider';
@@ -421,7 +421,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         </motion.div>
 
         {galleryItems.length === 0 ? (
-          <p className="text-center text-sm text-slate-400">Gallery coming soon...</p>
+          <p className="text-center text-sm text-slate-400">No gallery items published yet.</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {galleryItems.map((item, idx) => (

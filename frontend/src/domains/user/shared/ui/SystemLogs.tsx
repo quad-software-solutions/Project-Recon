@@ -11,6 +11,7 @@ import {
 } from '../api/adminApi';
 import type { UserProfile } from '@/shared/types';
 import { canViewAuditLogs } from '@/shared/auth/permissions';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const typeBadge = (action: string) => {
   const a = action.toLowerCase();
@@ -64,7 +65,7 @@ export default function SystemLogs({ currentUser }: Props) {
       const res = await fetchAuditLogsApi();
       setLogs(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load audit logs');
+      setError(formatApiError(e));
     } finally {
       setLoading(false);
     }

@@ -25,8 +25,9 @@ import AnnouncementsManager from '@/domains/user/manager/dashboard/ui/Announceme
 import CommunicationsCenter from '@/domains/user/manager/dashboard/ui/CommunicationsCenter';
 import type { UserProfile } from '@/shared/types';
 import {
-  fetchEnrollmentsApi, fetchPaymentsApi, fetchProgramsApi, fetchClassesApi,
+  fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchProgramsApi, fetchClassesApi,
 } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 import {
   fetchAllUsersApi, branchesApi, resolveRole,
 } from '../api/adminApi';
@@ -52,28 +53,6 @@ import {
 } from '@/shared/auth/dashboardAccess';
 
 interface Props { currentUser: UserProfile; onLogout: () => void; }
-
-const SECTION_PERMISSION: Partial<Record<AdminSectionId, Permission>> = {
-  users: 'accounts:manage',
-  roles: 'accounts:manage',
-  'staff-attendance': 'academic:attendance:manage',
-  academics: 'academic:catalog:manage',
-  classes: 'academic:catalog:manage',
-  registrations: 'academic:enrollments:manage',
-  transfers: 'academic:enrollments:manage',
-  certificates: 'academic:certificates:manage',
-  events: 'events:manage',
-  tournaments: 'events:manage',
-  'tournament-teams': 'events:manage',
-  matches: 'events:manage',
-  workshops: 'events:manage',
-  'event-registrations': 'events:manage',
-  cms: 'cms:manage',
-  branches: 'branches:manage',
-  store: 'store:manage',
-  'bank-accounts': 'accounts:manage',
-  audit: 'audit:view',
-};
 
 const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'core' },
@@ -147,7 +126,7 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       branchesApi.list(),
       fetchProgramsApi(),
       fetchClassesApi(),
-      fetchEnrollmentsApi(),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
     ]).then(([usersRes, branchesRes, programsRes, classesRes, enrollmentsRes, paymentsRes]) => {
       const summary = summarizeSettled([usersRes, branchesRes, programsRes, classesRes, enrollmentsRes, paymentsRes]);

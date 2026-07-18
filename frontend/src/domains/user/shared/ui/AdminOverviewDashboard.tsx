@@ -10,8 +10,9 @@ import {
   type AdminUserResponse, type BranchResponse, type AuditLogEntry,
 } from '../api/adminApi';
 import {
-  fetchProgramsApi, fetchClassesApi, fetchEnrollmentsApi, fetchPaymentsApi,
+  fetchProgramsApi, fetchClassesApi, fetchEnrollmentsPaginatedApi, fetchPaymentsApi,
 } from '@/domains/learning/academics/api/academicApi';
+import { fetchAllPages } from '@/shared/api/pagination';
 import { cmsContactRequestsApi } from '@/domains/cms/shared/api/cmsApi';
 import LiveLeaderboardWidget from '@/domains/competition/shared/LiveLeaderboardWidget';
 import type { AdminSectionId } from '../adminCommandCenter';
@@ -150,7 +151,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
       branchesApi.list().catch(() => [] as BranchResponse[]),
       fetchProgramsApi().catch(() => []),
       fetchClassesApi().catch(() => []),
-      fetchEnrollmentsApi().catch(() => []),
+      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)).catch(() => []),
       fetchPaymentsApi().catch(() => []),
       fetchAuditLogsApi().catch(() => [] as AuditLogEntry[]),
       cmsContactRequestsApi.list().catch(() => []),
@@ -182,7 +183,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
   }, [users]);
 
   const activeEnrollments = enrollments.filter((e: any) => e.status === 'ACTIVE');
-  const pendingEnrollments = enrollments.filter((e: any) => e.status === 'PENDING_PAYMENT');
+  const pendingEnrollments = enrollments.filter((e: any) => e.status === 'PENDING_VERIFICATION');
   const paidPayments = payments.filter((p: any) => p.status === 'PAID');
   const pendingPayments = payments.filter((p: any) => p.status === 'PENDING');
   const totalRevenue = paidPayments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);

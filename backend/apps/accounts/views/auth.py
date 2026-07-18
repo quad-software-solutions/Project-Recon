@@ -19,8 +19,11 @@ from apps.accounts.serializers.auth import (
     TokenPairSerializer,
 )
 from apps.accounts.api.throttles import (
+    ChangePasswordUserThrottle,
+    EmailOTPThrottle,
     ForgotPasswordAnonThrottle,
     LoginAnonThrottle,
+    LogoutUserThrottle,
     OTPRequestUserThrottle,
     OTPVerifyUserThrottle,
     ResetPasswordAnonThrottle,
@@ -95,6 +98,7 @@ class LogoutView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [LogoutUserThrottle]
 
     @extend_schema(tags=["Auth"], request=LogoutSerializer, responses={204: None})
     def post(self, request):
@@ -112,6 +116,7 @@ class LogoutAllView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [LogoutUserThrottle]
 
     @extend_schema(tags=["Auth"], responses={200: None})
     def post(self, request):
@@ -138,7 +143,11 @@ class TokenRefreshView(APIView):
     def post(self, request):
         serializer = RefreshTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        tokens = refresh_token(serializer.validated_data["refresh"])
+        device_info = serializer.get_device_info()
+        tokens = refresh_token(
+            serializer.validated_data["refresh"],
+            device_info=device_info,
+        )
         return Response(TokenPairSerializer(tokens).data)
 
 
@@ -185,7 +194,7 @@ class PublicEmailVerificationRequestView(APIView):
     """Send email verification OTP to a user identified by email (public)."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [OTPRequestUserThrottle]
+    throttle_classes = [EmailOTPThrottle]
 
     @extend_schema(tags=["Auth"], responses={204: None})
     def post(self, request):
@@ -318,6 +327,7 @@ class ChangePasswordView(generics.UpdateAPIView):
 
     serializer_class = ChangePasswordSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ChangePasswordUserThrottle]
 
     def get_object(self):
         return self.request.user

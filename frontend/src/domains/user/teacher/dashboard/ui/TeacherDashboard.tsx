@@ -21,6 +21,8 @@ import {
   type TeacherClassOption,
 } from '@/domains/user/teacher/api/teacherData';
 
+import DashboardOverview from './DashboardOverview';
+import TeacherCalendar from './TeacherCalendar';
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';
 import PerformanceMetrics from './PerformanceMetrics';
@@ -37,9 +39,11 @@ interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void
 type SectionId = TeacherSectionId;
 
 const NAV_ITEMS: NavItem[] = [
+  { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
   { id: 'class', label: 'Class Management', icon: Users, group: 'main' },
   { id: 'workshops', label: 'My Workshops', icon: GraduationCap, group: 'main' },
-  { id: 'attendance', label: 'Attendance', icon: Calendar, group: 'teaching' },
+  { id: 'calendar', label: 'Calendar', icon: Calendar, group: 'teaching' },
+  { id: 'attendance', label: 'Attendance', icon: Clock, group: 'teaching' },
   { id: 'progress', label: 'Progress', icon: Edit3, group: 'teaching' },
   { id: 'milestones', label: 'Milestones', icon: Target, group: 'teaching' },
   { id: 'materials', label: 'Materials', icon: BookOpen, group: 'teaching' },
@@ -164,6 +168,10 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
     }
 
     switch (activeSection) {
+      case 'overview':
+        return <DashboardOverview students={allStudents} enrollments={allEnrollments} classes={classes} selectedClassId={selectedClassId} mode={mode} loading={loading} />;
+      case 'calendar':
+        return <TeacherCalendar classes={classes} loading={loading} />;
       case 'class':
         return (
           <ClassManagement
@@ -244,6 +252,7 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
       case 'announcements':
         return <AnnouncementsPage />;
       case 'account':
+      case 'profile':
         return <AdminAccount currentUser={currentUser} />;
     }
   };

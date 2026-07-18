@@ -91,7 +91,7 @@ def _create_user_with_role(
             user, role, branch, assigned_by=assigned_by, is_primary=True
         )
 
-        log_action(assigned_by, "USER_CREATED_WITH_ROLE_AND_ASSIGNED_ROLE", "User", user.id)
+        log_action(assigned_by, "USER_CREATED", "User", user.id)
 
         return user
 
@@ -287,14 +287,14 @@ def deactivate_user(user, actor=None) -> None:
     """Set user status to Suspended."""
     user.status = AccountStatus.SUSPENDED
     user.save(update_fields=["status"])
-    log_action(actor, "user.deactivated", "User", user.id)
+    log_action(actor, "USER_DEACTIVATED", "User", user.id)
 
 
 def archive_user(user, actor=None) -> None:
     """Set user status to Archived."""
     user.status = AccountStatus.ARCHIVED
     user.save(update_fields=["status"])
-    log_action(actor, "user.archived", "User", user.id)
+    log_action(actor, "USER_ARCHIVED", "User", user.id)
 
 
 def get_user(user_id) -> User:

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, CheckCircle2, Clock, Calendar, Loader2, Users, UserCheck, AlertCircle, TrendingUp } from 'lucide-react';
+import { Search, CheckCircle2, Clock, Calendar, Loader2, Users, UserCheck, AlertCircle, TrendingUp, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
 

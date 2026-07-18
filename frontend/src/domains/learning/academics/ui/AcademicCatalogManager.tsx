@@ -47,7 +47,7 @@ const emptyProgram: ProgramForm = {
 };
 
 const emptySubProgram: SubProgramForm = {
-  program: '', name: '', slug: '', description: '', duration: 12, duration_unit: 'WEEK', fee: '0.00',
+  program: '', name: '', slug: '', description: '', duration: 12, duration_unit: 'WEEK', group_fee: '', individual_fee: '',
 };
 
 function slugify(value: string) {
@@ -137,7 +137,8 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
       image: subProgramForm.image || undefined,
       duration: subProgramForm.duration ? Number(subProgramForm.duration) : null,
       duration_unit: subProgramForm.duration_unit || null,
-      fee: subProgramForm.fee || '0.00',
+      group_fee: subProgramForm.group_fee || '0',
+      individual_fee: subProgramForm.individual_fee || undefined,
     };
     try {
       if (subProgramForm.id) { await updateSubProgramApi(subProgramForm.id, payload); showSuccess('Sub program updated'); }
@@ -345,7 +346,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                 )}
               </div>
             </FormField>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <FormField label="Duration">
                 <input type="number" value={subProgramForm.duration ?? ''} onChange={e => setSubProgramForm(p => ({ ...p, duration: e.target.value ? Number(e.target.value) : null }))}
                   placeholder="12" className="form-input" />
@@ -358,9 +359,13 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                   <option value="MONTH">Month</option>
                 </select>
               </FormField>
-              <FormField label="Fee (Birr)">
-                <input value={subProgramForm.fee} onChange={e => setSubProgramForm(p => ({ ...p, fee: e.target.value }))}
-                  placeholder="5000" className="form-input" />
+              <FormField label="Group Fee (Birr)" required>
+                <input value={subProgramForm.group_fee} onChange={e => setSubProgramForm(p => ({ ...p, group_fee: e.target.value }))}
+                  placeholder="e.g. 5000" className="form-input" />
+              </FormField>
+              <FormField label="Individual Fee (Birr)">
+                <input value={subProgramForm.individual_fee || ''} onChange={e => setSubProgramForm(p => ({ ...p, individual_fee: e.target.value }))}
+                  placeholder="e.g. 8000" className="form-input" />
               </FormField>
             </div>
             <ActionButton loading={saving === 'sub-program'} label={subProgramForm.id ? 'Save Changes' : 'Create Sub Program'} disabled={programs.length === 0} />
@@ -429,7 +434,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                           <div key={sp.id} className="flex items-center gap-2 pl-6 py-1.5 text-xs text-slate-600 border-l-2 border-brand-red/20">
                             <span className="w-1.5 h-1.5 rounded-full bg-brand-red/30 shrink-0" />
                             <span className="font-medium">{sp.name}</span>
-                            <span className="text-slate-400">{Number(sp.fee).toLocaleString()} Birr</span>
+                            <span className="text-slate-400">{Number(sp.group_fee).toLocaleString()} Birr</span>
                             {sp.duration && <span className="text-slate-400">({sp.duration} {sp.duration_unit?.toLowerCase()})</span>}
                           </div>
                         ))
@@ -488,14 +493,14 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                       <p className="text-xs text-slate-400 truncate">{parentProgram?.name || '—'}</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-500 shrink-0">
-                      {Number(sp.fee) > 0 && <span className="font-bold text-slate-700">{Number(sp.fee).toLocaleString()} Birr</span>}
+                      {Number(sp.group_fee) > 0 && <span className="font-bold text-slate-700">{Number(sp.group_fee).toLocaleString()} Birr</span>}
                       {sp.duration && <span className="text-slate-400">| {sp.duration}{sp.duration_unit?.charAt(0)?.toLowerCase()}</span>}
                     </div>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sp.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {sp.is_active ? 'Active' : 'Inactive'}
                     </span>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setSubProgramForm({ ...emptySubProgram, ...sp, fee: String(sp.fee) })}
+                      <button onClick={() => setSubProgramForm({ ...emptySubProgram, ...sp, group_fee: String(sp.group_fee), individual_fee: sp.individual_fee != null ? String(sp.individual_fee) : '' })}
                         className="p-1 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
                         <Eye className="w-3.5 h-3.5" />
                       </button>

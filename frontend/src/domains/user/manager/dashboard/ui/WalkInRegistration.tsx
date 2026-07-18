@@ -12,7 +12,7 @@ import {
 } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment, Program, SubProgram, UserProfile } from '@/shared/types';
 import { isSuperAdminOrBranchManager } from '@/shared/auth/permissions';
-import { isApiError } from '@/shared/api/http';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 interface Props {
   currentUser: UserProfile;
@@ -27,12 +27,6 @@ const EMPTY_FORM = {
   guardianPhone: '',
   guardianEmail: '',
 };
-
-function formatApiError(err: unknown): string {
-  if (isApiError(err)) return err.message;
-  if (err instanceof Error) return err.message;
-  return 'Registration failed. Please try again.';
-}
 
 export default function WalkInRegistration({ currentUser }: Props) {
   const canManage = isSuperAdminOrBranchManager(currentUser);
@@ -148,11 +142,6 @@ export default function WalkInRegistration({ currentUser }: Props) {
       setSubmitError('Student email is required.');
       return;
     }
-    if (!form.guardianName.trim() || !form.guardianPhone.trim() || !form.guardianEmail.trim()) {
-      setSubmitError('Guardian name, phone, and email are required.');
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const tempPassword = `Walkin@${Math.random().toString(36).slice(2, 10)}`;
@@ -274,16 +263,16 @@ export default function WalkInRegistration({ currentUser }: Props) {
                   <input type="tel" value={form.phoneNumber} onChange={(e) => updateForm('phoneNumber', e.target.value)} className={`${inputClass} pl-10`} placeholder="+251 911 00 00 00" />
                 </div>
               </Field>
-              <Field label="Guardian Name" required className="md:col-span-2">
+              <Field label="Guardian Name" className="md:col-span-2">
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input value={form.guardianName} onChange={(e) => updateForm('guardianName', e.target.value)} className={`${inputClass} pl-10`} placeholder="Guardian name" />
                 </div>
               </Field>
-              <Field label="Guardian Phone" required>
+              <Field label="Guardian Phone">
                 <input type="tel" value={form.guardianPhone} onChange={(e) => updateForm('guardianPhone', e.target.value)} className={inputClass} placeholder="+251 911 00 00 00" />
               </Field>
-              <Field label="Guardian Email" required>
+              <Field label="Guardian Email">
                 <input type="email" value={form.guardianEmail} onChange={(e) => updateForm('guardianEmail', e.target.value)} className={inputClass} placeholder="guardian@email.com" />
               </Field>
             </div>

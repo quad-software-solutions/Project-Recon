@@ -5,6 +5,7 @@ import { EnrollmentPayment, Enrollment } from '@/shared/types';
 import { fetchPaymentsListApi, fetchEnrollmentsPaginatedApi, recordPaymentApi, fetchVerificationQueueApi, setUnderReviewApi, rejectPaymentApi } from '@/domains/learning/academics/api/academicApi';
 import * as eventsApi from '@/domains/competition/api/eventsApi';
 import type { BackendEventPayment } from '@/domains/competition/api/eventsApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const PAGE_SIZE = 50;
 
@@ -41,7 +42,7 @@ export default function PaymentsPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [form, setForm] = useState({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', bank_name: '' });
+  const [form, setForm] = useState({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', transfer_reference: '', bank_name: '' });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<EnrollmentPayment | null>(null);
@@ -72,16 +73,19 @@ export default function PaymentsPanel() {
       if (pay.status === 'fulfilled') {
         setPayments(Array.isArray(pay.value) ? pay.value : []);
       } else {
-        errors.push('payments');
+        errors.push(formatApiError(pay.reason));
       }
       if (enr.status === 'fulfilled') {
         setEnrollments((enr.value.results || []).filter(e => e.status === 'ACTIVE' || e.status === 'PENDING_VERIFICATION'));
       } else {
-        errors.push('enrollments');
+        errors.push(formatApiError(enr.reason));
       }
       if (queue.status === 'fulfilled') {
         setVerificationQueue(Array.isArray(queue.value) ? queue.value : []);
+      } else {
+        errors.push(formatApiError(queue.reason));
       }
+      if (errors.length) setError(errors.join(' · '));
     }).finally(() => setLoading(false));
   };
 
@@ -97,13 +101,14 @@ export default function PaymentsPanel() {
         amount: form.amount,
         payment_method: form.payment_method,
         transaction_reference: form.transaction_reference || undefined,
+        transfer_reference: form.transfer_reference || undefined,
         bank_name: form.bank_name || undefined,
       });
-      setForm({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', bank_name: '' });
+      setForm({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', transfer_reference: '', bank_name: '' });
       setShowRecord(false);
       loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to record payment');
+      setError(formatApiError(e));
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +119,7 @@ export default function PaymentsPanel() {
       await setUnderReviewApi(payment.enrollment);
       loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to set under review');
+      setError(formatApiError(e));
     }
   };
 
@@ -126,7 +131,7 @@ export default function PaymentsPanel() {
       setRejectReason('');
       loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to reject payment');
+      setError(formatApiError(e));
     }
   };
 
@@ -151,7 +156,7 @@ export default function PaymentsPanel() {
     setEventPaymentsLoading(true);
     eventsApi.adminListPayments(eventStatusFilter ? { status: eventStatusFilter } : undefined)
       .then(setEventPayments)
-      .catch(() => {})
+      .catch((err) => setError(formatApiError(err)))
       .finally(() => setEventPaymentsLoading(false));
   };
 
@@ -168,7 +173,7 @@ export default function PaymentsPanel() {
       setEventVerifyNotes('');
       loadEventPayments();
     } catch (e: any) {
-      setError(e.message);
+      setError(formatApiError(e));
     } finally {
       setEventActionLoading(null);
     }
@@ -183,7 +188,7 @@ export default function PaymentsPanel() {
       setEventRejectNotes('');
       loadEventPayments();
     } catch (e: any) {
-      setError(e.message);
+      setError(formatApiError(e));
     } finally {
       setEventActionLoading(null);
     }
@@ -706,9 +711,8 @@ export default function PaymentsPanel() {
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Amount (Birr)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Birr</span>
                       <input value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
-                        className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                        className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
                         placeholder="e.g. 2500" type="number" min="0" />
                     </div>
                   </div>
@@ -727,6 +731,12 @@ export default function PaymentsPanel() {
                         <input value={form.transaction_reference} onChange={e => setForm(p => ({ ...p, transaction_reference: e.target.value }))}
                           className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
                           placeholder="e.g. TRX123456" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Transfer Reference (optional)</label>
+                        <input value={form.transfer_reference} onChange={e => setForm(p => ({ ...p, transfer_reference: e.target.value }))}
+                          className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                          placeholder="Bank / mobile transfer slip number" />
                       </div>
                       <div>
                         <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Bank Name (optional)</label>

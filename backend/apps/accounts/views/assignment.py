@@ -9,6 +9,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from apps.accounts.constants import Roles
 from apps.accounts.models import Branch, User
 from apps.accounts.permissions import IsSuperAdminOrBranchManager, user_manages_branch, user_is_super_admin
+from apps.accounts.api.throttles import AdminUserThrottle
 from apps.accounts.serializers.assignment import (
     AssignRoleSerializer,
     TransferUserSerializer,
@@ -38,6 +39,7 @@ class AssignmentListCreateView(generics.ListCreateAPIView):
 
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
     serializer_class = UserAssignmentSerializer
+    throttle_classes = [AdminUserThrottle]
 
  
     def get_queryset(self):
@@ -108,10 +110,14 @@ class AssignmentDetailView(APIView):
     """Update or remove an assignment."""
 
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Assignments"], request=UpdateAssignmentSerializer, responses={200: UserAssignmentSerializer})
     def patch(self, request, pk):
         assignment = get_assignment_or_404(pk)
+
+        if not assignment.branch_id and not user_is_super_admin(request.user):
+            raise PermissionDenied("Cannot update this assignment.")
         
         if assignment.branch_id and not user_manages_branch(request.user, assignment.branch_id):
             if not user_is_super_admin(request.user):
@@ -129,6 +135,10 @@ class AssignmentDetailView(APIView):
     @extend_schema(tags=["Assignments"], responses={204: None})
     def delete(self, request, pk):
         assignment = get_assignment_or_404(pk)
+
+        if not assignment.branch_id and not user_is_super_admin(request.user):
+            raise PermissionDenied("Cannot remove this assignment.")
+
         if assignment.branch_id and not user_manages_branch(request.user, assignment.branch_id):
             if not user_is_super_admin(request.user):
                 raise PermissionDenied("Cannot remove this assignment.")
@@ -141,10 +151,15 @@ class AssignmentMakePrimaryView(APIView):
     """Set an assignment as the user's primary context."""
 
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Assignments"], responses={200: UserAssignmentSerializer})
     def post(self, request, pk):
         assignment = get_assignment_or_404(pk)
+
+        if not assignment.branch_id and not user_is_super_admin(request.user):
+            raise PermissionDenied("Cannot modify this assignment.")
+
         if assignment.branch_id and not user_manages_branch(request.user, assignment.branch_id):
             if not user_is_super_admin(request.user):
                 raise PermissionDenied("Cannot modify this assignment.")
@@ -159,6 +174,7 @@ class AssignmentTransferView(APIView):
     """Transfer a user's role from one branch to another."""
 
     permission_classes = [IsAuthenticated, IsSuperAdminOrBranchManager]
+    throttle_classes = [AdminUserThrottle]
 
     @extend_schema(tags=["Assignments"], request=TransferUserSerializer, responses={200: UserAssignmentSerializer})
     def post(self, request):

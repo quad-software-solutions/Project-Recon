@@ -1,12 +1,14 @@
 import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   BookOpen, Calendar, ClipboardList,
-  Trophy, FileText, Megaphone, ShoppingBag,
+  Trophy, FileText, Megaphone, ShoppingBag, GraduationCap,
+  Target, DollarSign,
 } from 'lucide-react';
 
 export type StudentSectionId =
   | 'home' | 'account' | 'store' | 'career' | 'events'
-  | 'announcements' | 'messaging' | 'certificates';
+  | 'announcements' | 'messaging' | 'certificates'
+  | 'academics' | 'progress' | 'attendance' | 'materials' | 'payments';
 
 export interface StudentHubStats {
   certificateCount: number;
@@ -119,6 +121,56 @@ export function getSectionCommandCenter(
         signals: [
           { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: 'blue' },
           { label: 'Certificates', value: String(certificateCount), detail: 'earned', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
+        ],
+      };
+
+    case 'academics':
+      return {
+        title: 'My Programs',
+        subtitle: 'Your enrollments, classes, and academic journey.',
+        signals: [
+          { label: 'Certificates', value: String(certificateCount), detail: 'earned', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
+          { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: eventRegCount ? 'blue' : 'slate' },
+        ],
+      };
+
+    case 'progress':
+      return {
+        title: 'Learning Progress',
+        subtitle: 'Milestones, achievements, and progress tracking.',
+        signals: [
+          { label: 'Certificates', value: String(certificateCount), detail: 'earned', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
+          { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: eventRegCount ? 'blue' : 'slate' },
+        ],
+      };
+
+    case 'attendance':
+      return {
+        title: 'Attendance',
+        subtitle: 'Your attendance records and history.',
+        signals: [
+          { label: 'Certificates', value: String(certificateCount), detail: 'earned', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
+          { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: eventRegCount ? 'blue' : 'slate' },
+        ],
+      };
+
+    case 'materials':
+      return {
+        title: 'Learning Materials',
+        subtitle: 'Course resources, documents, and media.',
+        signals: [
+          { label: 'Certificates', value: String(certificateCount), detail: 'earned', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
+          { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: eventRegCount ? 'blue' : 'slate' },
+        ],
+      };
+
+    case 'payments':
+      return {
+        title: 'Payments',
+        subtitle: 'Payment history and transaction details.',
+        signals: [
+          { label: 'Certificates', value: String(certificateCount), detail: 'earned', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
+          { label: 'Events', value: String(eventRegCount), detail: 'registrations', icon: Calendar, tone: eventRegCount ? 'blue' : 'slate' },
         ],
       };
 

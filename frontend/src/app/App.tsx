@@ -22,6 +22,10 @@ import CertificateVerifyPage from '../pages/certificate/CertificateVerifyPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import OrderHistoryPage from '../domains/store/orders/ui/OrderHistoryPage';
 import OrderDetailPage from '../domains/store/orders/ui/OrderDetailPage';
+import PrivacyPage from '../pages/legal/PrivacyPage';
+import TermsPage from '../pages/legal/TermsPage';
+import HelpPage from '../pages/legal/HelpPage';
+import CookieConsent from '../shared/ui/CookieConsent';
 
 import { useAuth } from '../shared/hooks/useAuth';
 import { CartProvider, useCartContext } from '../shared/context/CartContext';
@@ -107,7 +111,7 @@ function AppInner() {
     );
   }
 
-  if (activeTab === 'forgot-password') {
+  if (activeTab === 'forgot-password' || activeTab === 'reset-password') {
     return (
       <ForgotPasswordPage
         onNavigateHome={() => handleTabChange('home')}
@@ -202,6 +206,24 @@ function AppInner() {
               <EventCommandCenter currentUser={currentUser} onLogout={handleLogoutAndNavigate} />
             </motion.div>
           )}
+
+          {activeTab === 'privacy' && (
+            <motion.div key="privacy-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <PrivacyPage onNavigate={handleTabChange} />
+            </motion.div>
+          )}
+
+          {activeTab === 'terms' && (
+            <motion.div key="terms-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <TermsPage onNavigate={handleTabChange} />
+            </motion.div>
+          )}
+
+          {activeTab === 'help' && (
+            <motion.div key="help-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <HelpPage onNavigate={handleTabChange} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -230,6 +252,8 @@ function AppInner() {
       />
 
       {!currentUser && <Footer onNavigate={handleTabChange} />}
+
+      <CookieConsent onNavigate={handleTabChange} />
 
     </div>
   );

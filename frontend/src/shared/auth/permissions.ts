@@ -51,6 +51,9 @@ const PUBLIC_TABS: ActiveTab[] = [
   'cert-verify',
   'forgot-password',
   'reset-password',
+  'privacy',
+  'terms',
+  'help',
 ];
 
 /** Active backend roles for a user, derived from assignments or primary role fallback. */
@@ -143,6 +146,11 @@ export function canManageAcademicCatalog(user: UserProfile | null | undefined): 
   return isSuperAdminOrBranchManager(user);
 }
 
+/** Enrollment periods — matches backend IsAcademicStaff (Admin, Manager, Secretary). */
+export function canManageEnrollmentPeriods(user: UserProfile | null | undefined): boolean {
+  return isSuperAdmin(user) || isBranchManager(user) || isSecretary(user);
+}
+
 /** Payments — Super Admin, Branch Manager, or Secretary. */
 export function canManagePayments(user: UserProfile | null | undefined): boolean {
   return isSuperAdmin(user) || isBranchManager(user) || isSecretary(user);
@@ -156,6 +164,11 @@ export function canManageCertificates(user: UserProfile | null | undefined): boo
 /** Events/competitions — Super Admin or Branch Manager. */
 export function canManageEvents(user: UserProfile | null | undefined): boolean {
   return isSuperAdminOrBranchManager(user);
+}
+
+/** Event registrations & payments — Super Admin, Branch Manager, or Secretary. */
+export function canManageEventRegistrations(user: UserProfile | null | undefined): boolean {
+  return isSuperAdminOrBranchManager(user) || isSecretary(user);
 }
 
 /** Staff attendance — Super Admin or Branch Manager. */

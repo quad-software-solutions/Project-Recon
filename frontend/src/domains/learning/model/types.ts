@@ -302,7 +302,6 @@ export interface StudentCertificate {
   sub_program: string;
   sub_program_name?: string;
   certificate_number: string;
-  pdf: string;
   issued_by: string;
   issued_by_name?: string;
   issued_at: string;

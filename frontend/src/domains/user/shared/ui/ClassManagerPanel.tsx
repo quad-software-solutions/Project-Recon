@@ -4,6 +4,7 @@ import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filt
 import { AcademicClass } from '@/shared/types';
 import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllUsersApi, resolveRole, branchesApi } from '@/domains/user/shared/api/adminApi';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const defaultForm = {
   sub_program: '', branch: '', instructor: '', name: '', class_type: 'GROUP', class_period: '', capacity: '', start_date: '', end_date: '',
@@ -97,7 +98,7 @@ export default function ClassManagerPanel() {
       setForm(defaultForm);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save class');
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }
@@ -112,7 +113,7 @@ export default function ClassManagerPanel() {
       setAssigning(null);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to assign instructor');
+      setError(formatApiError(e));
     } finally {
       setAssignSaving(false);
     }
@@ -135,7 +136,7 @@ export default function ClassManagerPanel() {
       setSplitting(null);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to split class');
+      setError(formatApiError(e));
     } finally {
       setSplitSaving(false);
     }
@@ -146,7 +147,7 @@ export default function ClassManagerPanel() {
       await setClassActiveApi(c.id, c.is_active === false);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to toggle class');
+      setError(formatApiError(e));
     }
   };
 
