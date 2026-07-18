@@ -10,7 +10,7 @@ def generate_ticket_number():
 
 
 def contact_request_upload_to(instance, filename):
-    return f"cms/contact_requests/{instance.ticket_number}/{filename}"
+    return f"cms/contact_requests/{uuid.uuid4().hex}/{filename}"
 
 
 class ContactRequest(models.Model):

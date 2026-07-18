@@ -8,6 +8,8 @@
 source venv/bin/activate
 ```
 
+ - DO NOT UPDATE THE VIRTUAL ENVIRONMENT AND ANY OF THE EXTERNAL PACKAGES.
+
 ## Philosophy
 
 Write simple, readable, maintainable code.

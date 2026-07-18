@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.cms.models import ContactRequest
@@ -17,7 +20,22 @@ def list_contact_requests():
     return ContactRequest.objects.all()
 
 
+def _reject_duplicate(email, subject):
+    if not email or not subject:
+        return
+    cutoff = timezone.now() - timedelta(minutes=5)
+    exists = ContactRequest.objects.filter(
+        email=email, subject=subject, created_at__gte=cutoff
+    ).exists()
+    if exists:
+        raise ValidationError(
+            "A contact request with the same email and subject was "
+            "submitted recently. Please wait before submitting again."
+        )
+
+
 def create_contact_request(data: dict, actor=None) -> ContactRequest:
+    _reject_duplicate(data.get("email"), data.get("subject"))
     if not data.get("name", "").strip():
         raise ValidationError("Name is required.")
     if not data.get("email", "").strip():

@@ -20,10 +20,14 @@ def list_active_hero_banners():
     return HeroBanner.objects.filter(is_active=True)
 
 
+ACTIVE_BANNER_LIMIT = 10
+
+
 def create_hero_banner(data: dict, actor=None) -> HeroBanner:
     _validate_media_present(data)
     _validate_media_conflict(data)
     _validate_button(data)
+    _validate_active_limit(extra_count=1)
     with transaction.atomic():
         banner = HeroBanner.objects.create(**data)
         log_action(actor, "CREATE_HERO_BANNER", "HeroBanner", banner.id)
@@ -35,6 +39,8 @@ def update_hero_banner(banner: HeroBanner, data: dict, actor=None) -> HeroBanner
     if has_media:
         _validate_media_conflict(data)
     _validate_button(data)
+    if "is_active" in data and data["is_active"] and not banner.is_active:
+        _validate_active_limit(extra_count=1)
     with transaction.atomic():
         for key, value in data.items():
             setattr(banner, key, value)
@@ -72,3 +78,12 @@ def _validate_button(data: dict):
         raise ValidationError("button_url is required when button_text is provided.")
     if button_url and not button_text:
         raise ValidationError("button_text is required when button_url is provided.")
+
+
+def _validate_active_limit(extra_count: int = 1):
+    active_count = HeroBanner.objects.filter(is_active=True).count()
+    if active_count + extra_count > ACTIVE_BANNER_LIMIT:
+        raise ValidationError(
+            f"Cannot have more than {ACTIVE_BANNER_LIMIT} active banners. "
+            f"Currently {active_count} active."
+        )

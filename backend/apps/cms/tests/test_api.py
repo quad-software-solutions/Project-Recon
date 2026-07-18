@@ -105,6 +105,7 @@ class CMSApiTestCase(APITestCase):
             "title": "Inactive Gallery",
             "description": "Hidden",
             "is_active": False,
+            "video_url": "https://example.com/inactive-video",
         })
         # DRF caches SimpleRateThrottle.THROTTLE_RATES at import time,
         # so override_settings(REST_FRAMEWORK=...) has no effect on it.
@@ -241,6 +242,46 @@ class PublicEndpointTest(CMSApiTestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_duplicate_contact_request_rejected(self):
+        payload = {
+            "name": "Spammer",
+            "email": "spam@test.com",
+            "subject": "Same Issue",
+            "description": "Help!",
+        }
+        response = self.client.post(
+            f"{self.base_url}/contact-requests/", payload, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response = self.client.post(
+            f"{self.base_url}/contact-requests/", payload, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_duplicate_different_subject_allowed(self):
+        response = self.client.post(
+            f"{self.base_url}/contact-requests/",
+            {
+                "name": "User",
+                "email": "user@test.com",
+                "subject": "First Issue",
+                "description": "Help!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response = self.client.post(
+            f"{self.base_url}/contact-requests/",
+            {
+                "name": "User",
+                "email": "user@test.com",
+                "subject": "Different Issue",
+                "description": "Help!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_list_map_nodes_public(self):
         response = self.client.get(f"{self.base_url}/map-nodes/")
@@ -559,14 +600,27 @@ class AdminSuperAdminTest(CMSApiTestCase):
         self.assertEqual(data["description"], "Brand new")
         self.assertTrue(data["is_active"])
 
-    def test_create_gallery_admin_minimal(self):
+    def test_create_gallery_admin_no_media_rejected(self):
         response = self.client.post(
             f"{self.base_url}/admin/gallery/",
-            {"title": "Minimal"},
+            {"title": "No Media"},
             format="json",
         )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_gallery_admin_with_image_only(self):
+        temp_image = tempfile.NamedTemporaryFile(suffix=".png")
+        image = Image.new("RGB", (100, 100))
+        image.save(temp_image, format="PNG")
+        temp_image.seek(0)
+        response = self.client.post(
+            f"{self.base_url}/admin/gallery/",
+            {"title": "Image Only", "image": temp_image},
+            format="multipart",
+        )
+        temp_image.close()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.json()["title"], "Minimal")
+        self.assertEqual(response.json()["title"], "Image Only")
 
     def test_retrieve_gallery_admin(self):
         response = self.client.get(
@@ -602,6 +656,14 @@ class AdminSuperAdminTest(CMSApiTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["title"], "Fully Updated")
         self.assertEqual(response.json()["description"], "New description")
+
+    def test_update_gallery_admin_clears_last_media(self):
+        response = self.client.patch(
+            f"{self.base_url}/admin/gallery/{self.gallery_item.id}/",
+            {"video_url": ""},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_gallery_admin_hard_delete(self):
         response = self.client.delete(
