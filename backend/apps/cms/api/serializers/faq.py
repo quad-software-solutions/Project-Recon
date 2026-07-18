@@ -10,7 +10,6 @@ class FAQSerializer(serializers.ModelSerializer):
             "id",
             "question",
             "answer",
-            "is_active",
             "created_at",
             "updated_at",
         )

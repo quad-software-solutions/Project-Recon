@@ -26,7 +26,6 @@ class MapNodeSerializer(serializers.ModelSerializer):
             "lng",
             "image",
             "category",
-            "is_active",
             "created_at",
             "updated_at",
         )

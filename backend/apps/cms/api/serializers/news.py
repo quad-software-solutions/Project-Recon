@@ -17,7 +17,6 @@ class NewsArticleSerializer(serializers.ModelSerializer):
             "button_text",
             "button_url",
             "type",
-            "is_active",
             "published_at",
             "created_at",
             "updated_at",

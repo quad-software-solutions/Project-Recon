@@ -19,7 +19,6 @@ class GallerySerializer(serializers.ModelSerializer):
             "description",
             "image",
             "video_url",
-            "is_active",
             "created_at",
             "updated_at",
         )

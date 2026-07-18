@@ -14,7 +14,6 @@ class AboutUsSerializer(serializers.ModelSerializer):
             "image",
             "mission",
             "vision",
-            "is_active",
             "created_at",
             "updated_at",
         )
