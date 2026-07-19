@@ -8,6 +8,7 @@ import type {
   FAQ,
   GalleryItem as ModelGalleryItem,
   MapNodeModel,
+  Testimonial as ModelTestimonial,
 } from '../model';
 
 export type HeroBanner = ModelHeroBanner;
@@ -18,6 +19,7 @@ export type ContactRequest = ModelContactRequest;
 export type Faq = FAQ;
 export type GalleryItem = ModelGalleryItem;
 export type MapNode = MapNodeModel;
+export type Testimonial = ModelTestimonial;
 
 const PREFIX = '/cms/admin';
 
@@ -84,6 +86,12 @@ function withUiAliases<T>(endpoint: string, item: T): T {
   if (endpoint === 'map-nodes') {
     record.imageUrl = record.image;
     record.isActive = record.is_active;
+  }
+  if (endpoint === 'testimonials') {
+    record.imageUrl = record.image;
+    record.videoUrl = record.video_url;
+    record.isActive = record.is_active;
+    record.priority = record.order ?? 0;
   }
   return record as T;
 }
@@ -178,6 +186,15 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
       lng: 'lng',
       image: ['imageUrl', 'image'],
       category: 'category',
+      is_active: ['isActive', 'is_active'],
+    },
+    testimonials: {
+      name: 'name',
+      role: 'role',
+      quote: 'quote',
+      image: ['imageUrl', 'image'],
+      video_url: ['videoUrl', 'video_url'],
+      order: 'priority',
       is_active: ['isActive', 'is_active'],
     },
   };
