@@ -240,6 +240,10 @@ export async function registerForEvent(eventId: string, data: PublicRegistration
   return eventsApi.registerForEvent(eventId, data);
 }
 
+export function verifyRegistrationEmail(id: string, otp: string) {
+  return eventsApi.verifyRegistrationEmail(id, otp);
+}
+
 export async function getMyRegistrations() {
   try {
     return await eventsApi.getMyRegistrations();

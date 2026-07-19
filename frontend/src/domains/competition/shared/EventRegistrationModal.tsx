@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle, ArrowLeft, CheckCircle2, CreditCard, DollarSign, Loader2, Lock, Shield, User, X,
+  AlertCircle, ArrowLeft, CheckCircle2, CreditCard, DollarSign, Loader2, Lock, Mail, Shield, User, X,
 } from 'lucide-react';
 import type { Tournament, Workshop, UserProfile } from '@/shared/types';
-import { registerForEvent, type PublicRegistrationData } from '../api/competitionApi';
+import { registerForEvent, verifyRegistrationEmail, type PublicRegistrationData } from '../api/competitionApi';
 import { cacheStudentId } from '@/domains/user/student/api/studentContext';
 import {
   formatRegistrationDeadline,
@@ -40,6 +40,11 @@ export default function EventRegistrationModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState<'eligibility' | 'details' | 'confirm'>('eligibility');
+  const [regId, setRegId] = useState<string | null>(null);
+  const [otp, setOtp] = useState('');
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'MOBILE_MONEY' | 'CHEQUE'>('CASH');
   const [transactionReference, setTransactionReference] = useState('');
   const [bankName, setBankName] = useState('');
@@ -120,12 +125,47 @@ export default function EventRegistrationModal({
       if (currentUser?.email && result?.student) {
         cacheStudentId(currentUser.email, result.student);
       }
-      setSuccess(true);
-      onSuccess(event.id);
+      if (result.registration_status === 'PENDING_EMAIL_VERIFICATION') {
+        setRegId(result.id);
+      } else {
+        setSuccess(true);
+        onSuccess(event.id);
+      }
     } catch (err: unknown) {
       setError(formatApiError(err));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (!regId || otp.length < 6) return;
+    setOtpSubmitting(true);
+    setOtpError(null);
+    try {
+      await verifyRegistrationEmail(regId, otp);
+      setRegId(null);
+      setSuccess(true);
+      onSuccess(event.id);
+    } catch (err: unknown) {
+      setOtpError(formatApiError(err));
+    } finally {
+      setOtpSubmitting(false);
+    }
+  };
+
+  const handleOtpInput = (value: string, index: number) => {
+    const digit = value.replace(/\D/g, '').slice(0, 1);
+    const newOtp = otp.split('');
+    newOtp[index] = digit;
+    const joined = newOtp.join('').slice(0, 6);
+    setOtp(joined);
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
@@ -150,7 +190,7 @@ export default function EventRegistrationModal({
           </button>
         </div>
 
-        {!success && (
+        {!success && !regId && (
           <div className="px-6 pt-4">
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
@@ -175,6 +215,35 @@ export default function EventRegistrationModal({
               <p className="text-xs text-slate-500 leading-relaxed">
                 Your registration is pending review. You&apos;ll be notified once it&apos;s approved.
               </p>
+            </div>
+          ) : regId ? (
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-7 h-7 text-blue-600" />
+              </div>
+              <p className="text-sm font-bold text-slate-800 mb-1">Verify your email</p>
+              <p className="text-xs text-slate-500 mb-5">
+                Enter the 6-digit code sent to <span className="font-bold">{regForm.public_email}</span>
+              </p>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <input
+                    key={i}
+                    ref={el => { otpRefs.current[i] = el; }}
+                    value={otp[i] || ''}
+                    onChange={e => handleOtpInput(e.target.value, i)}
+                    onKeyDown={e => handleOtpKeyDown(e, i)}
+                    maxLength={1}
+                    className="w-11 h-12 text-center text-lg font-black bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
+                  />
+                ))}
+              </div>
+              {otpError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs font-bold text-red-700 flex items-center gap-2 mb-4">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  {otpError}
+                </div>
+              )}
             </div>
           ) : !eligibility.canRegister ? (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
@@ -354,6 +423,18 @@ export default function EventRegistrationModal({
               className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider"
             >
               Done
+            </button>
+          ) : regId ? (
+            <button
+              onClick={verifyOtp}
+              disabled={otp.length < 6 || otpSubmitting}
+              className="w-full bg-gradient-to-r from-brand-red to-brand-red-dark text-white py-3.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-brand-red/25 disabled:opacity-50 transition-all"
+            >
+              {otpSubmitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Verifying...</>
+              ) : (
+                'Verify Email'
+              )}
             </button>
           ) : eligibility.canRegister ? (
             <div className="flex items-center gap-2">

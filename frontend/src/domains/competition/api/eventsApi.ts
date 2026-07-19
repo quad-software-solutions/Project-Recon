@@ -8,7 +8,7 @@ export type Visibility = 'PUBLIC' | 'PRIVATE';
 export type EventType = 'GENERAL' | 'TOURNAMENT' | 'WORKSHOP';
 export type RegistrationMode = 'NONE' | 'PUBLIC' | 'STUDENT' | 'SUBPROGRAM_STUDENT';
 export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
-export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'PENDING_EMAIL_VERIFICATION';
 export type PaymentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED' | 'CANCELLED';
 export type WorkshopLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 export type SideType = 'SIDE_A' | 'SIDE_B';
@@ -281,6 +281,10 @@ export function getMyRegistrations() {
 
 export function cancelMyRegistration(id: string) {
   return http.post<BackendEventRegistration>(`${BASE}/my-registrations/${id}/cancel/`, {});
+}
+
+export function verifyRegistrationEmail(id: string, otp: string) {
+  return http.post<BackendEventRegistration>(`${BASE}/registrations/${id}/verify-email/`, { otp });
 }
 
 /* ═══ ADMIN - EVENTS ═══ */
