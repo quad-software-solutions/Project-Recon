@@ -6,8 +6,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '@/shared/types';
 import BrandLogo from '@/shared/ui/BrandLogo';
-
-import slide1 from '@/assets/slider/faj.jpg';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 
 const staggerItem = {
   hidden: { opacity: 0, y: 16 },
@@ -37,8 +36,22 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
   const [resetLoading, setResetLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bgImage, setBgImage] = useState<string | null>(null);
 
-
+  useEffect(() => {
+    const abort = new AbortController();
+    cmsPublicApi.getHeroBanners(abort.signal)
+      .then(banners => {
+        const activeBanners = banners.filter(b => b.is_active !== false && b.image);
+        if (activeBanners.length > 0) {
+          setBgImage(activeBanners[0].image!);
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') console.error('Failed to load login bg:', err);
+      });
+    return () => abort.abort();
+  }, []);
   React.useEffect(() => {
     if (initialView === 'register') {
       onNavigateRegister?.();
@@ -209,16 +222,18 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
         {/* Background slider */}
         <div className="absolute inset-0">
           <AnimatePresence mode="popLayout">
-            <motion.img
-              key="login-bg"
-              src={slide1}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover blur-[4px] scale-110"
-              initial={{ opacity: 0, scale: 1.15 }}
-              animate={{ opacity: 1, scale: 1.1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
-            />
+            {bgImage && (
+              <motion.img
+                key={bgImage}
+                src={bgImage}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover blur-[4px] scale-110"
+                initial={{ opacity: 0, scale: 1.15 }}
+                animate={{ opacity: 1, scale: 1.1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 1.2, ease: "easeInOut" }}
+              />
+            )}
           </AnimatePresence>
         </div>
 

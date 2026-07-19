@@ -8,7 +8,7 @@ import type { UserProfile, StudentCertificate } from '@/shared/types';
 import { fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
-import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
+const profileImg = "https://ui-avatars.com/api/?name=Student&background=0D8ABC&color=fff";
 import EmptyState from '@/shared/ui/EmptyState';
 import { GridSkeleton } from '../../shared/ui/LoadingSkeleton';
 

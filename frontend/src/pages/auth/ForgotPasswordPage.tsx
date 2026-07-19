@@ -4,8 +4,7 @@ import {
   Mail, ArrowRight, ShieldCheck, Sparkles, Info, CheckCircle, Lock
 } from 'lucide-react';
 import BrandLogo from '@/shared/ui/BrandLogo';
-
-import slide1 from '@/assets/slider/faj.jpg';
+import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
 
 interface ForgotPasswordPageProps {
   onNavigateHome: () => void;
@@ -20,8 +19,22 @@ export default function ForgotPasswordPage({ onNavigateHome, onNavigateLogin }: 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bgImage, setBgImage] = useState<string | null>(null);
 
-
+  useEffect(() => {
+    const abort = new AbortController();
+    cmsPublicApi.getHeroBanners(abort.signal)
+      .then(banners => {
+        const activeBanners = banners.filter(b => b.is_active !== false && b.image);
+        if (activeBanners.length > 0) {
+          setBgImage(activeBanners[0].image!);
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') console.error('Failed to load bg:', err);
+      });
+    return () => abort.abort();
+  }, []);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -95,16 +108,18 @@ export default function ForgotPasswordPage({ onNavigateHome, onNavigateLogin }: 
       <div className="flex-grow flex items-center justify-center py-12 px-4 relative overflow-hidden">
         <div className="absolute inset-0">
           <AnimatePresence mode="popLayout">
-            <motion.img
-              key="bg"
-              src={slide1}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover blur-[4px] scale-110"
-              initial={{ opacity: 0, scale: 1.15 }}
-              animate={{ opacity: 1, scale: 1.1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
-            />
+            {bgImage && (
+              <motion.img
+                key={bgImage}
+                src={bgImage}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover blur-[4px] scale-110"
+                initial={{ opacity: 0, scale: 1.15 }}
+                animate={{ opacity: 1, scale: 1.1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 1.2, ease: "easeInOut" }}
+              />
+            )}
           </AnimatePresence>
         </div>
 
