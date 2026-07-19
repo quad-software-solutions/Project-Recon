@@ -26,7 +26,7 @@ class EventRegistration(models.Model):
     public_phone = models.CharField(max_length=50, null=True, blank=True)
     public_organization = models.CharField(max_length=255, null=True, blank=True)
     registration_status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=RegistrationStatus.choices,
         default=RegistrationStatus.PENDING,
         db_index=True,
@@ -37,6 +37,8 @@ class EventRegistration(models.Model):
         default=PaymentStatus.PENDING_VERIFICATION,
         db_index=True,
     )
+    email_verification_otp = models.CharField(max_length=128, null=True, blank=True)
+    email_verification_otp_expiry = models.DateTimeField(null=True, blank=True)
     registered_at = models.DateTimeField(auto_now_add=True, db_index=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)

@@ -60,6 +60,7 @@ from .registration import (
     EventRegisterView,
     MyRegistrationCancelView,
     MyRegistrationListView,
+    RegistrationVerifyEmailView,
 )
 from .payment import (
     AdminCashPaymentView,
@@ -110,6 +111,7 @@ __all__ = [
     "EventRegisterView",
     "MyRegistrationListView",
     "MyRegistrationCancelView",
+    "RegistrationVerifyEmailView",
     "AdminRegistrationListView",
     "AdminRegistrationDetailView",
     "AdminRegistrationApproveView",

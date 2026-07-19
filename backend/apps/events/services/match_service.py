@@ -134,7 +134,14 @@ def delete_match(match: Match, actor=None) -> None:
     tournament = match.tournament
 
     with transaction.atomic():
-        log_action(actor, "DELETE_MATCH", match, match.id)
+        log_action(
+            actor, "DELETE_MATCH", "Match", match.id,
+            details={
+                "tournament_id": str(match.tournament_id),
+                "round": match.round,
+                "status": match.status,
+            },
+        )
         match.delete()
         update_tournament_statistics(tournament)
 

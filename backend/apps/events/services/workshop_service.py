@@ -141,5 +141,11 @@ def delete_workshop(workshop: Workshop, actor=None) -> None:
         actor: Optional User performing the action.
     """
     with transaction.atomic():
-        log_action(actor, "DELETE_WORKSHOP", workshop, workshop.id)
+        log_action(
+            actor, "DELETE_WORKSHOP", "Workshop", workshop.id,
+            details={
+                "event_id": str(workshop.event_id),
+                "instructor_id": str(workshop.instructor_id),
+            },
+        )
         workshop.delete()

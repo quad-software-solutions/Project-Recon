@@ -123,7 +123,15 @@ def delete_event(event: Event, actor=None) -> None:
         actor: Optional User performing the action.
     """
     with transaction.atomic():
-        log_action(actor, "DELETE_EVENT", event, event.id)
+        log_action(
+            actor, "DELETE_EVENT", "Event", event.id,
+            details={
+                "title": event.title,
+                "event_type": event.event_type,
+                "branch_id": str(event.branch_id) if event.branch_id else None,
+                "status": event.status,
+            },
+        )
         event.delete()
 
 

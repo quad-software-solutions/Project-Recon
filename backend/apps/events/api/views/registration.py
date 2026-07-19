@@ -23,6 +23,7 @@ from apps.events.services.registration_service import (
     list_registrations,
     register_for_event,
     reject_registration,
+    verify_registration_email,
 )
 
 
@@ -70,6 +71,32 @@ class EventRegisterView(generics.CreateAPIView):
         return Response(
             RegistrationAdminSerializer(registration).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    post=extend_schema(
+        tags=["Events - Registration"],
+        summary="Verify registration email",
+        description="Verify a public registration's email using the 6-digit OTP sent to their email.",
+    ),
+)
+class RegistrationVerifyEmailView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "events_register"
+    serializer_class = PublicRegistrationSerializer
+
+    def post(self, request, pk):
+        otp = request.data.get("otp")
+        if not otp:
+            return Response(
+                {"otp": "Verification code is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        registration = verify_registration_email(pk, otp)
+        return Response(
+            RegistrationAdminSerializer(registration).data,
+            status=status.HTTP_200_OK,
         )
 
 

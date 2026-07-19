@@ -52,6 +52,7 @@ from apps.events.api.views import (
     EventRegisterView,
     MyRegistrationListView,
     MyRegistrationCancelView,
+    RegistrationVerifyEmailView,
 )
 
 urlpatterns = [
@@ -209,6 +210,11 @@ urlpatterns = [
     ),
     # Registration
     path("events/<uuid:pk>/register/", EventRegisterView.as_view(), name="events-register"),
+    path(
+        "events/registrations/<uuid:pk>/verify-email/",
+        RegistrationVerifyEmailView.as_view(),
+        name="events-registration-verify-email",
+    ),
     path("my-registrations/", MyRegistrationListView.as_view(), name="events-my-registrations"),
     path(
         "my-registrations/<uuid:pk>/cancel/",

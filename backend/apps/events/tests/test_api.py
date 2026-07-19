@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 from django.test import override_settings
 from django.utils import timezone
@@ -959,7 +960,53 @@ class RegistrationApiTest(EventApiTestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["registration_status"], "PENDING_EMAIL_VERIFICATION")
+
+    @patch("apps.events.services.registration_service.get_random_string", return_value="123456")
+    def test_verify_email_success(self, _mock_get_random):
+        event = self._make_public_event()
+        reg_resp = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            {"public_full_name": "John", "public_email": "john@test.com", "public_phone": "+123"},
+            format="json",
+        )
+        reg_id = reg_resp.data["id"]
+
+        response = self.client.post(
+            f"{self.base_url}/events/registrations/{reg_id}/verify-email/",
+            {"otp": "123456"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["registration_status"], "PENDING")
+
+    def test_verify_email_missing_otp(self):
+        event = self._make_public_event()
+        reg_resp = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            {"public_full_name": "John", "public_email": "john@test.com", "public_phone": "+123"},
+            format="json",
+        )
+        response = self.client.post(
+            f"{self.base_url}/events/registrations/{reg_resp.data['id']}/verify-email/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_verify_email_wrong_otp(self):
+        event = self._make_public_event()
+        reg_resp = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/",
+            {"public_full_name": "John", "public_email": "john@test.com", "public_phone": "+123"},
+            format="json",
+        )
+        response = self.client.post(
+            f"{self.base_url}/events/registrations/{reg_resp.data['id']}/verify-email/",
+            {"otp": "000000"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_public_register_missing_fields(self):
         event = self._make_public_event()

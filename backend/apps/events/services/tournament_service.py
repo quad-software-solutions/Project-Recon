@@ -134,7 +134,14 @@ def delete_tournament(tournament: Tournament, actor=None) -> None:
         actor: Optional User performing the action.
     """
     with transaction.atomic():
-        log_action(actor, "DELETE_TOURNAMENT", tournament, tournament.id)
+        log_action(
+            actor, "DELETE_TOURNAMENT", "Tournament", tournament.id,
+            details={
+                "event_id": str(tournament.event_id),
+                "category_id": str(tournament.category_id),
+                "is_closed": tournament.is_closed,
+            },
+        )
         tournament.delete()
 
 

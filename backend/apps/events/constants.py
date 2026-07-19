@@ -45,6 +45,7 @@ class MatchSideType(models.TextChoices):
 
 
 class RegistrationStatus(models.TextChoices):
+    PENDING_EMAIL_VERIFICATION = "PENDING_EMAIL_VERIFICATION", "Pending Email Verification"
     PENDING = "PENDING", "Pending"
     APPROVED = "APPROVED", "Approved"
     REJECTED = "REJECTED", "Rejected"

@@ -96,7 +96,11 @@ class RegistrationValidator:
         """
         from apps.events.models import EventRegistration
 
-        active_statuses = [RegistrationStatus.PENDING, RegistrationStatus.APPROVED]
+        active_statuses = [
+            RegistrationStatus.PENDING_EMAIL_VERIFICATION,
+            RegistrationStatus.PENDING,
+            RegistrationStatus.APPROVED,
+        ]
 
         if student:
             qs = EventRegistration.objects.filter(

@@ -129,5 +129,11 @@ def delete_team(team: TournamentTeam, actor=None) -> None:
     TournamentTeamValidator.validate_team_not_in_completed_match(team)
 
     with transaction.atomic():
-        log_action(actor, "DELETE_TOURNAMENT_TEAM", team, team.id)
+        log_action(
+            actor, "DELETE_TOURNAMENT_TEAM", "TournamentTeam", team.id,
+            details={
+                "team_name": team.team_name,
+                "tournament_id": str(team.tournament_id),
+            },
+        )
         team.delete()

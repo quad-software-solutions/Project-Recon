@@ -1,4 +1,7 @@
 from django.db import transaction
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.academic.models import Student
@@ -6,6 +9,7 @@ from apps.events.constants import EventType, PaymentStatus, RegistrationStatus
 from apps.events.models import Event, EventRegistration, Tournament, TournamentTeam
 from apps.events.services.validators import RegistrationValidator, TournamentTeamValidator
 from apps.shared.audit.services import log_action
+from apps.shared.email.services import send_email
 
 
 def get_registration_or_404(pk):
@@ -145,6 +149,10 @@ def _register_public(event, data: dict, actor=None) -> EventRegistration:
     """
     Register a public (unauthenticated) participant for an event.
 
+    Creates the registration in PENDING_EMAIL_VERIFICATION status and
+    sends a 6-digit OTP to the provided email address. The registration
+    becomes PENDING (ready for admin approval) only after OTP verification.
+
     Args:
         event: Event instance.
         data: Dictionary with 'public_full_name', 'public_email',
@@ -176,10 +184,79 @@ def _register_public(event, data: dict, actor=None) -> EventRegistration:
             public_email=public_email,
             public_phone=public_phone,
             public_organization=data.get("public_organization"),
-            registration_status=RegistrationStatus.PENDING,
+            registration_status=RegistrationStatus.PENDING_EMAIL_VERIFICATION,
         )
         log_action(actor, "CREATE_REGISTRATION", registration, registration.id)
-        return registration
+
+    _send_public_verification_otp(registration)
+    return registration
+
+
+def _send_public_verification_otp(registration: EventRegistration) -> None:
+    """Generate a 6-digit OTP, hash and store it, then email the code."""
+    otp = get_random_string(length=6, allowed_chars="0123456789")
+    registration.email_verification_otp = make_password(otp)
+    registration.email_verification_otp_expiry = timezone.now() + timezone.timedelta(minutes=10)
+    registration.save(update_fields=["email_verification_otp", "email_verification_otp_expiry"])
+
+    send_email(
+        to=registration.public_email,
+        subject=f"Verify your registration for {registration.event.title}",
+        body=(
+            f"Hello {registration.public_full_name},\n\n"
+            f"Your verification code is: {otp}\n\n"
+            f"This code expires in 10 minutes.\n"
+            f"Use it to complete your registration for '{registration.event.title}'."
+        ),
+    )
+
+
+def verify_registration_email(registration_id, otp: str) -> EventRegistration:
+    """
+    Verify a public registration's email using the OTP code.
+
+    Args:
+        registration_id: Registration UUID.
+        otp: 6-digit code sent to the registrant's email.
+
+    Returns:
+        Updated EventRegistration instance.
+
+    Raises:
+        NotFound: If registration does not exist.
+        ValidationError: If OTP is invalid, expired, or registration
+                         is not in PENDING_EMAIL_VERIFICATION status.
+    """
+    try:
+        registration = EventRegistration.objects.get(id=registration_id)
+    except EventRegistration.DoesNotExist:
+        raise NotFound("Registration not found.")
+
+    if registration.registration_status != RegistrationStatus.PENDING_EMAIL_VERIFICATION:
+        raise ValidationError("This registration does not require email verification.")
+
+    if not registration.email_verification_otp or not registration.email_verification_otp_expiry:
+        raise ValidationError("No verification code has been sent for this registration.")
+
+    if timezone.now() > registration.email_verification_otp_expiry:
+        raise ValidationError("Verification code has expired. Please register again.")
+
+    if not check_password(otp, registration.email_verification_otp):
+        raise ValidationError("Invalid verification code.")
+
+    with transaction.atomic():
+        registration.registration_status = RegistrationStatus.PENDING
+        registration.email_verification_otp = None
+        registration.email_verification_otp_expiry = None
+        registration.save(
+            update_fields=[
+                "registration_status", "email_verification_otp",
+                "email_verification_otp_expiry", "updated_at",
+            ]
+        )
+        log_action(None, "VERIFY_REGISTRATION_EMAIL", registration, registration.id)
+
+    return registration
 
 
 def approve_registration(registration: EventRegistration, actor=None) -> EventRegistration:
@@ -237,10 +314,13 @@ def reject_registration(registration: EventRegistration, actor=None) -> EventReg
         Updated EventRegistration instance.
 
     Raises:
-        ValidationError: If registration is not in PENDING status
+        ValidationError: If registration is not in a rejectable status
                          or payment is already verified.
     """
-    if registration.registration_status != RegistrationStatus.PENDING:
+    if registration.registration_status not in (
+        RegistrationStatus.PENDING,
+        RegistrationStatus.PENDING_EMAIL_VERIFICATION,
+    ):
         raise ValidationError(
             f"Cannot reject a registration with status '{registration.registration_status}'."
         )

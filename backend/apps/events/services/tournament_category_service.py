@@ -38,5 +38,11 @@ def delete_category(category: TournamentCategory, actor=None) -> None:
             "Cannot delete category that is in use by tournaments."
         )
     with transaction.atomic():
-        log_action(actor, "DELETE_TOURNAMENT_CATEGORY", category, category.id)
+        log_action(
+            actor, "DELETE_TOURNAMENT_CATEGORY", "TournamentCategory", category.id,
+            details={
+                "name": category.name,
+                "code": category.code,
+            },
+        )
         category.delete()

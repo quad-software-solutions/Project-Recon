@@ -65,6 +65,8 @@ from apps.events.services.workshop_service import (
     list_workshops,
     update_workshop,
 )
+from unittest.mock import patch
+
 from apps.events.services.registration_service import (
     approve_registration,
     cancel_registration,
@@ -74,6 +76,7 @@ from apps.events.services.registration_service import (
     list_registrations,
     register_for_event,
     reject_registration,
+    verify_registration_email,
 )
 from apps.events.services.tournament_service import (
     create_tournament,
@@ -1039,7 +1042,7 @@ class RegistrationServiceTest(TestCase):
         registration = register_for_event(self.event.id, data)
         self.assertEqual(registration.public_full_name, "John Public")
         self.assertEqual(registration.public_email, "john@example.com")
-        self.assertEqual(registration.registration_status, "PENDING")
+        self.assertEqual(registration.registration_status, "PENDING_EMAIL_VERIFICATION")
 
     def test_register_public_missing_fields(self):
         self._make_public_event()
@@ -1076,6 +1079,51 @@ class RegistrationServiceTest(TestCase):
         event = create_event({**self.valid_data, "title": "Full Event", "capacity": 1, "enrolled_count": 1})
         with self.assertRaises(ValidationError):
             register_for_event(event.id, {"student": str(self.student.id)})
+
+    @patch("apps.events.services.registration_service.get_random_string", return_value="654321")
+    def test_verify_email_success(self, _mock_get_random):
+        self._make_public_event()
+        registration = register_for_event(
+            self.event.id,
+            {"public_full_name": "Test", "public_email": "test@example.com", "public_phone": "+123"},
+        )
+        self.assertEqual(registration.registration_status, "PENDING_EMAIL_VERIFICATION")
+        self.assertIsNotNone(registration.email_verification_otp)
+
+        verified = verify_registration_email(registration.id, "654321")
+        self.assertEqual(verified.registration_status, "PENDING")
+        self.assertIsNone(verified.email_verification_otp)
+        self.assertIsNone(verified.email_verification_otp_expiry)
+
+    def test_verify_email_wrong_otp(self):
+        self._make_public_event()
+        registration = register_for_event(
+            self.event.id,
+            {"public_full_name": "Test", "public_email": "test@example.com", "public_phone": "+123"},
+        )
+        with self.assertRaises(ValidationError):
+            verify_registration_email(registration.id, "000000")
+
+    def test_verify_email_expired_otp(self):
+        self._make_public_event()
+        registration = register_for_event(
+            self.event.id,
+            {"public_full_name": "Test", "public_email": "test@example.com", "public_phone": "+123"},
+        )
+        registration.email_verification_otp_expiry = timezone.now() - timezone.timedelta(minutes=1)
+        registration.save(update_fields=["email_verification_otp_expiry"])
+        with self.assertRaises(ValidationError):
+            verify_registration_email(registration.id, "000000")
+
+    def test_verify_email_not_found(self):
+        with self.assertRaises(NotFound):
+            verify_registration_email(uuid4(), "123456")
+
+    def test_verify_email_wrong_status(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        self.assertEqual(registration.registration_status, "PENDING")
+        with self.assertRaises(ValidationError):
+            verify_registration_email(registration.id, "123456")
 
     def test_register_duplicate_student(self):
         register_for_event(self.event.id, {"student": str(self.student.id)})
