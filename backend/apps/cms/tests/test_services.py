@@ -10,6 +10,7 @@ from apps.cms.models import (
     ContactRequest,
     MapNode,
     Gallery,
+    HomepageStatistic,
 )
 from apps.cms.services.hero_banner_service import (
     create_hero_banner,
@@ -42,6 +43,15 @@ from apps.cms.services.gallery_service import (
     list_gallery_items,
     list_active_gallery_items,
 )
+from apps.cms.services.testimonial_service import (
+    create_testimonial,
+    update_testimonial,
+    delete_testimonial,
+    get_testimonial_or_404,
+    list_testimonials,
+    list_active_testimonials,
+)
+from apps.cms.services.homepage_statistic_service import get_stats, update_stats
 from apps.cms.constants import ContactStatus, ContactPriority, MapNodeCategory
 
 
@@ -478,3 +488,123 @@ class MapNodeServiceTest(TestCase):
         qs = list_map_nodes()
         self.assertEqual(qs[0].id, node_a.id)
         self.assertEqual(qs[1].id, node_b.id)
+
+
+class TestimonialServiceTest(TestCase):
+    """Service-level tests for Testimonial CRUD."""
+
+    def test_create_testimonial(self):
+        t = create_testimonial({
+            "name": "John Doe",
+            "role": "Parent",
+            "quote": "Great program!",
+            "order": 1,
+        })
+        self.assertIsNotNone(t.id)
+        self.assertEqual(t.name, "John Doe")
+        self.assertEqual(t.role, "Parent")
+        self.assertEqual(t.quote, "Great program!")
+        self.assertEqual(t.order, 1)
+        self.assertTrue(t.is_active)
+
+    def test_create_testimonial_with_urls(self):
+        t = create_testimonial({
+            "name": "Jane",
+            "role": "Student",
+            "quote": "Awesome!",
+            "image": "https://example.com/avatar.jpg",
+            "video_url": "https://example.com/testimonial.mp4",
+            "order": 2,
+        })
+        self.assertEqual(t.image, "https://example.com/avatar.jpg")
+        self.assertEqual(t.video_url, "https://example.com/testimonial.mp4")
+
+    def test_get_or_404_found(self):
+        t = create_testimonial({"name": "Find", "role": "Partner", "quote": "Found!"})
+        found = get_testimonial_or_404(t.id)
+        self.assertEqual(found.id, t.id)
+
+    def test_get_or_404_not_found(self):
+        with self.assertRaises(NotFound):
+            get_testimonial_or_404("00000000-0000-0000-0000-000000000000")
+
+    def test_list_testimonials_includes_inactive(self):
+        create_testimonial({"name": "Active", "role": "P", "quote": "A"})
+        create_testimonial({"name": "Inactive", "role": "P", "quote": "I", "is_active": False})
+        qs = list_testimonials()
+        self.assertEqual(qs.count(), 2)
+
+    def test_list_active_testimonials_excludes_inactive(self):
+        create_testimonial({"name": "Active", "role": "P", "quote": "A"})
+        create_testimonial({"name": "Inactive", "role": "P", "quote": "I", "is_active": False})
+        qs = list_active_testimonials()
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs[0].name, "Active")
+
+    def test_ordering_by_order_field(self):
+        second = create_testimonial({"name": "B", "role": "P", "quote": "Q", "order": 2})
+        first = create_testimonial({"name": "A", "role": "P", "quote": "Q", "order": 1})
+        qs = list_testimonials()
+        self.assertEqual(qs[0].id, first.id)
+        self.assertEqual(qs[1].id, second.id)
+
+    def test_update_testimonial(self):
+        t = create_testimonial({"name": "Old", "role": "P", "quote": "Q"})
+        updated = update_testimonial(t, {"name": "Updated"})
+        self.assertEqual(updated.name, "Updated")
+
+    def test_update_testimonial_multiple_fields(self):
+        t = create_testimonial({"name": "A", "role": "P", "quote": "Q"})
+        updated = update_testimonial(t, {"role": "Student", "quote": "New quote", "order": 5})
+        self.assertEqual(updated.role, "Student")
+        self.assertEqual(updated.quote, "New quote")
+        self.assertEqual(updated.order, 5)
+
+    def test_delete_testimonial(self):
+        t = create_testimonial({"name": "Del", "role": "P", "quote": "Q"})
+        delete_testimonial(t)
+        with self.assertRaises(NotFound):
+            get_testimonial_or_404(t.id)
+
+
+class HomepageStatisticServiceTest(TestCase):
+    """Service-level tests for HomepageStatistic."""
+
+    def test_get_stats_creates_defaults(self):
+        stats = get_stats()
+        self.assertEqual(stats.future_engineers, 5_000_000)
+        self.assertEqual(stats.programs, 120)
+        self.assertEqual(stats.competitions, 500)
+        self.assertEqual(stats.mission_current, 1_240_500)
+        self.assertEqual(stats.mission_target, 5_000_000)
+
+    def test_get_stats_is_idempotent(self):
+        first = get_stats()
+        second = get_stats()
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(HomepageStatistic.objects.count(), 1)
+
+    def test_update_stats(self):
+        stats = get_stats()
+        updated = update_stats({"future_engineers": 10_000_000})
+        self.assertEqual(updated.future_engineers, 10_000_000)
+        stats.refresh_from_db()
+        self.assertEqual(stats.future_engineers, 10_000_000)
+
+    def test_update_stats_multiple_fields(self):
+        stats = get_stats()
+        updated = update_stats({
+            "programs": 200,
+            "competitions": 1000,
+            "mission_current": 2_500_000,
+        })
+        self.assertEqual(updated.programs, 200)
+        self.assertEqual(updated.competitions, 1000)
+        self.assertEqual(updated.mission_current, 2_500_000)
+        # other fields unchanged
+        self.assertEqual(updated.future_engineers, 5_000_000)
+
+    def test_update_stats_retains_single_row(self):
+        get_stats()
+        update_stats({"programs": 999})
+        self.assertEqual(HomepageStatistic.objects.count(), 1)

@@ -11,6 +11,8 @@ from .contact_request import (
 from .faq import FAQSerializer, FAQAdminSerializer
 from .map_node import MapNodeSerializer, MapNodeAdminSerializer
 from .gallery import GallerySerializer, GalleryAdminSerializer
+from .testimonial import TestimonialSerializer, TestimonialAdminSerializer
+from .homepage_statistic import HomepageStatisticSerializer, HomepageStatisticAdminSerializer
 
 __all__ = [
     "HeroBannerSerializer",
@@ -31,4 +33,8 @@ __all__ = [
     "MapNodeAdminSerializer",
     "GallerySerializer",
     "GalleryAdminSerializer",
+    "TestimonialSerializer",
+    "TestimonialAdminSerializer",
+    "HomepageStatisticSerializer",
+    "HomepageStatisticAdminSerializer",
 ]

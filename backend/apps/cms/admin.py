@@ -9,6 +9,8 @@ from apps.cms.models import (
     FAQ,
     MapNode,
     Gallery,
+    Testimonial,
+    HomepageStatistic,
 )
 
 
@@ -69,4 +71,18 @@ class GalleryAdmin(admin.ModelAdmin):
     list_display = ("title", "is_active", "created_at")
     search_fields = ("title",)
     list_filter = ("is_active",)
+    readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(Testimonial)
+class TestimonialAdmin(admin.ModelAdmin):
+    list_display = ("name", "role", "order", "is_active", "created_at")
+    search_fields = ("name", "role", "quote")
+    list_filter = ("is_active", "role")
+    readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(HomepageStatistic)
+class HomepageStatisticAdmin(admin.ModelAdmin):
+    list_display = ("future_engineers", "programs", "competitions", "updated_at")
     readonly_fields = ("id", "created_at", "updated_at")

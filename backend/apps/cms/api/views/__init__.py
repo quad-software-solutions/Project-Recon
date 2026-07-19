@@ -42,6 +42,19 @@ from .gallery import (
     AdminGalleryRetrieveUpdateDestroyView,
 )
 from .stats import PublicPlatformStatsView
+from .testimonial import (
+    PublicTestimonialListView,
+    PublicTestimonialDetailView,
+    AdminTestimonialListCreateView,
+    AdminTestimonialRetrieveUpdateDestroyView,
+)
+from .homepage_stats import (
+    PublicHomepageStatsListView,
+    PublicHomepageStatsDetailView,
+    PublicHomepageStatsCurrentView,
+    AdminHomepageStatsListCreateView,
+    AdminHomepageStatsRetrieveUpdateDestroyView,
+)
 
 __all__ = [
     "PublicHeroBannerListView",
@@ -72,4 +85,13 @@ __all__ = [
     "AdminGalleryListCreateView",
     "AdminGalleryRetrieveUpdateDestroyView",
     "PublicPlatformStatsView",
+    "PublicTestimonialListView",
+    "PublicTestimonialDetailView",
+    "AdminTestimonialListCreateView",
+    "AdminTestimonialRetrieveUpdateDestroyView",
+    "PublicHomepageStatsListView",
+    "PublicHomepageStatsDetailView",
+    "PublicHomepageStatsCurrentView",
+    "AdminHomepageStatsListCreateView",
+    "AdminHomepageStatsRetrieveUpdateDestroyView",
 ]

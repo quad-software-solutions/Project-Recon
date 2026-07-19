@@ -29,6 +29,15 @@ from apps.cms.api.views import (
     AdminGalleryListCreateView,
     AdminGalleryRetrieveUpdateDestroyView,
     PublicPlatformStatsView,
+    PublicTestimonialListView,
+    PublicTestimonialDetailView,
+    AdminTestimonialListCreateView,
+    AdminTestimonialRetrieveUpdateDestroyView,
+    PublicHomepageStatsListView,
+    PublicHomepageStatsDetailView,
+    PublicHomepageStatsCurrentView,
+    AdminHomepageStatsListCreateView,
+    AdminHomepageStatsRetrieveUpdateDestroyView,
 )
 
 urlpatterns = [
@@ -107,5 +116,48 @@ urlpatterns = [
         "admin/gallery/<uuid:pk>/",
         AdminGalleryRetrieveUpdateDestroyView.as_view(),
         name="cms-admin-gallery-detail",
+    ),
+    # Testimonials
+    path("testimonials/", PublicTestimonialListView.as_view(), name="cms-testimonial-list"),
+    path(
+        "testimonials/<uuid:pk>/",
+        PublicTestimonialDetailView.as_view(),
+        name="cms-testimonial-detail",
+    ),
+    path(
+        "admin/testimonials/",
+        AdminTestimonialListCreateView.as_view(),
+        name="cms-admin-testimonial-list",
+    ),
+    path(
+        "admin/testimonials/<uuid:pk>/",
+        AdminTestimonialRetrieveUpdateDestroyView.as_view(),
+        name="cms-admin-testimonial-detail",
+    ),
+    # Homepage Stats
+    path(
+        "homepage/statistics/current/",
+        PublicHomepageStatsCurrentView.as_view(),
+        name="cms-homepage-stats-current",
+    ),
+    path(
+        "homepage/statistics/",
+        PublicHomepageStatsListView.as_view(),
+        name="cms-homepage-stats-list",
+    ),
+    path(
+        "homepage/statistics/<uuid:pk>/",
+        PublicHomepageStatsDetailView.as_view(),
+        name="cms-homepage-stats-detail",
+    ),
+    path(
+        "admin/homepage/statistics/",
+        AdminHomepageStatsListCreateView.as_view(),
+        name="cms-admin-homepage-stats-list",
+    ),
+    path(
+        "admin/homepage/statistics/<uuid:pk>/",
+        AdminHomepageStatsRetrieveUpdateDestroyView.as_view(),
+        name="cms-admin-homepage-stats-detail",
     ),
 ]
