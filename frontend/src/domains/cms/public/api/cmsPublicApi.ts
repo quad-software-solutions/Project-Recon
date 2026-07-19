@@ -84,8 +84,16 @@ export interface PlatformStats {
   countries_reached: number;
 }
 
+export interface HomepageStats {
+  future_engineers: number;
+  programs: number;
+  competitions: number;
+  mission: { current: number; target: number; percentage: number };
+}
+
 export const cmsPublicApi = {
   getPlatformStats: (signal?: AbortSignal) => http.get<PlatformStats>('/cms/stats/', { signal }),
+  getHomepageStats: (signal?: AbortSignal) => http.get<HomepageStats>('/public/homepage/statistics/', { signal }),
   getHeroBanners: (signal?: AbortSignal) => http.get<HeroBannerResponse[]>('/cms/hero-banners/', { signal }),
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),
   getNewsDetail: (slug: string) => http.get<NewsArticleResponse>(`/cms/news/${slug}/`),

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, BookOpen, Globe, Trophy, ArrowUpRight,
-  Globe2, Send, Loader, CheckCircle2,
+  Globe2, Send, Loader, CheckCircle2, X,
    ChevronRight,
 } from 'lucide-react';
 import Hero from '../domains/learning/programs/ui/Hero';
@@ -10,7 +10,7 @@ import DemoSlider from '../domains/learning/programs/ui/DemoSlider';
 import Updates from '../domains/learning/programs/ui/Updates';
 import { UserProfile, ActiveTab, type ProgramDisplay } from '../shared/types';
 import { getPrograms } from '../domains/learning/programs/api/programApi';
-import { cmsPublicApi, type CmsPartnerResponse, type FaqResponse, type PlatformStats, type GalleryItemResponse } from '../domains/cms/public/api/cmsPublicApi';
+import { cmsPublicApi, type CmsPartnerResponse, type FaqResponse, type HomepageStats, type GalleryItemResponse } from '../domains/cms/public/api/cmsPublicApi';
 import { ChevronDown, Image } from 'lucide-react';
 
 interface HomePageProps {
@@ -31,11 +31,12 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   const [programs, setPrograms] = useState<ProgramDisplay[]>([]);
   const [programsLoading, setProgramsLoading] = useState(true);
   const [galleryItems, setGalleryItems] = useState<GalleryItemResponse[]>([]);
-  const [stats, setStats] = useState<PlatformStats>({
-    students_trained: 0,
-    program_tracks: 0,
-    partner_schools: 0,
-    countries_reached: 0,
+  const [previewItem, setPreviewItem] = useState<GalleryItemResponse | null>(null);
+  const [stats, setStats] = useState<HomepageStats>({
+    future_engineers: 0,
+    programs: 0,
+    competitions: 0,
+    mission: { current: 0, target: 5_000_000, percentage: 0 },
   });
 
   React.useEffect(() => {
@@ -50,7 +51,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
       .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))))
       .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
-    cmsPublicApi.getPlatformStats(signal)
+    cmsPublicApi.getHomepageStats(signal)
       .then(data => setStats(data))
       .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
@@ -120,10 +121,10 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {[
-              { value: `${stats.students_trained}+`, label: 'Students Trained', icon: Users },
-              { value: `${stats.program_tracks}+`, label: 'Program Tracks', icon: BookOpen },
-              { value: `${stats.partner_schools}+`, label: 'Partner Schools', icon: Globe },
-              { value: `${stats.countries_reached}+`, label: 'Countries Reached', icon: Trophy },
+              { value: `${(stats.future_engineers / 1000000).toFixed(1)}M+`, label: 'Future Engineers', icon: Users },
+              { value: `${stats.programs}+`, label: 'Programs', icon: BookOpen },
+              { value: `${stats.competitions}+`, label: 'Competitions', icon: Trophy },
+              { value: `${stats.mission.percentage}%`, label: 'Mission Progress', icon: Globe },
             ].map((stat, i) => {
               const StatIcon = stat.icon;
               return (
@@ -432,6 +433,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.6) }}
                 className="group relative rounded-card overflow-hidden border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all aspect-[4/3] cursor-pointer"
+                onClick={() => setPreviewItem(item)}
               >
                 {item.image ? (
                   <img src={item.image} alt={item.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -455,6 +457,57 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
           </div>
         )}
       </section>
+
+      <AnimatePresence>
+        {previewItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setPreviewItem(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-3xl w-full bg-white rounded-xl overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setPreviewItem(null)}
+                className="absolute top-3 right-3 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              {previewItem.video_url ? (
+                <div className="aspect-video bg-slate-900 flex items-center justify-center">
+                  {previewItem.video_url.includes('youtube') || previewItem.video_url.includes('youtu.be') ? (
+                    <iframe
+                      src={previewItem.video_url.replace('watch?v=', 'embed/').split('&')[0]}
+                      className="w-full h-full"
+                      allowFullScreen
+                      title={previewItem.title}
+                    />
+                  ) : (
+                    <video controls className="w-full h-full" src={previewItem.video_url} />
+                  )}
+                </div>
+              ) : (
+                <div className="aspect-video bg-slate-100">
+                  <img src={previewItem.image!} alt={previewItem.title} className="w-full h-full object-contain" />
+                </div>
+              )}
+              <div className="p-5">
+                <h4 className="font-bold text-slate-900">{previewItem.title}</h4>
+                {previewItem.description && (
+                  <p className="text-sm text-slate-600 mt-1 leading-relaxed">{previewItem.description}</p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.section
         initial={{ opacity: 0 }}
