@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Image, FileText, Handshake, Building,
   MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock, Camera, MessageSquareQuote,
+  BarChart3,
 } from 'lucide-react';
 import HeroBannerManager from './HeroBannerManager';
 import NewsManager from './NewsManager';
@@ -13,11 +14,12 @@ import FaqManager from './FaqManager';
 import MapNodeManager from './MapNodeManager';
 import GalleryManager from './GalleryManager';
 import TestimonialManager from './TestimonialManager';
+import HomepageStatsManager from './HomepageStatsManager';
 import { api } from '../api/cmsApi';
 import type { UserProfile } from '@/shared/types';
 import { canManageCms } from '@/shared/auth/permissions';
 
-type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests' | 'gallery' | 'testimonials';
+type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests' | 'gallery' | 'testimonials' | 'homepage-stats';
 
 export interface Toast {
   id: string;
@@ -40,10 +42,12 @@ interface SectionCounts {
   'map-nodes': number;
   gallery: number;
   testimonials: number;
+  'homepage-stats': number;
 }
 
 const SUB_NAV: CmsSubNavItem[] = [
   { id: 'hero-banners', label: 'Hero Banners', icon: Image },
+  { id: 'homepage-stats', label: 'Homepage Stats', icon: BarChart3 },
   { id: 'news', label: 'News & Announcements', icon: FileText },
   { id: 'partners', label: 'Partners & Sponsors', icon: Handshake },
   { id: 'testimonials', label: 'Testimonials', icon: MessageSquareQuote },
@@ -56,6 +60,7 @@ const SUB_NAV: CmsSubNavItem[] = [
 
 const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.ElementType; color: string }[] = [
   { key: 'hero-banners', label: 'Hero Banners', icon: Image, color: 'text-violet-500 bg-violet-50' },
+  { key: 'homepage-stats', label: 'Homepage Stats', icon: BarChart3, color: 'text-teal-500 bg-teal-50' },
   { key: 'news', label: 'Articles', icon: FileText, color: 'text-blue-500 bg-blue-50' },
   { key: 'partners', label: 'Partners', icon: Handshake, color: 'text-amber-500 bg-amber-50' },
   { key: 'testimonials', label: 'Testimonials', icon: MessageSquareQuote, color: 'text-indigo-500 bg-indigo-50' },
@@ -76,16 +81,17 @@ export default function CmsDashboard({ currentUser }: Props) {
   const [section, setSection] = useState<CmsSection>('hero-banners');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
-    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1, gallery: -1, testimonials: -1,
+    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1, gallery: -1, testimonials: -1, 'homepage-stats': -1,
   });
 
   useEffect(() => {
     (async () => {
       try {
-        const [heroBanners, news, partners, faqs, contactRequests, mapNodes, gallery, testimonials] = await Promise.all([
+        const [heroBanners, news, partners, faqs, contactRequests, mapNodes, gallery, testimonials, homepageStats] = await Promise.all([
           api.getAll('hero-banners'), api.getAll('news'), api.getAll('partners'),
           api.getAll('faqs'), api.getAll('contact-requests'), api.getAll('map-nodes'), api.getAll('gallery'),
           api.getAll('testimonials').catch(() => []),
+          api.getAll('homepage/statistics').catch(() => []),
         ]);
         setCounts({
           'hero-banners': heroBanners.length,
@@ -96,6 +102,7 @@ export default function CmsDashboard({ currentUser }: Props) {
           'map-nodes': mapNodes.length,
           gallery: gallery.length,
           testimonials: testimonials.length,
+          'homepage-stats': homepageStats.length,
         });
       } catch {
         setCounts(prev => Object.fromEntries(Object.entries(prev).map(([k]) => [k, 0])) as SectionCounts);
@@ -179,6 +186,7 @@ export default function CmsDashboard({ currentUser }: Props) {
         <AnimatePresence mode="wait">
           <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
             {section === 'hero-banners' && <HeroBannerManager addToast={addToast} />}
+            {section === 'homepage-stats' && <HomepageStatsManager addToast={addToast} />}
             {section === 'news' && <NewsManager addToast={addToast} />}
             {section === 'partners' && <CmsPartnerManager addToast={addToast} />}
             {section === 'testimonials' && <TestimonialManager addToast={addToast} />}

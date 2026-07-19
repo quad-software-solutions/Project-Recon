@@ -106,7 +106,8 @@ export interface HomepageStats {
 
 export const cmsPublicApi = {
   getPlatformStats: (signal?: AbortSignal) => http.get<PlatformStats>('/cms/stats/', { signal }),
-  getHomepageStats: (signal?: AbortSignal) => http.get<HomepageStats>('/public/homepage/statistics/', { signal }),
+  getHomepageStats: (signal?: AbortSignal) =>
+    http.get<HomepageStats>('/cms/homepage/statistics/current/', { signal }),
   getHeroBanners: async (signal?: AbortSignal) =>
     unwrapList(await http.get<HeroBannerResponse[] | PaginatedResponse<HeroBannerResponse>>('/cms/hero-banners/', { signal })),
   getNews: (params?: Record<string, string>, signal?: AbortSignal) => http.get<PaginatedResponse<NewsArticleResponse>>('/cms/news/', { params, signal }),

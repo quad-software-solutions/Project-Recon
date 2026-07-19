@@ -9,6 +9,7 @@ import type {
   GalleryItem as ModelGalleryItem,
   MapNodeModel,
   Testimonial as ModelTestimonial,
+  HomepageStatistic as ModelHomepageStatistic,
 } from '../model';
 
 export type HeroBanner = ModelHeroBanner;
@@ -20,6 +21,7 @@ export type Faq = FAQ;
 export type GalleryItem = ModelGalleryItem;
 export type MapNode = MapNodeModel;
 export type Testimonial = ModelTestimonial;
+export type HomepageStatistic = ModelHomepageStatistic;
 
 const PREFIX = '/cms/admin';
 
@@ -197,6 +199,13 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
       order: 'priority',
       is_active: ['isActive', 'is_active'],
     },
+    'homepage/statistics': {
+      future_engineers: 'future_engineers',
+      programs: 'programs',
+      competitions: 'competitions',
+      mission_current: 'mission_current',
+      mission_target: 'mission_target',
+    },
   };
 
   const fieldMap = map[endpoint] ?? {};
@@ -210,10 +219,28 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
     for (const k of keys) {
       if (has(k)) { val = source[k]; break; }
     }
-    // Skip image field if null/empty or existing URL (keeps backend value unchanged)
-    if (backendKey === 'image' && (!val || (typeof val === 'string' && val.startsWith('http')))) {
+    // Testimonials use URLField for image — send https URLs and allow null to clear.
+    // Other endpoints use ImageField — skip existing https URLs so the file is unchanged.
+    if (backendKey === 'image') {
+      if (endpoint === 'testimonials') {
+        if (val === '' || val === null || val === undefined) {
+          result[backendKey] = null;
+        } else {
+          result[backendKey] = val;
+        }
+        continue;
+      }
+      if (!val || (typeof val === 'string' && val.startsWith('http'))) {
+        continue;
+      }
+    }
+
+    // Allow clearing video_url on testimonials / gallery / etc.
+    if (backendKey === 'video_url' && (val === '' || val === null)) {
+      result[backendKey] = null;
       continue;
     }
+
     result[backendKey] = val ?? null;
   }
 
@@ -268,15 +295,19 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
 
 export const api = {
   getAll: async <T>(endpoint: string): Promise<T[]> => {
-    const res = await http.get<{ results: T[] } | T[]>(`${PREFIX}/${endpoint}/`);
+    const res = await http.get<{ results: T[] } | T[]>(`${PREFIX}/${endpoint}/`, {
+      params: { page_size: '200' },
+    });
     const items = Array.isArray(res) ? res : (res.results ?? []);
     return items.map(item => withUiAliases(endpoint, item));
   },
-  create: async (endpoint: string, data: unknown) => {
-    return http.post(`${PREFIX}/${endpoint}/`, toBackendPayload(endpoint, data));
+  create: async <T = unknown>(endpoint: string, data: unknown): Promise<T> => {
+    const res = await http.post<T>(`${PREFIX}/${endpoint}/`, toBackendPayload(endpoint, data));
+    return withUiAliases(endpoint, res as T);
   },
-  update: async (endpoint: string, id: number | string, data: unknown) => {
-    return http.patch(`${PREFIX}/${endpoint}/${id}/`, toBackendPayload(endpoint, data));
+  update: async <T = unknown>(endpoint: string, id: number | string, data: unknown): Promise<T> => {
+    const res = await http.patch<T>(`${PREFIX}/${endpoint}/${id}/`, toBackendPayload(endpoint, data));
+    return withUiAliases(endpoint, res as T);
   },
   delete: async (endpoint: string, id: number | string) => {
     return http.delete(`${PREFIX}/${endpoint}/${id}/`);

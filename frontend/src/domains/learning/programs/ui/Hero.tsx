@@ -4,7 +4,7 @@ import { ArrowRight, Globe, ShoppingBag, Sparkles, CheckCircle2 } from 'lucide-r
 
 import untitledLogo from '@/assets/logo.svg';
 
-import { cmsPublicApi, type HeroBannerResponse } from '../../../cms/public/api/cmsPublicApi';
+import { cmsPublicApi, type HeroBannerResponse, type HomepageStats } from '../../../cms/public/api/cmsPublicApi';
 
 const SLIDE_DURATION = 6000;
 
@@ -31,9 +31,17 @@ interface HeroProps {
   onDiscoverPrograms: () => void;
   onJoinCommunity: () => void;
   onShopStore?: () => void;
+  homepageStats?: HomepageStats | null;
+  statsLoading?: boolean;
 }
 
-export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore }: HeroProps) {
+export default function Hero({
+  onDiscoverPrograms,
+  onJoinCommunity,
+  onShopStore,
+  homepageStats = null,
+  statsLoading = false,
+}: HeroProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [banners, setBanners] = useState<HeroBannerResponse[]>([]);
@@ -294,7 +302,7 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             </button>
           </motion.div>
 
-          {/* Stats + Progress (grouped into one compact block) */}
+          {/* Mission progress — from CMS homepage statistics API */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
@@ -302,21 +310,28 @@ export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore 
             className="w-full"
           >
             <div className="w-full bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.06] p-4">
-              {/* Progress bar */}
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-[9px] font-mono font-semibold text-white/30 uppercase tracking-[0.15em]">Mission Progress</span>
-                  <span className="text-[11px] font-semibold text-white/50 font-mono">1,240,500 / 5,000,000</span>
+                  <span className="text-[11px] font-semibold text-white/50 font-mono">
+                    {statsLoading && !homepageStats
+                      ? '…'
+                      : `${(homepageStats?.mission.current ?? 0).toLocaleString()} / ${(homepageStats?.mission.target ?? 0).toLocaleString()}`}
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={mounted ? { width: '24.8%' } : {}}
-                    transition={{ duration: 1.5, delay: 0.8, ease: "easeOut" }}
+                    animate={mounted ? { width: `${Math.min(100, homepageStats?.mission.percentage ?? 0)}%` } : {}}
+                    transition={{ duration: 1.5, delay: 0.8, ease: 'easeOut' }}
                     className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-full"
                   />
                 </div>
-                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">24.8% of National Goal</p>
+                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">
+                  {statsLoading && !homepageStats
+                    ? '…'
+                    : `${homepageStats?.mission.percentage ?? 0}% of National Goal`}
+                </p>
               </div>
             </div>
           </motion.div>
