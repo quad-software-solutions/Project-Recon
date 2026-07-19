@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, X, XCircle, Megaphone, Calendar, EyeOff,
   CheckCircle, ChevronDown, Image, ExternalLink, Clock, FileText,
-  Plus, Edit3, Trash2, Save, Loader2, AlertTriangle,
+  Plus, Edit3, Trash2, Save, Loader2, AlertTriangle, Upload,
 } from 'lucide-react';
 import { cmsNewsApi } from '../../../../cms/shared/api/cmsApi';
 import type { NewsArticleResponse } from '../../../../cms/shared/api/cmsApi';
@@ -40,6 +40,15 @@ export default function AnnouncementsManager() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setForm(prev => ({ ...prev, image: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -298,11 +307,23 @@ export default function AnnouncementsManager() {
                     <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={5}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 resize-none" />
                   </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Image URL</label>
-                    <input value={form.image} onChange={e => setForm(p => ({ ...p, image: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Image URL</label>
+                      <input value={form.image} onChange={e => setForm(p => ({ ...p, image: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10" />
+                    </div>
+                    <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
+                    <button type="button" onClick={() => imageInputRef.current?.click()}
+                      className="mt-5 p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-brand-blue transition-colors shrink-0" title="Upload image">
+                      <Upload className="w-4 h-4" />
+                    </button>
                   </div>
+                  {form.image && (
+                    <div className="rounded-xl overflow-hidden border border-slate-200">
+                      <img src={form.image} alt="" className="w-full h-32 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Video URL</label>
