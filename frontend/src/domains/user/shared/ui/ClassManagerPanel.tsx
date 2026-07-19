@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split } from 'lucide-react';
-import { AcademicClass } from '@/shared/types';
+import type { AcademicClass } from '@/shared/types';
+import type { UserProfile } from '@/shared/types';
 import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi } from '@/domains/learning/academics/api/academicApi';
+import type { Branch } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllUsersApi, resolveRole, branchesApi } from '@/domains/user/shared/api/adminApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { isSuperAdmin } from '@/shared/auth/permissions';
+
+function classAssignmentsToBranches(user?: UserProfile): Branch[] {
+  if (!user?.assignments) return [];
+  const map = new Map<string, string>();
+  for (const a of user.assignments) {
+    if (a.is_active && a.branch_id) map.set(a.branch_id, a.branch_name || 'Unknown');
+  }
+  return [...map.entries()].map(([id, name]) => ({ id, name, code: '' }));
+}
 
 const defaultForm = {
   sub_program: '', branch: '', instructor: '', name: '', class_type: 'GROUP', class_period: '', capacity: '', start_date: '', end_date: '',
 };
 
-export default function ClassManagerPanel() {
+interface Props {
+  currentUser?: UserProfile;
+}
+
+export default function ClassManagerPanel({ currentUser }: Props) {
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [subPrograms, setSubPrograms] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -27,22 +43,23 @@ export default function ClassManagerPanel() {
   const [form, setForm] = useState(defaultForm);
   const [assigning, setAssigning] = useState<{ classId: string; instructor: string } | null>(null);
   const [assignSaving, setAssignSaving] = useState(false);
-  const [splitting, setSplitting] = useState<{ sourceId: string; targetClass: string; count: string } | null>(null);
+  const [splitting, setSplitting] = useState<{ sourceId: string; sourceName: string; sourceCount: number; targetClass: string; count: string } | null>(null);
   const [splitSaving, setSplitSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
+    const branchesPromise = isSuperAdmin(currentUser) ? branchesApi.list() : Promise.resolve(classAssignmentsToBranches(currentUser) as any);
     Promise.all([
       fetchClassesApi(),
       fetchSubProgramsApi(),
-      branchesApi.list().catch(() => []),
+      branchesPromise,
       fetchAllUsersApi().then(users => {
         return users.filter((u: any) => {
           const role = resolveRole(u.assignments);
           return role === 'instructor' || role === 'Instructor';
         });
       }).catch(() => []),
-    ]).then(([c, sp, br, inst]) => {
+    ]).then(([c, sp, br, inst]: [any, any, any, any]) => {
       setClasses(Array.isArray(c) ? c : []);
       setSubPrograms(Array.isArray(sp) ? sp : []);
       setBranches(Array.isArray(br) ? br : []);
@@ -246,7 +263,7 @@ export default function ClassManagerPanel() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => setAssigning({ classId: c.id, instructor: (c as any).instructor || '' })} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title="Assign Instructor"><UserCheck className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setSplitting({ sourceId: c.id, targetClass: '', count: '' })} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50" title="Split class"><Split className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setSplitting({ sourceId: c.id, sourceName: c.name, sourceCount: (c as any).student_count || 0, targetClass: '', count: '' })} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50" title="Split class"><Split className="w-3.5 h-3.5" /></button>
                       <button onClick={() => openEdit(c)} className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50" title="Edit"><BookOpen className="w-3.5 h-3.5" /></button>
                       <button onClick={() => toggleActive(c)} className={`p-1 rounded-lg ${c.is_active !== false ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={c.is_active !== false ? 'Deactivate' : 'Activate'}>
                         {c.is_active !== false ? <X className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -409,7 +426,11 @@ export default function ClassManagerPanel() {
                   <button onClick={() => setSplitting(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <p className="text-xs text-slate-500">Move a number of enrollments from this class into another active class.</p>
+                  <div className="bg-violet-50 rounded-xl px-3 py-2 text-xs text-violet-700">
+                    <span className="font-bold">{splitting.sourceName}</span>
+                    {splitting.sourceCount > 0 && <span className="ml-2 text-violet-500">({splitting.sourceCount} enrolled)</span>}
+                  </div>
+                  <p className="text-xs text-slate-500">Move enrollments from this class into another active class. The oldest enrollments are moved first.</p>
                   <div>
                     <label className="text-[11px] font-bold text-slate-600 mb-1 block">Target class</label>
                     <select
@@ -419,7 +440,7 @@ export default function ClassManagerPanel() {
                     >
                       <option value="">Select target...</option>
                       {classes.filter(c => c.id !== splitting.sourceId && c.is_active !== false).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={c.id} value={c.id}>{c.name}{c.capacity ? ` (cap: ${c.capacity})` : ''}</option>
                       ))}
                     </select>
                   </div>
@@ -428,6 +449,7 @@ export default function ClassManagerPanel() {
                     <input
                       type="number"
                       min={1}
+                      max={splitting.sourceCount || undefined}
                       value={splitting.count}
                       onChange={e => setSplitting(p => p ? { ...p, count: e.target.value } : null)}
                       className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"

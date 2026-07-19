@@ -36,6 +36,8 @@ import AdminAccount from './AdminAccount';
 import SystemLogs from './SystemLogs';
 import AdminOverviewDashboard from './AdminOverviewDashboard';
 import RolesPermissionsPanel from './RolesPermissionsPanel';
+import PendingUsersPanel from './PendingUsersPanel';
+import ReportsHub from './ReportsHub';
 import EnrollmentsPanel from '@/domains/user/secretary/dashboard/ui/EnrollmentsPanel';
 import TransferRequestsPanel from './TransferRequestsPanel';
 import BankAccountsPanel from './BankAccountsPanel';
@@ -58,6 +60,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'core' },
   { id: 'users', label: 'Accounts & Users', icon: Users, group: 'users' },
   { id: 'roles', label: 'Roles & Permissions', icon: Shield, group: 'users' },
+  { id: 'pending-users', label: 'Pending Users', icon: UserPlus, group: 'users' },
+  { id: 'reports', label: 'Reports', icon: BarChart3, group: 'system' },
   { id: 'staff-attendance', label: 'Staff Attendance', icon: Calendar, group: 'users' },
   { id: 'academics', label: 'Academic Catalog', icon: GraduationCap, group: 'academic' },
   { id: 'classes', label: 'Classes', icon: BookOpen, group: 'academic' },
@@ -80,8 +84,10 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'account', label: 'My Account', icon: Shield, group: 'system' },
 ];
 
-const pageTitle: Record<string, string> = {
+const   pageTitle: Record<string, string> = {
   overview: 'Dashboard', users: 'User Management', roles: 'Roles & Permissions',
+  'pending-users': 'Pending Users',
+  reports: 'Reports Center',
   academics: 'Academic Catalog', classes: 'Class Management',
   'staff-attendance': 'Staff Attendance',
   branches: 'Branch Management', registrations: 'Enrollment Management',
@@ -144,7 +150,7 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       const payments = paymentsRes.status === 'fulfilled' && Array.isArray(paymentsRes.value) ? paymentsRes.value : [];
 
       const students = users.filter(u => resolveRole(u.assignments || []) === 'Student').length;
-      const activeUsers = users.filter(u => u.is_active !== false).length;
+      const activeUsers = users.filter(u => u.status !== 'Archived').length;
 
       setHubStats({
         totalUsers: users.length,
@@ -192,14 +198,16 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       );
       case 'users': return <UserManagementPanel title="User Management" currentUser={currentUser} />;
       case 'roles': return <RolesPermissionsPanel currentUser={currentUser} />;
+      case 'pending-users': return <PendingUsersPanel currentUser={currentUser} />;
+      case 'reports': return <ReportsHub currentUser={currentUser} />;
       case 'academics': return <AcademicCatalogManager role="Admin" />;
-      case 'classes': return <ClassManagerPanel />;
+      case 'classes': return <ClassManagerPanel currentUser={currentUser} />;
       case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
       case 'branches': return <BranchSectionShell currentUser={currentUser} />;
       case 'audit': return <SystemLogs currentUser={currentUser} />;
       case 'account': return <AdminAccount currentUser={currentUser} />;
       case 'registrations': return <EnrollmentsPanel currentUser={currentUser} />;
-      case 'transfers': return <TransferRequestsPanel />;
+      case 'transfers': return <TransferRequestsPanel currentUser={currentUser} />;
       case 'bank-accounts': return <BankAccountsPanel canManage />;
       case 'events': return <EventManager currentUser={currentUser} onNavigate={(section) => handleSectionChange(section)} />;
       case 'tournaments': return <TournamentManager />;

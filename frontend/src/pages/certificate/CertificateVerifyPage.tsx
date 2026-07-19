@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, Loader2, Shield, XCircle, Award, Share2, Printer, Clock, BadgeCheck, Hash, GraduationCap } from 'lucide-react';
-import { http } from '@/shared/api/http';
+import { http, isApiError } from '@/shared/api/http';
 import BrandLogo from '@/shared/ui/BrandLogo';
 
 interface VerifyResult {
@@ -41,16 +41,17 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
         setResult(data);
         setVerifiedAt(new Date().toISOString());
       }
-    } catch (err: any) {
-      const status = err?.response?.status || err?.status;
-      const body = err?.response?.data || err?.data;
-      const detail = body?.detail || body?.message || '';
-      if (status === 404 || detail.toLowerCase().includes('not found')) {
-        setError('Certificate not found. Please check the number and try again.');
-      } else if (status === 0 || err.message === 'Network Error') {
+    } catch (err: unknown) {
+      if (isApiError(err)) {
+        if (err.status === 404) {
+          setError('Certificate not found. Please check the number and try again.');
+        } else {
+          setError(err.message || 'Verification failed. Please try again.');
+        }
+      } else if (err instanceof TypeError || (err instanceof Error && /network|fetch|failed to fetch/i.test(err.message))) {
         setError('Network error. Please check your connection and try again.');
       } else {
-        setError(detail || 'Verification failed. Please try again.');
+        setError(err instanceof Error ? err.message : 'Verification failed. Please try again.');
       }
     }
     setLoading(false);
@@ -123,7 +124,7 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
                   />
                 </div>
                 <button
-                  onClick={handleVerify}
+                  onClick={() => handleVerify()}
                   disabled={loading || !number.trim()}
                   className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-brand-red/20 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center gap-2"
                 >

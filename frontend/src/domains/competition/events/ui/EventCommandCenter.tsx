@@ -655,12 +655,62 @@ function SponsorsPanel() {
 /* ─── REPORTS ─── */
 function ReportsPanel() {
   const [selectedAward, setSelectedAward] = useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<string>('all');
+  const [selectedAwardEvent, setSelectedAwardEvent] = useState<string>('all');
+  const [selectedReportEvent, setSelectedReportEvent] = useState<string>('');
   const [events, setEvents] = useState<any[]>([]);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     eventsApi.adminGetTournaments().then(data => setEvents(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
+
+  const downloadFullEventResults = async () => {
+    if (!selectedReportEvent) return;
+    setDownloading(true);
+    try {
+      const [teams, standings, matches] = await Promise.all([
+        eventsApi.adminGetTournamentTeams(selectedReportEvent),
+        eventsApi.adminGetTournamentStandings(selectedReportEvent),
+        eventsApi.adminGetTournamentMatches(selectedReportEvent).catch(() => []),
+      ]);
+      const t = events.find(e => e.id === selectedReportEvent);
+      const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+      const teamRows = teams.map(tm => [esc(tm.team_name), esc(tm.organization || ''), esc(tm.coach_name || ''), esc(tm.contact_email || tm.contact_phone || ''), tm.wins, tm.losses, tm.draws, tm.points].join(','));
+      const standingRows = standings.map(s => [(s.rank ?? ''), esc(s.team_name), s.wins, s.losses, s.draws, s.points].join(','));
+      const matchRows = matches.flatMap(m => {
+        const sides = m.sides?.length ? m.sides.map(s => `${esc(s.side)}:${s.score}:${esc(s.participants.map(p => p.team_name || p.tournament_team_name || '').join('; '))}`).join(' | ') : '—';
+        return [[esc(m.round), esc(m.status || ''), esc(m.scheduled_at || ''), esc(m.completed_at || ''), esc(sides), esc(m.winning_side_label || '')].join(',')];
+      });
+      const eventName = esc(t?.event_title || 'Tournament');
+      const csv = [
+        `Event,${eventName},Date Generated,${new Date().toLocaleDateString()}`,
+        '',
+        '--- TEAMS ---',
+        'Team,Organization,Coach,Contact,Wins,Losses,Draws,Points',
+        ...teamRows,
+        '',
+        '--- STANDINGS ---',
+        'Rank,Team,Wins,Losses,Draws,Points',
+        ...standingRows,
+        '',
+        '--- MATCHES ---',
+        'Round,Status,Scheduled,Completed,Sides (Side:Score:Teams),Winner',
+        ...matchRows,
+      ].join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `event-results-${t?.event_title || selectedReportEvent.slice(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate report', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const awardCerts: StudentAward[] = [];
 
@@ -683,7 +733,7 @@ function ReportsPanel() {
             <p className="text-[10px] text-slate-500 mt-0.5">Generate verified competition award certificates for winners</p>
           </div>
           {/* Event Filter */}
-          <select value={selectedEvent} onChange={e => setSelectedEvent(e.target.value)}
+          <select value={selectedAwardEvent} onChange={e => setSelectedAwardEvent(e.target.value)}
             className="text-[10px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-red/20">
             <option value="all">All Events</option>
             {events.map((e: any) => (
@@ -785,26 +835,43 @@ function ReportsPanel() {
 
       {/* ── Post-Event Reports ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h3 className="font-bold text-sm text-slate-900 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-brand-red" />Post-Event Reports</h3>
-        <p className="text-xs text-slate-500 mb-4">Downloadable summaries of competition results, sponsor impact, and media assets.</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2"><FileText className="w-4 h-4 text-brand-red" />Post-Event Reports</h3>
+            <p className="text-[10px] text-slate-500 mt-0.5">Downloadable summaries of competition results, teams, and match data.</p>
+          </div>
+          <select value={selectedReportEvent} onChange={e => setSelectedReportEvent(e.target.value)}
+            className="text-[10px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-red/20">
+            <option value="">Select tournament…</option>
+            {events.map((e: any) => (
+              <option key={e.id} value={e.id}>{e.event_title || e.event || 'Tournament'}</option>
+            ))}
+          </select>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors flex flex-col">
             <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center mb-3"><Star className="w-4 h-4 text-purple-600" /></div>
             <h4 className="text-xs font-bold text-slate-900 mb-1">Sponsor Impact Report</h4>
-            <p className="text-[9px] text-slate-500 mb-3">Logo impressions, audience reach, sponsor visibility in event photos and stream overlays.</p>
-            <button className="w-full text-[9px] font-bold text-brand-red bg-brand-red/10 px-3 py-2 rounded-lg hover:bg-brand-red/20 transition-colors">Download</button>
+            <p className="text-[9px] text-slate-500 mb-3 flex-1">Logo impressions, audience reach, sponsor visibility in event photos and stream overlays.</p>
+            <button disabled className="w-full text-[9px] font-bold text-slate-400 bg-slate-100 px-3 py-2 rounded-lg cursor-not-allowed">Coming Soon</button>
           </div>
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors flex flex-col">
             <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center mb-3"><ClipboardList className="w-4 h-4 text-blue-600" /></div>
             <h4 className="text-xs font-bold text-slate-900 mb-1">Full Event Results</h4>
-            <p className="text-[9px] text-slate-500 mb-3">Complete qualification rankings, elimination brackets, award winners, and match history.</p>
-            <button className="w-full text-[9px] font-bold text-brand-red bg-brand-red/10 px-3 py-2 rounded-lg hover:bg-brand-red/20 transition-colors">Download</button>
+            <p className="text-[9px] text-slate-500 mb-3 flex-1">Teams, qualification rankings, standings, match history, and scores.</p>
+            <button
+              onClick={downloadFullEventResults}
+              disabled={!selectedReportEvent || downloading}
+              className="w-full text-[9px] font-bold text-brand-red bg-brand-red/10 px-3 py-2 rounded-lg hover:bg-brand-red/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+            >
+              {downloading ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating…</> : <><Download className="w-3 h-3" /> Download CSV</>}
+            </button>
           </div>
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors flex flex-col">
             <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center mb-3"><Camera className="w-4 h-4 text-amber-600" /></div>
             <h4 className="text-xs font-bold text-slate-900 mb-1">Media Kit</h4>
-            <p className="text-[9px] text-slate-500 mb-3">Event photos, press release template, winner quotes, and social media assets package.</p>
-            <button className="w-full text-[9px] font-bold text-brand-red bg-brand-red/10 px-3 py-2 rounded-lg hover:bg-brand-red/20 transition-colors">Download</button>
+            <p className="text-[9px] text-slate-500 mb-3 flex-1">Event photos, press release template, winner quotes, and social media assets package.</p>
+            <button disabled className="w-full text-[9px] font-bold text-slate-400 bg-slate-100 px-3 py-2 rounded-lg cursor-not-allowed">Coming Soon</button>
           </div>
         </div>
       </div>

@@ -90,6 +90,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
   const [userSearch, setUserSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
 
   const clearSuccessLater = () => {
     setTimeout(() => setSuccess(null), 3500);
@@ -345,7 +346,81 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* View filter */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowPendingOnly(false)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            !showPendingOnly
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          All Roles
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowPendingOnly(true)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            showPendingOnly
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <AlertTriangle className="w-3 h-3" />
+          Pending ({unassignedUsers.length})
+        </button>
+      </div>
+
+      {showPendingOnly && unassignedUsers.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">All Clear</h3>
+          <p className="text-sm text-slate-500">Every user has a role assigned.</p>
+        </div>
+      ) : showPendingOnly ? (
+        <div className="space-y-2">
+          {unassignedUsers.map(u => (
+            <div key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {u.full_name.split(' ').map(n => n[0]).filter(Boolean).join('').toUpperCase().slice(0, 2) || '?'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 text-sm truncate">{u.full_name}</p>
+                    <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Registered {new Date(u.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="px-2 py-1 bg-amber-50 border border-amber-200 rounded-md text-[10px] font-bold text-amber-600">
+                    No role
+                  </span>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignForm(p => ({ ...p, user_id: u.id, role: 'student', branch_id: '' }));
+                        setShowAssignModal(true);
+                      }}
+                      className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm"
+                    >
+                      Assign Role
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {ROLE_DEFS.map(r => {
           const roleUsers = getUsersByRole(r.key);
           const roleAssignments = getAssignmentsByRole(r.key);
@@ -548,6 +623,7 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
           );
         })}
       </div>
+      )}
 
       <AnimatePresence>
         {showAssignModal && (

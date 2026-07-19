@@ -218,7 +218,7 @@ export default function StoreDashboard({ currentUser }: Props) {
               )}
             {canManageFull && section === 'categories' && <CategoryManager addToast={addToast} />}
             {canManageFull && section === 'products' && <ProductManager addToast={addToast} />}
-            {section === 'inventory' && <InventoryManager addToast={addToast} />}
+            {section === 'inventory' && <InventoryManager addToast={addToast} currentUser={currentUser} />}
             {canManageFull && section === 'orders' && <OrderManager addToast={addToast} />}
             {canManageFull && section === 'payments' && <PendingPaymentManager addToast={addToast} />}
             {canManageFull && section === 'reports' && <ReportsPanel addToast={addToast} />}

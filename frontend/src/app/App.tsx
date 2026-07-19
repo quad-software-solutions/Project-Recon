@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ErrorBoundary from '../shared/ui/ErrorBoundary';
 
 import Navbar from '../shared/ui/Navbar';
 import AboutTab from '../domains/learning/programs/ui/AboutTab';
@@ -39,9 +40,11 @@ const AuthModal = React.lazy(() => import('../domains/auth/modal/ui/AuthModal'))
 
 export default function App() {
   return (
-    <CartProvider>
-      <AppInner />
-    </CartProvider>
+    <ErrorBoundary>
+      <CartProvider>
+        <AppInner />
+      </CartProvider>
+    </ErrorBoundary>
   );
 }
 

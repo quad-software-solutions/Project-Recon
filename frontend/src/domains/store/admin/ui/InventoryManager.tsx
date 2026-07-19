@@ -13,16 +13,28 @@ import {
   isLowStock,
 } from '@/domains/store/utils/inventoryDisplay';
 import { cn } from '@/shared/utils/cn';
+import { isSuperAdmin } from '@/shared/auth/permissions';
+import type { UserProfile } from '@/shared/types';
 
 const PAGE_SIZE = 25;
 
 interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
+  currentUser?: UserProfile;
 }
 
 interface BranchOption {
   id: string;
   name: string;
+}
+
+function assignmentsToBranches(user?: UserProfile): BranchOption[] {
+  if (!user?.assignments) return [];
+  const map = new Map<string, string>();
+  for (const a of user.assignments) {
+    if (a.branch_id && a.branch_name) map.set(a.branch_id, a.branch_name);
+  }
+  return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 }
 
 const emptyInventory = (): InventoryPayload => ({
@@ -55,7 +67,7 @@ const initialAction = (): ActionState => ({
   toBranch: '',
 });
 
-export default function InventoryManager({ addToast }: Props) {
+export default function InventoryManager({ addToast, currentUser }: Props) {
   const [items, setItems] = useState<BranchInventory[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -80,13 +92,17 @@ export default function InventoryManager({ addToast }: Props) {
     try {
       const data = await storeAdminApi.inventory.list();
       setItems(data);
-      Promise.all([
-        branchesApi.list().catch(() => []),
-        storeAdminApi.products.list().catch(() => []),
-      ]).then(([branchData, productData]) => {
+      if (isSuperAdmin(currentUser)) {
+        const [branchData, productData] = await Promise.all([
+          branchesApi.list(),
+          storeAdminApi.products.list().catch(() => []),
+        ]);
         setBranches(branchData.map((b: any) => ({ id: b.id || b.uuid, name: b.name })));
         setProducts(productData);
-      });
+      } else {
+        setBranches(assignmentsToBranches(currentUser));
+        setProducts([]);
+      }
     } catch (e: any) {
       addToast(e.message || 'Failed to load inventory', 'error');
     } finally {
@@ -295,10 +311,12 @@ export default function InventoryManager({ addToast }: Props) {
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-brand-muted bg-white border border-brand-border rounded-lg hover:text-brand-ink hover:bg-slate-50 disabled:opacity-40 transition-colors">
             <Download className="w-4 h-4" /> Export
           </button>
-          <button onClick={openCreate}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15">
-            <Plus className="w-4 h-4" /> New Record
-          </button>
+          {isSuperAdmin(currentUser) && (
+            <button onClick={openCreate}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15">
+              <Plus className="w-4 h-4" /> New Record
+            </button>
+          )}
         </div>
       </div>
 
@@ -378,7 +396,7 @@ export default function InventoryManager({ addToast }: Props) {
             <p className="text-sm font-medium text-brand-muted">
               {hasActiveFilters ? 'No matching inventory records' : 'No inventory records yet'}
             </p>
-            {!hasActiveFilters && (
+            {!hasActiveFilters && isSuperAdmin(currentUser) && (
               <button
                 onClick={openCreate}
                 className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm shadow-brand-blue/15"

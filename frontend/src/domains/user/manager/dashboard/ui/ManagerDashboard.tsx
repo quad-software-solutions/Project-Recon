@@ -175,14 +175,14 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       );
       case 'analytics': return <AnalyticsDashboard />;
       case 'academic-catalog': return <AcademicCatalogManager />;
-      case 'classes': return <ClassManagerPanel />;
+      case 'classes': return <ClassManagerPanel currentUser={currentUser} />;
       case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
       case 'sponsors': return <SponsorManagement currentUser={currentUser} />;
       case 'schools': return <SchoolManagement currentUser={currentUser} />;
       case 'enrollments': return <EnrollmentsPanel />;
       case 'periods': return <EnrollmentPeriodsPanel currentUser={currentUser} />;
       case 'students': return <StudentDetailPanel />;
-      case 'transfers': return <TransferRequestsPanel />;
+      case 'transfers': return <TransferRequestsPanel currentUser={currentUser} />;
       case 'event-registrations': return <RegistrationManager />;
       case 'store': return <StoreDashboard currentUser={currentUser} />;
       case 'materials': return <LearningMaterialsPanel currentUser={currentUser} />;

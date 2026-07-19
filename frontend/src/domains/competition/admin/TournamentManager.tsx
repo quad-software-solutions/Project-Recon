@@ -189,17 +189,51 @@ export default function TournamentManager() {
         </motion.div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="font-black text-lg text-slate-900">Tournaments</h3>
           <p className="text-xs text-slate-500 mt-1">{tournaments.length} tournaments · {totalMatches} matches</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowDashboard(p => !p)} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><Activity className="w-4 h-4" /> {showDashboard ? 'Hide' : 'Stats'}</button>
-          <button onClick={openCreateCategory} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><Tags className="w-4 h-4" /> Categories</button>
           <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
           <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25"><Plus className="w-4 h-4" /> New Tournament</button>
+        </div>
+      </div>
+
+      {/* Categories Inline */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center"><Tags className="w-3.5 h-3.5 text-blue-600" /></div>
+            <h4 className="text-sm font-bold text-slate-900">Categories</h4>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{categories.length}</span>
+          </div>
+          <button onClick={openCreateCategory} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus className="w-3 h-3" /> Add
+          </button>
+        </div>
+        <div className="px-5 py-3">
+          {categories.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-4">No categories yet. Create one to organize tournaments.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {categories.map(c => (
+                <div key={c.id} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg group hover:bg-blue-100 transition-colors">
+                  <span className="text-xs font-semibold text-blue-700">{c.name}</span>
+                  <span className="text-[9px] font-mono text-blue-400 hidden group-hover:inline">{c.code}</span>
+                  <div className="flex items-center gap-0.5 ml-1">
+                    <button onClick={() => openEditCategory(c)} className="p-0.5 rounded text-blue-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><Edit3 className="w-3 h-3" /></button>
+                    <button onClick={() => handleDeleteCategory(c.id)} className="p-0.5 rounded text-blue-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={openCreateCategory} className="flex items-center gap-1 px-3 py-1.5 border-2 border-dashed border-slate-200 rounded-lg text-[10px] font-semibold text-slate-400 hover:border-blue-300 hover:text-blue-500 transition-colors">
+                <Plus className="w-3 h-3" /> New
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -466,49 +500,33 @@ export default function TournamentManager() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCategoryModal(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 z-10">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-black text-lg text-slate-900">Manage Categories</h3>
-                <button onClick={() => setShowCategoryModal(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>
+              className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 z-10">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><Tags className="w-4 h-4 text-blue-600" /></div>
+                  <h3 className="font-bold text-base text-slate-900">{editingCategoryId ? 'Edit Category' : 'Add Category'}</h3>
+                </div>
+                <button onClick={() => setShowCategoryModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
               </div>
-              <div className="border border-brand-border rounded-2xl divide-y divide-brand-border mb-4 max-h-48 overflow-y-auto">
-                {categories.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-6">No categories yet</p>
-                ) : categories.map(c => (
-                  <div key={c.id} className="flex items-center justify-between px-4 py-2.5">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{c.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">{c.code}{c.description ? ` — ${c.description}` : ''}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEditCategory(c)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500"><Edit3 className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDeleteCategory(c.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col gap-3">
-                <h4 className="font-bold text-xs text-slate-700">{editingCategoryId ? 'Edit Category' : 'New Category'}</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Name *</label>
-                    <input value={categoryForm.name} onChange={e => setCategoryForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. VEX V5" className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Code *</label>
-                    <input value={categoryForm.code} onChange={e => setCategoryForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="e.g. VEXV5" className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm font-mono focus:outline-none focus:border-brand-red" />
-                  </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Name *</label>
+                  <input value={categoryForm.name} onChange={e => setCategoryForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. VEX V5" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Code *</label>
+                  <input value={categoryForm.code} onChange={e => setCategoryForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="e.g. VEXV5" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:border-blue-600" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Description</label>
-                  <input value={categoryForm.description} onChange={e => setCategoryForm(p => ({ ...p, description: e.target.value }))} placeholder="Optional description" className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
+                  <input value={categoryForm.description} onChange={e => setCategoryForm(p => ({ ...p, description: e.target.value }))} placeholder="Optional description" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600" />
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-brand-border">
-                <button onClick={() => setShowCategoryModal(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl">Close</button>
+              <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-slate-100">
+                <button onClick={() => setShowCategoryModal(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Cancel</button>
                 <button onClick={handleSaveCategory} disabled={savingCategory || !categoryForm.name || !categoryForm.code}
-                  className="px-5 py-2 text-xs font-black text-white bg-gradient-to-r from-brand-red to-brand-red-dark rounded-xl disabled:opacity-50 flex items-center gap-1.5">
-                  {savingCategory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  className="px-5 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 shadow-sm">
+                  {savingCategory && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {savingCategory ? 'Saving...' : editingCategoryId ? 'Update' : 'Create'}
                 </button>
               </div>

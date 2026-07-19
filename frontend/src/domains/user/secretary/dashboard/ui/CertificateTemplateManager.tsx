@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Award, FileText, Eye, Image, RotateCcw, Shield, CheckCircle2, Upload } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, Award, FileText, Eye, Image, RotateCcw, Shield, CheckCircle2, Upload, ScrollText, GraduationCap, Hash } from 'lucide-react';
 import { Certificate } from '@/shared/types';
 import { fetchCertificateTemplatesApi, createCertificateTemplateApi, updateCertificateTemplateApi, setCertificateTemplateActiveApi, fetchSubProgramsApi, decodeBodyWithSignatory } from '@/domains/learning/academics/api/academicApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import BrandLogo from '@/shared/ui/BrandLogo';
 
 interface TemplateForm {
   sub_program: string;
@@ -26,6 +27,7 @@ export default function CertificateTemplateManager() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Certificate | null>(null);
+  const [preview, setPreview] = useState<Certificate | null>(null);
   const [form, setForm] = useState<TemplateForm>(defaultForm);
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -122,6 +124,22 @@ export default function CertificateTemplateManager() {
     }
   };
 
+  const duplicate = async (t: Certificate) => {
+    const decoded = decodeBodyWithSignatory(t.body_text || '');
+    try {
+      await createCertificateTemplateApi({
+        sub_program: t.sub_program || '',
+        title: `${t.title} (Copy)`,
+        body_text: decoded.body,
+        signatory_name: decoded.signatory_name,
+        signatory_title: decoded.signatory_title,
+      });
+      load();
+    } catch (e) {
+      setError(formatApiError(e));
+    }
+  };
+
   const filtered = templates.filter(t => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -199,7 +217,9 @@ export default function CertificateTemplateManager() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => setPreview(t)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title="Preview"><Eye className="w-3.5 h-3.5" /></button>
                       <button onClick={() => openEdit(t)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title="Edit"><FileText className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => duplicate(t)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title="Duplicate"><RotateCcw className="w-3.5 h-3.5" /></button>
                       <button onClick={() => toggleActive(t)} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title={t.is_active !== false ? 'Deactivate' : 'Activate'}>
                         {t.is_active !== false ? <X className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                       </button>
@@ -316,6 +336,102 @@ export default function CertificateTemplateManager() {
                     {saving ? 'Saving...' : editing ? 'Update Template' : 'Create Template'}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {preview && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setPreview(null)} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="bg-white rounded-3xl shadow-2xl border border-brand-border w-full max-w-lg overflow-hidden">
+                {(() => {
+                  const decoded = decodeBodyWithSignatory(preview.body_text || '');
+                  const hasBg = preview.background_url;
+                  return (
+                    <>
+                      <div className={`relative text-center ${hasBg ? '' : 'bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark'}`}
+                        style={hasBg ? {
+                          backgroundImage: `url(${preview.background_url})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        } : {}}>
+                        {hasBg && <div className="absolute inset-0 bg-black/30" />}
+                        <div className="relative px-8 pb-8 pt-6 flex flex-col items-center gap-3">
+                          <div className="absolute top-4 left-4 w-10 h-10 border-l-2 border-t-2 border-white/30 rounded-tl-xl" />
+                          <div className="absolute top-4 right-4 w-10 h-10 border-r-2 border-t-2 border-white/30 rounded-tr-xl" />
+                          <div className="absolute bottom-4 left-4 w-10 h-10 border-l-2 border-b-2 border-white/30 rounded-bl-xl" />
+                          <div className="absolute bottom-4 right-4 w-10 h-10 border-r-2 border-b-2 border-white/30 rounded-br-xl" />
+                          <div className="w-14 h-14 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-600/30 ring-2 ring-white/20">
+                            <Award className="w-7 h-7 text-white" />
+                          </div>
+                          {preview.institute_logo_url ? (
+                            <img src={preview.institute_logo_url} alt="" className="h-10 object-contain" />
+                          ) : (
+                            <div className="w-28 h-auto"><BrandLogo className="w-full h-auto" /></div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <div className="h-px w-8 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+                            <span className="text-[7px] text-white/80 uppercase tracking-[0.35em] font-bold">Certificate of Completion</span>
+                            <div className="h-px w-8 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                            <ScrollText className="w-3.5 h-3.5 text-amber-400" />
+                            <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+                          </div>
+                          <p className="text-white/70 text-[11px] tracking-wide">This certifies that</p>
+                          <p className="font-black text-2xl text-white tracking-tight font-serif">[Student Name]</p>
+                          <p className="text-white/70 text-[11px] tracking-wide">has successfully completed</p>
+                          <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white text-sm font-bold px-4 py-1.5 rounded-full border border-white/20">
+                            <GraduationCap className="w-4 h-4" />
+                            {preview.title}
+                          </div>
+                          {decoded.body && (
+                            <p className="text-white/60 text-[10px] max-w-xs leading-relaxed">{decoded.body}</p>
+                          )}
+                          <div className="w-40 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 text-white/50">
+                              <Hash className="w-2.5 h-2.5" />
+                              <span className="font-mono text-[8px]">CERT-XXXX-0001</span>
+                            </div>
+                            <span className="text-white/30 text-[8px]">|</span>
+                            <span className="font-mono text-[8px] text-white/50">{new Date().toISOString().slice(0, 10)}</span>
+                          </div>
+                          {(preview.signature_url || decoded.signatory_name) && (
+                            <div className="flex items-end justify-center gap-8 mt-1 pt-3 border-t border-white/15 w-full max-w-xs">
+                              {decoded.signatory_name && (
+                                <div className="text-center">
+                                  {preview.signature_url && (
+                                    <img src={preview.signature_url} alt="Signature" className="h-9 mx-auto mb-1 object-contain" />
+                                  )}
+                                  <div className="w-24 h-px bg-white/30 mx-auto mb-1" />
+                                  <p className="text-white text-[10px] font-bold leading-tight">{decoded.signatory_name}</p>
+                                  <p className="text-amber-300 text-[7px] uppercase tracking-widest font-bold">{decoded.signatory_title || 'Principal'}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="relative h-1 bg-gradient-to-r from-amber-400/60 via-amber-300 to-amber-400/60" />
+                      </div>
+                      <div className="p-3 flex items-center justify-between bg-slate-50 border-t border-brand-border">
+                        <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Template Preview
+                        </span>
+                        <button onClick={() => setPreview(null)} className="px-3 py-1 text-[10px] font-medium text-slate-500 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg transition-colors">Close</button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </motion.div>
           </>

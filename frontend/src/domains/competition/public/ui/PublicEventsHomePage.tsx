@@ -186,6 +186,7 @@ export default function PublicEventsHomePage({
       eventsApi.getPastEvents(),
     ])
       .then(([all, upcomingEvents, liveEvents, pastEvents]) => {
+        if (abort.signal.aborted) return;
         const published = (all || []).filter(e => e.status === 'PUBLISHED' && e.visibility === 'PUBLIC');
         setFeatured(published.slice(0, 8));
         setUpcoming((upcomingEvents || []).slice(0, 9));

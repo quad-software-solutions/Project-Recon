@@ -193,6 +193,15 @@ export const branchesApi = {
   assignManager: (branchId: string, managerUserId: string) =>
     http.post(`/accounts/branches/${branchId}/assign-manager/`, { manager_user_id: managerUserId }),
 
+  createWithManager: (data: {
+    name: string; code: string; email?: string; phone_number?: string;
+    address?: string; city?: string; state_region?: string; country?: string;
+    manager_user_id: string;
+  }) => http.post<BranchResponse>('/accounts/branches/with-manager/', data),
+
+  changeManager: (branchId: string, newManagerUserId: string) =>
+    http.post(`/accounts/branches/${branchId}/change-manager/`, { new_manager_user_id: newManagerUserId }),
+
   toggleActive: (branchId: string, isActive: boolean) => {
     const action = isActive ? 'deactivate' : 'activate';
     return http.post(`/accounts/branches/${branchId}/${action}/`, {});
@@ -218,4 +227,10 @@ export const assignmentsApi = {
     http.patch<AssignmentResponse>(`/accounts/assignments/${id}/`, data),
 
   delete: (id: string) => http.delete(`/accounts/assignments/${id}/`),
+
+  transfer: (data: { user_id: string; from_branch_id: string; to_branch_id: string; role: string }) =>
+    http.post<AssignmentResponse>('/accounts/assignments/transfer/', data),
+
+  makePrimary: (id: string) =>
+    http.post<AssignmentResponse>(`/accounts/assignments/${id}/make-primary/`, {}),
 };

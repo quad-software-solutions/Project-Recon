@@ -122,7 +122,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
   }
 
   if (!loginRes.ok) {
-    const msg = loginBody.detail || Object.values(loginBody).flat().join('; ') || 'Login failed';
+    const msg = loginBody.detail || Object.values(loginBody).map(v => Array.isArray(v) ? v.join(', ') : String(v)).join('; ') || 'Login failed';
     throw new Error(msg);
   }
 

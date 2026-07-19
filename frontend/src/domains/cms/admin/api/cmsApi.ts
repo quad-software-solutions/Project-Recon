@@ -36,7 +36,7 @@ const STATUS_TO_UI: Record<string, string> = {
 };
 
 function withUiAliases<T>(endpoint: string, item: T): T {
-  const record = item as Record<string, unknown>;
+  const record = { ...item as Record<string, unknown> } as Record<string, unknown>;
   if (endpoint === 'hero-banners') {
     record.imageUrl = record.image;
     record.linkUrl = record.button_url;
@@ -85,7 +85,7 @@ function withUiAliases<T>(endpoint: string, item: T): T {
     record.imageUrl = record.image;
     record.isActive = record.is_active;
   }
-  return item;
+  return record as T;
 }
 
 function dataURItoBlob(dataURI: string): Blob {
@@ -225,6 +225,10 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
       needsFormData = true;
       break;
     }
+    if (val instanceof File || val instanceof Blob) {
+      needsFormData = true;
+      break;
+    }
   }
 
   if (needsFormData) {
@@ -233,10 +237,10 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
       if (typeof v === 'string' && v.startsWith('data:image/')) {
         const blob = dataURItoBlob(v);
         fd.append(k, blob, 'upload.jpg');
+      } else if (v instanceof File || v instanceof Blob) {
+        fd.append(k, v);
       } else if (v !== null && v !== undefined) {
-        // If it's an array or object (not file), we should JSON stringify if backend expects it
-        // but for now, simple fields
-        fd.append(k, String(v));
+        fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
       }
     }
     return fd;

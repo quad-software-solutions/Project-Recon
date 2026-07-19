@@ -13,7 +13,7 @@ import * as eventsApi from '../../competition/api/eventsApi';
 import type { BackendEvent } from '../../competition/api/eventsApi';
 import { Modal } from '@/shared/ui/Modal';
 import type { UserProfile } from '@/shared/types';
-import { canManageEvents } from '@/shared/auth/permissions';
+import { canManageEvents, isSuperAdmin } from '@/shared/auth/permissions';
 
 const defaultForm = {
   title: '', description: '', location: '', event_type: 'GENERAL' as eventsApi.EventType,
@@ -120,10 +120,24 @@ export default function EventManager({ currentUser, onNavigate }: EventManagerPr
     setLoading(true);
     Promise.all([
       eventsApi.adminGetEvents(),
-      import('../../user/shared/api/adminApi').then(m => m.branchesApi.list() as Promise<any[]>).catch(() => []),
+      isSuperAdmin(currentUser)
+        ? import('../../user/shared/api/adminApi').then(m => m.branchesApi.list() as Promise<any[]>).catch(() => [])
+        : Promise.resolve([]),
     ]).then(([evts, brs]) => {
       setEvents(Array.isArray(evts) ? evts : []);
-      setBranches(Array.isArray(brs) ? brs : []);
+      if (isSuperAdmin(currentUser)) {
+        setBranches(Array.isArray(brs) ? brs : []);
+      } else if (currentUser?.assignments) {
+        const map = new Map<string, any>();
+        for (const a of currentUser.assignments) {
+          if (a.branch_id && a.branch_name && !map.has(a.branch_id)) {
+            map.set(a.branch_id, { id: a.branch_id, name: a.branch_name });
+          }
+        }
+        setBranches(Array.from(map.values()));
+      } else {
+        setBranches([]);
+      }
     }).catch(err => setError(err.message)).finally(() => setLoading(false));
   };
 
