@@ -29,6 +29,8 @@ const ADMIN_SECTION_ACCESS: Record<AdminSectionId, (u: UserProfile) => boolean> 
   overview: () => true,
   users: canManageAccounts,
   roles: canManageAccounts,
+  'pending-users': canManageAccounts,
+  reports: canManageAccounts,
   'staff-attendance': canManageStaffAttendance,
   academics: canManageAcademicCatalog,
   classes: canManageAcademicCatalog,

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, Loader2, AlertCircle, User, Mail, Phone, BookOpen, Calendar, Award, Target, Clock, CheckCircle2, Shield, MapPin, TrendingUp, Pencil, Save } from 'lucide-react';
+import { Search, X, Loader2, AlertCircle, User, Mail, Phone, BookOpen, Calendar, Award, Target, Clock, CheckCircle2, Shield, MapPin, TrendingUp, Pencil, Save, FileSpreadsheet } from 'lucide-react';
 import { StudentProfile, Enrollment, AttendanceRecord, StudentProgress, StudentCertificate } from '@/shared/types';
 import { fetchStudentsApi, fetchEnrollmentsApi, fetchEnrollmentAttendanceSummaryApi, fetchStudentProgressSummaryApi, fetchStudentCertificatesApi, updateStudentApi } from '@/domains/learning/academics/api/academicApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
 import { isApiError } from '@/shared/api/http';
+import { downloadCsv } from '@/shared/utils/export';
 
 const FIELD_MAP: Record<string, string> = {
   first_name: 'firstName',
@@ -51,6 +52,7 @@ export default function StudentDetailPanel() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending'>('all');
 
   useEffect(() => {
     fetchStudentsApi().then(res => {
@@ -162,11 +164,13 @@ export default function StudentDetailPanel() {
     }
   };
 
-  const filtered = searchQuery.trim()
-    ? students.filter(s =>
-        `${s.first_name} ${s.last_name} ${s.email}`.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : students;
+  const filtered = students.filter(s => {
+    if (statusFilter === 'active' && !s.is_active) return false;
+    if (statusFilter === 'pending' && s.is_active) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return `${s.first_name} ${s.last_name} ${s.email}`.toLowerCase().includes(q);
+  });
 
   const totalActive = students.filter(s => s.is_active).length;
 
@@ -177,7 +181,20 @@ export default function StudentDetailPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="font-bold text-lg text-slate-900">Student Details</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-lg text-slate-900">Student Details</h2>
+        <button
+          type="button"
+          onClick={() => downloadCsv(
+            filtered.map(s => ({ Name: `${s.first_name} ${s.last_name}`.trim(), Email: s.email, Branch: s.branch_name || '', Status: s.is_active ? 'Active' : 'Pending', Phone: s.phone_number || '' })),
+            'students'
+          )}
+          disabled={filtered.length === 0}
+          className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 inline-flex items-center gap-1.5"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV
+        </button>
+      </div>
 
       {error && (
         <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -203,9 +220,30 @@ export default function StudentDetailPanel() {
         ))}
       </div>
 
-      <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search students..." className="w-full pl-8 pr-3 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600" />
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          {(['all', 'active', 'pending'] as const).map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setStatusFilter(t)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+                statusFilter === t
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {t === 'all' ? 'All' : t === 'active' ? 'Active' : 'Pending'}
+              <span className="ml-1.5 opacity-60">
+                ({t === 'all' ? students.length : t === 'active' ? totalActive : students.length - totalActive})
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search students..." className="w-full pl-8 pr-3 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600" />
+        </div>
       </div>
 
       <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
@@ -220,41 +258,56 @@ export default function StudentDetailPanel() {
                 <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-border">
-              {loading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-400">
-                  {searchQuery ? 'No students matching' : 'No students found'}
-                </td></tr>
-              ) : filtered.map(s => {
-                const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
-                return (
-                  <tr key={s.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => loadStudentDetail(s)}>
-                    <td className="px-4 py-3">
+            <AnimatePresence mode="popLayout">
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-400">
+                    {searchQuery ? 'No students matching' : 'No students found'}
+                  </td></tr>
+                ) : filtered.map((s, i) => {
+                  const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
+                  return (
+                    <motion.tr
+                      key={s.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ delay: i * 0.02, duration: 0.2 }}
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                      onClick={() => loadStudentDetail(s)}
+                    >
+                      <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-blue to-brand-blue-bright flex items-center justify-center text-xs font-bold text-white">{name.charAt(0)}</div>
                         <span className="text-xs font-semibold text-slate-900">{name}</span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{s.branch_name || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{s.email}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {s.is_active ? 'Active' : 'Pending'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button onClick={(e) => { e.stopPropagation(); loadStudentDetail(s); }} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10">
-                        <User className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{s.branch_name || '—'}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{s.email}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {s.is_active ? 'Active' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={(e) => { e.stopPropagation(); loadStudentDetail(s); }} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10">
+                          <User className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </AnimatePresence>
           </table>
         </div>
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500">
+            {filtered.length} of {students.length} student{students.length !== 1 && 's'}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>

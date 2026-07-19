@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split } from 'lucide-react';
-import { AcademicClass } from '@/shared/types';
+import type { AcademicClass } from '@/shared/types';
+import type { UserProfile } from '@/shared/types';
 import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi } from '@/domains/learning/academics/api/academicApi';
+import type { Branch } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllUsersApi, resolveRole, branchesApi } from '@/domains/user/shared/api/adminApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { isSuperAdmin } from '@/shared/auth/permissions';
+
+function classAssignmentsToBranches(user?: UserProfile): Branch[] {
+  if (!user?.assignments) return [];
+  const map = new Map<string, string>();
+  for (const a of user.assignments) {
+    if (a.is_active && a.branch_id) map.set(a.branch_id, a.branch_name || 'Unknown');
+  }
+  return [...map.entries()].map(([id, name]) => ({ id, name, code: '' }));
+}
 
 const defaultForm = {
   sub_program: '', branch: '', instructor: '', name: '', class_type: 'GROUP', class_period: '', capacity: '', start_date: '', end_date: '',
 };
 
-export default function ClassManagerPanel() {
+interface Props {
+  currentUser?: UserProfile;
+}
+
+export default function ClassManagerPanel({ currentUser }: Props) {
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [subPrograms, setSubPrograms] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -32,17 +48,18 @@ export default function ClassManagerPanel() {
 
   const load = () => {
     setLoading(true);
+    const branchesPromise = isSuperAdmin(currentUser) ? branchesApi.list() : Promise.resolve(classAssignmentsToBranches(currentUser) as any);
     Promise.all([
       fetchClassesApi(),
       fetchSubProgramsApi(),
-      branchesApi.list().catch(() => []),
+      branchesPromise,
       fetchAllUsersApi().then(users => {
         return users.filter((u: any) => {
           const role = resolveRole(u.assignments);
           return role === 'instructor' || role === 'Instructor';
         });
       }).catch(() => []),
-    ]).then(([c, sp, br, inst]) => {
+    ]).then(([c, sp, br, inst]: [any, any, any, any]) => {
       setClasses(Array.isArray(c) ? c : []);
       setSubPrograms(Array.isArray(sp) ? sp : []);
       setBranches(Array.isArray(br) ? br : []);

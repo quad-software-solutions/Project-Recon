@@ -5,6 +5,16 @@ import { EnrollmentPeriod, UserProfile } from '@/shared/types';
 import { fetchEnrollmentPeriodsApi, createEnrollmentPeriodApi, updateEnrollmentPeriodApi, setEnrollmentPeriodActiveApi, fetchProgramsApi, fetchSubProgramsApi } from '@/domains/learning/academics/api/academicApi';
 import { branchesApi } from '@/domains/user/shared/api/adminApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { isSuperAdmin } from '@/shared/auth/permissions';
+
+function periodAssignmentsToBranches(user?: UserProfile) {
+  if (!user?.assignments) return [];
+  const map = new Map<string, string>();
+  for (const a of user.assignments) {
+    if (a.is_active && a.branch_id) map.set(a.branch_id, a.branch_name || 'Unknown');
+  }
+  return [...map.entries()].map(([id, name]) => ({ id, name }));
+}
 
 const defaultForm = {
   branch: '', program: '', sub_program: '', class_type: 'GROUP', class_period: '', title: '', start_date: '', end_date: '',
@@ -26,10 +36,10 @@ export default function EnrollmentPeriodsPanel({ currentUser }: { currentUser?: 
 
   const load = () => {
     setLoading(true);
-    const isSecretary = currentUser?.role === 'Secretary';
+    const skipBranches = !isSuperAdmin(currentUser) || currentUser?.role === 'Secretary';
     Promise.allSettled([
       fetchEnrollmentPeriodsApi(),
-      isSecretary ? Promise.resolve([]) : branchesApi.list(),
+      skipBranches ? Promise.resolve(periodAssignmentsToBranches(currentUser)) : branchesApi.list(),
       fetchProgramsApi(),
       fetchSubProgramsApi(),
     ]).then(([p, b, pr, sp]) => {

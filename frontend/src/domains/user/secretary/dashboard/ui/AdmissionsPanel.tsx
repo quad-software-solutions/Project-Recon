@@ -6,6 +6,7 @@ import { fetchStudentsApi, admitStudentApi, fetchClassesApi } from '@/domains/le
 import { branchesApi } from '@/domains/user/shared/api/adminApi';
 import { cacheStudentId } from '@/domains/user/student/api/studentContext';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { isSuperAdmin } from '@/shared/auth/permissions';
 
 export default function AdmissionsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -23,22 +24,25 @@ export default function AdmissionsPanel({ currentUser }: { currentUser?: UserPro
   });
 
   useEffect(() => {
-    branchesApi.list().then(res => {
-      const list = Array.isArray(res) ? res : (res as any).results || [];
-      setBranches(list.map((b: any) => ({ id: b.id, name: b.name })));
-      if (list.length > 0) setForm(p => ({ ...p, branch: list[0].id }));
-    }).catch(() => {
-      fetchClassesApi().then(classes => {
-        const map = new Map<string, string>();
-        classes.forEach(c => { if (c.branch && c.branch_name) map.set(c.branch, c.branch_name); });
-        const list = Array.from(map, ([id, name]) => ({ id, name }));
-        setBranches(list);
+    if (isSuperAdmin(currentUser)) {
+      branchesApi.list().then(res => {
+        const list = Array.isArray(res) ? res : (res as any).results || [];
+        setBranches(list.map((b: any) => ({ id: b.id, name: b.name })));
         if (list.length > 0) setForm(p => ({ ...p, branch: list[0].id }));
-        else setBranchesError('Branches unavailable — check permissions');
       }).catch(() => {
         setBranchesError('Branches unavailable — check permissions');
       });
-    });
+    } else if (currentUser?.assignments) {
+      const map = new Map<string, string>();
+      for (const a of currentUser.assignments) {
+        if (a.branch_id && a.branch_name) map.set(a.branch_id, a.branch_name);
+      }
+      const list = Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+      setBranches(list);
+      if (list.length > 0) setForm(p => ({ ...p, branch: list[0].id }));
+    } else {
+      setBranchesError('Branches unavailable — check permissions');
+    }
   }, [currentUser]);
 
   const loadStudents = () => {

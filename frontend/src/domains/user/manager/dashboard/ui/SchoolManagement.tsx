@@ -38,8 +38,18 @@ export default function SchoolManagement({ currentUser }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const data = await branchesApi.list();
-      setSchools(data);
+      if (isSuperAdmin(currentUser)) {
+        const data = await branchesApi.list();
+        setSchools(data);
+      } else {
+        const map = new Map<string, BranchResponse>();
+        for (const a of currentUser.assignments ?? []) {
+          if (a.branch_id && a.branch_name && !map.has(a.branch_id)) {
+            map.set(a.branch_id, { id: a.branch_id, name: a.branch_name, status: 'Active', code: '' } as BranchResponse);
+          }
+        }
+        setSchools(Array.from(map.values()));
+      }
     } catch (e) {
       setError(formatApiError(e));
     }

@@ -92,7 +92,39 @@ export default function TeamManager() {
   const totalTeams = teams.length;
   const totalWins = teams.reduce((sum: number, t: any) => sum + (t.wins || 0), 0);
   const totalLosses = teams.reduce((sum: number, t: any) => sum + (t.losses || 0), 0);
+  const totalDraws = teams.reduce((sum: number, t: any) => sum + (t.draws || 0), 0);
+  const totalMatches = totalWins + totalLosses + totalDraws;
+  const winRate = totalMatches > 0 ? ((totalWins / totalMatches) * 100).toFixed(1) : '—';
   const avgPoints = teams.length > 0 ? (teams.reduce((sum: number, t: any) => sum + (t.points || 0), 0) / teams.length).toFixed(1) : '0';
+
+  const toCsv = (rows: Record<string, any>[]) => {
+    if (!rows.length) return '';
+    const keys = Object.keys(rows[0]);
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    return [keys.join(','), ...rows.map(r => keys.map(k => esc(r[k])).join(','))].join('\n');
+  };
+
+  const exportTeams = () => {
+    const rows = filtered.map(t => ({
+      Team: t.team_name,
+      Tournament: t.tournament_title || t.tournament || '',
+      Organization: t.organization || '',
+      Coach: t.coach_name || '',
+      Email: t.contact_email || '',
+      Phone: t.contact_phone || '',
+      Wins: t.wins || 0,
+      Losses: t.losses || 0,
+      Draws: t.draws || 0,
+      Points: t.points || 0,
+      Win_Rate: ((() => { const tot = (t.wins || 0) + (t.losses || 0) + (t.draws || 0); return tot > 0 ? ((t.wins || 0) / tot * 100).toFixed(1) + '%' : '—'; })()),
+    }));
+    const csv = toCsv(rows);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `teams-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>;
 
@@ -105,8 +137,8 @@ export default function TeamManager() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: 'Total Teams', value: totalTeams, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Total Wins', value: totalWins, icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Total Losses', value: totalLosses, icon: Swords, color: 'text-red-600', bg: 'bg-red-50' },
+            { label: 'Win Rate', value: winRate + '%', icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Total Matches', value: totalMatches, icon: Swords, color: 'text-red-600', bg: 'bg-red-50' },
             { label: 'Avg Points', value: avgPoints, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
           ].map((stat, i) => {
             const SIcon = stat.icon;
@@ -126,16 +158,18 @@ export default function TeamManager() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div><h3 className="font-black text-lg text-slate-900">Tournament Teams</h3><p className="text-xs text-slate-500 mt-1">{teams.length} teams</p></div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowDashboard(p => !p)} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> {showDashboard ? 'Hide' : 'Stats'}</button>
+          <button onClick={exportTeams} className="px-3 py-2 bg-white border border-brand-border text-slate-600 font-black text-xs rounded-xl hover:bg-slate-50 flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> Export</button>
+          <button onClick={() => setShowDashboard(p => !p)} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> {showDashboard ? 'Hide' : 'Stats'}</button>
           <select value={tournamentFilter} onChange={e => setTournamentFilter(e.target.value)}
             className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
-            <option value="all">All Tournaments</option>
+            <option value="all">All Tournaments ({teams.length})</option>
             {tournaments.map((t: any) => {
               const closed = t.tournament?.is_closed ?? t?.is_closed ?? false;
-              return <option key={t.id} value={t.id} disabled={closed}>{t.event_title || t.event}{closed ? ' (Closed)' : ''}</option>;
+              const count = teams.filter((tm: any) => tm.tournament === t.id).length;
+              return <option key={t.id} value={t.id} disabled={closed}>{t.event_title || t.event} ({count}){closed ? ' 🔒' : ''}</option>;
             })}
           </select>
-          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-44 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
           <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25"><Plus className="w-4 h-4" /> New Team</button>
         </div>
       </div>
@@ -147,32 +181,67 @@ export default function TeamManager() {
           <table className="w-full text-sm">
             <thead><tr className="bg-slate-50 border-b border-brand-border">
               <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Team</th>
-              <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden md:table-cell">Tournament</th>
-              <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">W/L/D</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden lg:table-cell">Tournament</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden sm:table-cell">Contact</th>
+              <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Record</th>
               <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Pts</th>
+              <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Win Rate</th>
               <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Actions</th>
             </tr></thead>
             <tbody className="divide-y divide-brand-border">
-              {filtered.map((t, i) => (
+              {filtered.map((t, i) => {
+                const total = (t.wins || 0) + (t.losses || 0) + (t.draws || 0);
+                const winPct = total > 0 ? ((t.wins || 0) / total) * 100 : 0;
+                const gradColors = ['from-brand-red/10 to-brand-red/5', 'from-blue-500/10 to-blue-600/5', 'from-emerald-500/10 to-emerald-600/5', 'from-amber-500/10 to-amber-600/5', 'from-purple-500/10 to-purple-600/5'];
+                const grad = gradColors[i % gradColors.length];
+                return (
                 <tr key={t.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => handleShowDetail(t)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-red/10 to-brand-red/5 flex items-center justify-center"><Users className="w-4 h-4 text-brand-red" /></div>
-                      <div><span className="text-xs font-semibold text-slate-900">{t.team_name}</span>{t.organization && <span className="text-[10px] text-slate-500 block">{t.organization}</span>}</div>
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${grad} flex items-center justify-center`}>
+                        <span className="text-[10px] font-black text-slate-600">{t.team_name?.charAt(0) || 'T'}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-900">{t.team_name}</span>
+                        {t.organization && <span className="text-[10px] text-slate-400 block leading-tight">{t.organization}</span>}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-600">{t.tournament_title || t.tournament}</td>
-                  <td className="px-4 py-3 text-center"><span className="text-xs text-slate-600">{t.wins}/{t.losses}/{t.draws}</span></td>
+                  <td className="px-4 py-3 hidden lg:table-cell"><span className="text-xs text-slate-600">{t.tournament_title || t.tournament?.slice(0, 8) || '—'}</span></td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <div className="flex flex-col gap-0.5">
+                      {t.coach_name && <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{t.coach_name}</span>}
+                      {t.contact_email && <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{t.contact_email}</span>}
+                      {!t.coach_name && !t.contact_email && <span className="text-[10px] text-slate-300 italic">No contact</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-[11px] font-semibold">
+                      <span className="text-emerald-600">{t.wins || 0}</span>
+                      <span className="text-slate-300">/</span>
+                      <span className="text-red-500">{t.losses || 0}</span>
+                      <span className="text-slate-300">/</span>
+                      <span className="text-amber-500">{t.draws || 0}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-center"><span className="font-black text-sm text-slate-900">{t.points}</span></td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${Math.min(winPct, 100)}%` }} />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500 w-8 text-left">{winPct.toFixed(0)}%</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => handleShowDetail(t)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-blue"><Users className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500"><Edit3 className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleShowDetail(t)} className="p-1.5 rounded-lg text-slate-400 hover:text-brand-blue transition-colors" title="View details"><Users className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 transition-colors" title="Edit"><Edit3 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -254,7 +323,7 @@ export default function TeamManager() {
               </div>
 
               {/* Performance Stats */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-4 gap-3 mb-6">
                 <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-100">
                   <Trophy className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
                   <p className="text-lg font-black text-emerald-700">{selectedTeam.wins || 0}</p>
@@ -267,10 +336,31 @@ export default function TeamManager() {
                 </div>
                 <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
                   <Medal className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-                  <p className="text-lg font-black text-amber-700">{selectedTeam.points || 0}</p>
-                  <p className="text-[10px] font-bold text-amber-500 uppercase">Points</p>
+                  <p className="text-lg font-black text-amber-700">{selectedTeam.draws || 0}</p>
+                  <p className="text-[10px] font-bold text-amber-500 uppercase">Draws</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+                  <BarChart3 className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+                  <p className="text-lg font-black text-blue-700">{selectedTeam.points || 0}</p>
+                  <p className="text-[10px] font-bold text-blue-500 uppercase">Points</p>
                 </div>
               </div>
+              {/* Win Rate Bar */}
+              {(() => {
+                const tmTotal = (selectedTeam.wins || 0) + (selectedTeam.losses || 0) + (selectedTeam.draws || 0);
+                const tmWinPct = tmTotal > 0 ? ((selectedTeam.wins || 0) / tmTotal) * 100 : 0;
+                return tmTotal > 0 ? (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                      <span className="font-bold">Win Rate</span>
+                      <span className="font-black text-slate-900">{tmWinPct.toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all" style={{ width: `${Math.min(tmWinPct, 100)}%` }} />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
 
               {/* Match History */}
               <div>
@@ -284,31 +374,55 @@ export default function TeamManager() {
                       const teamScore = teamInSideA ? sideA?.score : sideB?.score;
                       const opponentScore = teamInSideA ? sideB?.score : sideA?.score;
                       const won = match.status === 'COMPLETED' && (teamScore ?? 0) > (opponentScore ?? 0);
+                      const teamNames = (sideA?.participants || []).map(p => (p as any).team_name || p.tournament_team_name || '—');
+                      const oppNames = (sideB?.participants || []).map(p => (p as any).team_name || p.tournament_team_name || '—');
                       return (
-                        <div key={match.id} className={`bg-slate-50 rounded-xl px-4 py-2.5 border flex items-center justify-between ${won ? 'border-emerald-200' : match.status === 'COMPLETED' ? 'border-red-200' : 'border-slate-200'}`}>
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="text-[10px] font-bold text-slate-400 w-20 truncate">{match.round}</span>
-                            <span className="text-xs font-medium text-slate-700 flex-1 text-right truncate">
-                              {sideA?.participants?.map(p => (p as any).team_name || p.tournament_team_name).join(', ') || 'TBD'}
-                            </span>
-                            <span className="text-xs font-black text-slate-900 min-w-[40px] text-center">
-                              {match.status === 'COMPLETED' ? `${teamScore ?? '-'}:${opponentScore ?? '-'}` : 'vs'}
-                            </span>
-                            <span className="text-xs font-medium text-slate-700 flex-1 truncate">
-                              {sideB?.participants?.map(p => (p as any).team_name || p.tournament_team_name).join(', ') || 'TBD'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 ml-2 shrink-0">
+                        <div key={match.id} className={`bg-slate-50 rounded-xl px-4 py-3 border transition-colors ${
+                          match.status === 'COMPLETED' ? (won ? 'border-emerald-200 hover:bg-emerald-50/50' : 'border-red-200 hover:bg-red-50/50') :
+                          match.status === 'LIVE' ? 'border-red-300 bg-red-50/50' : 'border-slate-200 hover:bg-slate-100/50'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold text-slate-400">{match.round}</span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  match.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' :
+                                  match.status === 'LIVE' ? 'bg-red-100 text-red-700 animate-pulse' :
+                                  match.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                                }`}>{match.status}</span>
+                                {match.completed_at && (
+                                  <span className="text-[9px] text-slate-400">{new Date(match.completed_at).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-slate-700 flex-1 truncate text-right">
+                                  {teamInSideA ? teamNames.join(', ') : oppNames.join(', ') || 'TBD'}
+                                </span>
+                                <span className={`text-sm font-black min-w-[48px] text-center ${
+                                  match.status === 'COMPLETED'
+                                    ? (won ? 'text-emerald-600' : (teamScore === opponentScore ? 'text-amber-500' : 'text-red-500'))
+                                    : 'text-slate-400'
+                                }`}>
+                                  {match.status === 'COMPLETED' ? `${teamScore ?? '-'} : ${opponentScore ?? '-'}` : 'vs'}
+                                </span>
+                                <span className="text-xs font-medium text-slate-700 flex-1 truncate">
+                                  {teamInSideA ? oppNames.join(', ') : teamNames.join(', ') || 'TBD'}
+                                </span>
+                              </div>
+                            </div>
                             {match.status === 'COMPLETED' && (
-                              <span className={`text-[9px] font-bold ${won ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {won ? 'W' : 'L'}
-                              </span>
+                              <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${
+                                won ? 'bg-emerald-100 text-emerald-700' :
+                                teamScore === opponentScore ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                              }`}>
+                                {won ? 'W' : teamScore === opponentScore ? 'D' : 'L'}
+                              </div>
                             )}
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                              match.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' :
-                              match.status === 'LIVE' ? 'bg-red-100 text-red-700 animate-pulse' :
-                              match.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                            }`}>{match.status}</span>
+                            {match.status === 'LIVE' && (
+                              <div className="shrink-0 w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+                                <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

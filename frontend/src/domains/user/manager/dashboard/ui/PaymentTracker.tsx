@@ -94,8 +94,6 @@ export default function PaymentTracker() {
     if (tab === 'event') loadEventPayments();
   }, [tab]);
 
-  if (loading && tab === 'enrollment') return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
-
   const paid = payments.filter(p => p.status === 'PAID');
   const totalRevenue = paid.reduce((s, p) => s + Number(p.amount), 0);
   const cashPayments = payments.filter(p => p.payment_method === 'CASH');
@@ -310,6 +308,9 @@ export default function PaymentTracker() {
       </div>
 
       {tab === 'enrollment' ? (
+        loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+        ) : (
         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-brand-border-light/60">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-display font-bold text-slate-900 text-xl">Enrollment Payment Tracker</h3>
@@ -520,7 +521,8 @@ export default function PaymentTracker() {
               </table>
             </div>
           )}
-        </div>
+          </div>
+        )
       ) : tab === 'store' ? (
         <PendingPaymentManager addToast={addToast} />
       ) : (

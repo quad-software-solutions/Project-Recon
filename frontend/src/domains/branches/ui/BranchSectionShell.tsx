@@ -35,14 +35,24 @@ export function BranchSectionShell({ currentUser }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const data = await branchesApi.list();
-      setBranches(data);
+      if (isSuperAdmin(currentUser)) {
+        const data = await branchesApi.list();
+        setBranches(data);
+      } else {
+        const map = new Map<string, BranchResponse>();
+        for (const a of currentUser.assignments ?? []) {
+          if (a.branch_id && a.branch_name && !map.has(a.branch_id)) {
+            map.set(a.branch_id, { id: a.branch_id, name: a.branch_name, status: 'Active', code: '' } as BranchResponse);
+          }
+        }
+        setBranches(Array.from(map.values()));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load branches');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => { load(); }, [load]);
 

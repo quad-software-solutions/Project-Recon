@@ -6,12 +6,12 @@ import {
 } from 'lucide-react';
 
 export type AdminSectionId =
-  | 'overview' | 'users' | 'roles' | 'academics' | 'classes' | 'staff-attendance'
+  | 'overview' | 'users' | 'roles' | 'pending-users' | 'academics' | 'classes' | 'staff-attendance'
   | 'account' | 'audit' | 'branches' | 'registrations' | 'cms' | 'events'
   | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops'
   | 'event-registrations' | 'certificates' | 'store'
   | 'transfers' | 'bank-accounts'
-  | 'announcements' | 'communications';
+  | 'announcements' | 'communications' | 'reports';
 
 export interface AdminHubStats {
   totalUsers: number;
@@ -90,6 +90,30 @@ export function getAdminCommandCenter(
           { label: 'Active', value: String(activeUsers), detail: 'active accounts', icon: Users, tone: 'emerald' },
           { label: 'Students', value: String(students), detail: 'student role', icon: GraduationCap, tone: 'slate' },
           { label: 'Branches', value: String(branches), detail: 'branch access', icon: GitBranch, tone: 'purple' },
+        ],
+      };
+
+    case 'reports':
+      return {
+        title: 'Reports Center',
+        subtitle: 'Export and analyze platform data.',
+        signals: [
+          { label: 'Users', value: String(totalUsers), detail: 'reportable accounts', icon: Users, tone: 'blue' },
+          { label: 'Active', value: String(activeUsers), detail: 'active users', icon: Shield, tone: 'emerald' },
+          { label: 'Students', value: String(students), detail: 'student records', icon: GraduationCap, tone: 'slate' },
+          { label: 'Branches', value: String(branches), detail: 'branch data', icon: GitBranch, tone: 'purple' },
+        ],
+      };
+
+    case 'pending-users':
+      return {
+        title: 'Pending Users',
+        subtitle: 'Users awaiting role assignment.',
+        signals: [
+          { label: 'Total', value: String(totalUsers), detail: 'all accounts', icon: Users, tone: 'blue' },
+          { label: 'Active', value: String(activeUsers), detail: 'active users', icon: Shield, tone: 'emerald' },
+          { label: 'Students', value: String(students), detail: 'student accounts', icon: GraduationCap, tone: 'slate' },
+          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
         ],
       };
 

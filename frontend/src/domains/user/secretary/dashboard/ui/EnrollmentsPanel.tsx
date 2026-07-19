@@ -14,6 +14,7 @@ import {
 } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { isSuperAdmin } from '@/shared/auth/permissions';
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +54,7 @@ const tabs: { id: StatusTab; label: string }[] = [
 ];
 
 export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserProfile }) {
+  const isSuper = currentUser ? isSuperAdmin(currentUser) : false;
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [subPrograms, setSubPrograms] = useState<SubProgram[]>([]);
@@ -97,7 +99,7 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setError(null);
     Promise.allSettled([
       fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p, 50), 40),
-      fetchClassesApi().catch(() => [] as AcademicClass[]),
+      isSuper ? fetchClassesApi().catch(() => [] as AcademicClass[]) : Promise.resolve([] as AcademicClass[]),
       fetchSubProgramsApi().catch(() => [] as SubProgram[]),
     ]).then(([enr, cls, sp]) => {
       const rows = enr.status === 'fulfilled' && Array.isArray(enr.value) ? enr.value : [];
