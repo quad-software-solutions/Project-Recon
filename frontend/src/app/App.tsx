@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, LazyMotion, domAnimation } from 'motion/react';
 import ErrorBoundary from '../shared/ui/ErrorBoundary';
 
 import Navbar from '../shared/ui/Navbar';
@@ -43,7 +43,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <CartProvider>
-        <AppInner />
+        <LazyMotion features={domAnimation}>
+          <AppInner />
+        </LazyMotion>
       </CartProvider>
     </ErrorBoundary>
   );
