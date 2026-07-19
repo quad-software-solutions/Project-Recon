@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
   Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch, RefreshCw, ShoppingCart,
-  Bell, MessageSquare, ArrowRightLeft, ShoppingBag, Building2, Handshake,
+  Bell, MessageSquare, ArrowRightLeft, ShoppingBag, Building2,
 } from 'lucide-react';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
@@ -23,7 +23,6 @@ import RegistrationManager from '@/domains/competition/admin/RegistrationManager
 import CertificateManager from '@/domains/user/shared/ui/CertificateManager';
 import AnnouncementsManager from '@/domains/user/manager/dashboard/ui/AnnouncementsManager';
 import CommunicationsCenter from '@/domains/user/manager/dashboard/ui/CommunicationsCenter';
-import SponsorManagement from '@/domains/user/manager/dashboard/ui/SponsorManagement';
 import type { UserProfile } from '@/shared/types';
 import {
   fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchProgramsApi, fetchClassesApi,
@@ -76,7 +75,6 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'workshops', label: 'Workshops', icon: GraduationCap, group: 'competition' },
   { id: 'event-registrations', label: 'Event Registrations', icon: UserPlus, group: 'competition' },
   { id: 'cms', label: 'Content Manager', icon: LayoutDashboard, group: 'content' },
-  { id: 'sponsors', label: 'Sponsors & Partners', icon: Handshake, group: 'content' },
   { id: 'announcements', label: 'Announcements', icon: Bell, group: 'communication' },
   { id: 'communications', label: 'Communications', icon: MessageSquare, group: 'communication' },
   { id: 'branches', label: 'Branches', icon: GitBranch, group: 'content' },
@@ -101,7 +99,6 @@ const   pageTitle: Record<string, string> = {
   audit: 'Audit Logs',
   store: 'Store Management',
   cms: 'Content Management',
-  sponsors: 'Sponsors & Partners',
   announcements: 'Announcements',
   communications: 'Communications',
   account: 'My Account',
@@ -221,7 +218,6 @@ export default function AdminDashboard({ currentUser, onLogout }: Props) {
       case 'certificates': return <CertificateManager currentUser={currentUser} />;
       case 'store': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><StoreDashboard currentUser={currentUser} /></div>;
       case 'cms': return <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 shadow-sm"><CmsDashboard currentUser={currentUser} /></div>;
-      case 'sponsors': return <SponsorManagement currentUser={currentUser} />;
       case 'announcements': return <AnnouncementsManager />;
       case 'communications': return <CommunicationsCenter currentUser={currentUser} />;
       default: return (

@@ -1,13 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Users, 
   MapPin, 
   Sparkles, 
-  Globe, 
   Compass,
   Target,
   Eye,
+  Lightbulb,
+  Users,
+  Heart,
+  Award,
+  Quote,
+  Play,
 } from 'lucide-react';
 
 import imgAddis from '@/assets/photo_2026-06-15_14-39-18.jpg';
@@ -15,7 +19,7 @@ import imgUsa from '@/assets/0M6A6519.00_25_12_08.Still037.jpg';
 import imgCanada from '@/assets/photo_2026-06-15_14-39-23.jpg';
 import imgChina from '@/assets/photo_2026-06-15_14-39-40.jpg';
 
-import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TeamMemberResponse } from '../../../cms/public/api/cmsPublicApi';
+import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TestimonialResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface MapNode {
   id: string;
@@ -31,8 +35,58 @@ interface MapNode {
   category: 'Championship' | 'Academic' | 'Research' | 'Strategy' | 'Alliance';
 }
 
-const matchSlugOrTitle = (slug: string) => (a: AboutUsResponse) =>
-  a.slug === slug || a.slug.includes(slug) || a.title.toLowerCase().includes(slug);
+function getVideoEmbed(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/);
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return null;
+}
+
+function MissionVisionPair({ mission, vision }: { mission?: string; vision?: string }) {
+  if (!mission && !vision) return null;
+  return (
+    <div className="grid grid-cols-1 gap-3 mt-1">
+      {mission && (
+        <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-[#25338d] to-[#1a2670] p-5 text-white shadow-md">
+          <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
+          <div className="absolute -right-2 bottom-0 w-16 h-16 rounded-full bg-white/5" />
+          <div className="relative flex items-start gap-3">
+            <div className="shrink-0 w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center border border-white/20">
+              <Target className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100 mb-1">Our Mission</p>
+              <p className="text-sm text-white/95 leading-relaxed">{mission}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {vision && (
+        <div className="relative overflow-hidden rounded-2xl border border-amber-200/80 bg-gradient-to-br from-[#c9a227] to-[#a67c1a] p-5 text-white shadow-md">
+          <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
+          <div className="absolute -right-2 bottom-0 w-16 h-16 rounded-full bg-white/5" />
+          <div className="relative flex items-start gap-3">
+            <div className="shrink-0 w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center border border-white/20">
+              <Eye className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-50 mb-1">Our Vision</p>
+              <p className="text-sm text-white/95 leading-relaxed">{vision}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const OUR_VALUES = [
+  { title: 'Innovation', desc: 'We push creative problem-solving in every build, lesson, and competition.', icon: Lightbulb },
+  { title: 'Teamwork', desc: 'We grow stronger by mentoring, collaborating, and competing together.', icon: Users },
+  { title: 'Inclusivity', desc: 'We open STEM doors for every student who wants to learn and lead.', icon: Heart },
+  { title: 'Excellence', desc: 'We hold a high bar for how we teach, mentor, and compete.', icon: Award },
+];
 
 export default function AboutTab() {
   const [hoveredNode, setHoveredNode] = useState<MapNode | null>(null);
@@ -42,15 +96,15 @@ export default function AboutTab() {
   const [partners, setPartners] = useState<CmsPartnerResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapNodes, setMapNodes] = useState<MapNode[]>([]);
-  const [team, setTeam] = useState<{ name: string; role: string; bio: string; image: string }[]>([]);
+  const [testimonials, setTestimonials] = useState<TestimonialResponse[]>([]);
 
   useEffect(() => {
     Promise.all([
       cmsPublicApi.getAboutUs(),
       cmsPublicApi.getPartners(),
       cmsPublicApi.getMapNodes(),
-      cmsPublicApi.getTeamMembers(),
-    ]).then(([aboutRes, partnersRes, nodesRes, teamRes]) => {
+      cmsPublicApi.getTestimonials(),
+    ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes]) => {
       setAboutData((Array.isArray(aboutRes) ? aboutRes : []).filter(a => a.is_active));
       setPartners((Array.isArray(partnersRes) ? partnersRes : []).filter(p => p.is_active));
       setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).filter(n => n.is_active).map(n => ({
@@ -58,9 +112,8 @@ export default function AboutTab() {
         achievement: n.achievement, x: n.x, y: n.y, lat: n.lat, lng: n.lng,
         image: n.image, category: n.category as MapNode['category'],
       })));
-      setTeam((Array.isArray(teamRes) ? teamRes : []).filter(m => m.is_active).map(m => ({
-        name: m.name, role: m.role, bio: m.bio, image: m.image,
-      })));
+      const activeTestimonials = (Array.isArray(testimonialsRes) ? testimonialsRes : []).filter(t => t.is_active);
+      setTestimonials(activeTestimonials);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -281,32 +334,7 @@ export default function AboutTab() {
                       dangerouslySetInnerHTML={{ __html: section.content || section.description || '' }}
                     />
                     <div className="flex flex-col gap-3">
-                      {section.mission && (
-                        <div className="group relative bg-gradient-to-r from-blue-50 to-indigo-50/50 rounded-xl p-4 border border-blue-100/60 hover:border-blue-200 transition-colors">
-                          <div className="flex items-start gap-3">
-                            <div className="shrink-0 w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
-                              <Target className="w-4 h-4 text-brand-blue" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-0.5">Mission</p>
-                              <p className="text-sm text-slate-700 leading-relaxed">{section.mission}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {section.vision && (
-                        <div className="group relative bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl p-4 border border-amber-100/60 hover:border-amber-200 transition-colors">
-                          <div className="flex items-start gap-3">
-                            <div className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
-                              <Eye className="w-4 h-4 text-amber-700" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Vision</p>
-                              <p className="text-sm text-slate-700 leading-relaxed">{section.vision}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      <MissionVisionPair mission={section.mission} vision={section.vision} />
                     </div>
                   </div>
                 </div>
@@ -323,26 +351,10 @@ export default function AboutTab() {
               <p className="font-sans text-sm md:text-base text-slate-600 leading-relaxed mb-6">
                 From organizing the landmark <strong>African Robotics Championship (ARC)</strong> to coaching teams for the <strong>USA VEX Robotics Competition</strong> and <strong>ENJOY AI Global</strong>, we bridge the gap between theoretical knowledge and practical hardware execution. Our hands-on curriculums, mentorship programs, and retail toolkits empower students from elementary to university levels.
               </p>
-              <div className="flex flex-col gap-3">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 rounded-xl p-4 border border-blue-100/60">
-                  <div className="flex items-start gap-3">
-                    <Target className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[11px] font-bold text-brand-blue uppercase tracking-wider mb-0.5">Mission</p>
-                      <p className="text-sm text-slate-700">To inspire and equip the next generation of African innovators with STEM and robotics skills.</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl p-4 border border-amber-100/60">
-                  <div className="flex items-start gap-3">
-                    <Eye className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Vision</p>
-                      <p className="text-sm text-slate-700">A world where every African student has access to quality STEM education and robotics training.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MissionVisionPair
+                mission="To inspire and equip the next generation of African innovators with STEM and robotics skills."
+                vision="A world where every African student has access to quality STEM education and robotics training."
+              />
             </div>
           )}
           
@@ -365,39 +377,120 @@ export default function AboutTab() {
 
       </div>
 
-      {/* Leadership Team Section */}
-      <section id="about-team" className="max-w-7xl mx-auto px-6 md:px-12 py-20 mt-10 border-t border-slate-200">
+      {/* Our Values */}
+      <section id="about-values" className="max-w-7xl mx-auto px-6 md:px-12 py-20 mt-10 border-t border-slate-200">
+        <div className="text-center mb-12">
+          <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Our Values</h2>
+          <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
+            Innovation, teamwork, inclusivity, and excellence—guiding how we teach, mentor, and compete.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {OUR_VALUES.map(({ title, desc, icon: Icon }) => (
+            <div key={title} className="bg-white rounded-2xl border border-slate-200 p-6 text-center hover:shadow-md transition-shadow">
+              <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                <Icon className="w-5 h-5 text-brand-blue" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-lg mb-2">{title}</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section id="about-testimonials" className="max-w-7xl mx-auto px-6 md:px-12 py-20 border-t border-slate-200">
         <div className="text-center mb-16">
-          <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Leadership Team</h2>
-          <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Meet the visionary educators and engineers driving Ethio Robotics forward.</p>
+          <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Testimonials</h2>
+          <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
+            Stories and videos from students, parents, and partners in our robotics community.
+          </p>
         </div>
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-pulse">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col items-center">
-                <div className="w-24 h-24 rounded-full bg-slate-200 mb-4" />
-                <div className="h-5 bg-slate-200 rounded w-32 mb-2" />
-                <div className="h-4 bg-slate-200 rounded w-24 mb-3" />
-                <div className="h-4 bg-slate-200 rounded w-full mb-1" />
-                <div className="h-4 bg-slate-200 rounded w-4/5" />
+              <div key={i} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="aspect-video bg-slate-200" />
+                <div className="p-6">
+                  <div className="h-4 bg-slate-200 rounded w-full mb-2" />
+                  <div className="h-4 bg-slate-200 rounded w-5/6 mb-6" />
+                  <div className="h-5 bg-slate-200 rounded w-32 mb-1" />
+                  <div className="h-4 bg-slate-200 rounded w-24" />
+                </div>
               </div>
             ))}
           </div>
-        ) : team.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {team.map((member, idx) => (
-              <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-md transition-all">
-                <img src={member.image} alt={member.name} className="w-24 h-24 rounded-full object-cover mb-4 ring-4 ring-brand-blue/10" />
-                <h3 className="font-bold text-slate-900 text-lg">{member.name}</h3>
-                <span className="text-brand-blue text-sm font-semibold mb-3">{member.role}</span>
-                <p className="text-slate-600 text-sm leading-relaxed">{member.bio}</p>
-              </div>
-            ))}
+        ) : testimonials.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+            <Quote className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+            <p className="text-slate-500 text-sm font-medium">No testimonials published yet</p>
           </div>
         ) : (
-          <div className="text-center py-16">
-            <Users className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-500 text-sm font-medium">No team members listed yet</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {testimonials.map((t) => {
+              const embed = t.video_url ? getVideoEmbed(t.video_url) : null;
+              const isDirectVideo = t.video_url && /\.(mp4|webm|ogg)(\?|$)/i.test(t.video_url);
+              return (
+                <div key={t.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-all group">
+                  {embed ? (
+                    <div className="relative aspect-video bg-slate-900">
+                      <iframe
+                        src={embed}
+                        title={`${t.name} testimonial`}
+                        className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : isDirectVideo && t.video_url ? (
+                    <div className="relative aspect-video bg-slate-900">
+                      <video controls className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
+                    </div>
+                  ) : t.video_url ? (
+                    <a
+                      href={t.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative aspect-video bg-slate-900 flex items-center justify-center group/play"
+                    >
+                      {t.image && <img src={t.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                      <span className="relative z-10 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-lg group-hover/play:scale-110 transition-transform">
+                        <Play className="w-6 h-6 text-brand-blue ml-0.5" fill="currentColor" />
+                      </span>
+                    </a>
+                  ) : t.image ? (
+                    <div className="aspect-video bg-slate-100 overflow-hidden">
+                      <img src={t.image} alt={t.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  ) : (
+                    <div className="aspect-[5/2] bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center">
+                      <Quote className="w-10 h-10 text-brand-blue/25" />
+                    </div>
+                  )}
+                  <div className="p-6 flex flex-col flex-1">
+                    <p className="text-slate-700 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
+                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                      {t.image ? (
+                        <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-brand-blue font-bold text-sm">
+                          {t.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 text-sm truncate">{t.name}</h3>
+                        <span className="text-slate-500 text-xs">{t.role}</span>
+                      </div>
+                      {t.video_url && (
+                        <span className="ml-auto shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-blue bg-blue-50 px-2 py-1 rounded-full">
+                          <Play className="w-3 h-3" /> Video
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

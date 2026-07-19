@@ -26,6 +26,7 @@ import OrderDetailPage from '../domains/store/orders/ui/OrderDetailPage';
 import PrivacyPage from '../pages/legal/PrivacyPage';
 import TermsPage from '../pages/legal/TermsPage';
 import HelpPage from '../pages/legal/HelpPage';
+import HistoryPage from '../pages/HistoryPage';
 import CookieConsent from '../shared/ui/CookieConsent';
 
 import { useAuth } from '../shared/hooks/useAuth';
@@ -154,6 +155,12 @@ function AppInner() {
           {activeTab === 'about' && (
             <motion.div key="about-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
               <AboutTab />
+            </motion.div>
+          )}
+
+          {activeTab === 'history' && (
+            <motion.div key="history-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <HistoryPage onNavigate={handleTabChange} />
             </motion.div>
           )}
 

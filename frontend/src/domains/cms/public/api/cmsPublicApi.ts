@@ -65,6 +65,18 @@ export interface TeamMemberResponse {
   order?: number;
 }
 
+export interface TestimonialResponse {
+  id: string;
+  name: string;
+  role: string;
+  quote: string;
+  image: string | null;
+  /** YouTube / Vimeo / direct mp4 URL */
+  video_url: string | null;
+  is_active: boolean;
+  order?: number;
+}
+
 export interface GalleryItemResponse {
   id: string;
   title: string;
@@ -117,6 +129,14 @@ export const cmsPublicApi = {
   getMapNodes: () => http.get<MapNodeResponse[]>('/cms/map-nodes/'),
   /** No backend endpoint — returns empty list for compatibility */
   getTeamMembers: async () => [] as TeamMemberResponse[],
+  getTestimonials: async (signal?: AbortSignal) => {
+    try {
+      const res = await http.get<TestimonialResponse[] | { results: TestimonialResponse[] }>('/cms/testimonials/', { signal });
+      return Array.isArray(res) ? res : (res.results ?? []);
+    } catch {
+      return [] as TestimonialResponse[];
+    }
+  },
   getFaqs: async (signal?: AbortSignal) => {
     const res = await http.get<FaqResponse[] | { results: FaqResponse[] }>('/cms/faqs/', { signal });
     return Array.isArray(res) ? res : (res.results ?? []);

@@ -38,7 +38,8 @@ const MEGA_MENUS: Record<string, { items: MegaItem[]; viewAllTab?: ActiveTab }> 
     viewAllTab: 'about',
     items: [
       { label: 'Our Mission', desc: 'Vision, values & impact', icon: Sparkles, tab: 'about', section: 'about-mission' },
-      { label: 'Leadership Team', desc: 'Meet our instructors & staff', icon: Users, tab: 'about', section: 'about-team' },
+      { label: 'Our History', desc: 'Milestones since 2011', icon: Calendar, tab: 'history' },
+      { label: 'Testimonials', desc: 'Stories from our community', icon: Users, tab: 'about', section: 'about-testimonials' },
       { label: 'Partners', desc: 'Global engineering partners', icon: Globe, tab: 'about', section: 'about-partners' },
       { label: 'Gallery', desc: 'Events & competition photos', icon: Award, tab: 'about', section: 'about-gallery' },
     ],
