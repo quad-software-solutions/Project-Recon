@@ -44,11 +44,11 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
     const { signal } = abort;
 
     cmsPublicApi.getPartners(signal)
-      .then(data => setPartners(data.filter(p => p.is_active)))
+      .then(data => setPartners(data))
       .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
     cmsPublicApi.getFaqs(signal)
-      .then(data => setFaqs(data.filter(f => f.is_active).sort((a, b) => (a.order ?? 999) - (b.order ?? 999))))
+      .then(data => setFaqs(data.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))))
       .catch(err => { if (err.name !== 'AbortError') console.error(err); });
 
     cmsPublicApi.getHomepageStats(signal)
@@ -62,7 +62,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
       .finally(() => setProgramsLoading(false));
 
     cmsPublicApi.getGallery(signal)
-      .then(data => setGalleryItems(data.filter(g => g.is_active)))
+      .then(data => setGalleryItems(data))
       .catch(() => {});
 
     return () => abort.abort();

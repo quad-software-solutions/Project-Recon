@@ -94,15 +94,14 @@ export default function AboutTab() {
       cmsPublicApi.getMapNodes(),
       cmsPublicApi.getTestimonials(),
     ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes]) => {
-      setAboutData((Array.isArray(aboutRes) ? aboutRes : []).filter(a => a.is_active));
-      setPartners((Array.isArray(partnersRes) ? partnersRes : []).filter(p => p.is_active));
-      setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).filter(n => n.is_active).map(n => ({
+      setAboutData(Array.isArray(aboutRes) ? aboutRes : []);
+      setPartners(Array.isArray(partnersRes) ? partnersRes : []);
+      setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).map(n => ({
         id: n.id, city: n.city, country: n.country, title: n.title,
         achievement: n.achievement, x: n.x, y: n.y, lat: n.lat, lng: n.lng,
         image: n.image, category: n.category as MapNode['category'],
       })));
-      const activeTestimonials = (Array.isArray(testimonialsRes) ? testimonialsRes : []).filter(t => t.is_active);
-      setTestimonials(activeTestimonials);
+      setTestimonials(Array.isArray(testimonialsRes) ? testimonialsRes : []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
