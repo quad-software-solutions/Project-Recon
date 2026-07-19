@@ -1,4 +1,5 @@
 import { http } from '../../../../shared/api/http';
+import { unwrapList, type PaginatedResponse } from '@/shared/api/pagination';
 
 export interface CmsPartnerResponse {
   id: string;
@@ -44,15 +45,10 @@ export interface ContactRequestResponse {
   updated_at: string;
 }
 
-export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
+export type { PaginatedResponse };
 
 export const cmsPartnersApi = {
-  list: () => http.get<CmsPartnerResponse[]>('/cms/admin/partners/'),
+  list: async () => unwrapList(await http.get<CmsPartnerResponse[] | PaginatedResponse<CmsPartnerResponse>>('/cms/admin/partners/')),
   get: (id: string) => http.get<CmsPartnerResponse>(`/cms/admin/partners/${id}/`),
   create: (data: Partial<CmsPartnerResponse>) =>
     http.post<CmsPartnerResponse>('/cms/admin/partners/', data),
@@ -62,8 +58,8 @@ export const cmsPartnersApi = {
 };
 
 export const cmsNewsApi = {
-  list: (params?: Record<string, string>) =>
-    http.get<NewsArticleResponse[]>('/cms/admin/news/', { params }),
+  list: async (params?: Record<string, string>) =>
+    unwrapList(await http.get<NewsArticleResponse[] | PaginatedResponse<NewsArticleResponse>>('/cms/admin/news/', { params })),
   get: (id: string) => http.get<NewsArticleResponse>(`/cms/admin/news/${id}/`),
   create: (data: Partial<NewsArticleResponse>) =>
     http.post<NewsArticleResponse>('/cms/admin/news/', data),
@@ -73,7 +69,7 @@ export const cmsNewsApi = {
 };
 
 export const cmsContactRequestsApi = {
-  list: () => http.get<ContactRequestResponse[]>('/cms/admin/contact-requests/'),
+  list: async () => unwrapList(await http.get<ContactRequestResponse[] | PaginatedResponse<ContactRequestResponse>>('/cms/admin/contact-requests/')),
   get: (id: string) => http.get<ContactRequestResponse>(`/cms/admin/contact-requests/${id}/`),
   update: (id: string, data: Partial<ContactRequestResponse>) =>
     http.patch<ContactRequestResponse>(`/cms/admin/contact-requests/${id}/`, data),

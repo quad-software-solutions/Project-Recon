@@ -35,10 +35,10 @@ export default function SponsorManagement({ currentUser }: Props) {
     try {
       if (canManage) {
         const data = await cmsPartnersApi.list();
-        setSponsors(data);
+        setSponsors(Array.isArray(data) ? data : []);
       } else {
         const data = await cmsPublicApi.getPartners();
-        setSponsors(data);
+        setSponsors(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       setError(formatApiError(e));

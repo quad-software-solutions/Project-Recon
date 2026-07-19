@@ -47,8 +47,8 @@ export default function AnnouncementsManager() {
     setLoading(true); setError(null);
     try {
       const res = await cmsNewsApi.list();
-      setItems((res || []).filter((a: NewsArticleResponse) => a.type === 'ANNOUNCEMENT' || !a.type));
-    } catch (e) { setError(formatApiError(e)); }
+      setItems(res.filter((a: NewsArticleResponse) => a.type === 'ANNOUNCEMENT' || !a.type));
+    } catch (e) { setItems([]); setError(formatApiError(e)); }
     setLoading(false);
   };
 
