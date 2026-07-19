@@ -3,21 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Globe, ShoppingBag, Sparkles, CheckCircle2 } from 'lucide-react';
 
 import untitledLogo from '@/assets/logo.svg';
-import sliderImg1 from '@/assets/slider/faj.jpg';
-import sliderImg2 from '@/assets/slider/photo_2026-06-15_14-40-10.jpg';
-import sliderImg3 from '@/assets/slider/photo_2026-06-15_18-51-59.jpg';
-import sliderImg4 from '@/assets/slider/photo_2026-06-15_18-52-03.jpg';
-import sliderImg5 from '@/assets/slider/photo_2026-06-15_18-52-07.jpg';
-import sliderImg6 from '@/assets/slider/photo_2026-06-15_18-52-11.jpg';
-import sliderImg7 from '@/assets/slider/photo_2026-06-15_18-52-21.jpg';
-import sliderImg8 from '@/assets/slider/photo_2026-06-15_18-52-25.jpg';
 
-import { cmsPublicApi, type HeroBannerResponse, type HomepageStats } from '../../../cms/public/api/cmsPublicApi';
-
-const SLIDER_IMAGES = [
-  sliderImg1, sliderImg2, sliderImg3, sliderImg4,
-  sliderImg5, sliderImg6, sliderImg7, sliderImg8,
-];
+import { cmsPublicApi, type HeroBannerResponse } from '../../../cms/public/api/cmsPublicApi';
 
 const SLIDE_DURATION = 6000;
 
@@ -31,99 +18,53 @@ const HERO_PARTICLES = Array.from({ length: 10 }, (_, i) => ({
   color: i % 2 === 0 ? 'rgba(37,99,235,0.25)' : 'rgba(87,223,254,0.2)',
 }));
 
-const trustItems = ['Competitions', 'STEM Labs', 'STEM Kits', 'Awards'];
+const trustItems = ['Competitions', '120+ Labs', 'STEM Kits', 'Awards'];
 
-const STAT_ACCENTS = [
-  'from-blue-300 to-blue-400',
-  'from-cyan-300 to-cyan-400',
-  'from-indigo-300 to-indigo-400',
-];
-
-export function formatStatCount(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '—';
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return `${m >= 10 || Number.isInteger(m) ? m.toFixed(0) : m.toFixed(1)}M+`;
-  }
-  if (n >= 1_000) {
-    const k = n / 1_000;
-    return `${k >= 10 || Number.isInteger(k) ? k.toFixed(0) : k.toFixed(1)}K+`;
-  }
-  return `${n}+`;
-}
-
-function formatInt(n: number): string {
-  return Number.isFinite(n) ? n.toLocaleString() : '0';
-}
 
 interface HeroProps {
   onDiscoverPrograms: () => void;
   onJoinCommunity: () => void;
   onShopStore?: () => void;
-  homepageStats?: HomepageStats | null;
-  statsLoading?: boolean;
 }
 
-export default function Hero({
-  onDiscoverPrograms,
-  onJoinCommunity,
-  onShopStore,
-  homepageStats = null,
-  statsLoading = false,
-}: HeroProps) {
+export default function Hero({ onDiscoverPrograms, onJoinCommunity, onShopStore }: HeroProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [banners, setBanners] = useState<HeroBannerResponse[]>([]);
-  const [activeImages, setActiveImages] = useState<string[]>(SLIDER_IMAGES);
-  const [stats, setStats] = useState<HomepageStats | null>(homepageStats);
-  const [loadingStats, setLoadingStats] = useState(homepageStats == null);
+  const [activeImages, setActiveImages] = useState<string[]>([]);
 
   useEffect(() => { setMounted(true); }, []);
-
-  useEffect(() => {
-    if (homepageStats != null) {
-      setStats(homepageStats);
-      setLoadingStats(!!statsLoading);
-    }
-  }, [homepageStats, statsLoading]);
-
-  useEffect(() => {
-    if (homepageStats != null) return;
-    const abort = new AbortController();
-    setLoadingStats(true);
-    cmsPublicApi.getHomepageStats(abort.signal)
-      .then(data => setStats(data))
-      .catch(err => { if (err.name !== 'AbortError') setStats(null); })
-      .finally(() => setLoadingStats(false));
-    return () => abort.abort();
-  }, [homepageStats]);
 
   useEffect(() => {
     const abort = new AbortController();
     cmsPublicApi.getHeroBanners(abort.signal).then((data) => {
       if (data && data.length > 0) {
         setBanners(data);
-        setActiveImages(data.map((b, i) => b.image || SLIDER_IMAGES[i % SLIDER_IMAGES.length]));
+        const images = data.map(b => b.image).filter(Boolean) as string[];
+        setActiveImages(images);
+        
+        // Dynamically inject a preload link for the first image to improve LCP
+        if (images[0] && !document.head.querySelector(`link[href="${images[0]}"]`)) {
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = images[0];
+          // React 19 / TS may need specific cast for fetchpriority but we can set it as attribute
+          link.setAttribute('fetchpriority', 'high');
+          document.head.appendChild(link);
+        }
       }
     }).catch(err => { if (err.name !== 'AbortError') console.error(err); });
     return () => abort.abort();
   }, []);
 
   useEffect(() => {
+    if (activeImages.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % activeImages.length);
     }, SLIDE_DURATION);
     return () => clearInterval(timer);
   }, [activeImages.length]);
-
-  const displayStats = [
-    { value: loadingStats && !stats ? '…' : formatStatCount(stats?.future_engineers ?? 0), label: 'Future Engineers', accent: STAT_ACCENTS[0] },
-    { value: loadingStats && !stats ? '…' : formatStatCount(stats?.programs ?? 0), label: 'Programs', accent: STAT_ACCENTS[1] },
-    { value: loadingStats && !stats ? '…' : formatStatCount(stats?.competitions ?? 0), label: 'Competitions', accent: STAT_ACCENTS[2] },
-  ];
-  const missionPct = Math.min(100, Math.max(0, stats?.mission?.percentage ?? 0));
-  const missionCurrent = stats?.mission?.current ?? 0;
-  const missionTarget = stats?.mission?.target ?? 0;
 
   return (
     <section
@@ -132,19 +73,20 @@ export default function Hero({
     >
       {/* ── BACKGROUND ── */}
       <div className="absolute inset-0 z-0">
-        <AnimatePresence mode="popLayout">
+        {activeImages.length > 0 && activeImages.map((src, idx) => (
           <motion.img
-            key={currentSlide}
-            src={activeImages[currentSlide]}
-            alt={banners[currentSlide]?.title || "Ethio Robotics community and competition moments"}
+            key={src}
+            src={src}
+            alt={banners[idx]?.title || "Ethio Robotics community and competition moments"}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: 'center top' }}
-            initial={{ opacity: 0, scale: 1.08 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
+            initial={false}
+            animate={{ opacity: currentSlide === idx ? 1 : 0, scale: currentSlide === idx ? 1 : 1.05 }}
             transition={{ duration: 1.4, ease: "easeInOut" }}
+            fetchPriority={idx === 0 ? "high" : "auto"}
+            loading={idx === 0 ? "eager" : "lazy"}
           />
-        </AnimatePresence>
+        ))}
 
         {/* Desktop: left-to-right scrim — dark behind text column, fades right */}
         <div className="hidden lg:block absolute inset-0 z-[1] bg-gradient-to-r from-[#0B1220]/90 via-[#0B1220]/55 to-transparent" />
@@ -192,20 +134,22 @@ export default function Hero({
       </div>
 
       {/* ── SLIDE DOTS ── */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
-        {activeImages.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => setCurrentSlide(idx)}
-            className={`rounded-full transition-all duration-500 ${
-              idx === currentSlide
-                ? 'w-10 h-1.5 bg-white shadow-[0_0_12px_rgba(255,255,255,0.5)]'
-                : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/50'
-            }`}
-            aria-label={`Go to slide ${idx + 1}`}
-          />
-        ))}
-      </div>
+      {activeImages.length > 0 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+          {activeImages.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`rounded-full transition-all duration-500 ${
+                idx === currentSlide
+                  ? 'w-10 h-1.5 bg-white shadow-[0_0_12px_rgba(255,255,255,0.5)]'
+                  : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/50'
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+      )}
 
       {/* ── MAIN CONTENT ── */}
       {/*
@@ -344,7 +288,7 @@ export default function Hero({
             </button>
           </motion.div>
 
-          {/* Stats + Progress — same UI, values from CMS backend */}
+          {/* Stats + Progress (grouped into one compact block) */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
@@ -352,44 +296,21 @@ export default function Hero({
             className="w-full"
           >
             <div className="w-full bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.06] p-4">
-              <div className="flex flex-wrap items-stretch gap-x-0 gap-y-3">
-                {displayStats.map((stat, i) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={mounted ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.5, delay: 0.55 + i * 0.1 }}
-                    className={`pr-4 mr-4 ${i < displayStats.length - 1 ? 'border-r border-white/10' : ''}`}
-                  >
-                    <div className={`text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r ${stat.accent}`}>
-                      {stat.value}
-                    </div>
-                    <div className="text-[10px] text-white/40 font-medium mt-0.5 uppercase tracking-widest">
-                      {stat.label}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+              {/* Progress bar */}
+              <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-[9px] font-mono font-semibold text-white/30 uppercase tracking-[0.15em]">Mission Progress</span>
-                  <span className="text-[11px] font-semibold text-white/50 font-mono">
-                    {loadingStats && !stats ? '…' : `${formatInt(missionCurrent)} / ${formatInt(missionTarget)}`}
-                  </span>
+                  <span className="text-[11px] font-semibold text-white/50 font-mono">1,240,500 / 5,000,000</span>
                 </div>
                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <motion.div
-                    key={missionPct}
                     initial={{ width: 0 }}
-                    animate={mounted && !loadingStats ? { width: `${missionPct}%` } : { width: 0 }}
-                    transition={{ duration: 1.5, delay: 0.8, ease: 'easeOut' }}
+                    animate={mounted ? { width: '24.8%' } : {}}
+                    transition={{ duration: 1.5, delay: 0.8, ease: "easeOut" }}
                     className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-full"
                   />
                 </div>
-                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">
-                  {loadingStats && !stats ? '…' : `${missionPct}% of National Goal`}
-                </p>
+                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">24.8% of National Goal</p>
               </div>
             </div>
           </motion.div>

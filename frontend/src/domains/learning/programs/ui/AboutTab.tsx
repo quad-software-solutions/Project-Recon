@@ -14,11 +14,6 @@ import {
   Play,
 } from 'lucide-react';
 
-import imgAddis from '@/assets/photo_2026-06-15_14-39-18.jpg';
-import imgUsa from '@/assets/0M6A6519.00_25_12_08.Still037.jpg';
-import imgCanada from '@/assets/photo_2026-06-15_14-39-23.jpg';
-import imgChina from '@/assets/photo_2026-06-15_14-39-40.jpg';
-
 import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TestimonialResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface MapNode {
@@ -81,12 +76,6 @@ function MissionVisionPair({ mission, vision }: { mission?: string; vision?: str
   );
 }
 
-const OUR_VALUES = [
-  { title: 'Innovation', desc: 'We push creative problem-solving in every build, lesson, and competition.', icon: Lightbulb },
-  { title: 'Teamwork', desc: 'We grow stronger by mentoring, collaborating, and competing together.', icon: Users },
-  { title: 'Inclusivity', desc: 'We open STEM doors for every student who wants to learn and lead.', icon: Heart },
-  { title: 'Excellence', desc: 'We hold a high bar for how we teach, mentor, and compete.', icon: Award },
-];
 
 export default function AboutTab() {
   const [hoveredNode, setHoveredNode] = useState<MapNode | null>(null);
@@ -105,16 +94,14 @@ export default function AboutTab() {
       cmsPublicApi.getMapNodes(),
       cmsPublicApi.getTestimonials(),
     ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes]) => {
-      setAboutData((Array.isArray(aboutRes) ? aboutRes : []).filter(a => a.is_active));
-      setPartners((Array.isArray(partnersRes) ? partnersRes : []).filter(p => p.is_active));
-      setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).filter(n => n.is_active).map(n => ({
+      setAboutData(Array.isArray(aboutRes) ? aboutRes : []);
+      setPartners(Array.isArray(partnersRes) ? partnersRes : []);
+      setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).map(n => ({
         id: n.id, city: n.city, country: n.country, title: n.title,
         achievement: n.achievement, x: n.x, y: n.y, lat: n.lat, lng: n.lng,
         image: n.image, category: n.category as MapNode['category'],
       })));
-      const activeTestimonials = (Array.isArray(testimonialsRes) ? testimonialsRes : [])
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      setTestimonials(activeTestimonials);
+      setTestimonials(Array.isArray(testimonialsRes) ? testimonialsRes : []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -378,33 +365,11 @@ export default function AboutTab() {
 
       </div>
 
-      {/* Our Values */}
-      <section id="about-values" className="max-w-7xl mx-auto px-6 md:px-12 py-20 mt-10 border-t border-slate-200">
-        <div className="text-center mb-12">
-          <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Our Values</h2>
-          <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
-            Innovation, teamwork, inclusivity, and excellence—guiding how we teach, mentor, and compete.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {OUR_VALUES.map(({ title, desc, icon: Icon }) => (
-            <div key={title} className="bg-white rounded-2xl border border-slate-200 p-6 text-center hover:shadow-md transition-shadow">
-              <div className="mx-auto mb-4 w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-brand-blue" />
-              </div>
-              <h3 className="font-bold text-slate-900 text-lg mb-2">{title}</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">{desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+
 
       {/* Testimonials */}
       <section id="about-testimonials" className="max-w-7xl mx-auto px-6 md:px-12 py-20 border-t border-slate-200">
         <div className="text-center mb-16">
-          <span className="inline-flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-widest text-brand-blue bg-blue-50 border border-blue-100 px-3 py-1 rounded-full mb-4">
-            <Quote className="w-3.5 h-3.5" /> Community voices
-          </span>
           <h2 className="font-display font-bold text-slate-900 tracking-tight text-3xl md:text-4xl">Testimonials</h2>
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
             Stories and videos from students, parents, and partners in our robotics community.
@@ -425,126 +390,76 @@ export default function AboutTab() {
             ))}
           </div>
         ) : testimonials.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
+          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
             <Quote className="w-10 h-10 mx-auto text-slate-300 mb-3" />
             <p className="text-slate-500 text-sm font-medium">No testimonials published yet</p>
-            <p className="text-slate-400 text-xs mt-1">Add them in Content Manager → Testimonials</p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {testimonials[0] && (() => {
-              const featured = testimonials[0];
-              const embed = featured.video_url ? getVideoEmbed(featured.video_url) : null;
-              const isDirectVideo = featured.video_url && /\.(mp4|webm|ogg)(\?|$)/i.test(featured.video_url);
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {testimonials.map((t) => {
+              const embed = t.video_url ? getVideoEmbed(t.video_url) : null;
+              const isDirectVideo = t.video_url && /\.(mp4|webm|ogg)(\?|$)/i.test(t.video_url);
               return (
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden grid md:grid-cols-2"
-                >
-                  <div className="relative min-h-[220px] bg-slate-900">
-                    {embed ? (
-                      <iframe src={embed} title={`${featured.name} testimonial`} className="absolute inset-0 w-full h-full" allowFullScreen
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
-                    ) : isDirectVideo && featured.video_url ? (
-                      <video controls className="absolute inset-0 w-full h-full object-cover" src={featured.video_url} poster={featured.image ?? undefined} />
-                    ) : featured.image ? (
-                      <img src={featured.image} alt={featured.name} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#25338d] to-[#1a2670]">
-                        <Quote className="w-14 h-14 text-white/25" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-8 flex flex-col justify-center">
-                    <Quote className="w-6 h-6 text-brand-blue/40 mb-4" />
-                    <p className="text-slate-800 text-base md:text-lg leading-relaxed mb-6">&ldquo;{featured.quote}&rdquo;</p>
-                    <div className="flex items-center gap-3">
-                      {featured.image ? (
-                        <img src={featured.image} alt={featured.name} className="w-12 h-12 rounded-full object-cover ring-2 ring-blue-50" />
+                <div key={t.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-all group">
+                  {embed ? (
+                    <div className="relative aspect-video bg-slate-900">
+                      <iframe
+                        src={embed}
+                        title={`${t.name} testimonial`}
+                        className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : isDirectVideo && t.video_url ? (
+                    <div className="relative aspect-video bg-slate-900">
+                      <video controls className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
+                    </div>
+                  ) : t.video_url ? (
+                    <a
+                      href={t.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative aspect-video bg-slate-900 flex items-center justify-center group/play"
+                    >
+                      {t.image && <img src={t.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                      <span className="relative z-10 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-lg group-hover/play:scale-110 transition-transform">
+                        <Play className="w-6 h-6 text-brand-blue ml-0.5" fill="currentColor" />
+                      </span>
+                    </a>
+                  ) : t.image ? (
+                    <div className="aspect-video bg-slate-100 overflow-hidden">
+                      <img src={t.image} alt={t.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  ) : (
+                    <div className="aspect-[5/2] bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center">
+                      <Quote className="w-10 h-10 text-brand-blue/25" />
+                    </div>
+                  )}
+                  <div className="p-6 flex flex-col flex-1">
+                    <p className="text-slate-700 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
+                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                      {t.image ? (
+                        <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-blue to-[#1a2670] flex items-center justify-center text-white font-bold">
-                          {featured.name.charAt(0)}
+                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-brand-blue font-bold text-sm">
+                          {t.name.charAt(0)}
                         </div>
                       )}
-                      <div>
-                        <h3 className="font-bold text-slate-900">{featured.name}</h3>
-                        <p className="text-sm text-slate-500">{featured.role}</p>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 text-sm truncate">{t.name}</h3>
+                        <span className="text-slate-500 text-xs">{t.role}</span>
                       </div>
+                      {t.video_url && (
+                        <span className="ml-auto shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-blue bg-blue-50 px-2 py-1 rounded-full">
+                          <Play className="w-3 h-3" /> Video
+                        </span>
+                      )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
-            })()}
-
-            {testimonials.length > 1 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {testimonials.slice(1).map((t, idx) => {
-                  const embed = t.video_url ? getVideoEmbed(t.video_url) : null;
-                  const isDirectVideo = t.video_url && /\.(mp4|webm|ogg)(\?|$)/i.test(t.video_url);
-                  return (
-                    <motion.div
-                      key={t.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: Math.min(idx * 0.08, 0.4) }}
-                      className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md hover:border-blue-100 transition-all group"
-                    >
-                      {embed ? (
-                        <div className="relative aspect-video bg-slate-900">
-                          <iframe src={embed} title={`${t.name} testimonial`} className="absolute inset-0 w-full h-full"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-                        </div>
-                      ) : isDirectVideo && t.video_url ? (
-                        <div className="relative aspect-video bg-slate-900">
-                          <video controls className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
-                        </div>
-                      ) : t.video_url ? (
-                        <a href={t.video_url} target="_blank" rel="noopener noreferrer"
-                          className="relative aspect-video bg-slate-900 flex items-center justify-center group/play">
-                          {t.image && <img src={t.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
-                          <span className="relative z-10 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-lg group-hover/play:scale-110 transition-transform">
-                            <Play className="w-6 h-6 text-brand-blue ml-0.5" fill="currentColor" />
-                          </span>
-                        </a>
-                      ) : t.image ? (
-                        <div className="aspect-video bg-slate-100 overflow-hidden">
-                          <img src={t.image} alt={t.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        </div>
-                      ) : (
-                        <div className="aspect-[5/2] bg-gradient-to-br from-[#25338d]/8 via-blue-50 to-slate-50 flex items-center justify-center relative">
-                          <Quote className="relative w-10 h-10 text-brand-blue/30" />
-                        </div>
-                      )}
-                      <div className="p-6 flex flex-col flex-1">
-                        <Quote className="w-5 h-5 text-brand-blue/30 mb-3 shrink-0" />
-                        <p className="text-slate-700 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
-                        <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-                          {t.image ? (
-                            <img src={t.image} alt={t.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-blue-50" />
-                          ) : (
-                            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-brand-blue to-[#1a2670] flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                              {t.name.charAt(0)}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <h3 className="font-bold text-slate-900 text-sm truncate">{t.name}</h3>
-                            <span className="text-slate-500 text-xs">{t.role}</span>
-                          </div>
-                          {t.video_url && (
-                            <span className="ml-auto shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-blue bg-blue-50 px-2 py-1 rounded-full">
-                              <Play className="w-3 h-3" /> Video
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
+            })}
           </div>
         )}
       </section>
@@ -564,12 +479,10 @@ export default function AboutTab() {
             <div className="flex flex-wrap justify-center gap-12 items-center opacity-70 hover:opacity-100 transition-opacity">
               {partners.length > 0 ? (
                 partners.map(partner =>
-                    partner.image ? <img key={partner.id} src={partner.image} alt={partner.title} className="h-16 object-contain" /> : (
-                      <span key={partner.id} className="text-sm font-bold text-slate-500">{partner.title}</span>
-                    )
+                    partner.image ? <img key={partner.id} src={partner.image} alt={partner.title} className="h-16 object-contain" /> : null
                   )
               ) : (
-                <p className="text-sm text-slate-400">No partners published yet</p>
+                <div className="text-slate-400 text-sm font-medium">Partners will be loaded shortly.</div>
               )}
             </div>
           )}
@@ -583,10 +496,9 @@ export default function AboutTab() {
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Moments of innovation and teamwork from our various competitions and workshops.</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <img src={imgAddis} alt="Addis Ababa" className="w-full h-48 object-cover rounded-xl shadow-sm hover:scale-[1.02] transition-transform" />
-          <img src={imgUsa} alt="USA Competition" className="w-full h-48 object-cover rounded-xl shadow-sm hover:scale-[1.02] transition-transform" />
-          <img src={imgCanada} alt="Canada Workshop" className="w-full h-48 object-cover rounded-xl shadow-sm hover:scale-[1.02] transition-transform" />
-          <img src={imgChina} alt="China Summit" className="w-full h-48 object-cover rounded-xl shadow-sm hover:scale-[1.02] transition-transform" />
+          <div className="col-span-2 md:col-span-4 text-center text-slate-400 py-8">
+            Gallery images are currently unavailable.
+          </div>
         </div>
       </section>
     </div>

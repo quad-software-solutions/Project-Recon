@@ -11,7 +11,7 @@ import { updateUserProfile } from '@/shared/utils/storage';
 import { updateUserApi, uploadProfilePictureApi } from '@/domains/user/shared/api/adminApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
 import { securityApi } from '@/domains/auth/login/api/securityApi';
-import profileImg from '@/assets/photo_2026-06-15_14-39-27.jpg';
+const profileImg = "https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff";
 
 interface Props {
   currentUser: UserProfile;

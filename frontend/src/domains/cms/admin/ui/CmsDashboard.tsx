@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Image, FileText, Handshake, Building,
-  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock, Camera, MessageSquareQuote, BarChart3,
+  MessageSquare, HelpCircle, MapPin, X, CheckCircle, AlertCircle, Lock, Camera, MessageSquareQuote,
 } from 'lucide-react';
 import HeroBannerManager from './HeroBannerManager';
 import NewsManager from './NewsManager';
@@ -13,12 +13,11 @@ import FaqManager from './FaqManager';
 import MapNodeManager from './MapNodeManager';
 import GalleryManager from './GalleryManager';
 import TestimonialManager from './TestimonialManager';
-import HomepageStatsManager from './HomepageStatsManager';
 import { api } from '../api/cmsApi';
 import type { UserProfile } from '@/shared/types';
 import { canManageCms } from '@/shared/auth/permissions';
 
-type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests' | 'gallery' | 'testimonials' | 'homepage-stats';
+type CmsSection = 'hero-banners' | 'news' | 'partners' | 'about' | 'map-nodes' | 'faqs' | 'contact-requests' | 'gallery' | 'testimonials';
 
 export interface Toast {
   id: string;
@@ -41,7 +40,6 @@ interface SectionCounts {
   'map-nodes': number;
   gallery: number;
   testimonials: number;
-  'homepage-stats': number;
 }
 
 const SUB_NAV: CmsSubNavItem[] = [
@@ -49,7 +47,6 @@ const SUB_NAV: CmsSubNavItem[] = [
   { id: 'news', label: 'News & Announcements', icon: FileText },
   { id: 'partners', label: 'Partners & Sponsors', icon: Handshake },
   { id: 'testimonials', label: 'Testimonials', icon: MessageSquareQuote },
-  { id: 'homepage-stats', label: 'Homepage Stats', icon: BarChart3 },
   { id: 'about', label: 'About Us', icon: Building },
   { id: 'map-nodes', label: 'Map Nodes', icon: MapPin },
   { id: 'gallery', label: 'Gallery', icon: Camera },
@@ -62,7 +59,6 @@ const STAT_SECTIONS: { key: keyof SectionCounts; label: string; icon: React.Elem
   { key: 'news', label: 'Articles', icon: FileText, color: 'text-blue-500 bg-blue-50' },
   { key: 'partners', label: 'Partners', icon: Handshake, color: 'text-amber-500 bg-amber-50' },
   { key: 'testimonials', label: 'Testimonials', icon: MessageSquareQuote, color: 'text-indigo-500 bg-indigo-50' },
-  { key: 'homepage-stats', label: 'Homepage Stats', icon: BarChart3, color: 'text-teal-500 bg-teal-50' },
   { key: 'faqs', label: 'FAQs', icon: HelpCircle, color: 'text-cyan-500 bg-cyan-50' },
   { key: 'contact-requests', label: 'Contacts', icon: MessageSquare, color: 'text-rose-500 bg-rose-50' },
   { key: 'map-nodes', label: 'Map Nodes', icon: MapPin, color: 'text-orange-500 bg-orange-50' },
@@ -80,17 +76,16 @@ export default function CmsDashboard({ currentUser }: Props) {
   const [section, setSection] = useState<CmsSection>('hero-banners');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [counts, setCounts] = useState<SectionCounts>({
-    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1, gallery: -1, testimonials: -1, 'homepage-stats': -1,
+    'hero-banners': -1, news: -1, partners: -1, faqs: -1, 'contact-requests': -1, 'map-nodes': -1, gallery: -1, testimonials: -1,
   });
 
   useEffect(() => {
     (async () => {
       try {
-        const [heroBanners, news, partners, faqs, contactRequests, mapNodes, gallery, testimonials, homepageStats] = await Promise.all([
+        const [heroBanners, news, partners, faqs, contactRequests, mapNodes, gallery, testimonials] = await Promise.all([
           api.getAll('hero-banners'), api.getAll('news'), api.getAll('partners'),
           api.getAll('faqs'), api.getAll('contact-requests'), api.getAll('map-nodes'), api.getAll('gallery'),
           api.getAll('testimonials').catch(() => []),
-          api.getAll('homepage/statistics').catch(() => []),
         ]);
         setCounts({
           'hero-banners': heroBanners.length,
@@ -101,7 +96,6 @@ export default function CmsDashboard({ currentUser }: Props) {
           'map-nodes': mapNodes.length,
           gallery: gallery.length,
           testimonials: testimonials.length,
-          'homepage-stats': homepageStats.length,
         });
       } catch {
         setCounts(prev => Object.fromEntries(Object.entries(prev).map(([k]) => [k, 0])) as SectionCounts);
@@ -137,7 +131,7 @@ export default function CmsDashboard({ currentUser }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2">
         {STAT_SECTIONS.map(({ key, label, icon: Icon, color }) => {
           const c = counts[key];
           return (
@@ -188,7 +182,6 @@ export default function CmsDashboard({ currentUser }: Props) {
             {section === 'news' && <NewsManager addToast={addToast} />}
             {section === 'partners' && <CmsPartnerManager addToast={addToast} />}
             {section === 'testimonials' && <TestimonialManager addToast={addToast} />}
-            {section === 'homepage-stats' && <HomepageStatsManager addToast={addToast} />}
             {section === 'about' && <AboutUsManager addToast={addToast} />}
             {section === 'faqs' && <FaqManager addToast={addToast} />}
             {section === 'contact-requests' && <ContactRequestManager addToast={addToast} />}

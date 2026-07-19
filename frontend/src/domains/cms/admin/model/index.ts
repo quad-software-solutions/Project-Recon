@@ -157,17 +157,6 @@ export interface Testimonial {
   priority?: number;
 }
 
-export interface HomepageStatistic {
-  id: string;
-  future_engineers: number;
-  programs: number;
-  competitions: number;
-  mission_current: number;
-  mission_target: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export interface PaginatedResponse<T> {
   count: number;
   next: string | null;
