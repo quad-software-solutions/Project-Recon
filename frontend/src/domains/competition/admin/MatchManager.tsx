@@ -1,15 +1,62 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, Gamepad2, Clock, Trash2, CheckCircle, XCircle, Users, Trophy, Activity, BarChart3, Calendar, Target, Medal, TrendingUp, Play, Flag, Shield, AlertTriangle, Info, Timer, Lock } from 'lucide-react';
+import { Plus, Minus, Search, X, Loader2, AlertCircle, Gamepad2, Clock, CheckCircle, XCircle, Users, Trophy, Activity, BarChart3, Calendar, Target, Medal, TrendingUp, Play, Flag, Shield, AlertTriangle, Info, Timer, Lock, LayoutGrid, List, Download, RotateCcw } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendMatch, BackendTournamentTeam, SideType, BackendStanding } from '../api/eventsApi';
 import AdminMatchCard from '../shared/AdminMatchCard';
 import VexAllianceDisplay, { sidesFromMatch } from '../shared/VexAllianceDisplay';
 import { getSideTeamNames, sideLabel, canAddTeamToSide, TEAMS_PER_ALLIANCE } from '../shared/vexAllianceUtils';
-import { VEX_ALLIANCE_CONFIG, VEX_SCORING_RULES } from '../shared/vexConstants';
+import { VEX_ALLIANCE_CONFIG, VEX_MATCH_ROUNDS } from '../shared/vexConstants';
+import { formatApiError } from '@/shared/utils/formatApiError';
 
 const defaultForm = { tournament: '', round: '', scheduled_at: '', side_a_teams: [] as string[], side_b_teams: [] as string[], roundCount: 1 };
 const defaultScoreForm = { side_a_score: 0, side_b_score: 0 };
+const SCORE_MAX = 999;
+
+function clampScore(n: number) {
+  if (!Number.isFinite(n) || Number.isNaN(n)) return 0;
+  return Math.min(SCORE_MAX, Math.max(0, Math.trunc(n)));
+}
+
+function formatMatchDateTime(iso?: string | null, opts?: { timeOnly?: boolean }) {
+  if (!iso) return opts?.timeOnly ? '—' : 'TBD';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
+  if (opts?.timeOnly) {
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function dayKey(iso?: string | null) {
+  if (!iso) return 'TBD';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'TBD';
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function groupMatchesByDay(list: BackendMatch[]) {
+  const sorted = [...list].sort((a, b) => {
+    const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Number.POSITIVE_INFINITY;
+    const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Number.POSITIVE_INFINITY;
+    return ta - tb || (a.round || '').localeCompare(b.round || '');
+  });
+  const map = new Map<string, BackendMatch[]>();
+  for (const m of sorted) {
+    const key = dayKey(m.scheduled_at);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(m);
+  }
+  return Array.from(map.entries());
+}
+
+function standingsToCsv(rows: { rank?: number; team_name: string; matchesPlayed?: number; wins: number; losses: number; draws: number; totalScore?: number; points: number }[]) {
+  if (!rows.length) return '';
+  const header = 'Rank,Team,MP,W,L,D,TS,Pts';
+  const esc = (v: string | number) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const body = rows.map(r => [r.rank ?? '', r.team_name, r.matchesPlayed ?? 0, r.wins, r.losses, r.draws, r.totalScore ?? 0, r.points].map(esc).join(','));
+  return [header, ...body].join('\n');
+}
 
 /* ─── Standings computation (client-side) ─── */
 function computeStandings(
@@ -77,7 +124,10 @@ export default function MatchManager() {
   const [selectedMatch, setSelectedMatch] = useState<BackendMatch | null>(null);
   const [assignForm, setAssignForm] = useState({ side: 'SIDE_A' as SideType, tournament_team: '' });
   const [scoreForm, setScoreForm] = useState(defaultScoreForm);
+  const [lastSavedScores, setLastSavedScores] = useState<{ matchId: string; side_a_score: number; side_b_score: number } | null>(null);
+  const [undoScores, setUndoScores] = useState<{ matchId: string; side_a_score: number; side_b_score: number } | null>(null);
   const [showDashboard, setShowDashboard] = useState(true);
+  const [viewMode, setViewMode] = useState<'cards' | 'schedule'>('cards');
 
   /* Toast system */
   const [toasts, setToasts] = useState<ToastType[]>([]);
@@ -139,7 +189,7 @@ export default function MatchManager() {
       setMatches(Array.isArray(m) ? m : []);
       setTournaments(Array.isArray(ts) ? ts : []);
       setTeams(Array.isArray(tms) ? tms : []);
-    }).catch(err => setError(err.message)).finally(() => setLoading(false));
+    }).catch(err => setError(formatApiError(err))).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -185,7 +235,7 @@ export default function MatchManager() {
         addToast('success', `${form.roundCount} match${form.roundCount > 1 ? 'es' : ''} created`);
       }
       setShowForm(false); load();
-    } catch (err: any) { addToast('error', err.message || 'Failed to save match'); } finally { setSaving(false); }
+    } catch (err: unknown) { addToast('error', formatApiError(err) || 'Failed to save match'); } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
@@ -195,10 +245,20 @@ export default function MatchManager() {
       confirmLabel: 'Delete Match',
       variant: 'danger',
       onConfirm: async () => {
-        try { await eventsApi.adminDeleteMatch(id); load(); addToast('success', 'Match deleted successfully'); } catch (err: any) { addToast('error', err.message || 'Failed to delete match'); }
+        try { await eventsApi.adminDeleteMatch(id); load(); addToast('success', 'Match deleted successfully'); } catch (err: unknown) { addToast('error', formatApiError(err) || 'Failed to delete match'); }
       },
     });
   };
+
+  const openMatchDetail = useCallback((m: BackendMatch) => {
+    const sideA = m.sides?.find(s => s.side === 'SIDE_A');
+    const sideB = m.sides?.find(s => s.side === 'SIDE_B');
+    const scores = { side_a_score: sideA?.score ?? 0, side_b_score: sideB?.score ?? 0 };
+    setSelectedMatch(m);
+    setScoreForm(scores);
+    setLastSavedScores({ matchId: m.id, ...scores });
+    setUndoScores(null);
+  }, []);
 
   const handleAssign = async () => {
     if (!selectedMatch || !assignForm.tournament_team) return;
@@ -210,7 +270,7 @@ export default function MatchManager() {
       load();
       const updated = await eventsApi.adminGetMatch(selectedMatch.id);
       setSelectedMatch(updated);
-    } catch (err: any) { addToast('error', `Assign failed: ${err.message}`); load(); }
+    } catch (err: unknown) { addToast('error', `Assign failed: ${formatApiError(err)}`); load(); }
   };
 
   const handleRemoveTeam = async (side: SideType, teamId: string) => {
@@ -222,29 +282,58 @@ export default function MatchManager() {
       load();
       const updated = await eventsApi.adminGetMatch(selectedMatch.id);
       setSelectedMatch(updated);
-    } catch (err: any) {
-      addToast('error', `Remove failed: ${err.message}`);
+    } catch (err: unknown) {
+      addToast('error', `Remove failed: ${formatApiError(err)}`);
       load();
     }
   };
 
   const handleRecordScores = async () => {
     if (!selectedMatch) return;
-    const { side_a_score, side_b_score } = scoreForm;
+    const payload = { side_a_score: clampScore(scoreForm.side_a_score), side_b_score: clampScore(scoreForm.side_b_score) };
     try {
-      await eventsApi.adminRecordMatchScores(selectedMatch.id, scoreForm);
-      addToast('success', `${VEX_ALLIANCE_CONFIG.redLabel} ${side_a_score} : ${side_b_score} ${VEX_ALLIANCE_CONFIG.blueLabel} — Scores recorded!`);
+      const prev = lastSavedScores?.matchId === selectedMatch.id
+        ? { side_a_score: lastSavedScores.side_a_score, side_b_score: lastSavedScores.side_b_score }
+        : {
+            side_a_score: selectedMatch.sides?.find(s => s.side === 'SIDE_A')?.score ?? 0,
+            side_b_score: selectedMatch.sides?.find(s => s.side === 'SIDE_B')?.score ?? 0,
+          };
+      await eventsApi.adminRecordMatchScores(selectedMatch.id, payload);
+      setUndoScores({ matchId: selectedMatch.id, ...prev });
+      setLastSavedScores({ matchId: selectedMatch.id, ...payload });
+      setScoreForm(payload);
+      addToast('success', `${VEX_ALLIANCE_CONFIG.redLabel} ${payload.side_a_score} : ${payload.side_b_score} ${VEX_ALLIANCE_CONFIG.blueLabel} — Scores recorded!`);
       load();
       const updated = await eventsApi.adminGetMatch(selectedMatch.id);
       setSelectedMatch(updated);
-    } catch (err: any) { addToast('error', `Scores failed: ${err.message}`); load(); }
+    } catch (err: unknown) { addToast('error', `Scores failed: ${formatApiError(err)}`); load(); }
+  };
+
+  const handleUndoScores = async () => {
+    if (!selectedMatch || !undoScores || undoScores.matchId !== selectedMatch.id) return;
+    const payload = { side_a_score: undoScores.side_a_score, side_b_score: undoScores.side_b_score };
+    try {
+      await eventsApi.adminRecordMatchScores(selectedMatch.id, payload);
+      setScoreForm(payload);
+      setLastSavedScores({ matchId: selectedMatch.id, ...payload });
+      setUndoScores(null);
+      addToast('info', `Scores restored to ${payload.side_a_score} : ${payload.side_b_score}`);
+      load();
+      const updated = await eventsApi.adminGetMatch(selectedMatch.id);
+      setSelectedMatch(updated);
+    } catch (err: unknown) { addToast('error', `Undo failed: ${formatApiError(err)}`); load(); }
   };
 
   const handleComplete = async () => {
     if (!selectedMatch) return;
+    const a = scoreForm.side_a_score;
+    const b = scoreForm.side_b_score;
+    const zeroWarn = a === 0 && b === 0
+      ? ' Both scores are still 0 — confirm this is intentional before locking results.'
+      : '';
     setConfirm({
       title: 'Complete Alliance Match',
-      message: `Finalize "${selectedMatch.round}"? Scores will be locked and standings updated.`,
+      message: `Finalize "${selectedMatch.round}"? Scores will be locked and standings updated.${zeroWarn}`,
       confirmLabel: 'Complete Match',
       variant: 'primary',
       onConfirm: async () => {
@@ -254,7 +343,8 @@ export default function MatchManager() {
           load();
           const updated = await eventsApi.adminGetMatch(selectedMatch.id);
           setSelectedMatch(updated);
-        } catch (err: any) { addToast('error', `Complete failed: ${err.message}`); load(); }
+          setUndoScores(null);
+        } catch (err: unknown) { addToast('error', `Complete failed: ${formatApiError(err)}`); load(); }
       },
     });
   };
@@ -270,7 +360,7 @@ export default function MatchManager() {
         const updated = await eventsApi.adminGetMatch(id);
         setSelectedMatch(updated);
       }
-    } catch (err: any) { addToast('error', `Start failed: ${err.message}`); }
+    } catch (err: unknown) { addToast('error', `Start failed: ${formatApiError(err)}`); }
   };
 
   const handleStartMatch = (id: string) => {
@@ -342,10 +432,17 @@ export default function MatchManager() {
       addToast('success', `Bulk operation done! ${completed} completed, ${skipped} skipped, ${failed} failed.`, 'Bulk Close');
       setBulkClose(prev => ({ ...prev, show: false, loading: false }));
       load();
-    } catch (err: any) {
-      addToast('error', err.message || 'Bulk close failed');
+    } catch (err: unknown) {
+      addToast('error', formatApiError(err) || 'Bulk close failed');
       setBulkClose(prev => ({ ...prev, loading: false }));
     }
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setTournamentFilter('all');
+    setStatusFilter('all');
+    setShowClosed(false);
   };
 
   /* ─── Standings (client-side computed) ─── */
@@ -355,6 +452,18 @@ export default function MatchManager() {
     const completedMatches = matches.filter(m => m.tournament === standingsTournament && m.status === 'COMPLETED');
     return computeStandings(tournamentTeams, completedMatches);
   }, [standingsTournament, teams, matches]);
+
+  const exportStandingsCsv = () => {
+    if (!standingsData.length || !standingsTournament) return;
+    const csv = standingsToCsv(standingsData);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `standings-${standingsTournament.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
@@ -381,6 +490,9 @@ export default function MatchManager() {
     const matchesClosed = showClosed || !tournament?.is_closed;
     return matchesSearch && matchesTournament && matchesStatus && matchesClosed;
   });
+
+  const scheduleGroups = useMemo(() => groupMatchesByDay(filtered), [filtered]);
+  const hasActiveFilters = search !== '' || tournamentFilter !== 'all' || statusFilter !== 'all' || showClosed;
 
   const totalMatches = matches.length;
   const liveCount = matches.filter(m => m.status === 'LIVE').length;
@@ -433,62 +545,96 @@ export default function MatchManager() {
       {showDashboard && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Matches', value: totalMatches, icon: Gamepad2, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Scheduled', value: scheduledCount, icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-            { label: 'Live', value: liveCount, icon: Activity, color: 'text-red-600', bg: 'bg-red-50' },
-            { label: 'Completed', value: completedCount, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Total Matches', value: totalMatches, icon: Gamepad2, color: 'text-blue-600', bg: 'bg-blue-50', filter: 'all' as const },
+            { label: 'Scheduled', value: scheduledCount, icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-50', filter: 'SCHEDULED' as const },
+            { label: 'Live', value: liveCount, icon: Activity, color: 'text-red-600', bg: 'bg-red-50', filter: 'LIVE' as const },
+            { label: 'Completed', value: completedCount, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', filter: 'COMPLETED' as const },
           ].map((stat, i) => {
             const SIcon = stat.icon;
+            const active = statusFilter === stat.filter;
             return (
-              <motion.div key={stat.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="bg-white rounded-xl border border-slate-200 p-4"
+              <motion.button
+                type="button"
+                key={stat.label}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                onClick={() => setStatusFilter(stat.filter)}
+                className={`bg-white rounded-xl border p-4 text-left transition-all ${
+                  active ? 'border-brand-red ring-2 ring-brand-red/20 shadow-sm' : 'border-slate-200 hover:border-slate-300'
+                }`}
               >
                 <div className={`w-8 h-8 rounded-lg ${stat.bg} flex items-center justify-center mb-2`}><SIcon className={`w-4 h-4 ${stat.color}`} /></div>
                 <p className="text-xl font-bold text-slate-900">{stat.value}</p>
                 <p className="text-sm text-slate-500">{stat.label}</p>
-              </motion.div>
+              </motion.button>
             );
           })}
         </motion.div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand-red" />
-            <h3 className="font-black text-lg text-slate-900">VEX Match Control</h3>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-brand-red" />
+              <h3 className="font-black text-lg text-slate-900">VEX Match Control</h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {VEX_ALLIANCE_CONFIG.redLabel} vs {VEX_ALLIANCE_CONFIG.blueLabel} · {TEAMS_PER_ALLIANCE} teams per alliance · {completedCount} completed / {totalMatches} total
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            {VEX_ALLIANCE_CONFIG.redLabel} vs {VEX_ALLIANCE_CONFIG.blueLabel} · {TEAMS_PER_ALLIANCE} teams per alliance · {completedCount} completed / {totalMatches} total
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex rounded-xl border border-slate-200 bg-white p-0.5">
+              <button type="button" onClick={() => setViewMode('cards')}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 ${viewMode === 'cards' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                <LayoutGrid className="w-3.5 h-3.5" /> Cards
+              </button>
+              <button type="button" onClick={() => setViewMode('schedule')}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 ${viewMode === 'schedule' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                <List className="w-3.5 h-3.5" /> Schedule
+              </button>
+            </div>
+            <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25"><Plus className="w-4 h-4" /> New Match</button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setShowDashboard(p => !p)} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> {showDashboard ? 'Hide' : 'Stats'}</button>
-          <select value={tournamentFilter} onChange={e => setTournamentFilter(e.target.value)}
-            className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
-            <option value="all">All Tournaments</option>
-            {tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}{t.is_closed ? ' (Closed)' : ''}</option>)}
-          </select>
-          <button onClick={() => setShowClosed(p => !p)}
-            className={`text-[10px] font-black tracking-wider px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-              showClosed ? 'bg-slate-700 text-white border border-slate-600' : 'bg-white text-slate-400 border border-slate-200'
-            }`}>
-            <Lock className="w-3 h-3" />{showClosed ? 'Hide Closed' : 'Show Closed'}
-          </button>
-          <span className="text-[9px] font-bold px-2 py-1.5 rounded-full bg-purple-100 text-purple-600 flex items-center gap-1"><Trophy className="w-3 h-3" />TOURNAMENT</span>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red">
-            <option value="all">All Status</option>
-            <option value="SCHEDULED">Scheduled</option>
-            <option value="LIVE">Live</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rounds..." className="w-48 pl-9 pr-3 py-2 bg-white border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
-          <button onClick={() => { setStandingsTournament(tournamentFilter === 'all' ? '' : tournamentFilter); setShowStandings(true); }}
-            className="px-3 py-2 bg-purple-50 text-purple-700 font-black text-xs rounded-xl hover:bg-purple-100 flex items-center gap-1.5 border border-purple-200"><Target className="w-4 h-4" /> Standings</button>
-          <button onClick={() => setBulkClose(prev => ({ ...prev, show: true }))} className="px-3 py-2 bg-red-50 text-red-700 font-black text-xs rounded-xl hover:bg-red-100 flex items-center gap-1.5 border border-red-200"><XCircle className="w-4 h-4" /> Close All</button>
-          <button onClick={openCreate} className="bg-gradient-to-r from-brand-red to-brand-red-dark text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-red/25"><Plus className="w-4 h-4" /> New Match</button>
+
+        <div className="flex flex-col gap-2 bg-white border border-slate-200 rounded-2xl p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[160px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rounds..." className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red" /></div>
+            <select value={tournamentFilter} onChange={e => setTournamentFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-red min-w-[140px]">
+              <option value="all">All Tournaments</option>
+              {tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}{t.is_closed ? ' (Closed)' : ''}</option>)}
+            </select>
+            <div className="flex flex-wrap gap-1">
+              {(['all', 'SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'] as const).map(s => (
+                <button key={s} type="button" onClick={() => setStatusFilter(s)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                    statusFilter === s ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}>
+                  {s === 'all' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setShowDashboard(p => !p)} className="px-3 py-2 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> {showDashboard ? 'Hide' : 'Stats'}</button>
+            <button onClick={() => setShowClosed(p => !p)}
+              className={`text-[10px] font-black tracking-wider px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                showClosed ? 'bg-slate-700 text-white border border-slate-600' : 'bg-slate-50 text-slate-400 border border-slate-200'
+              }`}>
+              <Lock className="w-3 h-3" />{showClosed ? 'Hide Closed' : 'Show Closed'}
+            </button>
+            <button onClick={() => { setStandingsTournament(tournamentFilter === 'all' ? '' : tournamentFilter); setShowStandings(true); }}
+              className="px-3 py-2 bg-purple-50 text-purple-700 font-black text-xs rounded-xl hover:bg-purple-100 flex items-center gap-1.5 border border-purple-200"><Target className="w-4 h-4" /> Standings</button>
+            <button onClick={() => setBulkClose(prev => ({ ...prev, show: true }))} className="px-3 py-2 bg-red-50 text-red-700 font-black text-xs rounded-xl hover:bg-red-100 flex items-center gap-1.5 border border-red-200"><XCircle className="w-4 h-4" /> Close All</button>
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} className="px-3 py-2 text-slate-500 font-bold text-xs rounded-xl hover:bg-slate-100 flex items-center gap-1">
+                <X className="w-3.5 h-3.5" /> Clear filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -509,7 +655,7 @@ export default function MatchManager() {
                   key={m.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => { setSelectedMatch(m); setScoreForm({ side_a_score: m.sides?.find(s => s.side === 'SIDE_A')?.score ?? 0, side_b_score: m.sides?.find(s => s.side === 'SIDE_B')?.score ?? 0 }); }}
+                  onClick={() => openMatchDetail(m)}
                   className="bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 text-left text-xs font-bold transition-all"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -535,12 +681,78 @@ export default function MatchManager() {
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.1 }}>
             <Gamepad2 className="w-14 h-14 text-slate-200 mx-auto mb-3" />
           </motion.div>
-          <p className="font-bold text-slate-500 text-lg">No matches yet</p>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Create your first alliance match to get started.</p>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <button onClick={openCreate} className="px-4 py-2 bg-brand-red text-white text-xs font-black rounded-xl flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> New Match</button>
-          </div>
+          {matches.length === 0 ? (
+            <>
+              <p className="font-bold text-slate-500 text-lg">No matches yet</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Create your first alliance match to get started.</p>
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <button onClick={openCreate} className="px-4 py-2 bg-brand-red text-white text-xs font-black rounded-xl flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> New Match</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-slate-500 text-lg">No matches match these filters</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Try clearing search, status, or tournament filters.</p>
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <button onClick={clearFilters} className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl flex items-center gap-1.5"><X className="w-3.5 h-3.5" /> Clear filters</button>
+              </div>
+            </>
+          )}
         </motion.div>
+      ) : viewMode === 'schedule' ? (
+        <div className="flex flex-col gap-4">
+          {scheduleGroups.map(([day, dayMatches]) => {
+            const byRound = new Map<string, BackendMatch[]>();
+            for (const m of dayMatches) {
+              const r = m.round || 'Round';
+              if (!byRound.has(r)) byRound.set(r, []);
+              byRound.get(r)!.push(m);
+            }
+            return (
+              <div key={day} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-black text-slate-800">{day}</span>
+                  <span className="text-[10px] text-slate-400 ml-auto">{dayMatches.length} match{dayMatches.length !== 1 ? 'es' : ''}</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {Array.from(byRound.entries()).map(([round, roundMatches]) => (
+                    <div key={round}>
+                      <div className="px-4 py-1.5 bg-slate-50/60 text-[10px] font-black uppercase tracking-wider text-slate-400">{round}</div>
+                      {roundMatches.map(m => {
+                        const red = getSideTeamNames(m.sides?.find(s => s.side === 'SIDE_A')?.participants).join(' & ') || 'RED';
+                        const blue = getSideTeamNames(m.sides?.find(s => s.side === 'SIDE_B')?.participants).join(' & ') || 'BLUE';
+                        return (
+                          <div key={m.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-slate-50/80 cursor-pointer" onClick={() => openMatchDetail(m)}>
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span className="text-[11px] font-mono font-bold text-slate-500 w-14 shrink-0">{formatMatchDateTime(m.scheduled_at, { timeOnly: true })}</span>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-900 truncate">{red} <span className="text-slate-300">vs</span> {blue}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{getTournamentName(m)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {m.status === 'LIVE' && elapsedMap[m.id] && (
+                                <span className="text-[9px] font-mono text-red-600 bg-red-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Timer className="w-3 h-3" />{elapsedMap[m.id]}</span>
+                              )}
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusBadge(m.status)}`}>{m.status}</span>
+                              {m.status === 'SCHEDULED' && (
+                                <button type="button" onClick={e => { e.stopPropagation(); handleStartMatch(m.id); }}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-lg hover:bg-emerald-600">
+                                  <Play className="w-3 h-3" /> Start
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <AnimatePresence mode="popLayout">
@@ -555,12 +767,7 @@ export default function MatchManager() {
               >
                 <AdminMatchCard
                   match={m}
-                  onClick={() => {
-                    const sideA = m.sides?.find(s => s.side === 'SIDE_A');
-                    const sideB = m.sides?.find(s => s.side === 'SIDE_B');
-                    setSelectedMatch(m);
-                    setScoreForm({ side_a_score: sideA?.score ?? 0, side_b_score: sideB?.score ?? 0 });
-                  }}
+                  onClick={() => openMatchDetail(m)}
                   onStart={m.status === 'SCHEDULED' ? () => handleStartMatch(m.id) : undefined}
                 />
               </motion.div>
@@ -584,7 +791,16 @@ export default function MatchManager() {
                   </select></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Round *</label>
-                    <input value={form.round} onChange={e => setForm(p => ({ ...p, round: e.target.value }))} placeholder="e.g. Final" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
+                    <input value={form.round} onChange={e => setForm(p => ({ ...p, round: e.target.value }))} placeholder="e.g. Final" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {VEX_MATCH_ROUNDS.map(r => (
+                        <button key={r} type="button" onClick={() => setForm(p => ({ ...p, round: r }))}
+                          className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all ${form.round === r ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Rounds to create</label>
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map(n => (
@@ -608,10 +824,16 @@ export default function MatchManager() {
                       {teams.filter(t => !form.tournament || t.tournament === form.tournament).map(t => {
                         const checked = form.side_a_teams.includes(t.id);
                         const onB = form.side_b_teams.includes(t.id);
+                        const sideFull = !checked && form.side_a_teams.length >= TEAMS_PER_ALLIANCE;
                         return (
-                          <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${checked ? 'bg-red-50 text-red-700 ring-1 ring-red-200' : onB ? 'bg-slate-100 text-slate-400 line-through' : 'hover:bg-slate-100 text-slate-600'}`}>
-                            <input type="checkbox" checked={checked} disabled={onB}
-                              onChange={() => setForm(p => ({ ...p, side_a_teams: checked ? p.side_a_teams.filter(x => x !== t.id) : [...p.side_a_teams, t.id] }))} />
+                          <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${checked ? 'bg-red-50 text-red-700 ring-1 ring-red-200' : onB || sideFull ? 'bg-slate-100 text-slate-400' : 'hover:bg-slate-100 text-slate-600'} ${onB ? 'line-through' : ''}`}>
+                            <input type="checkbox" checked={checked} disabled={onB || sideFull}
+                              onChange={() => setForm(p => ({
+                                ...p,
+                                side_a_teams: checked
+                                  ? p.side_a_teams.filter(x => x !== t.id)
+                                  : p.side_a_teams.length >= TEAMS_PER_ALLIANCE ? p.side_a_teams : [...p.side_a_teams, t.id],
+                              }))} />
                             {t.team_name}
                           </label>
                         );
@@ -629,10 +851,16 @@ export default function MatchManager() {
                       {teams.filter(t => !form.tournament || t.tournament === form.tournament).map(t => {
                         const checked = form.side_b_teams.includes(t.id);
                         const onA = form.side_a_teams.includes(t.id);
+                        const sideFull = !checked && form.side_b_teams.length >= TEAMS_PER_ALLIANCE;
                         return (
-                          <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${checked ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : onA ? 'bg-slate-100 text-slate-400 line-through' : 'hover:bg-slate-100 text-slate-600'}`}>
-                            <input type="checkbox" checked={checked} disabled={onA}
-                              onChange={() => setForm(p => ({ ...p, side_b_teams: checked ? p.side_b_teams.filter(x => x !== t.id) : [...p.side_b_teams, t.id] }))} />
+                          <label key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs font-medium ${checked ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : onA || sideFull ? 'bg-slate-100 text-slate-400' : 'hover:bg-slate-100 text-slate-600'} ${onA ? 'line-through' : ''}`}>
+                            <input type="checkbox" checked={checked} disabled={onA || sideFull}
+                              onChange={() => setForm(p => ({
+                                ...p,
+                                side_b_teams: checked
+                                  ? p.side_b_teams.filter(x => x !== t.id)
+                                  : p.side_b_teams.length >= TEAMS_PER_ALLIANCE ? p.side_b_teams : [...p.side_b_teams, t.id],
+                              }))} />
                             {t.team_name}
                           </label>
                         );
@@ -820,9 +1048,9 @@ export default function MatchManager() {
               {/* Times */}
               <motion.div layout className="grid grid-cols-3 gap-3 mb-6">
                 {[
-                  { icon: Calendar, label: 'Scheduled', value: selectedMatch.scheduled_at?.slice(0, 16) || '—' },
-                  { icon: selectedMatch.status === 'LIVE' ? Timer : Clock, label: 'Started', value: selectedMatch.started_at?.slice(0, 16) || '—' },
-                  { icon: CheckCircle, label: 'Completed', value: selectedMatch.completed_at?.slice(0, 16) || '—' },
+                  { icon: Calendar, label: 'Scheduled', value: formatMatchDateTime(selectedMatch.scheduled_at) },
+                  { icon: selectedMatch.status === 'LIVE' ? Timer : Clock, label: 'Started', value: formatMatchDateTime(selectedMatch.started_at) },
+                  { icon: CheckCircle, label: 'Completed', value: formatMatchDateTime(selectedMatch.completed_at) },
                 ].map((m, i) => {
                   const MIcon = m.icon;
                   const isActive = (i === 1 && selectedMatch.status === 'LIVE') || (i === 2 && selectedMatch.status === 'COMPLETED');
@@ -865,7 +1093,12 @@ export default function MatchManager() {
                         <span className="text-[9px] text-slate-400 font-normal">(max {TEAMS_PER_ALLIANCE} per side)</span>
                       </h4>
                       <span className="text-[9px] text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
-                        {teams.filter(t => t.tournament === selectedMatch.tournament).length} available
+                        {(() => {
+                          const assigned = new Set(
+                            (selectedMatch.sides || []).flatMap(s => (s.participants || []).map(p => p.tournament_team))
+                          );
+                          return teams.filter(t => t.tournament === selectedMatch.tournament && !assigned.has(t.id)).length;
+                        })()} available
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -878,7 +1111,13 @@ export default function MatchManager() {
                       </div>
                       <select value={assignForm.tournament_team} onChange={e => setAssignForm(p => ({ ...p, tournament_team: e.target.value }))} className="flex-1 min-w-[160px] px-3 py-2 bg-white border border-brand-border rounded-lg text-xs">
                         <option value="">Pick a team...</option>
-                        {teams.filter(t => t.tournament === selectedMatch.tournament).map(t => <option key={t.id} value={t.id}>{t.team_name}</option>)}
+                        {teams.filter(t => {
+                          if (t.tournament !== selectedMatch.tournament) return false;
+                          const assigned = new Set(
+                            (selectedMatch.sides || []).flatMap(s => (s.participants || []).map(p => p.tournament_team))
+                          );
+                          return !assigned.has(t.id);
+                        }).map(t => <option key={t.id} value={t.id}>{t.team_name}</option>)}
                       </select>
                       <motion.button
                         whileHover={assignForm.tournament_team ? { scale: 1.03 } : {}}
@@ -920,21 +1159,23 @@ export default function MatchManager() {
                     <div className="flex items-center gap-4 mb-4">
                       <div className="flex-1 text-center">
                         <div className="text-[9px] font-black uppercase tracking-wider text-red-600 mb-1">{VEX_ALLIANCE_CONFIG.redLabel} Alliance</div>
-                        <div className="relative">
-                          <div className="w-full bg-red-50 border-2 border-red-200 rounded-2xl overflow-hidden">
-                            <input type="number" value={scoreForm.side_a_score}
-                              onChange={e => setScoreForm(p => ({ ...p, side_a_score: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        <div className="relative flex items-center gap-1">
+                          <button type="button" aria-label="Decrease red score"
+                            onClick={() => setScoreForm(p => ({ ...p, side_a_score: clampScore(p.side_a_score - 1) }))}
+                            className="w-9 h-9 rounded-xl bg-red-100 text-red-700 flex items-center justify-center hover:bg-red-200 shrink-0">
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <div className="flex-1 bg-red-50 border-2 border-red-200 rounded-2xl overflow-hidden">
+                            <input type="number" min={0} max={SCORE_MAX} value={scoreForm.side_a_score}
+                              onChange={e => setScoreForm(p => ({ ...p, side_a_score: clampScore(parseInt(e.target.value, 10)) }))}
                               className="w-full text-center text-4xl font-black py-4 bg-transparent text-red-700 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                           </div>
-                          <motion.div
-                            key={scoreForm.side_a_score}
-                            initial={{ scale: 1.3, opacity: 0.5 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-lg"
-                          >
-                            {scoreForm.side_a_score}
-                          </motion.div>
+                          <button type="button" aria-label="Increase red score"
+                            onClick={() => setScoreForm(p => ({ ...p, side_a_score: clampScore(p.side_a_score + 1) }))}
+                            className="w-9 h-9 rounded-xl bg-red-100 text-red-700 flex items-center justify-center hover:bg-red-200 shrink-0">
+                            <Plus className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -944,21 +1185,23 @@ export default function MatchManager() {
 
                       <div className="flex-1 text-center">
                         <div className="text-[9px] font-black uppercase tracking-wider text-blue-600 mb-1">{VEX_ALLIANCE_CONFIG.blueLabel} Alliance</div>
-                        <div className="relative">
-                          <div className="w-full bg-blue-50 border-2 border-blue-200 rounded-2xl overflow-hidden">
-                            <input type="number" value={scoreForm.side_b_score}
-                              onChange={e => setScoreForm(p => ({ ...p, side_b_score: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        <div className="relative flex items-center gap-1">
+                          <button type="button" aria-label="Decrease blue score"
+                            onClick={() => setScoreForm(p => ({ ...p, side_b_score: clampScore(p.side_b_score - 1) }))}
+                            className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center hover:bg-blue-200 shrink-0">
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <div className="flex-1 bg-blue-50 border-2 border-blue-200 rounded-2xl overflow-hidden">
+                            <input type="number" min={0} max={SCORE_MAX} value={scoreForm.side_b_score}
+                              onChange={e => setScoreForm(p => ({ ...p, side_b_score: clampScore(parseInt(e.target.value, 10)) }))}
                               className="w-full text-center text-4xl font-black py-4 bg-transparent text-blue-700 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                           </div>
-                          <motion.div
-                            key={scoreForm.side_b_score}
-                            initial={{ scale: 1.3, opacity: 0.5 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-lg"
-                          >
-                            {scoreForm.side_b_score}
-                          </motion.div>
+                          <button type="button" aria-label="Increase blue score"
+                            onClick={() => setScoreForm(p => ({ ...p, side_b_score: clampScore(p.side_b_score + 1) }))}
+                            className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center hover:bg-blue-200 shrink-0">
+                            <Plus className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -968,14 +1211,26 @@ export default function MatchManager() {
                         <span className={`w-2 h-2 rounded-full ${selectedMatch.status === 'LIVE' ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
                         {selectedMatch.status === 'LIVE' ? 'Match in progress — scores update live' : 'Set scores before completing'}
                       </div>
-                      <motion.button
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={handleRecordScores}
-                        className="px-6 py-2.5 bg-gradient-to-r from-brand-red to-brand-red-dark text-white text-xs font-black rounded-xl shadow-lg shadow-brand-red/25 flex items-center gap-1.5"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Save Scores
-                      </motion.button>
+                      <div className="flex items-center gap-2">
+                        {undoScores?.matchId === selectedMatch.id && (
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={handleUndoScores}
+                            className="px-4 py-2.5 bg-slate-100 text-slate-700 text-xs font-black rounded-xl flex items-center gap-1.5 hover:bg-slate-200"
+                          >
+                            <RotateCcw className="w-4 h-4" /> Undo
+                          </motion.button>
+                        )}
+                        <motion.button
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleRecordScores}
+                          className="px-6 py-2.5 bg-gradient-to-r from-brand-red to-brand-red-dark text-white text-xs font-black rounded-xl shadow-lg shadow-brand-red/25 flex items-center gap-1.5"
+                        >
+                          <CheckCircle className="w-4 h-4" /> Save Scores
+                        </motion.button>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1046,11 +1301,17 @@ export default function MatchManager() {
                 <div className="flex items-center gap-2">
                   <select value={standingsTournament} onChange={e => setStandingsTournament(e.target.value)}
                     className="px-3 py-1.5 bg-slate-50 border border-brand-border rounded-lg text-xs focus:outline-none focus:border-brand-red">
-                    <option value="">All tournaments</option>
+                    <option value="">Select tournament</option>
                     {tournaments.map((t: any) => (
                       <option key={t.id} value={t.id}>{t.event_title || t.event || t.id.slice(0, 8)}</option>
                     ))}
                   </select>
+                  {standingsData.length > 0 && (
+                    <button type="button" onClick={exportStandingsCsv}
+                      className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-black flex items-center gap-1 hover:bg-emerald-100">
+                      <Download className="w-3.5 h-3.5" /> CSV
+                    </button>
+                  )}
                   <button onClick={() => setShowStandings(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>
                 </div>
               </div>

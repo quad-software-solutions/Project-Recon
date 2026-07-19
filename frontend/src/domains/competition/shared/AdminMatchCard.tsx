@@ -4,6 +4,13 @@ import type { BackendMatch } from '../api/eventsApi';
 import VexAllianceDisplay, { sidesFromMatch } from './VexAllianceDisplay';
 import { getSideTeamNames } from './vexAllianceUtils';
 
+function formatCardDateTime(iso?: string | null) {
+  if (!iso) return 'TBD';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 interface AdminMatchCardProps {
   match: BackendMatch;
   onClick?: () => void;
@@ -77,7 +84,7 @@ export default function AdminMatchCard({ match, onClick, onStart, compact = fals
 
       <div className="px-4 py-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
         <span className="flex items-center gap-3">
-          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{match.scheduled_at?.slice(0, 16) || 'TBD'}</span>
+          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatCardDateTime(match.scheduled_at)}</span>
           <span className="flex items-center gap-1"><Users className="w-3 h-3" />{totalTeams}/4 teams</span>
         </span>
         {isScheduled && onStart && (

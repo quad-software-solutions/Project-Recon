@@ -227,7 +227,7 @@ export default function VexAllianceDisplay({
   );
 }
 
-export function sidesFromMatch(sides: { side: 'SIDE_A' | 'SIDE_B'; score: number; teams: string[] }[]) {
+export function sidesFromMatch(sides: { side: 'SIDE_A' | 'SIDE_B'; score: number | null; teams: string[] }[]) {
   const sideA = sides.find(s => s.side === 'SIDE_A');
   const sideB = sides.find(s => s.side === 'SIDE_B');
   return {
