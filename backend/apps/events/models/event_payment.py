@@ -2,10 +2,14 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator, MaxValueValidator
 from django.db import models
 
 from apps.events.constants import PaymentMethod, PaymentStatus
+from apps.shared.validators import UploadedFileValidator
+
+
+def payment_attachment_upload_to(instance, filename):
+    return f"payment_attachments/{uuid.uuid4().hex}/{filename}"
 
 
 class EventPayment(models.Model):
@@ -29,15 +33,10 @@ class EventPayment(models.Model):
     )
     bank_name = models.CharField(max_length=255, blank=True, default="")
     attachment = models.FileField(
-        upload_to="payment_attachments/",
+        upload_to=payment_attachment_upload_to,
         null=True,
         blank=True,
-        validators=[
-            FileExtensionValidator(
-                allowed_extensions=["pdf", "png", "jpg", "jpeg", "gif"]
-            ),
-            MaxValueValidator(5 * 1024 * 1024),  # 5MB
-        ],
+        validators=[UploadedFileValidator()],
     )
     payment_date = models.DateTimeField(null=True, blank=True, db_index=True)
     status = models.CharField(

@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 
 from apps.events.constants import EventStatus, EventType, Visibility, RegistrationMode
+from apps.shared.validators import UploadedFileValidator
 
 
 def event_banner_upload_to(instance, filename):
@@ -21,7 +22,10 @@ class Event(models.Model):
     )
     title = models.CharField(max_length=255, db_index=True)
     description = models.TextField()
-    banner = models.ImageField(upload_to=event_banner_upload_to, null=True, blank=True)
+    banner = models.ImageField(
+        upload_to=event_banner_upload_to, null=True, blank=True,
+        validators=[UploadedFileValidator()],
+    )
     location = models.CharField(max_length=255)
     event_type = models.CharField(
         max_length=20,
