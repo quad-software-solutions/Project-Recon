@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.accounts.models import Branch
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_branch_manager
 from apps.store.models import BranchInventory, Product
 
 
@@ -83,6 +84,12 @@ def transfer_inventory(
         raise ValidationError("Quantity must be greater than zero.")
     if from_branch == to_branch:
         raise ValidationError("Source and destination branches must be different.")
+    if actor and actor.is_authenticated and user_is_branch_manager(actor):
+        allowed = get_active_branch_ids(actor)
+        if from_branch.id not in allowed or to_branch.id not in allowed:
+            raise ValidationError(
+                "You can only transfer between your assigned branches."
+            )
     with transaction.atomic():
         source = reduce_inventory(from_branch, product, quantity, actor=actor)
         dest = add_inventory(to_branch, product, quantity, actor=actor)

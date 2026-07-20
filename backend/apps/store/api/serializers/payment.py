@@ -15,6 +15,15 @@ class PaymentEvidenceSerializer(serializers.Serializer):
     )
     attachment = serializers.FileField(required=False, allow_null=True)
 
+    def validate(self, attrs):
+        if attrs.get("payment_method") != PaymentMethod.CASH:
+            if not attrs.get("transaction_reference") and not attrs.get("attachment"):
+                raise serializers.ValidationError(
+                    "At least a transaction reference or payment attachment "
+                    "is required for non-cash payments."
+                )
+        return attrs
+
 
 class StorePaymentSerializer(serializers.ModelSerializer):
     payment_method_display = serializers.CharField(

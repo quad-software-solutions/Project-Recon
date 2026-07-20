@@ -89,19 +89,20 @@ def submit_payment_evidence(
         except PendingOrder.DoesNotExist:
             raise NotFound("Pending order not found.")
 
-    if hasattr(pending_order, "payment"):
-        logger.warning(
-            "Concurrent payment submission attempt on pending order %s",
-            pending_order.pk,
-        )
-        raise ValidationError("This pending order already has a payment record.")
-
     if amount <= 0:
         raise ValidationError("Payment amount must be greater than zero.")
 
     with transaction.atomic():
+        po = PendingOrder.objects.select_for_update().select_related("payment").get(pk=pending_order.pk)
+        if hasattr(po, "payment"):
+            logger.warning(
+                "Concurrent payment submission attempt on pending order %s",
+                po.pk,
+            )
+            raise ValidationError("This pending order already has a payment record.")
+
         payment = StorePayment(
-            pending_order=pending_order,
+            pending_order=po,
             amount=amount,
             payment_method=payment_method,
             transaction_reference=transaction_reference or "",
@@ -148,17 +149,24 @@ def record_cash_payment(pending_order, amount, actor=None, payment_date=None):
         except PendingOrder.DoesNotExist:
             raise NotFound("Pending order not found.")
 
-    if hasattr(pending_order, "payment"):
-        raise ValidationError("This pending order already has a payment record.")
-
     if amount <= 0:
         raise ValidationError("Payment amount must be greater than zero.")
+
+    if amount != pending_order.total:
+        logger.warning(
+            "Cash payment amount %.2f does not match pending order total %.2f for order %s",
+            amount, pending_order.total, pending_order.pk,
+        )
 
     now = timezone.now()
 
     with transaction.atomic():
+        po = PendingOrder.objects.select_for_update().select_related("payment").get(pk=pending_order.pk)
+        if hasattr(po, "payment"):
+            raise ValidationError("This pending order already has a payment record.")
+
         payment = StorePayment(
-            pending_order=pending_order,
+            pending_order=po,
             amount=amount,
             payment_method=PaymentMethod.CASH,
             status=PaymentStatus.VERIFIED,
@@ -178,7 +186,7 @@ def record_cash_payment(pending_order, amount, actor=None, payment_date=None):
 
     from apps.store.services.order_service import create_order_from_pending_order
 
-    create_order_from_pending_order(pending_order, actor=actor)
+    create_order_from_pending_order(po, actor=actor)
 
     return payment
 
