@@ -7,10 +7,14 @@ from apps.store.api.auth_helpers import check_pending_order_access, verify_cart_
 from apps.store.api.serializers.checkout import (
     CheckoutInputSerializer,
     PendingOrderSerializer,
+    VerifyEmailSerializer,
 )
 from apps.store.models.pending_order import PendingOrder
 from apps.store.services.checkout_service import checkout
-from apps.store.services.pending_order_service import get_pending_order_or_404
+from apps.store.services.pending_order_service import (
+    get_pending_order_or_404,
+    verify_guest_email,
+)
 from apps.store.services.shopping_cart_service import get_or_create_cart
 
 
@@ -84,3 +88,17 @@ class PendingOrderDetailView(generics.GenericAPIView):
         check_pending_order_access(order, request)
         serializer = PendingOrderSerializer(order)
         return Response(serializer.data)
+
+
+class PendingOrderVerifyEmailView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = VerifyEmailSerializer
+    throttle_scope = "store_public"
+
+    def post(self, request, *args, **kwargs):
+        order = get_pending_order_or_404(self.kwargs["pk"])
+        check_pending_order_access(order, request)
+        serializer = VerifyEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        verify_guest_email(order, serializer.validated_data["otp"])
+        return Response({"detail": "Email verified successfully."})

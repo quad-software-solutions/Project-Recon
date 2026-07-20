@@ -1,3 +1,5 @@
+import logging
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
@@ -6,7 +8,10 @@ from apps.shared.audit.services import log_action
 from apps.store.constants import PaymentMethod, PaymentStatus
 from apps.store.models.payment import StorePayment
 from apps.store.models.pending_order import PendingOrder
+from apps.store.services.branch_inventory_service import validate_stock
 from apps.store.services.pending_order_service import cancel_pending_order
+
+logger = logging.getLogger(__name__)
 
 
 def get_payment_or_404(pk):
@@ -85,6 +90,10 @@ def submit_payment_evidence(
             raise NotFound("Pending order not found.")
 
     if hasattr(pending_order, "payment"):
+        logger.warning(
+            "Concurrent payment submission attempt on pending order %s",
+            pending_order.pk,
+        )
         raise ValidationError("This pending order already has a payment record.")
 
     if amount <= 0:
@@ -202,6 +211,33 @@ def verify_payment(pending_order, actor, verification_notes=""):
         )
 
     now = timezone.now()
+    from apps.store.models import BranchInventory
+
+    shortages = []
+    for poi in pending_order.items.select_related("product"):
+        available = 0
+        inv = BranchInventory.objects.filter(
+            branch=pending_order.branch, product=poi.product
+        ).first()
+        if inv:
+            available = inv.quantity
+        if poi.quantity > available:
+            shortages.append({
+                "product": poi.product.name,
+                "sku": poi.product.sku,
+                "requested": poi.quantity,
+                "available": available,
+            })
+
+    if shortages:
+        logger.warning(
+            "Insufficient stock for pending order %s: %s",
+            pending_order.pk, shortages,
+        )
+        raise ValidationError({
+            "insufficient_stock": shortages,
+            "message": "Some items are out of stock. Please reject this payment.",
+        })
 
     with transaction.atomic():
         payment.status = PaymentStatus.VERIFIED
@@ -258,6 +294,11 @@ def reject_payment(pending_order, actor, verification_notes):
         raise ValidationError(
             "Verification notes are required when rejecting a payment."
         )
+
+    logger.warning(
+        "Payment %s rejected by %s: %s",
+        payment.id, actor, verification_notes,
+    )
 
     with transaction.atomic():
         payment.status = PaymentStatus.REJECTED

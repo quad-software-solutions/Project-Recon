@@ -1,8 +1,14 @@
+import os
 import uuid
 
 from django.db import models
 
 from apps.store.models.product import Product
+
+
+def _product_image_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return f"store/products/{instance.pk}{ext}"
 
 
 class ProductImage(models.Model):
@@ -12,7 +18,7 @@ class ProductImage(models.Model):
         on_delete=models.CASCADE,
         related_name="images",
     )
-    image = models.ImageField(upload_to="store/products/")
+    image = models.ImageField(upload_to=_product_image_path)
     alt_text = models.CharField(max_length=255, blank=True, null=True)
     is_primary = models.BooleanField(default=False)
     display_order = models.IntegerField(default=0)

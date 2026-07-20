@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from django.conf import settings
@@ -6,6 +7,11 @@ from django.db import models
 
 from apps.store.constants import PaymentMethod, PaymentStatus
 from apps.store.models.pending_order import PendingOrder
+
+
+def _payment_attachment_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return f"payment_attachments/{instance.pk}{ext}"
 
 
 class StorePayment(models.Model):
@@ -27,7 +33,7 @@ class StorePayment(models.Model):
     )
     bank_name = models.CharField(max_length=255, blank=True, default="")
     attachment = models.FileField(
-        upload_to="payment_attachments/", null=True, blank=True
+        upload_to=_payment_attachment_path, null=True, blank=True
     )
     status = models.CharField(
         max_length=20,

@@ -36,6 +36,7 @@ from .product_image import (
 from .checkout import (
     CheckoutView,
     PendingOrderDetailView,
+    PendingOrderVerifyEmailView,
 )
 from .order import (
     AdminOrderDetailView,
@@ -102,6 +103,7 @@ __all__ = [
     "CartClearView",
     "CheckoutView",
     "PendingOrderDetailView",
+    "PendingOrderVerifyEmailView",
     "PaymentEvidenceSubmitView",
     "AdminPaymentListView",
     "AdminPaymentVerifyView",

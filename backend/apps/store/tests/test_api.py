@@ -1,6 +1,8 @@
 import uuid
+from datetime import timedelta
 
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework.throttling import SimpleRateThrottle
@@ -28,6 +30,10 @@ class StoreApiTestCase(APITestCase):
         SimpleRateThrottle.THROTTLE_RATES = {
             **SimpleRateThrottle.THROTTLE_RATES,
             "anon_login": "1000/min",
+            "store_public": "1000/min",
+            "store_cart": "1000/min",
+            "store_checkout": "1000/min",
+            "store_admin": "1000/min",
         }
 
         self.password = "StrongP@ssw0rd!2026"
@@ -1332,6 +1338,9 @@ class StoreApiTestCase(APITestCase):
         pending_id = resp.data["id"]
         access_token = resp.data["access_token"]
 
+        from apps.store.models.pending_order import PendingOrder
+        PendingOrder.objects.filter(pk=pending_id).update(email_verified=True)
+
         resp = self.client.post(
             f"{self.base_url}/pending-orders/{pending_id}/evidence/",
             {
@@ -1343,6 +1352,154 @@ class StoreApiTestCase(APITestCase):
             **{"HTTP_X_ORDER_TOKEN": str(access_token)},
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+    # --- OWASP A07: Guest Email Verification ---
+
+    def test_guest_email_verification_success(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="email-verify-test")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "email-verify-test"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Email Verify",
+                "guest_email": "email.verify@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "email-verify-test",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        from django.contrib.auth.hashers import check_password
+        from apps.store.models.pending_order import PendingOrder
+        po = PendingOrder.objects.get(pk=pending_id)
+        self.assertFalse(po.email_verified)
+        self.assertIsNotNone(po.email_verification_otp)
+        self.assertIsNotNone(po.email_verification_otp_expiry)
+
+        from django.utils.crypto import get_random_string
+        from django.contrib.auth.hashers import make_password
+        known_otp = "123456"
+        po.email_verification_otp = make_password(known_otp)
+        po.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        po.save()
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/verify-email/",
+            {"otp": known_otp},
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        po.refresh_from_db()
+        self.assertTrue(po.email_verified)
+        self.assertIsNone(po.email_verification_otp)
+        self.assertIsNone(po.email_verification_otp_expiry)
+
+    def test_guest_email_verification_wrong_otp(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="email-wrong-otp")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "email-wrong-otp"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Wrong OTP",
+                "guest_email": "wrong.otp@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "email-wrong-otp",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        from django.utils.crypto import get_random_string
+        from django.contrib.auth.hashers import make_password
+        known_otp = "654321"
+        from apps.store.models.pending_order import PendingOrder
+        PendingOrder.objects.filter(pk=pending_id).update(
+            email_verification_otp=make_password(known_otp),
+            email_verification_otp_expiry=timezone.now() + timedelta(minutes=10),
+        )
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/verify-email/",
+            {"otp": "000000"},
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_evidence_submit_unverified_email_blocked(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="unverified-evid")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "unverified-evid"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Unverified",
+                "guest_email": "unverified@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "unverified-evid",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/evidence/",
+            {
+                "amount": 99.99,
+                "payment_method": "MOBILE_MONEY",
+                "transaction_reference": "MM-UNVERIFIED",
+            },
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     # --- Auth Fix: Cart Write Token (Finding 5) ---
 

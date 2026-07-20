@@ -92,3 +92,7 @@ class CheckoutInputSerializer(serializers.Serializer):
                     "Guest email is required for guest checkout."
                 )
         return attrs
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    otp = serializers.CharField(max_length=6, min_length=6)

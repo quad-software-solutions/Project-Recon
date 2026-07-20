@@ -1,5 +1,5 @@
 from rest_framework import generics, status
-from rest_framework.exceptions import NotFound as DRFNotFound
+from rest_framework.exceptions import NotFound as DRFNotFound, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -33,6 +33,12 @@ class PaymentEvidenceSubmitView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         pending_order = get_pending_order_or_404(kwargs["pending_order_pk"])
         check_pending_order_access(pending_order, request)
+
+        if pending_order.guest_email and not pending_order.email_verified:
+            raise ValidationError(
+                "Please verify your email before submitting payment evidence."
+            )
+
         serializer = PaymentEvidenceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
