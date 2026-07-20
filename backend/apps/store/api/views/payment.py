@@ -5,6 +5,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions.roles import get_active_branch_ids, user_is_branch_manager, user_is_super_admin
 from apps.store.api.auth_helpers import check_pending_order_access, filter_by_branch
+from apps.store.api.pagination import StoreAdminPagination
 from apps.store.api.permissions import IsStoreStaff, IsStoreStaffOrManager
 from apps.store.api.serializers.payment import (
     PaymentCashSerializer,
@@ -62,6 +63,7 @@ class PaymentEvidenceSubmitView(generics.GenericAPIView):
 class AdminPaymentListView(generics.GenericAPIView):
     permission_classes = [IsStoreStaffOrManager]
     serializer_class = StorePaymentSerializer
+    pagination_class = StoreAdminPagination
     throttle_scope = "store_admin"
 
     def get(self, request, *args, **kwargs):
@@ -74,6 +76,10 @@ class AdminPaymentListView(generics.GenericAPIView):
             payments = payments.filter(
                 pending_order__branch_id__in=get_active_branch_ids(request.user)
             )
+        page = self.paginate_queryset(payments)
+        if page is not None:
+            serializer = StorePaymentSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = StorePaymentSerializer(payments, many=True)
         return Response(serializer.data)
 

@@ -10,6 +10,7 @@ from apps.accounts.permissions.roles import (
     user_is_branch_manager,
     user_is_super_admin,
 )
+from apps.store.api.pagination import StoreAdminPagination, StorePublicPagination
 from apps.store.api.permissions import IsStoreInventoryStaff
 from apps.store.api.serializers import (
     BranchInventoryAdminSerializer,
@@ -35,6 +36,7 @@ from apps.store.services.product_service import get_product_or_404
 class PublicBranchInventoryListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = BranchInventorySerializer
+    pagination_class = StorePublicPagination
     throttle_scope = "store_public"
 
     @extend_schema(
@@ -62,6 +64,7 @@ class PublicBranchInventoryListView(generics.ListAPIView):
 class PublicProductAvailabilityView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = BranchInventorySerializer
+    pagination_class = StorePublicPagination
     throttle_scope = "store_public"
 
     @extend_schema(tags=["Store - Inventory"])
@@ -73,6 +76,7 @@ class PublicProductAvailabilityView(generics.ListAPIView):
 class AdminInventoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = BranchInventoryAdminSerializer
+    pagination_class = StoreAdminPagination
     throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Inventory"])

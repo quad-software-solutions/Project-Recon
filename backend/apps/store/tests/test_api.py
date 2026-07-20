@@ -89,7 +89,7 @@ class StoreApiTestCase(APITestCase):
     def test_public_list_categories(self):
         resp = self.client.get(f"{self.base_url}/categories/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [c["name"] for c in resp.data]
+        names = [cat["name"] for cat in resp.data["results"]]
         self.assertIn("Electronics", names)
         self.assertNotIn("Discontinued", names)
 
@@ -109,7 +109,7 @@ class StoreApiTestCase(APITestCase):
     def test_public_list_products(self):
         resp = self.client.get(f"{self.base_url}/products/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [p["name"] for p in resp.data]
+        names = [p["name"] for p in resp.data["results"]]
         self.assertIn("Robot Kit", names)
         self.assertNotIn("Old Kit", names)
 
@@ -157,7 +157,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/categories/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [c["name"] for c in resp.data]
+        names = [c["name"] for c in resp.data["results"]]
         self.assertIn("Electronics", names)
         self.assertIn("Discontinued", names)
 
@@ -224,7 +224,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/products/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [p["name"] for p in resp.data]
+        names = [p["name"] for p in resp.data["results"]]
         self.assertIn("Robot Kit", names)
         self.assertIn("Old Kit", names)
 
@@ -289,7 +289,7 @@ class StoreApiTestCase(APITestCase):
         )
         self.client.credentials()
         resp = self.client.get(f"{self.base_url}/products/")
-        names = [p["name"] for p in resp.data]
+        names = [p["name"] for p in resp.data["results"]]
         self.assertNotIn("Old Kit", names)
 
     # --- Public Inventory Endpoints ---
@@ -302,8 +302,8 @@ class StoreApiTestCase(APITestCase):
             f"{self.base_url}/inventory/?branch={self.branch.pk}"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["quantity"], 10)
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["quantity"], 10)
 
     def test_public_list_inventory_missing_branch(self):
         resp = self.client.get(f"{self.base_url}/inventory/")
@@ -317,7 +317,7 @@ class StoreApiTestCase(APITestCase):
             f"{self.base_url}/inventory/availability/{self.product.pk}/"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(len(resp.data["results"]), 1)
 
     # --- Admin Inventory Endpoints ---
 
@@ -342,7 +342,7 @@ class StoreApiTestCase(APITestCase):
         add_inventory(self.branch, self.product, 15)
         resp = self.client.get(f"{self.base_url}/admin/inventory/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(resp.data), 1)
+        self.assertGreaterEqual(len(resp.data["results"]), 1)
 
     def test_admin_inventory_branch_manager_can_access(self):
         self._auth(self.branch_manager)
@@ -781,8 +781,8 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/payments/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["status"], "PENDING_VERIFICATION")
+        self.assertGreaterEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["status"], "PENDING_VERIFICATION")
 
     def test_admin_payment_list_filters_by_status(self):
         from apps.store.services.branch_inventory_service import add_inventory
@@ -809,7 +809,7 @@ class StoreApiTestCase(APITestCase):
             f"{self.base_url}/admin/payments/?status=VERIFIED"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 0)
+        self.assertEqual(len(resp.data["results"]), 0)
 
     def test_admin_payment_list_forbidden_for_student(self):
         self._auth(self.student)
@@ -992,7 +992,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/orders/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(resp.data), 1)
+        self.assertGreaterEqual(len(resp.data["results"]), 1)
 
     def test_admin_order_list_forbidden(self):
         self._create_paid_pending_order()
@@ -1051,7 +1051,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.student)
         resp = self.client.get(f"{self.base_url}/orders/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        order_ids = [o["id"] for o in resp.data]
+        order_ids = [o["id"] for o in resp.data["results"]]
         self.assertIn(str(order.pk), order_ids)
 
     def test_user_order_list_unauthenticated(self):
@@ -1628,7 +1628,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(other_manager)
         resp = self.client.get(f"{self.base_url}/admin/orders/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 0)
+        self.assertEqual(len(resp.data["results"]), 0)
 
     def test_student_still_blocked_from_admin_orders(self):
         self._create_paid_pending_order()

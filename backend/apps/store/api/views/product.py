@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.store.api.pagination import StoreAdminPagination, StorePublicPagination
 from apps.store.api.permissions import IsStoreStaff
 from apps.store.api.serializers import (
     ProductAdminSerializer,
@@ -24,6 +25,7 @@ from apps.store.services.product_service import (
 class PublicProductListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = ProductSerializer
+    pagination_class = StorePublicPagination
     throttle_scope = "store_public"
 
     @extend_schema(tags=["Store - Products"])
@@ -45,6 +47,7 @@ class PublicProductDetailView(generics.RetrieveAPIView):
 class AdminProductListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
+    pagination_class = StoreAdminPagination
     throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Products"])

@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from apps.store.api.pagination import StoreAdminPagination
 from apps.store.api.permissions import IsStoreStaff
 from apps.store.api.serializers import (
     ImageReorderSerializer,
@@ -46,6 +47,7 @@ class AdminProductImageUploadView(generics.CreateAPIView):
 class AdminProductImageListView(generics.ListAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductImageAdminSerializer
+    pagination_class = StoreAdminPagination
     throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Product Images"])

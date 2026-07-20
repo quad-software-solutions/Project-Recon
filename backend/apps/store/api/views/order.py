@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.store.api.auth_helpers import filter_by_branch
+from apps.store.api.pagination import StoreAdminPagination, StorePublicPagination
 from apps.store.api.permissions import IsStoreStaffOrManager
 from apps.store.api.serializers.order import (
     OrderSerializer,
@@ -19,6 +20,7 @@ from apps.store.services.order_service import (
 class AdminOrderListView(generics.ListAPIView):
     permission_classes = [IsStoreStaffOrManager]
     serializer_class = OrderSerializer
+    pagination_class = StoreAdminPagination
     throttle_scope = "store_admin"
 
     def get_queryset(self):
@@ -66,6 +68,7 @@ class AdminOrderStatusView(generics.GenericAPIView):
 class UserOrderListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderSerializer
+    pagination_class = StorePublicPagination
     throttle_scope = "store_cart"
 
     def get_queryset(self):

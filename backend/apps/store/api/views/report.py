@@ -21,6 +21,16 @@ INVENTORY_CSV = "inventory-report.csv"
 LOW_STOCK_CSV = "low-stock-report.csv"
 BRANCH_SALES_CSV = "branch-sales-report.csv"
 
+MAX_REPORT_LIMIT = 5000
+
+
+def _parse_limit(request):
+    try:
+        val = int(request.query_params.get("limit", 1000))
+        return min(max(val, 1), MAX_REPORT_LIMIT)
+    except (TypeError, ValueError):
+        return 1000
+
 
 class AdminProductStatisticsView(generics.GenericAPIView):
     permission_classes = [IsStoreStaffOrManager]
@@ -29,8 +39,9 @@ class AdminProductStatisticsView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         data = product_statistics()
         if request.query_params.get("export") == "csv":
+            limit = _parse_limit(request)
             rows = []
-            for cat in data["by_category"]:
+            for cat in data["by_category"][:limit]:
                 rows.append({
                     "category": cat["name"],
                     "total": cat["total_products"],
@@ -47,7 +58,8 @@ class AdminInventoryReportView(generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         branch_id = request.query_params.get("branch_id")
-        data = inventory_report(branch_id=branch_id)
+        limit = _parse_limit(request)
+        data = inventory_report(branch_id=branch_id, limit=limit)
         if request.query_params.get("export") == "csv":
             return to_csv_response(data, INVENTORY_CSV)
         return Response(data)
@@ -58,7 +70,8 @@ class AdminLowStockReportView(generics.GenericAPIView):
     throttle_scope = "store_admin"
 
     def get(self, request, *args, **kwargs):
-        data = low_stock_report()
+        limit = _parse_limit(request)
+        data = low_stock_report(limit=limit)
         qs = filter_by_branch(request.user, [])
         if request.query_params.get("export") == "csv":
             return to_csv_response(data, LOW_STOCK_CSV)
@@ -74,11 +87,13 @@ class AdminSalesReportView(generics.GenericAPIView):
         end_date = request.query_params.get("end_date")
         branch_id = request.query_params.get("branch_id")
         group_by = request.query_params.get("group_by", "day")
+        limit = _parse_limit(request)
         data = sales_report(
             start_date=start_date,
             end_date=end_date,
             branch_id=branch_id,
             group_by=group_by,
+            limit=limit,
         )
         if request.query_params.get("export") == "csv":
             return to_csv_response(data, SALES_CSV)
@@ -95,12 +110,14 @@ class AdminOrderReportView(generics.GenericAPIView):
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
         group_by = request.query_params.get("group_by", "day")
+        limit = _parse_limit(request)
         data = order_report(
             status=status,
             branch_id=branch_id,
             start_date=start_date,
             end_date=end_date,
             group_by=group_by,
+            limit=limit,
         )
         if request.query_params.get("export") == "csv":
             return to_csv_response(data, ORDERS_CSV)
@@ -114,9 +131,11 @@ class AdminBranchSalesReportView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         branch_id = request.query_params.get("branch_id")
         group_by = request.query_params.get("group_by", "month")
+        limit = _parse_limit(request)
         data = branch_sales_report(
             branch_id=branch_id,
             group_by=group_by,
+            limit=limit,
         )
         if request.query_params.get("export") == "csv":
             return to_csv_response(data, BRANCH_SALES_CSV)
