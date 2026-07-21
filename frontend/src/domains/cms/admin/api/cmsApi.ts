@@ -280,7 +280,8 @@ function toBackendPayload(endpoint: string, data: unknown): Record<string, unkno
     for (const [k, v] of Object.entries(result)) {
       if (typeof v === 'string' && v.startsWith('data:image/')) {
         const blob = dataURItoBlob(v);
-        fd.append(k, blob, 'upload.jpg');
+        const ext = blob.type.split('/')[1] || 'jpg';
+        fd.append(k, blob, `upload.${ext}`);
       } else if (v instanceof File || v instanceof Blob) {
         fd.append(k, v);
       } else if (v !== null && v !== undefined) {
