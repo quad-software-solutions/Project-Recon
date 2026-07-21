@@ -53,7 +53,7 @@ def get_session_or_404(pk):
     )
 
 
-def list_sessions(enrolled_class=None, date_from=None, date_to=None):
+def list_sessions(enrolled_class=None, date_from=None, date_to=None, branch_ids=None, instructor=None):
     qs = AttendanceSession.objects.select_related(
         "enrolled_class__sub_program__program",
         "enrolled_class__branch",
@@ -65,6 +65,10 @@ def list_sessions(enrolled_class=None, date_from=None, date_to=None):
         qs = qs.filter(session_date__gte=date_from)
     if date_to:
         qs = qs.filter(session_date__lte=date_to)
+    if branch_ids:
+        qs = qs.filter(enrolled_class__branch_id__in=branch_ids)
+    if instructor:
+        qs = qs.filter(enrolled_class__instructor=instructor)
     return qs
 
 

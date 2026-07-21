@@ -10,7 +10,10 @@ from apps.shared.audit.services import log_action
 
 
 def _validate_can_issue(actor, student, certificate):
+    from apps.academic.constants import EnrollmentStatus
+    from apps.academic.models import Enrollment
     from apps.accounts.permissions.roles import (
+        get_active_branch_ids,
         user_is_branch_manager,
         user_is_secretary,
         user_is_super_admin,
@@ -30,6 +33,22 @@ def _validate_can_issue(actor, student, certificate):
         raise DjangoValidationError(
             "A certificate has already been issued for this student and sub-program."
         )
+
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        enrolled_class__sub_program=certificate.sub_program,
+        status__in=[EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+    ).select_related("enrolled_class__branch")
+    if not enrollments.exists():
+        raise DjangoValidationError(
+            "Student is not enrolled in this sub-program."
+        )
+    if not user_is_super_admin(actor):
+        branch_ids = get_active_branch_ids(actor)
+        if not enrollments.filter(enrolled_class__branch_id__in=branch_ids).exists():
+            raise DjangoValidationError(
+                "Student's enrollment is not in a branch you manage."
+            )
 
 
 def generate_certificate_number(certificate):

@@ -78,6 +78,7 @@ class ClassSplitView(generics.GenericAPIView):
             source_class = get_object_or_404(ClassModel, pk=pk)
             check_branch_access(request.user, source_class.branch_id)
             target_class = get_active_class_or_404(data["target_class"])
+            check_branch_access(request.user, target_class.branch_id)
             moved_enrollments = bulk_move_enrollments(
                 request.user,
                 source_class=source_class,

@@ -162,9 +162,10 @@ class MaterialDownloadView(generics.GenericAPIView):
                 {"detail": "File not found on disk."}, status=status.HTTP_404_NOT_FOUND
             )
 
+        ext = os.path.splitext(material.file.name)[1]
         response = FileResponse(
             f,
             as_attachment=True,
-            filename=os.path.basename(material.file.name),
+            filename=f"{material.title}{ext}",
         )
         return response

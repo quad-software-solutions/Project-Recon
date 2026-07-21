@@ -10,6 +10,13 @@ from django.shortcuts import get_object_or_404
 from apps.academic.models import AttendanceSession, AttendanceRecord, Enrollment
 from apps.academic.models.class_model import Class as ClassModel
 from apps.academic.permissions.attendance import CanManageAttendance
+from apps.accounts.permissions.roles import (
+    get_active_branch_ids,
+    user_is_branch_manager,
+    user_is_instructor,
+    user_is_secretary,
+    user_is_super_admin,
+)
 from apps.academic.serializers import (
     AttendanceSessionSerializer,
     AttendanceSessionListSerializer,
@@ -44,10 +51,21 @@ class SessionListCreateView(generics.ListCreateAPIView):
         return AttendanceSessionSerializer
 
     def get_queryset(self):
+        user = self.request.user
+        branch_ids = None
+        instructor = None
+        if user_is_super_admin(user):
+            pass
+        elif user_is_instructor(user):
+            instructor = user
+        else:
+            branch_ids = get_active_branch_ids(user)
         return list_sessions(
             enrolled_class=self.request.query_params.get("enrolled_class"),
             date_from=self.request.query_params.get("date_from"),
             date_to=self.request.query_params.get("date_to"),
+            branch_ids=branch_ids,
+            instructor=instructor,
         )
 
     def perform_create(self, serializer):

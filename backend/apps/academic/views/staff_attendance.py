@@ -27,7 +27,11 @@ from apps.academic.services.staff_attendance_service import (
     delete_record,
     list_available_staff,
 )
-from apps.accounts.permissions.roles import user_manages_branch
+from apps.accounts.permissions.roles import (
+    get_active_branch_ids,
+    user_is_super_admin,
+    user_manages_branch,
+)
 
 
 def _check_branch_access(user, branch_id):
@@ -70,8 +74,20 @@ class SessionListCreateView(BranchAccessMixin, generics.ListCreateAPIView):
         return StaffAttendanceSessionSerializer
 
     def get_queryset(self):
+        user = self.request.user
+        branch_param = self.request.query_params.get("branch")
+        if user_is_super_admin(user):
+            branch = branch_param
+        else:
+            accessible = get_active_branch_ids(user)
+            if branch_param:
+                from uuid import UUID
+                branch_id = UUID(branch_param) if isinstance(branch_param, str) else branch_param
+                branch = branch_param if branch_id in accessible else None
+            else:
+                branch = accessible
         return list_sessions(
-            branch=self.request.query_params.get("branch"),
+            branch=branch,
             date_from=self.request.query_params.get("date_from"),
             date_to=self.request.query_params.get("date_to"),
             status=self.request.query_params.get("status"),

@@ -10,6 +10,7 @@ from apps.academic.constants import ProgressStatus as ProgressStatusChoice
 from apps.academic.models import LearningMilestone, StudentProgress, Enrollment
 from apps.academic.models.sub_program import SubProgram
 from apps.academic.models.class_model import Class as ClassModel
+from apps.academic.permissions.mixins import check_enrollment_branch_access
 from apps.academic.permissions.progress import CanManageProgress
 from apps.academic.serializers import (
     LearningMilestoneSerializer,
@@ -227,6 +228,7 @@ class ProgressHistoryView(generics.GenericAPIView):
 
     def get(self, request, enrollment_pk):
         enrollment = get_object_or_404(Enrollment, pk=enrollment_pk)
+        check_enrollment_branch_access(request.user, enrollment)
         records = get_progress_history(enrollment)
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -242,6 +244,7 @@ class ProgressSummaryView(generics.GenericAPIView):
 
     def get(self, request, enrollment_pk):
         enrollment = get_object_or_404(Enrollment, pk=enrollment_pk)
+        check_enrollment_branch_access(request.user, enrollment)
         summary = get_progress_summary(enrollment)
         serializer = self.get_serializer(summary)
         return Response(serializer.data, status=status.HTTP_200_OK)

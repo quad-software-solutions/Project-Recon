@@ -8,6 +8,7 @@ from apps.academic.serializers.class_serializer import (
 from apps.academic.serializers.student import (
     StudentSerializer,
     StudentListSerializer,
+    StudentSearchSerializer,
     StudentUpdateSerializer,
 )
 from apps.academic.serializers.admission import AdmitStudentSerializer
@@ -86,6 +87,7 @@ __all__ = [
     "AssignInstructorSerializer",
     "StudentSerializer",
     "StudentListSerializer",
+    "StudentSearchSerializer",
     "StudentUpdateSerializer",
     "AdmitStudentSerializer",
     "EnrollmentPeriodSerializer",

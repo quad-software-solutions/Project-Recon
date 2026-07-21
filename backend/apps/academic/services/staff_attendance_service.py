@@ -40,8 +40,11 @@ def list_sessions(branch=None, date_from=None, date_to=None, status=None):
     qs = StaffAttendanceSession.objects.filter(is_active=True).select_related(
         "branch", "created_by"
     )
-    if branch:
-        qs = qs.filter(branch=branch)
+    if branch is not None:
+        if isinstance(branch, (list, set)):
+            qs = qs.filter(branch_id__in=branch)
+        else:
+            qs = qs.filter(branch=branch)
     if date_from:
         qs = qs.filter(date__gte=date_from)
     if date_to:
