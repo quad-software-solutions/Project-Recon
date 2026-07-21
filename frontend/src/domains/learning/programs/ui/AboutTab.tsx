@@ -14,7 +14,7 @@ import {
   Play,
 } from 'lucide-react';
 
-import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TestimonialResponse } from '../../../cms/public/api/cmsPublicApi';
+import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TestimonialResponse, type GalleryItemResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface MapNode {
   id: string;
@@ -86,6 +86,7 @@ export default function AboutTab() {
   const [loading, setLoading] = useState(true);
   const [mapNodes, setMapNodes] = useState<MapNode[]>([]);
   const [testimonials, setTestimonials] = useState<TestimonialResponse[]>([]);
+  const [gallery, setGallery] = useState<GalleryItemResponse[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -93,7 +94,8 @@ export default function AboutTab() {
       cmsPublicApi.getPartners(),
       cmsPublicApi.getMapNodes(),
       cmsPublicApi.getTestimonials(),
-    ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes]) => {
+      cmsPublicApi.getGallery(),
+    ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes, galleryRes]) => {
       setAboutData(Array.isArray(aboutRes) ? aboutRes : []);
       setPartners(Array.isArray(partnersRes) ? partnersRes : []);
       setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).map(n => ({
@@ -102,6 +104,7 @@ export default function AboutTab() {
         image: n.image, category: n.category as MapNode['category'],
       })));
       setTestimonials(Array.isArray(testimonialsRes) ? testimonialsRes : []);
+      setGallery(Array.isArray(galleryRes) ? galleryRes : []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -496,9 +499,27 @@ export default function AboutTab() {
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Moments of innovation and teamwork from our various competitions and workshops.</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="col-span-2 md:col-span-4 text-center text-slate-400 py-8">
-            Gallery images are currently unavailable.
-          </div>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="aspect-square bg-slate-200 animate-pulse rounded-2xl" />
+            ))
+          ) : gallery.length > 0 ? (
+            gallery.map(item => (
+              <div key={item.id} className="relative group aspect-square rounded-2xl overflow-hidden bg-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                {item.image && (
+                  <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <h3 className="text-white font-bold text-sm line-clamp-1">{item.title}</h3>
+                  <p className="text-white/70 text-xs line-clamp-2 mt-1">{item.description}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-2 md:col-span-4 text-center text-slate-400 py-8">
+              Gallery images are currently unavailable.
+            </div>
+          )}
         </div>
       </section>
     </div>
