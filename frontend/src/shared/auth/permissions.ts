@@ -40,6 +40,7 @@ const ROLE_PRIORITY: BackendRole[] = [
 const PUBLIC_TABS: ActiveTab[] = [
   'home',
   'about',
+  'news',
   'history',
   'store',
   'store-orders',
@@ -47,7 +48,6 @@ const PUBLIC_TABS: ActiveTab[] = [
   'login',
   'register',
   'registration',
-  'simulator',
   'competitions',
   'cert-verify',
   'forgot-password',

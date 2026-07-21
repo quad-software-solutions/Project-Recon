@@ -579,7 +579,7 @@ export default function CartDrawer({
                     Browse the store and add items to get started
                   </p>
                   <div className="mt-6">
-                    <Button onClick={onClose} variant="secondary" size="sm" className="font-bold">Browse products</Button>
+                    <Button onClick={() => { onClose(); navigateStore('/store'); }} variant="secondary" size="sm" className="font-bold">Browse products</Button>
                   </div>
                 </div>
               ) : (

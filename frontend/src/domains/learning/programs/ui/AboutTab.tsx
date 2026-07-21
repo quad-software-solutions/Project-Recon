@@ -14,7 +14,7 @@ import {
   Play,
 } from 'lucide-react';
 
-import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TestimonialResponse } from '../../../cms/public/api/cmsPublicApi';
+import { cmsPublicApi, type AboutUsResponse, type CmsPartnerResponse, type MapNodeResponse, type TestimonialResponse, type GalleryItemResponse } from '../../../cms/public/api/cmsPublicApi';
 
 interface MapNode {
   id: string;
@@ -32,9 +32,9 @@ interface MapNode {
 
 function getVideoEmbed(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}?autoplay=1&mute=1&loop=1&playlist=${yt[1]}`;
   const vimeo = url.match(/vimeo\.com\/(\d+)/);
-  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=1&muted=1&loop=1`;
   return null;
 }
 
@@ -86,6 +86,7 @@ export default function AboutTab() {
   const [loading, setLoading] = useState(true);
   const [mapNodes, setMapNodes] = useState<MapNode[]>([]);
   const [testimonials, setTestimonials] = useState<TestimonialResponse[]>([]);
+  const [gallery, setGallery] = useState<GalleryItemResponse[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -93,7 +94,8 @@ export default function AboutTab() {
       cmsPublicApi.getPartners(),
       cmsPublicApi.getMapNodes(),
       cmsPublicApi.getTestimonials(),
-    ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes]) => {
+      cmsPublicApi.getGallery(),
+    ]).then(([aboutRes, partnersRes, nodesRes, testimonialsRes, galleryRes]) => {
       setAboutData(Array.isArray(aboutRes) ? aboutRes : []);
       setPartners(Array.isArray(partnersRes) ? partnersRes : []);
       setMapNodes((Array.isArray(nodesRes) ? nodesRes : []).map(n => ({
@@ -102,6 +104,7 @@ export default function AboutTab() {
         image: n.image, category: n.category as MapNode['category'],
       })));
       setTestimonials(Array.isArray(testimonialsRes) ? testimonialsRes : []);
+      setGallery(Array.isArray(galleryRes) ? galleryRes : []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -250,36 +253,36 @@ export default function AboutTab() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 15 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute z-40 bg-white/95 backdrop-blur-xl border border-blue-200 rounded-2xl shadow-2xl p-3 w-64 text-left pointer-events-none"
+                  className="absolute z-40 bg-white/95 backdrop-blur-xl border border-blue-200 rounded-3xl shadow-2xl p-5 w-96 text-left pointer-events-none"
                   style={{
-                    right: hoveredNode.x > 50 ? 'auto' : '12px',
-                    left: hoveredNode.x > 50 ? '12px' : 'auto',
-                    top: '12px',
+                    right: hoveredNode.x > 50 ? 'auto' : '16px',
+                    left: hoveredNode.x > 50 ? '16px' : 'auto',
+                    top: '16px',
                   }}
                 >
-                  <div className="relative aspect-video rounded-lg bg-slate-100 overflow-hidden mb-2 shadow-sm">
+                  <div className="relative aspect-video rounded-xl bg-slate-100 overflow-hidden mb-3 shadow-sm">
                     <img
                       src={hoveredNode.image}
                       alt={hoveredNode.title}
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute top-1.5 left-1.5 bg-slate-900/85 backdrop-blur px-1.5 py-0.5 rounded-full text-[7px] font-mono text-white tracking-widest font-bold uppercase border border-white/20">
+                    <div className="absolute top-2.5 left-2.5 bg-slate-900/85 backdrop-blur px-2.5 py-1 rounded-full text-[10px] font-mono text-white tracking-widest font-bold uppercase border border-white/20">
                       {hoveredNode.category}
                     </div>
                   </div>
-                  <span className="font-mono text-[7px] text-brand-blue font-bold tracking-widest uppercase block">
+                  <span className="font-mono text-[10px] text-brand-blue font-bold tracking-widest uppercase block">
                     {hoveredNode.city}, {hoveredNode.country}
                   </span>
-                  <h3 className="font-display font-bold text-slate-900 text-xs mt-0.5 leading-tight">
+                  <h3 className="font-display font-bold text-slate-900 text-lg mt-1 leading-tight">
                     {hoveredNode.title}
                   </h3>
-                  <p className="font-sans text-[10px] text-slate-600 mt-1 leading-snug pb-2 border-b border-slate-200/40">
+                  <p className="font-sans text-[15px] text-slate-600 mt-1.5 leading-snug pb-3 border-b border-slate-200/40">
                     {hoveredNode.achievement}
                   </p>
-                  <div className="flex items-center justify-between text-[7px] font-mono text-slate-400 pt-1.5">
-                    <span className="flex items-center gap-0.5">
-                      <MapPin className="w-2.5 h-2.5 text-rose-500" />
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-2.5">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-rose-500" />
                       <span>{hoveredNode.lat}, {hoveredNode.lng}</span>
                     </span>
                     <span className="text-[#25338d] font-bold">VERIFIED</span>
@@ -413,7 +416,7 @@ export default function AboutTab() {
                     </div>
                   ) : isDirectVideo && t.video_url ? (
                     <div className="relative aspect-video bg-slate-900">
-                      <video controls className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
+                      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
                     </div>
                   ) : t.video_url ? (
                     <a
@@ -496,9 +499,27 @@ export default function AboutTab() {
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Moments of innovation and teamwork from our various competitions and workshops.</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="col-span-2 md:col-span-4 text-center text-slate-400 py-8">
-            Gallery images are currently unavailable.
-          </div>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="aspect-square bg-slate-200 animate-pulse rounded-2xl" />
+            ))
+          ) : gallery.length > 0 ? (
+            gallery.map(item => (
+              <div key={item.id} className="relative group aspect-square rounded-2xl overflow-hidden bg-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                {item.image && (
+                  <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <h3 className="text-white font-bold text-sm line-clamp-1">{item.title}</h3>
+                  <p className="text-white/70 text-xs line-clamp-2 mt-1">{item.description}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-2 md:col-span-4 text-center text-slate-400 py-8">
+              Gallery images are currently unavailable.
+            </div>
+          )}
         </div>
       </section>
     </div>

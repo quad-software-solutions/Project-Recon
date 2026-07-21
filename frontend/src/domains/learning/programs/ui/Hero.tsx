@@ -83,7 +83,7 @@ export default function Hero({
 
   return (
     <section
-      className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[#0B1220]"
+      className="relative flex min-h-[85vh] lg:min-h-screen w-full flex-col overflow-x-hidden bg-[#0B1220]"
       id="hero-banner"
     >
       {/* ── BACKGROUND ── */}
@@ -106,8 +106,11 @@ export default function Hero({
           <div className="absolute inset-0 bg-gradient-to-br from-[#0B1220] via-[#162044] to-[#0B1220]" />
         )}
 
-        {/* Desktop: left-to-right scrim — dark behind text column, fades right */}
-        <div className="hidden lg:block absolute inset-0 z-[1] bg-gradient-to-r from-[#0B1220]/90 via-[#0B1220]/55 to-transparent" />
+        {/* Full overlay to ensure text contrast over any image (Mobile only) */}
+        <div className="block lg:hidden absolute inset-0 z-[1] bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+
+        {/* Desktop: left-to-right scrim — dark behind text column, fades right so right 70% is bright */}
+        <div className="hidden lg:block absolute inset-0 w-[80%] z-[1] bg-gradient-to-r from-[#0B1220]/95 via-[#0B1220]/50 to-transparent" />
 
         {/* Desktop: bottom scrim — dark behind stat cards + progress bar */}
         <div className="hidden lg:block absolute inset-x-0 bottom-0 h-[35%] z-[1] bg-gradient-to-t from-[#0B1220]/85 to-transparent" />
@@ -174,8 +177,8 @@ export default function Hero({
         Mobile: content anchored to bottom so the upper photo stays visible.
         Desktop: content vertically centered with a left-aligned column.
       */}
-      <div className="relative z-10 flex w-full flex-1 flex-col justify-end lg:justify-center px-4 sm:px-6 lg:px-16 pb-20 pt-8 lg:py-24">
-        <div className="w-full max-w-xl text-left flex flex-col gap-5 lg:gap-7">
+      <div className="relative z-10 flex w-full flex-1 flex-col justify-end lg:justify-center px-4 sm:px-6 lg:px-16 pb-16 pt-8 lg:py-24">
+        <div className="w-full max-w-xl text-left flex flex-col gap-4 lg:gap-7">
 
           {/* Badge */}
           <motion.div
@@ -183,12 +186,6 @@ export default function Hero({
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
-            <span className="inline-flex items-center gap-2.5 px-4 py-1.5 bg-white/[0.06] backdrop-blur-md border border-white/[0.12] text-white/70 rounded-full text-xs font-semibold tracking-widest uppercase">
-              <Sparkles className="w-3 h-3 text-blue-300" />
-              Robotics Academy
-              <span className="w-px h-3 bg-white/15" />
-              <span>🇪🇹</span>
-            </span>
           </motion.div>
 
           {/* Heading */}
@@ -196,7 +193,7 @@ export default function Hero({
             initial={{ opacity: 0, y: 30 }}
             animate={mounted ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="font-display font-bold text-white tracking-tight leading-[1.05]"
+            className="font-display font-bold text-white tracking-tight leading-[1.05] drop-shadow-lg"
             style={{ fontSize: 'clamp(34px, 5.5vw, 66px)' }}
             id="hero-title"
           >
@@ -223,7 +220,7 @@ export default function Hero({
               animate={mounted ? { opacity: 1, y: 0 } : {}}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="font-sans text-white/60 leading-relaxed"
+              className="font-sans text-white/90 drop-shadow-md leading-relaxed"
               style={{ fontSize: 'clamp(15px, 1.5vw, 18px)' }}
               id="hero-quote"
             >
@@ -232,24 +229,6 @@ export default function Hero({
                 : 'Learn robotics, join competitions, and build the future with STEM.'}
             </motion.p>
           </AnimatePresence>
-
-          {/* Trust chips */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={mounted ? { opacity: 1 } : {}}
-            transition={{ duration: 0.6, delay: 0.28 }}
-            className="flex flex-wrap items-center gap-2"
-          >
-            {trustItems.map((item) => (
-              <span
-                key={item}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/[0.05] border border-white/[0.08] text-white/40 rounded-full text-[11px] font-medium"
-              >
-                <CheckCircle2 className="w-2.5 h-2.5 text-blue-300/50" />
-                {item}
-              </span>
-            ))}
-          </motion.div>
 
           {/* CTAs */}
           <motion.div
@@ -316,8 +295,8 @@ export default function Hero({
             <div className="w-full bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.06] p-4">
               <div>
                 <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:items-center mb-1">
-                  <span className="text-[9px] font-mono font-semibold text-white/30 uppercase tracking-[0.15em]">Mission Progress</span>
-                  <span className="text-[11px] font-semibold text-white/50 font-mono tabular-nums break-all sm:text-right">
+                  <span className="text-[9px] font-mono font-semibold text-white/60 uppercase tracking-[0.15em]">Mission Progress</span>
+                  <span className="text-[11px] font-semibold text-white/80 font-mono tabular-nums break-all sm:text-right">
                     {statsLoading && !homepageStats
                       ? '…'
                       : `${(homepageStats?.mission.current ?? 0).toLocaleString()} / ${(homepageStats?.mission.target ?? 0).toLocaleString()}`}
@@ -332,7 +311,7 @@ export default function Hero({
                     className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 rounded-full"
                   />
                 </div>
-                <p className="text-[8px] text-white/20 font-medium text-right mt-0.5">
+                <p className="text-[8px] text-white/50 font-medium text-right mt-0.5">
                   {statsLoading && !homepageStats
                     ? '…'
                     : `${homepageStats?.mission.percentage ?? 0}% of National Goal`}

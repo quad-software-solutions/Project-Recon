@@ -461,8 +461,7 @@ export default function LoginView({ onAuthSuccess, onNavigateHome, onNavigateReg
                    <Sparkles className="w-8 h-8 text-brand-red" />
                 </div>
                 <div>
-                   <p className="text-sm font-medium text-slate-400 mb-1">Active Students Trained</p>
-                   <p className="text-3xl font-bold text-white">5,000<span className="text-brand-red">+</span></p>
+                   <p className="text-sm font-medium text-slate-400 mb-1">Become a problem solver </p>
                 </div>
              </div>
           </motion.div>

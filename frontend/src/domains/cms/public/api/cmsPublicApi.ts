@@ -146,9 +146,22 @@ export const cmsPublicApi = {
     const row = await http.get<AboutUsResponse>(`/cms/about/${slug}/`);
     return { ...row, content: row.description, image: row.image ?? '' };
   },
-  getGallery: async (signal?: AbortSignal) =>
-    unwrapList(await http.get<GalleryItemResponse[] | PaginatedResponse<GalleryItemResponse>>('/cms/gallery/', { signal })),
-  getGalleryDetail: (id: string) => http.get<GalleryItemResponse>(`/cms/gallery/${id}/`),
+  getGallery: async (signal?: AbortSignal) => {
+    const items = unwrapList(await http.get<GalleryItemResponse[] | PaginatedResponse<GalleryItemResponse>>('/cms/gallery/', { signal }));
+    return items.map(item => ({
+      ...item,
+      image: item.image ? resolveMediaUrl(item.image) : null,
+      video_url: item.video_url ? resolveMediaUrl(item.video_url) : null,
+    }));
+  },
+  getGalleryDetail: async (id: string) => {
+    const item = await http.get<GalleryItemResponse>(`/cms/gallery/${id}/`);
+    return {
+      ...item,
+      image: item.image ? resolveMediaUrl(item.image) : null,
+      video_url: item.video_url ? resolveMediaUrl(item.video_url) : null,
+    };
+  },
   getMapNodes: async () =>
     unwrapList(await http.get<MapNodeResponse[] | PaginatedResponse<MapNodeResponse>>('/cms/map-nodes/')),
   /** No backend endpoint — returns empty list for compatibility */

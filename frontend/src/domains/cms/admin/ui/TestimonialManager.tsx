@@ -187,11 +187,13 @@ export default function TestimonialManager({ addToast }: Props) {
     if (!editing?.quote?.trim()) errors.quote = 'Review is required';
     const img = imageOf(editing ?? {});
     const vid = videoOf(editing ?? {});
-    if (img && !img.startsWith('data:') && !isHttpsUrl(img)) {
-      errors.imageUrl = 'Image must be an HTTPS URL';
+    
+    // Allow data URIs, relative paths (from backend), or valid HTTPS URLs
+    if (img && !img.startsWith('data:') && !img.startsWith('/') && !isHttpsUrl(img)) {
+      errors.imageUrl = 'Image must be a valid HTTPS or relative URL';
     }
-    if (vid && !isHttpsUrl(vid)) {
-      errors.videoUrl = 'Video must be an HTTPS URL';
+    if (vid && !vid.startsWith('/') && !isHttpsUrl(vid)) {
+      errors.videoUrl = 'Video must be a valid HTTPS or relative URL';
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;

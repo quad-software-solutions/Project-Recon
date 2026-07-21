@@ -386,7 +386,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         })()}
       </section>
 
-      <Updates onCampRegisterAction={() => onEnrollInProgram('summer-camp-001')} />
+      <Updates onCampRegisterAction={() => onEnrollInProgram('summer-camp-001')} onNavigateNews={() => onNavigate('news')} />
 
       {/* FAQ Section */}
       {faqs.length > 0 && (

@@ -5,6 +5,7 @@ import { cmsPublicApi, type NewsArticleResponse } from '../../../cms/public/api/
 
 interface UpdatesProps {
   onCampRegisterAction: () => void;
+  onNavigateNews?: () => void;
 }
 
 const ICONS = { calendar: Calendar, camping: Tent, security: Shield };
@@ -23,7 +24,7 @@ const cardUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const } }
 };
 
-export default function Updates({ onCampRegisterAction }: UpdatesProps) {
+export default function Updates({ onCampRegisterAction, onNavigateNews }: UpdatesProps) {
   const [selectedPost, setSelectedPost] = useState<NewsArticleResponse | null>(null);
   const [news, setNews] = useState<NewsArticleResponse[]>([]);
 
@@ -36,12 +37,11 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
   }, []);
 
   return (
-    <section className="relative bg-brand-paper py-16 md:py-20 px-4 md:px-12 overflow-hidden" id="section-updates">
+    <section className="relative bg-slate-950 pt-16 md:pt-20 pb-10 md:pb-12 px-4 md:px-12 overflow-hidden" id="section-updates">
       
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/8 via-[#080808] to-brand-red/5 pointer-events-none" />
-      <div className="absolute top-[10%] left-[-5%] w-[400px] h-[400px] bg-brand-blue/8 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[5%] right-[-5%] w-[350px] h-[350px] bg-brand-red/6 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-[10%] left-[-5%] w-[400px] h-[400px] bg-brand-blue/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[5%] right-[-5%] w-[350px] h-[350px] bg-brand-red/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto relative z-10">
 
@@ -72,10 +72,9 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
           variants={stagger}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-5"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-5"
         >
-          {news.length > 0 ? news.map((post, idx) => {
+          {news.length > 0 ? news.slice(0, 6).map((post, idx) => {
             const iconKey = post.type?.toLowerCase().includes('camp') ? 'camping' : 
                             post.type?.toLowerCase().includes('security') ? 'security' : 'calendar';
             const Icon = ICONS[iconKey as keyof typeof ICONS] || ICONS.calendar;
@@ -86,7 +85,7 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
                 key={post.id}
                 variants={cardUp}
                 onClick={() => setSelectedPost(post)}
-                className="group relative bg-white/90 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 hover:border-brand-red/30 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/50 flex flex-col gap-4"
+                className="group relative bg-white rounded-2xl p-6 border border-slate-200 shadow-lg shadow-slate-200/20 hover:border-brand-red/30 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/40 flex flex-col gap-4"
               >
                 {/* Gradient accent top */}
                 <div className={`absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r ${c.gradient} rounded-full opacity-0 group-hover:opacity-100 transition-opacity`} />
@@ -102,13 +101,13 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
                   <h3 className="font-black text-lg text-slate-900 leading-snug group-hover:text-brand-red transition-colors">
                     {post.title}
                   </h3>
-                  <p className="text-sm text-slate-500 font-medium leading-relaxed line-clamp-3">
-                    {post.summary}
+                  <p className="text-sm text-slate-500 font-medium leading-relaxed line-clamp-3 min-h-[3.75rem]">
+                    {post.summary || 'Click to read more about this update.'}
                   </p>
                 </div>
 
                 {/* Read more */}
-                <div className="pt-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-400 group-hover:text-brand-red transition-colors">
+                <div className="pt-1 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-400 group-hover:text-brand-red transition-colors mt-auto">
                   <span>Read More</span>
                   <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -120,6 +119,23 @@ export default function Updates({ onCampRegisterAction }: UpdatesProps) {
             </div>
           )}
         </motion.div>
+
+        {news.length > 6 && onNavigateNews && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-10 flex justify-center"
+          >
+            <button
+              onClick={onNavigateNews}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-brand-red/30 hover:bg-slate-50 text-slate-700 font-sans font-semibold text-sm rounded-xl transition-all active:scale-[0.97] shadow-sm hover:shadow"
+            >
+              <span>View All News</span>
+              <ArrowRight className="w-4 h-4 text-brand-red" />
+            </button>
+          </motion.div>
+        )}
 
         {/* Modal */}
         <AnimatePresence>

@@ -5,7 +5,6 @@ import ErrorBoundary from '../shared/ui/ErrorBoundary';
 import Navbar from '../shared/ui/Navbar';
 import AboutTab from '../domains/learning/programs/ui/AboutTab';
 import StudentRegistration from '../domains/auth/register/ui/StudentRegistration';
-import VexSimulator from '../domains/learning/simulator/ui/VexSimulator';
 
 import EventCommandCenter from '../domains/competition/events/ui/EventCommandCenter';
 import CartDrawer from '../domains/store/cart/ui/CartDrawer';
@@ -13,6 +12,7 @@ import ProgramDetailModal from '../domains/learning/programs/ui/ProgramDetailMod
 import Footer from '../shared/ui/Footer';
 
 import HomePage from '../pages/HomePage';
+import NewsPage from '../pages/NewsPage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import StorePage from '../pages/store/StorePage';
 import CompetitionPage from '../pages/competition/CompetitionPage';
@@ -158,6 +158,12 @@ function AppInner() {
             </motion.div>
           )}
 
+          {activeTab === 'news' && (
+            <motion.div key="news-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <NewsPage />
+            </motion.div>
+          )}
+
           {activeTab === 'history' && (
             <motion.div key="history-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
               <HistoryPage onNavigate={handleTabChange} />
@@ -180,11 +186,7 @@ function AppInner() {
             </motion.div>
           )}
 
-          {activeTab === 'simulator' && (
-            <motion.div key="simulator-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-              <VexSimulator />
-            </motion.div>
-          )}
+
 
           {activeTab === 'competitions' && (
             <CompetitionPage

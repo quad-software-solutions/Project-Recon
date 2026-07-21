@@ -177,6 +177,9 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      forceLogout();
+    }
     const { message, body } = await parseErrorBody(res);
     throw new ApiError(res.status, message, body);
   }
@@ -218,6 +221,9 @@ async function requestBlob(endpoint: string, config: RequestConfig = {}): Promis
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      forceLogout();
+    }
     const { message, body } = await parseErrorBody(res);
     throw new ApiError(res.status, message, body);
   }
