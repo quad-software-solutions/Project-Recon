@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Search, Loader2, Shield, XCircle, Award, Share2, Printer, Clock, BadgeCheck, Hash, GraduationCap } from 'lucide-react';
+import { Search, Loader2, Shield, XCircle, Award, Share2, Printer, Clock, BadgeCheck } from 'lucide-react';
 import { http, isApiError } from '@/shared/api/http';
-import BrandLogo from '@/shared/ui/BrandLogo';
+import { fetchCertificateTemplatesApi } from '@/domains/learning/academics/api/academicApi';
+import CertificateCanvas from '@/domains/user/shared/ui/components/CertificateCanvas';
+import type { CertificateCanvasData } from '@/domains/user/shared/ui/components/CertificateCanvas';
+import type { Certificate, StudentCertificate } from '@/domains/learning/model/types';
 
 interface VerifyResult {
   valid: boolean;
@@ -25,6 +28,11 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
   const [error, setError] = useState<string | null>(null);
   const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [templates, setTemplates] = useState<Certificate[]>([]);
+
+  useEffect(() => {
+    fetchCertificateTemplatesApi().then(setTemplates).catch(() => {});
+  }, []);
 
   const handleVerify = async (value = number) => {
     const trimmed = value.trim();
@@ -76,6 +84,32 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
     }
   };
 
+  /** Resolve the best-matching template for a verify result using the same logic as IssuedTab. */
+  function resolveTemplate(v: VerifyResult): Certificate | null {
+    if (!templates.length) return null;
+    const byBoth = templates.find(t => t.title === v.certificate_title && t.sub_program_name === v.sub_program_name);
+    if (byBoth) return byBoth;
+    const byTitle = templates.find(t => t.title === v.certificate_title);
+    if (byTitle) return byTitle;
+    const bySp = templates.find(t => t.sub_program_name === v.sub_program_name);
+    if (bySp) return bySp;
+    return null;
+  }
+
+  const canvasData: CertificateCanvasData | null = result?.valid ? (() => {
+    const tmpl = resolveTemplate(result);
+    return {
+      title: result.certificate_title || result.sub_program_name || 'Certificate',
+      body_text: tmpl?.body_text || '',
+      background_url: tmpl?.background_url || null,
+      institute_logo_url: tmpl?.institute_logo_url || null,
+      signature_url: tmpl?.signature_url || null,
+      student_name: result.student_name,
+      certificate_number: result.certificate_number,
+      issued_at: result.issued_at,
+    };
+  })() : null;
+
   return (
     <>
       <style>{`
@@ -86,7 +120,6 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
           .print-only, .print-only * { visibility: visible !important; }
           .print-only { position: fixed; top: 0; left: 0; width: 210mm; height: 297mm; display: flex; align-items: center; justify-content: center; page-break-inside: avoid; }
           .no-print { display: none !important; }
-          .print-bg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
       <div className="bg-gradient-to-b from-white via-brand-paper to-white relative overflow-x-hidden">
@@ -149,7 +182,7 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
             )}
 
             {/* Success */}
-            {result && result.valid && (
+            {result && result.valid && canvasData && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 {/* Verification seal banner — screen only */}
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} transition={{ delay: 0.15 }}
@@ -158,140 +191,36 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
                   <span className="font-bold text-sm tracking-wide">Verified Authentic Certificate</span>
                 </motion.div>
 
-                {/* Certificate document — this is the only print-visible element */}
-                <div className="print-only print-bg relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark rounded-2xl overflow-hidden shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)] print:rounded-none print:shadow-none">
-                  {/* Decorative border frame */}
-                  <div className="absolute inset-[18px] border-[1px] border-white/10 rounded-xl pointer-events-none print:inset-[24px]" />
-
-                  <div className="relative h-full flex flex-col px-12 py-10 sm:px-14 print:px-16 print:py-12">
-
-                    {/* ── CORNER ORNAMENTS ── */}
-                    <div className="absolute top-5 left-5 w-14 h-14 border-l-[1.5px] border-t-[1.5px] border-white/15 rounded-tl-2xl print:top-7 print:left-7" />
-                    <div className="absolute top-5 right-5 w-14 h-14 border-r-[1.5px] border-t-[1.5px] border-white/15 rounded-tr-2xl print:top-7 print:right-7" />
-                    <div className="absolute bottom-5 left-5 w-14 h-14 border-l-[1.5px] border-b-[1.5px] border-white/15 rounded-bl-2xl print:bottom-7 print:left-7" />
-                    <div className="absolute bottom-5 right-5 w-14 h-14 border-r-[1.5px] border-b-[1.5px] border-white/15 rounded-br-2xl print:bottom-7 print:right-7" />
-
-                    {/* ════════════════════════════════════════ */}
-                    {/* HEADER SECTION */}
-                    {/* ════════════════════════════════════════ */}
-                    <div className="shrink-0">
-                      <div className="flex items-center justify-between">
-                        <div className="w-28 h-auto">
-                          <BrandLogo className="w-full h-auto" />
+                {/* Certificate document */}
+                <div className="print-only">
+                  <CertificateCanvas
+                    data={canvasData}
+                    footer={
+                      <div className="p-3 flex items-center justify-between bg-slate-50 border-t border-brand-border flex-wrap gap-2 print:bg-white">
+                        <div className="flex items-center gap-1.5">
+                          <Shield className="w-3 h-3 text-slate-400" />
+                          <span className="text-[10px] text-slate-500 tracking-wide">
+                            Issued by <span className="font-semibold text-slate-700">{result.issued_by_name}</span>
+                          </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="hidden sm:block h-px w-12 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                          <div className="flex items-center gap-2">
-                            <Award className="w-3 h-3 text-amber-400/70" />
-                            <span className="text-[7px] text-white/60 uppercase tracking-[0.35em] font-bold">Certificate of Completion</span>
-                          </div>
+                          <span className="text-[9px] text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> Verified {verifiedAt ? new Date(verifiedAt).toLocaleString() : ''}
+                          </span>
+                          <span className="text-slate-300 text-[10px]">|</span>
+                          <button onClick={handleShare}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                          ><Share2 className="w-3 h-3" /> {copied ? 'Copied' : 'Share'}</button>
+                          <button onClick={() => window.print()}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                          ><Printer className="w-3 h-3" /> Print</button>
+                          <button onClick={() => { setResult(null); setError(null); setNumber(''); setVerifiedAt(null); }}
+                            className="text-[10px] font-black text-blue-600 hover:text-blue-700"
+                          >Verify another</button>
                         </div>
                       </div>
-                      <div className="mt-5 h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-                    </div>
-
-                    {/* ════════════════════════════════════════ */}
-                    {/* BODY SECTION — flex-1 pushes footer down */}
-                    {/* ════════════════════════════════════════ */}
-                    <div className="flex-1 flex flex-col justify-center pt-6 pb-6">
-                      <div className="flex flex-col items-center">
-                        {/* Gold seal accent */}
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-300 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-600/20 ring-[1.5px] ring-white/15 mb-4">
-                          <Award className="w-5 h-5 text-white" />
-                        </div>
-
-                        <p className="text-white/50 text-[10px] tracking-widest uppercase mb-3">This certifies that</p>
-
-                        {/* Recipient name — focal point */}
-                        <p className="font-black text-2xl text-white tracking-tight font-serif text-center leading-tight px-4">
-                          {result.student_name}
-                        </p>
-
-                        <div className="w-24 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent mt-4 mb-3" />
-
-                        <p className="text-white/50 text-[10px] tracking-widest uppercase mb-4">has successfully completed</p>
-
-                        {/* Program badge */}
-                        <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white text-sm font-bold px-5 py-1.5 rounded-full border border-white/15 mb-2">
-                          <GraduationCap className="w-3.5 h-3.5" />
-                          {result.sub_program_name}
-                        </div>
-
-                        <p className="text-amber-300/80 text-[10px] font-bold uppercase tracking-[0.25em]">{result.certificate_title}</p>
-                      </div>
-                    </div>
-
-                    {/* ════════════════════════════════════════ */}
-                    {/* DETAILS GRID */}
-                    {/* ════════════════════════════════════════ */}
-                    <div className="shrink-0">
-                      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent mb-5" />
-
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                        <div>
-                          <p className="text-[7px] text-white/35 uppercase tracking-[0.2em] font-bold">Certificate ID</p>
-                          <p className="font-mono text-[9px] text-white/70 mt-0.5 tracking-wider flex items-center gap-1">
-                            <Hash className="w-2.5 h-2.5 text-white/30 shrink-0" />
-                            {result.certificate_number}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[7px] text-white/35 uppercase tracking-[0.2em] font-bold">Completion Date</p>
-                          <p className="font-mono text-[9px] text-white/70 mt-0.5 tracking-wider">
-                            {new Date(result.issued_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[7px] text-white/35 uppercase tracking-[0.2em] font-bold">Course</p>
-                          <p className="text-[9px] text-white/70 mt-0.5 tracking-wide">{result.sub_program_name}</p>
-                        </div>
-                        <div>
-                          <p className="text-[7px] text-white/35 uppercase tracking-[0.2em] font-bold">Level</p>
-                          <p className="text-[9px] text-white/70 mt-0.5 tracking-wide">{result.certificate_title}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ════════════════════════════════════════ */}
-                    {/* FOOTER */}
-                    {/* ════════════════════════════════════════ */}
-                    <div className="shrink-0 mt-6">
-                      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4" />
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Shield className="w-3 h-3 text-white/30" />
-                          <span className="text-[8px] text-white/45 tracking-wide">Issued by <span className="text-white/70 font-semibold">{result.issued_by_name}</span></span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[7px] text-white/30 uppercase tracking-[0.15em] font-bold">Verify at</span>
-                          <p className="text-[8px] text-white/45 font-mono mt-0.5 tracking-wider">{window.location.origin}/cert-verify</p>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Bottom accent glow */}
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-
-                  {/* Footer bar — screen only */}
-                  <div className="no-print bg-slate-900/80 px-6 py-2.5 flex items-center justify-between flex-wrap gap-2 backdrop-blur-sm">
-                    <div className="flex items-center gap-1.5 text-[10px] text-white/40">
-                      <Clock className="w-3 h-3" />
-                      <span>Verified {verifiedAt ? new Date(verifiedAt).toLocaleString() : ''}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={handleShare}
-                        className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                      ><Share2 className="w-3 h-3" /> {copied ? 'Copied' : 'Share'}</button>
-                      <button onClick={() => window.print()}
-                        className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                      ><Printer className="w-3 h-3" /> Print</button>
-                      <button onClick={() => { setResult(null); setError(null); setNumber(''); setVerifiedAt(null); }}
-                        className="text-[10px] font-black uppercase tracking-wider text-amber-300 hover:text-amber-200"
-                      >Verify another</button>
-                    </div>
-                  </div>
+                    }
+                  />
                 </div>
               </motion.div>
             )}

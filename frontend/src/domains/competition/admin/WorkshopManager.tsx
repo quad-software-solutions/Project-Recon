@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, GraduationCap, Edit3, Trash2, Clock, DollarSign, User } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, GraduationCap, Edit3, Trash2, Clock, User } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendWorkshop, BackendEvent, WorkshopLevel } from '../api/eventsApi';
-import { http } from '@/shared/api/http';
+import { fetchAvailableStaffApi } from '@/domains/learning/academics/api/academicApi';
+import { assignmentsApi } from '@/domains/user/shared/api/adminApi';
+import { formatMoneyCompact } from '@/domains/store/utils/formatMoney';
 
 interface UserOption { id: string; full_name: string; email: string; }
 
@@ -21,31 +23,54 @@ export default function WorkshopManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
 
+  const fetchInstructors = async (): Promise<UserOption[]> => {
+    const mapStaff = (rows: { id: string; full_name?: string; email?: string; first_name?: string; last_name?: string }[]) =>
+      rows.map(u => ({
+        id: u.id,
+        full_name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Instructor',
+        email: u.email || '',
+      }));
+
+    try {
+      const staff = await fetchAvailableStaffApi({ role: 'instructor' });
+      if (Array.isArray(staff) && staff.length > 0) return mapStaff(staff);
+    } catch { /* fall back to assignments */ }
+
+    try {
+      const assignments = await assignmentsApi.list();
+      const list = Array.isArray(assignments) ? assignments : [];
+      const byUser = new Map<string, UserOption>();
+      for (const a of list) {
+        if (a.is_active === false) continue;
+        if (String(a.role || '').toLowerCase() !== 'instructor') continue;
+        const uid = a.user?.id;
+        if (!uid || byUser.has(uid)) continue;
+        byUser.set(uid, {
+          id: uid,
+          full_name: a.user?.full_name || a.user?.email || 'Instructor',
+          email: a.user?.email || '',
+        });
+      }
+      return Array.from(byUser.values());
+    } catch {
+      return [];
+    }
+  };
+
   const load = () => {
     setLoading(true);
-    const currentUser: UserOption | null = (() => {
-      try {
-        const saved = localStorage.getItem('ethio_robotics_user');
-        if (!saved) return null;
-        const u = JSON.parse(saved);
-        return u?.id ? { id: u.id, full_name: u.full_name || u.email || '', email: u.email || '' } : null;
-      } catch { return null; }
-    })();
     Promise.all([
       eventsApi.adminGetWorkshops(),
       eventsApi.adminGetEvents({ event_type: 'WORKSHOP' }),
-      http.get<any>('/accounts/users/', { params: { page_size: '100', search: '' } })
-        .then(r => (Array.isArray(r) ? r : r.results ?? []).filter((u: any) => u.assignments?.some((a: any) => a.role === 'instructor')).map((u: any) => ({ id: u.id, full_name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(), email: u.email })))
-        .catch(e => { console.warn('Instructor list fetch failed, extracting from workshops:', e); return [] as UserOption[]; }),
+      fetchInstructors(),
     ]).then(([ws, evts, usrs]) => {
       setWorkshops(Array.isArray(ws) ? ws : []);
       setEvents((Array.isArray(evts) ? evts : []).filter(e => e.event_type === 'WORKSHOP'));
-      const fromApi = usrs as UserOption[];
       const fromExisting: UserOption[] = (Array.isArray(ws) ? ws : [])
         .filter((w: any) => w.instructor && w.instructor_name)
         .map((w: any) => ({ id: w.instructor, full_name: w.instructor_name, email: w.instructor_email || '' }));
       const seen = new Set<string>();
-      const merged = [currentUser, ...fromApi, ...fromExisting].filter((u): u is UserOption => {
+      const merged = [...usrs, ...fromExisting].filter((u): u is UserOption => {
         if (!u) return false;
         if (seen.has(u.id)) return false;
         seen.add(u.id);
@@ -122,7 +147,7 @@ export default function WorkshopManager() {
               <div className="flex flex-col gap-1.5">
                 {w.instructor_name && <div className="flex items-center gap-2 text-[11px] text-slate-500"><User className="w-3.5 h-3.5" /><span>{w.instructor_name}</span></div>}
                 <div className="flex items-center gap-2 text-[11px] text-slate-500"><Clock className="w-3.5 h-3.5" /><span>{w.duration_minutes} minutes</span></div>
-                {w.price && <div className="flex items-center gap-2 text-[11px] text-slate-500"><DollarSign className="w-3.5 h-3.5" /><span>{w.price} Birr</span></div>}
+                {w.price && <div className="flex items-center gap-2 text-[11px] text-slate-500"><span>{formatMoneyCompact(w.price)}</span></div>}
               </div>
             </motion.div>
           ))}
@@ -166,7 +191,7 @@ export default function WorkshopManager() {
                       <option value="BEGINNER">Beginner</option><option value="INTERMEDIATE">Intermediate</option><option value="ADVANCED">Advanced</option>
                     </select></div>
                 </div>
-                <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Price (Birr)</label>
+                <div><label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Price (ETB)</label>
                   <input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="Free" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" /></div>
               </div>
               <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-brand-border">

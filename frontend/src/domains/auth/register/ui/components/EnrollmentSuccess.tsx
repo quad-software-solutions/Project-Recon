@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
 import { CheckCircle2, Copy, Check, Home, RotateCcw } from 'lucide-react';
 import type { Enrollment } from '@/shared/types';
 
@@ -41,12 +40,9 @@ export function EnrollmentSuccess({ enrollment, onRegisterAnother, onReturnHome 
     : '—';
 
   return (
-    <div className="min-h-screen bg-brand-paper flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/15 via-brand-paper to-brand-blue/5" />
-      <div className="absolute top-[-10%] left-[-5%] w-[420px] h-[420px] bg-brand-blue/15 rounded-full blur-[120px] pointer-events-none" />
-
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }} className="bg-white rounded-3xl shadow-[0_24px_60px_-16px_rgba(15,23,42,0.12)] max-w-lg w-full border border-slate-200/80 overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-blue via-brand-blue-dark to-brand-blue" />
+    <div className="fixed inset-0 bg-black/35 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-brand-blue via-brand-blue-dark to-brand-blue" />
 
         <div className="p-8 md:p-10 text-center">
           <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
@@ -111,7 +107,7 @@ export function EnrollmentSuccess({ enrollment, onRegisterAnother, onReturnHome 
             <RotateCcw className="w-4 h-4" /> Register Another Program
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

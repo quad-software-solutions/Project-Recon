@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText, DollarSign, RefreshCw, Loader2, User, GraduationCap, Clock, Target, Megaphone, Shield } from 'lucide-react';
+import { Users, Edit3, BarChart3, BookOpen, FileText, DollarSign, RefreshCw, Loader2, User, GraduationCap, Clock, Target, Megaphone, Shield } from 'lucide-react';
 import { UserProfile, Enrollment, StudentProfile } from '@/shared/types';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';
@@ -22,16 +22,14 @@ import {
 } from '@/domains/user/teacher/api/teacherData';
 
 import DashboardOverview from './DashboardOverview';
-import TeacherCalendar from './TeacherCalendar';
 import ClassManagement from './ClassManagement';
 import ProgressSubmissions from './ProgressSubmissions';
-import PerformanceMetrics from './PerformanceMetrics';
-import ActivityFeed from './ActivityFeed';
 import AttendanceHistory from './AttendanceHistory';
 import Reports from './Reports';
 import LearningMaterialsPanel from '@/domains/user/secretary/dashboard/ui/LearningMaterialsPanel';
 import LearningMilestonesManager from '@/domains/user/secretary/dashboard/ui/LearningMilestonesManager';
 import { adminGetWorkshops } from '@/domains/competition/api/eventsApi';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { BackendWorkshop } from '@/domains/competition/api/eventsApi';
 
 interface TeacherDashboardProps { currentUser: UserProfile; onLogout: () => void; }
@@ -42,13 +40,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: BarChart3, group: 'main' },
   { id: 'class', label: 'Class Management', icon: Users, group: 'main' },
   { id: 'workshops', label: 'My Workshops', icon: GraduationCap, group: 'main' },
-  { id: 'calendar', label: 'Calendar', icon: Calendar, group: 'teaching' },
   { id: 'attendance', label: 'Attendance', icon: Clock, group: 'teaching' },
   { id: 'progress', label: 'Progress', icon: Edit3, group: 'teaching' },
   { id: 'milestones', label: 'Milestones', icon: Target, group: 'teaching' },
   { id: 'materials', label: 'Materials', icon: BookOpen, group: 'teaching' },
-  { id: 'metrics', label: 'Performance', icon: BarChart3, group: 'teaching' },
-  { id: 'activity', label: 'Activity', icon: Activity, group: 'teaching' },
   { id: 'reports', label: 'Reports', icon: FileText, group: 'reports' },
   { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'reports' },
   { id: 'account', label: 'Account', icon: User, group: 'system' },
@@ -170,8 +165,6 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
     switch (activeSection) {
       case 'overview':
         return <DashboardOverview students={allStudents} enrollments={allEnrollments} classes={classes} selectedClassId={selectedClassId} mode={mode} loading={loading} />;
-      case 'calendar':
-        return <TeacherCalendar classes={classes} loading={loading} />;
       case 'class':
         return (
           <ClassManagement
@@ -225,7 +218,7 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
                       {w.price && (
                         <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
                           <DollarSign className="w-3.5 h-3.5 shrink-0" />
-                          <span>{w.price} Birr</span>
+                          <span>{formatMoneyCompact(w.price)}</span>
                         </div>
                       )}
                     </div>
@@ -241,14 +234,10 @@ export default function TeacherDashboard({ currentUser, onLogout }: TeacherDashb
         return <LearningMilestonesManager currentUser={currentUser} />;
       case 'materials':
         return <LearningMaterialsPanel currentUser={currentUser} />;
-      case 'metrics':
-        return <PerformanceMetrics students={classStudents} enrollments={classEnrollments.length ? classEnrollments : allEnrollments} />;
       case 'attendance':
         return <AttendanceHistory classId={selectedClassId} />;
-      case 'activity':
-        return <ActivityFeed mode={mode} classId={selectedClassId} />;
       case 'reports':
-        return <Reports classId={selectedClassId} />;
+        return <Reports classId={selectedClassId} classes={classes} onClassChange={setSelectedClassId} />;
       case 'announcements':
         return <AnnouncementsPage />;
       case 'account':

@@ -120,7 +120,7 @@ export default function CertificateManager({ currentUser, currentUserRole }: Pro
           )}
           {activeTab === 'issued' && (
             <IssuedTab
-              issuedCerts={issuedCerts} loading={loading}
+              issuedCerts={issuedCerts} templates={templates} loading={loading}
               onRefresh={loadAll}
             />
           )}

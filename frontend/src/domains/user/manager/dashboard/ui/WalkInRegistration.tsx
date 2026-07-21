@@ -13,6 +13,7 @@ import {
 import type { Enrollment, Program, SubProgram, UserProfile } from '@/shared/types';
 import { isSuperAdminOrBranchManager } from '@/shared/auth/permissions';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 interface Props {
   currentUser: UserProfile;
@@ -204,7 +205,7 @@ export default function WalkInRegistration({ currentUser }: Props) {
           <h2 className="font-black text-xl text-slate-900 mb-1">Walk-In Registered</h2>
           <p className="text-slate-500 text-sm mb-5">
             {enrollment.student_name || `${form.firstName} ${form.lastName}`} has been enrolled.
-            Collect <strong className="text-slate-900">{fee.toLocaleString()} Birr</strong> cash at the desk.
+            Collect <strong className="text-slate-900">{formatMoneyCompact(fee)}</strong> cash at the desk.
           </p>
           <div className="text-xs text-slate-400 bg-slate-50 rounded-xl px-4 py-3 mb-5">
             Login credentials will be provided to the student via their email address.
@@ -326,7 +327,7 @@ export default function WalkInRegistration({ currentUser }: Props) {
                       }`}
                     >
                       <span className="font-semibold text-sm text-slate-900">{s.name}</span>
-                      <span className="block text-xs text-brand-blue mt-0.5">{Number(s.group_fee || 0).toLocaleString()} Birr (group)</span>
+                      <span className="block text-xs text-brand-blue mt-0.5">{formatMoneyCompact(s.group_fee || 0)} (group)</span>
                     </button>
                   ))}
                 </div>
@@ -403,7 +404,7 @@ export default function WalkInRegistration({ currentUser }: Props) {
               {fee > 0 && (
                 <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
                   <span className="font-medium text-slate-600">Course fee</span>
-                  <span className="font-black text-brand-blue">{fee.toLocaleString()} Birr</span>
+                  <span className="font-black text-brand-blue">{formatMoneyCompact(fee)}</span>
                 </div>
               )}
             </div>

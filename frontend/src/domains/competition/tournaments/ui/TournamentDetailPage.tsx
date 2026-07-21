@@ -13,6 +13,7 @@ import EventRegistrationModal from '../../shared/EventRegistrationModal';
 import EventRegisterButton from '../../shared/EventRegisterButton';
 import { REGISTRATION_MODE_LABELS } from '../../shared/eventRegistrationUtils';
 import type { UserProfile } from '@/shared/types';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 interface TournamentDetailPageProps {
   tournamentId: string;
@@ -267,7 +268,7 @@ export default function TournamentDetailPage({ tournamentId, onBack, currentUser
                     <div><span className="text-slate-500">Deadline:</span> <span className="font-bold text-slate-800">{new Date(tournament.registrationDeadline).toLocaleDateString()}</span></div>
                   )}
                   {tournament.paymentRequired && tournament.registrationFee && (
-                    <div><span className="text-slate-500">Fee:</span> <span className="font-bold text-amber-600">{tournament.registrationFee} Birr</span></div>
+                    <div><span className="text-slate-500">Fee:</span> <span className="font-bold text-amber-600">{formatMoneyCompact(tournament.registrationFee)}</span></div>
                   )}
                 </div>
               </div>

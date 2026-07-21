@@ -19,6 +19,7 @@ import {
   type ManagerHubStats,
 } from '../managerCommandCenter';
 import { summarizeSettled } from '@/shared/utils/storage';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import {
   filterManagerNavItems,
   resolveManagerSection,
@@ -295,7 +296,7 @@ function OverviewPage({ currentUser, onNavigate, students, enrollments, payments
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {[
           { label: 'Students', value: String(students.length), icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'Revenue', value: payments.reduce((s, p) => s + (p.status === 'PAID' ? Number(p.amount) : 0), 0).toLocaleString() + ' Birr', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+          { label: 'Revenue', value: formatMoneyCompact(payments.reduce((s, p) => s + (p.status === 'PAID' ? Number(p.amount) : 0), 0)), icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
           { label: 'Active Enrollments', value: String(enrollments.filter(e => e.status === 'ACTIVE').length), icon: UserCheck, color: 'text-amber-500', bg: 'bg-amber-50' },
           { label: 'Pending Payments', value: String(enrollments.filter(e => e.status === 'PENDING_VERIFICATION').length), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
         ].map((m, i) => {

@@ -4,6 +4,7 @@ import {
   Trash2, MoreHorizontal, Copy, CheckCheck,
 } from 'lucide-react';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { isForbiddenError } from '@/shared/api/http';
 import {
   fetchBankAccountsApi,
   createBankAccountApi,
@@ -62,7 +63,9 @@ export default function BankAccountsPanel({ canManage = false, addToast }: Props
       const data = await fetchBankAccountsApi();
       setAccounts(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(formatApiError(err));
+      setError(isForbiddenError(err)
+        ? 'You do not have permission to view bank accounts. Contact your administrator if you believe this is an error.'
+        : formatApiError(err));
       setAccounts([]);
     } finally {
       setLoading(false);

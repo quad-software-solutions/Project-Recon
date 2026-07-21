@@ -137,8 +137,7 @@ export type LearningMaterialPayload = {
   sub_program: string;
   title: string;
   description?: string;
-  file_url?: string;
-  material_type: string;
+  file?: File | null;
 };
 
 export type CertificateTemplatePayload = {
@@ -352,6 +351,10 @@ export async function admitStudentApi(payload: AdmitStudentPayload): Promise<Stu
   return http.post<StudentProfile>(`${BASE}/admissions/`, payload);
 }
 
+export async function fetchStudentApi(id: string): Promise<StudentProfile> {
+  return http.get<StudentProfile>(`${BASE}/students/${id}/`);
+}
+
 export async function updateStudentApi(id: string, payload: Partial<AdmitStudentPayload & { is_active: boolean }>): Promise<StudentProfile> {
   return http.patch<StudentProfile>(`${BASE}/students/${id}/`, payload);
 }
@@ -553,12 +556,22 @@ export async function fetchLearningMaterialsApi(subProgramId?: string): Promise<
   return unwrapList(await http.get<ListResponse<LearningMaterial>>(`${BASE}/learning-materials/${queryString({ sub_program: subProgramId })}`));
 }
 
+function toLearningMaterialFormData(payload: Partial<LearningMaterialPayload>): FormData | typeof payload {
+  if (!(payload.file instanceof File)) return payload;
+  const fd = new FormData();
+  if (payload.sub_program) fd.append('sub_program', payload.sub_program);
+  if (payload.title) fd.append('title', payload.title);
+  if (payload.description) fd.append('description', payload.description);
+  fd.append('file', payload.file);
+  return fd;
+}
+
 export async function createLearningMaterialApi(payload: LearningMaterialPayload): Promise<LearningMaterial> {
-  return http.post<LearningMaterial>(`${BASE}/learning-materials/`, payload);
+  return http.post<LearningMaterial>(`${BASE}/learning-materials/`, toLearningMaterialFormData(payload));
 }
 
 export async function updateLearningMaterialApi(id: string, payload: Partial<LearningMaterialPayload>): Promise<LearningMaterial> {
-  return http.patch<LearningMaterial>(`${BASE}/learning-materials/${id}/`, payload);
+  return http.patch<LearningMaterial>(`${BASE}/learning-materials/${id}/`, toLearningMaterialFormData(payload));
 }
 
 export async function deleteLearningMaterialApi(id: string): Promise<void> {

@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split } from 'lucide-react';
 import type { AcademicClass } from '@/shared/types';
 import type { UserProfile } from '@/shared/types';
-import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi, fetchAvailableStaffApi } from '@/domains/learning/academics/api/academicApi';
 import type { Branch } from '@/domains/learning/academics/api/academicApi';
-import { fetchAllUsersApi, resolveRole, branchesApi } from '@/domains/user/shared/api/adminApi';
+import { assignmentsApi, branchesApi } from '@/domains/user/shared/api/adminApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
 import { isSuperAdmin } from '@/shared/auth/permissions';
 
@@ -46,6 +46,28 @@ export default function ClassManagerPanel({ currentUser }: Props) {
   const [splitting, setSplitting] = useState<{ sourceId: string; sourceName: string; sourceCount: number; targetClass: string; count: string } | null>(null);
   const [splitSaving, setSplitSaving] = useState(false);
 
+  const loadInstructors = async (): Promise<any[]> => {
+    try {
+      const staff = await fetchAvailableStaffApi({ role: 'instructor' });
+      if (Array.isArray(staff) && staff.length > 0) return staff;
+    } catch { /* fall back */ }
+    try {
+      const assignments = await assignmentsApi.list();
+      const list = Array.isArray(assignments) ? assignments : [];
+      const byUser = new Map<string, { id: string; full_name?: string; email?: string }>();
+      for (const a of list) {
+        if (a.is_active === false) continue;
+        if (String(a.role || '').toLowerCase() !== 'instructor') continue;
+        const uid = a.user?.id;
+        if (!uid || byUser.has(uid)) continue;
+        byUser.set(uid, { id: uid, full_name: a.user?.full_name, email: a.user?.email });
+      }
+      return Array.from(byUser.values());
+    } catch {
+      return [];
+    }
+  };
+
   const load = () => {
     setLoading(true);
     const branchesPromise = isSuperAdmin(currentUser) ? branchesApi.list() : Promise.resolve(classAssignmentsToBranches(currentUser) as any);
@@ -53,12 +75,7 @@ export default function ClassManagerPanel({ currentUser }: Props) {
       fetchClassesApi(),
       fetchSubProgramsApi(),
       branchesPromise,
-      fetchAllUsersApi().then(users => {
-        return users.filter((u: any) => {
-          const role = resolveRole(u.assignments);
-          return role === 'instructor' || role === 'Instructor';
-        });
-      }).catch(() => []),
+      loadInstructors(),
     ]).then(([c, sp, br, inst]: [any, any, any, any]) => {
       setClasses(Array.isArray(c) ? c : []);
       setSubPrograms(Array.isArray(sp) ? sp : []);

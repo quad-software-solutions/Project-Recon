@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ShoppingBag, DollarSign, Package, Tag, Loader2 } from 'lucide-react';
 import { listProducts } from '@/domains/store/products/api/productApi';
 import { listActiveCategories } from '@/domains/store/categories/api/categoriesApi';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { Product, ProductCategory } from '@/domains/store/model/types';
 
 export default function OnlineStoreHub() {
@@ -57,7 +58,7 @@ export default function OnlineStoreHub() {
       <div className="grid grid-cols-4 gap-2">
         {[
           { label: 'Total Products', value: totalItems.toString(), icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Total Value', value: totalValue.toLocaleString() + ' Birr', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Total Value', value: formatMoneyCompact(totalValue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Active Products', value: activeItems.toString(), icon: Tag, color: 'text-purple-600', bg: 'bg-purple-50' },
           { label: 'Categories', value: categoryCount.toString(), icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((s, i) => {
@@ -108,7 +109,7 @@ export default function OnlineStoreHub() {
                 </td>
                 <td className="px-2 py-2 text-[10px] font-mono text-slate-400">{product.sku}</td>
                 <td className="px-2 py-2 text-[11px] text-slate-500">{product.category_name}</td>
-                <td className="px-2 py-2 text-sm font-bold text-slate-900">{Number(product.price).toLocaleString()} Birr</td>
+                <td className="px-2 py-2 text-sm font-bold text-slate-900">{formatMoneyCompact(product.price)}</td>
                 <td className="px-2 py-2">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                     product.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'

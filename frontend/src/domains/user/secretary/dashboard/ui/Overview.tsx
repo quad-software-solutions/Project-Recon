@@ -4,7 +4,7 @@ import { Users, CheckCircle2, DollarSign, Award, Calendar, Shield, UserPlus, Loa
 import { Enrollment, EnrollmentPayment, StudentCertificate } from '@/shared/types';
 import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
-
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { SecretarySectionId } from '../secretaryCommandCenter';
 
 export default function Overview({
@@ -125,7 +125,7 @@ export default function Overview({
                       <p className="text-sm font-semibold text-slate-900">{p.student_name || 'Student'}</p>
                       <p className="text-[10px] text-slate-500">{p.payment_date?.slice(0, 10) || '—'} · {p.payment_method}</p>
                     </div>
-                    <span className="text-sm font-bold text-emerald-600">{Number(p.amount).toLocaleString()} Birr</span>
+                    <span className="text-sm font-bold text-emerald-600">{formatMoneyCompact(p.amount)}</span>
                   </div>
                 ))}
               </div>

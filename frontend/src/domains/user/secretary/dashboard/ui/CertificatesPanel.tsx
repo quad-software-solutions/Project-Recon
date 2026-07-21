@@ -3,8 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Award, Download, Shield, FileText, Users, Calendar } from 'lucide-react';
 import { StudentCertificate, StudentProfile, Certificate } from '@/shared/types';
 import { fetchStudentCertificatesApi, fetchStudentsApi, fetchCertificateTemplatesApi, issueStudentCertificateApi, searchStudentsApi, fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
-import BrandLogo from '@/shared/ui/BrandLogo';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import CertificateCanvas, {
+  issuedToCanvasData,
+  resolveCertificateTemplate,
+} from '@/domains/user/shared/ui/components/CertificateCanvas';
 
 export default function CertificatesPanel() {
   const [certs, setCerts] = useState<StudentCertificate[]>([]);
@@ -277,60 +280,28 @@ export default function CertificatesPanel() {
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-lg overflow-hidden">
-                <div className="relative bg-gradient-to-b from-brand-blue-dark via-brand-blue to-brand-blue-dark text-center">
-                  {/* Ornamental top border */}
-                  <div className="flex items-center justify-center gap-1 pt-6 px-8">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
-                    <div className="flex items-center gap-0.5">
-                      <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
-                      <div className="w-1.5 h-1.5 rotate-45 bg-brand-cyan" />
-                      <div className="w-1.5 h-1.5 rotate-45 bg-blue-600" />
-                    </div>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-600/40 to-transparent" />
-                  </div>
-                  <div className="px-8 pb-6 pt-4 flex flex-col items-center gap-2.5">
-                    <div className="w-28 h-auto">
-                      <BrandLogo className="w-full h-auto" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 bg-brand-cyan rounded-full" />
-                      <p className="font-mono text-[8px] text-brand-cyan uppercase tracking-[0.3em] font-bold">CERTIFICATE OF COMPLETION</p>
-                      <div className="w-1 h-1 bg-brand-cyan rounded-full" />
-                    </div>
-                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent" />
-                    <p className="text-slate-300 text-[11px] tracking-wider">This certifies that</p>
-                    <p className="font-black text-2xl text-white tracking-tight">{showDetail.student_name || 'Student'}</p>
-                    <p className="text-slate-300 text-[11px] tracking-wider">has successfully completed</p>
-                    <p className="font-bold text-base text-blue-600">{showDetail.certificate_title || showDetail.sub_program_name || 'Program'}</p>
-                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-blue-600 to-transparent mt-1" />
-                    <div className="flex items-center gap-3 mt-1">
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <Shield className="w-2.5 h-2.5 text-brand-cyan" />
-                        <p className="font-mono text-[9px]">{showDetail.certificate_number}</p>
+              <div className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                <CertificateCanvas
+                  data={issuedToCanvasData(showDetail, resolveCertificateTemplate(showDetail, templates))}
+                  footer={(
+                    <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
+                      <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+                        <Shield className="w-3 h-3" /> Verified & Authentic
                       </div>
-                      <span className="text-slate-600 text-[9px]">|</span>
-                      <p className="font-mono text-[9px] text-slate-400">{showDetail.issued_at?.slice(0, 10) || ''}</p>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => setShowDetail(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">
+                          Close
+                        </button>
+                        {showDetail.pdf && (
+                          <a href={showDetail.pdf} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors">
+                            <Download className="w-2.5 h-2.5" /> Download PDF
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-blue-600 via-brand-cyan to-blue-600 opacity-60" />
-                </div>
-                <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
-                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
-                    <Shield className="w-3 h-3" /> Verified & Authentic
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => setShowDetail(null)} className="px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:text-brand-blue hover:bg-brand-blue/10 rounded-lg">
-                      Close
-                    </button>
-                    {showDetail.pdf && (
-                      <a href={showDetail.pdf} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-bold text-white bg-blue-600 px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors">
-                        <Download className="w-2.5 h-2.5" /> Download PDF
-                      </a>
-                    )}
-                  </div>
-                </div>
+                  )}
+                />
               </div>
             </motion.div>
           </>

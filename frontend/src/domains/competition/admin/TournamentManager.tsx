@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, Trophy, Users, DollarSign, Edit3, Trash2, Lock, Eye, Tags, Save, Target, Medal, Calendar, MapPin, Clock, Gamepad2, Activity, Sparkles } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendTournament, BackendTournamentCategory, BackendEvent, BackendStanding, BackendTournamentTeam, BackendMatch } from '../api/eventsApi';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 const defaultForm = {
   event: '', category: '', max_teams: '', prize_pool: '',
@@ -273,7 +274,7 @@ export default function TournamentManager() {
                 </div>
                 <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
                   {t.max_teams && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {t.max_teams} teams</span>}
-                  {t.prize_pool && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />{t.prize_pool} Birr</span>}
+                  {t.prize_pool && <span className="flex items-center gap-1">{formatMoneyCompact(t.prize_pool)}</span>}
                   <span className="flex items-center gap-1"><Gamepad2 className="w-3.5 h-3.5" />{matchCount} matches</span>
                 </div>
               </motion.div>
@@ -315,7 +316,7 @@ export default function TournamentManager() {
                     <input type="number" value={form.max_teams} onChange={e => setForm(p => ({ ...p, max_teams: e.target.value }))} placeholder="Unlimited" className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Prize Pool (Birr)</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Prize Pool (ETB)</label>
                     <input type="number" value={form.prize_pool} onChange={e => setForm(p => ({ ...p, prize_pool: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-red" />
                   </div>
                 </div>

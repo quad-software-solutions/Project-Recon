@@ -16,6 +16,7 @@ import type {
   Product, ProductCategory, ShoppingCart, ShoppingCartItem,
   Order, PendingOrder, StorePaymentMethod, BankAccount,
 } from '@/shared/types';
+import { formatMoneyCompact } from '@/domains/store/utils/formatMoney';
 import PageHeader from '../../../shared/ui/PageHeader';
 import TabBar from '../../../shared/ui/TabBar';
 import EmptyState from '@/shared/ui/EmptyState';
@@ -127,7 +128,7 @@ function ShopPanel({ branchId }: { branchId: string }) {
                   <p className="text-[11px] text-slate-500 font-medium truncate">{product.category_name}</p>
                   <h4 className="font-bold text-sm text-slate-900 truncate mt-0.5">{product.name}</h4>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="font-black text-sm text-blue-600">{Number(product.price).toLocaleString()} ETB</span>
+                    <span className="font-black text-sm text-blue-600">{formatMoneyCompact(product.price)}</span>
                     <button onClick={() => addToCart(product.id)} disabled={addingId === product.id || !branchId}
                       className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:opacity-40 transition-colors">
                       {addingId === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
@@ -247,12 +248,12 @@ function CartPanel({ branchId, branchName, currentUser }: { branchId: string; br
           {pendingOrder.items.map(item => (
             <div key={item.id} className="flex justify-between text-sm text-slate-700">
               <span>{item.product_name} x{item.quantity}</span>
-              <span className="font-semibold">{Number(item.subtotal).toLocaleString()} ETB</span>
+              <span className="font-semibold">{formatMoneyCompact(item.subtotal)}</span>
             </div>
           ))}
           <div className="border-t pt-2 flex justify-between font-bold text-slate-900">
             <span>Total</span>
-            <span>{Number(pendingOrder.total).toLocaleString()} ETB</span>
+            <span>{formatMoneyCompact(pendingOrder.total)}</span>
           </div>
         </div>
         <button onClick={() => setPendingOrder(null)}
@@ -299,8 +300,8 @@ function CartPanel({ branchId, branchName, currentUser }: { branchId: string; br
               </button>
             </div>
             <div className="text-right min-w-[80px]">
-              <p className="font-bold text-sm text-slate-900">{Number(item.subtotal).toLocaleString()} ETB</p>
-              <p className="text-[10px] text-slate-400">@{Number(item.product_price).toLocaleString()}</p>
+              <p className="font-bold text-sm text-slate-900">{formatMoneyCompact(item.subtotal)}</p>
+              <p className="text-[10px] text-slate-400">@{formatMoneyCompact(item.product_price)}</p>
             </div>
             <button onClick={() => handleRemove(item.id)}
               className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
@@ -313,7 +314,7 @@ function CartPanel({ branchId, branchName, currentUser }: { branchId: string; br
       <div className="bg-white rounded-2xl border border-brand-border p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="font-bold text-slate-900">Total ({cart.item_count} items)</span>
-          <span className="font-black text-lg text-blue-600">{Number(cart.total).toLocaleString()} ETB</span>
+          <span className="font-black text-lg text-blue-600">{formatMoneyCompact(cart.total)}</span>
         </div>
         <div>
           <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Payment method</label>
@@ -477,13 +478,13 @@ function OrdersPanel() {
             {order.items.map(item => (
               <div key={item.id} className="flex justify-between text-xs text-slate-600">
                 <span>{item.product_name} x{item.quantity}</span>
-                <span>{Number(item.subtotal).toLocaleString()} ETB</span>
+                <span>{formatMoneyCompact(item.subtotal)}</span>
               </div>
             ))}
           </div>
           <div className="flex justify-between items-center mt-3 pt-3 border-t border-brand-border">
             <span className="text-[10px] text-slate-400">{order.branch_name}</span>
-            <span className="font-bold text-sm text-slate-900">{Number(order.total).toLocaleString()} ETB</span>
+            <span className="font-bold text-sm text-slate-900">{formatMoneyCompact(order.total)}</span>
           </div>
         </motion.div>
       ))}

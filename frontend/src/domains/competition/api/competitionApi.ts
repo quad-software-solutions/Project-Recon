@@ -3,6 +3,7 @@ import { computeEventState, type Tournament, type Workshop, type MatchResult, ty
 import * as eventsApi from './eventsApi';
 import { mapBackendMatchToDetail, type MatchDetail } from './matchMappers';
 import { unwrapList } from '@/shared/api/pagination';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 /* ═══ TOURNAMENT INDEX (event UUID → tournament record) ═══ */
 
@@ -54,7 +55,7 @@ function mapBackendEventToTournament(
     enrolledCount: e.enrolled_count,
     category: t?.category_name || e.title,
     maxTeams: t?.max_teams || 0,
-    prizePool: t?.prize_pool || '0 Birr',
+    prizePool: t?.prize_pool ? formatMoneyCompact(t.prize_pool) : formatMoneyCompact(0),
     isClosed: t?.is_closed ?? false,
     youtubeLiveUrl: e.youtube_live_url || null,
   };

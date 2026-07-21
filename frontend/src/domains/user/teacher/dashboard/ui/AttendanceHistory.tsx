@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, ChevronLeft, ChevronRight, Clock, Users, Loader2,
-  BarChart3, TrendingUp, Search, UserCheck, UserX,
+  BarChart3, TrendingUp, UserCheck, UserX,
   ChevronDown, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,8 +24,7 @@ export default function AttendanceHistory({ classId = '' }: Props) {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [selectedSession, setSelectedSession] = useState<AttendanceSessionExtended | null>(null);
-  const [view, setView] = useState<'calendar' | 'students' | 'trend'>('calendar');
-  const [studentSearch, setStudentSearch] = useState('');
+  const [view, setView] = useState<'calendar' | 'list' | 'trend'>('calendar');
 
   const loadSessions = () => {
     setLoading(true);
@@ -48,7 +47,7 @@ export default function AttendanceHistory({ classId = '' }: Props) {
   const uniqueDays = [...new Set(monthDays)].sort((a: number, b: number) => a - b);
 
   const totalPresent = monthSessions.reduce((sum, s) => sum + (s.records_count || s.students_present || 0), 0);
-  const totalCapacity = monthSessions.reduce((sum, s) => sum + (s.records_count || s.students_present || 0) + (s.absent_count || 0), 0);
+  const totalEnrolled = monthSessions.reduce((sum, s) => sum + (s.records_count || s.students_present || 0) + (s.absent_count || 0), 0);
 
   const avgAttendance = monthSessions.length > 0
     ? Math.round(totalPresent / monthSessions.length) : 0;
@@ -96,11 +95,11 @@ export default function AttendanceHistory({ classId = '' }: Props) {
     <div className="flex flex-col gap-6">
       {/* View Tabs */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 self-start">
-        {(['calendar', 'trend', 'students'] as const).map(v => (
+        {(['calendar', 'trend', 'list'] as const).map(v => (
           <button key={v} onClick={() => setView(v)}
             className={`text-[11px] font-bold px-4 py-2 rounded-lg capitalize transition-colors
               ${view === v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            {v === 'calendar' ? 'Calendar' : v === 'trend' ? 'Trend' : 'Students'}
+            {v === 'calendar' ? 'Calendar' : v === 'trend' ? 'Trend' : 'Sessions'}
           </button>
         ))}
       </div>
@@ -201,17 +200,9 @@ export default function AttendanceHistory({ classId = '' }: Props) {
         </div>
       )}
 
-      {/* Student View */}
-      {view === 'students' && (
+      {/* Sessions List View */}
+      {view === 'list' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
-                placeholder="Search students..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
-            </div>
-          </div>
           <div className="p-5">
             {monthSessions.length === 0 ? (
               <div className="text-center py-8 text-slate-400">

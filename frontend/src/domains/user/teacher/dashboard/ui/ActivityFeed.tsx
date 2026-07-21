@@ -6,6 +6,7 @@ import {
   fetchAttendanceSessionsApi,
 } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 const ICON_MAP: Record<string, { icon: typeof CheckCircle2; bg: string; color: string }> = {
   ENROLLMENT: { icon: CheckCircle2, bg: 'bg-blue-100', color: 'text-blue-600' },
@@ -83,7 +84,7 @@ export default function ActivityFeed({ mode = 'staff', classId = '' }: Props) {
           feed.push({
             icon: s.icon, bg: s.bg, color: s.color,
             bold: p.student_name || 'Student',
-            text: `${p.status === 'PAID' ? 'completed' : 'initiated'} payment of ${Number(p.amount).toLocaleString()} Birr`,
+            text: `${p.status === 'PAID' ? 'completed' : 'initiated'} payment of ${formatMoneyCompact(p.amount)}`,
             time: fmtDate(p.payment_date),
             ts: toTs(p.payment_date),
           });

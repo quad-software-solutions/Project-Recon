@@ -11,6 +11,7 @@ import {
   downloadSubProgramReportPdf, downloadProgramReportPdf
 } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { Program, SubProgram } from '@/shared/types';
 
 export default function ReportsPanel({ currentUser }: { currentUser?: UserProfile }) {
@@ -100,7 +101,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
     {
       key: 'payments', label: 'Payment Report', icon: DollarSign,
       stats: [
-        { label: 'Total Collected', value: `${totalPaid.toLocaleString()} Birr`, color: 'text-emerald-600' },
+        { label: 'Total Collected', value: formatMoneyCompact(totalPaid), color: 'text-emerald-600' },
         { label: 'Transactions', value: payments.length, color: 'text-brand-blue' },
         { label: 'Cash', value: cashPayments.length, color: 'text-amber-600' },
         { label: 'Paid', value: payments.filter(p => p.status === 'PAID').length, color: 'text-emerald-600' },

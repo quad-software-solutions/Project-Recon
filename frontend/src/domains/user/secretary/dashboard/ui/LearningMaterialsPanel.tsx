@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, BookOpen, FileText, Download, Trash2, ExternalLink, Filter } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, BookOpen, FileText, Download, Trash2, ExternalLink, Filter, Upload } from 'lucide-react';
 import { LearningMaterial, UserProfile } from '@/shared/types';
 import { fetchLearningMaterialsApi, createLearningMaterialApi, updateLearningMaterialApi, deleteLearningMaterialApi, downloadLearningMaterialApi, fetchSubProgramsApi } from '@/domains/learning/academics/api/academicApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
 
 const defaultForm = {
-  sub_program: '', title: '', description: '', file_url: '', material_type: 'DOCUMENT',
+  sub_program: '', title: '', description: '', file: null as File | null,
 };
-
-const materialTypes = ['DOCUMENT', 'VIDEO', 'IMAGE', 'AUDIO', 'OTHER'];
 
 export default function LearningMaterialsPanel({ currentUser }: { currentUser?: UserProfile }) {
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
@@ -49,14 +47,17 @@ export default function LearningMaterialsPanel({ currentUser }: { currentUser?: 
       sub_program: (m as any).sub_program || '',
       title: m.title,
       description: (m as any).description || '',
-      file_url: (m as any).file_url || '',
-      material_type: (m as any).material_type || 'DOCUMENT',
+      file: null,
     });
     setShowForm(true);
   };
 
   const handleSave = async () => {
     if (!form.title || !form.sub_program) return;
+    if (!editing && !form.file) {
+      setError('Please select a file to upload.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -114,11 +115,11 @@ export default function LearningMaterialsPanel({ currentUser }: { currentUser?: 
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: 'Total Materials', value: materials.length, icon: BookOpen, color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
-          { label: 'Documents', value: materials.filter(m => (m as any).material_type === 'DOCUMENT' || !(m as any).material_type).length, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Videos & Other', value: materials.filter(m => (m as any).material_type && (m as any).material_type !== 'DOCUMENT').length, icon: ExternalLink, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'With File', value: materials.filter(m => (m as any).file_url).length, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Sub-Programs', value: new Set(materials.map(m => (m as any).sub_program)).size, icon: ExternalLink, color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map((s, i) => (
           <div key={i} className="bg-white border border-brand-border rounded-xl px-4 py-3">
             <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}>
@@ -135,10 +136,11 @@ export default function LearningMaterialsPanel({ currentUser }: { currentUser?: 
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search materials..." className="w-full pl-8 pr-3 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600" />
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-2.5 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600">
-          <option value="all">All Types</option>
-          {materialTypes.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        {typeFilter !== 'all' && (
+          <button onClick={() => setTypeFilter('all')} className="px-2.5 py-1.5 bg-white border border-brand-border rounded-lg text-xs text-slate-500 hover:text-slate-700 shrink-0">
+            Clear filter
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
@@ -215,12 +217,12 @@ export default function LearningMaterialsPanel({ currentUser }: { currentUser?: 
                     </select></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Description</label>
                     <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" /></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Material Type</label>
-                    <select value={form.material_type} onChange={e => setForm(p => ({ ...p, material_type: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
-                      {materialTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select></div>
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">File URL</label>
-                    <input value={form.file_url} onChange={e => setForm(p => ({ ...p, file_url: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="https://..." /></div>
+                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">File {editing ? '(leave empty to keep current)' : '*'}</label>
+                    <div className="relative">
+                      <input type="file" onChange={e => setForm(p => ({ ...p, file: e.target.files?.[0] || null }))}
+                        className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-brand-blue file:text-white hover:file:bg-brand-blue-dark focus:outline-none focus:border-blue-600" />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
                   <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>

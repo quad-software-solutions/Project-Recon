@@ -18,7 +18,7 @@ const DEFAULT_CFG = { icon: Book, color: 'text-slate-600', bg: 'bg-slate-50' };
 
 interface Props { studentId: string }
 
-export default function LearningResources({ studentId: _studentId }: Props) {
+export default function LearningResources(_props: Props) {
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,8 +60,8 @@ export default function LearningResources({ studentId: _studentId }: Props) {
                 </div>
                 <h4 className="font-sans font-bold text-slate-900 text-sm leading-snug mb-1 group-hover:text-blue-600 transition-colors">{res.title}</h4>
                 {res.description && <p className="text-xs text-slate-500 font-medium mb-4 line-clamp-2">{res.description}</p>}
-                <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <a href={res.file_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold flex items-center gap-1">
+                <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between text-blue-600">
+                  <a href={res.file_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold flex items-center gap-1" aria-label={`Download ${res.title}`}>
                     <Download className="w-3.5 h-3.5" /> Download
                   </a>
                 </div>

@@ -1,6 +1,7 @@
 import { CheckCircle2, Lock, Shield, User } from 'lucide-react';
 import type { Tournament, Workshop, UserProfile } from '@/shared/types';
 import { getRegistrationEligibility } from './eventRegistrationUtils';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 interface EventRegisterButtonProps {
   event: Tournament | Workshop;
@@ -58,7 +59,7 @@ export default function EventRegisterButton({
     >
       <Shield className="w-3.5 h-3.5" />
       Register
-      {event.paymentRequired && event.registrationFee && !compact && ` · ${event.registrationFee} Birr`}
+      {event.paymentRequired && event.registrationFee && !compact && ` · ${formatMoneyCompact(event.registrationFee)}`}
     </button>
   );
 }

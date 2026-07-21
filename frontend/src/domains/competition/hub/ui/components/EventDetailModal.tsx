@@ -3,6 +3,7 @@ import { UserProfile, type Tournament, type Workshop } from '@/shared/types';
 import EventRegisterButton from '../../../shared/EventRegisterButton';
 import { REGISTRATION_MODE_LABELS } from '../../../shared/eventRegistrationUtils';
 import { statusBadge } from '@/shared/utils/status';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 export default function EventDetailModal({ event, onClose, currentUser, isRegistered, onRegister, onViewFull, onNavigateLogin }: {
   event: Tournament | Workshop;
@@ -91,7 +92,7 @@ export default function EventDetailModal({ event, onClose, currentUser, isRegist
             {event.paymentRequired && event.registrationFee && (
               <div className="bg-amber-50 rounded-xl p-3 col-span-2 flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-amber-600" />
-                <p className="text-xs font-bold text-amber-700">Registration Fee: {event.registrationFee} Birr</p>
+                <p className="text-xs font-bold text-amber-700">Registration Fee: {formatMoneyCompact(event.registrationFee)}</p>
               </div>
             )}
           </div>

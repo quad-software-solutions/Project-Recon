@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   BookOpen, Building2, GraduationCap, Hash, Info, Loader2, Lock, Mail, Phone, RotateCcw,
-  Smartphone, User, Users, Wallet, FileText, AlertCircle,
+  Smartphone, User, Users, Wallet, FileText, AlertCircle, Eye, EyeOff,
 } from 'lucide-react';
 import { registerApi, type PaymentMethodType } from '../api/registerApi';
 import {
@@ -16,6 +16,7 @@ import {
 import type { Program, SubProgram, Enrollment } from '@/shared/types';
 import { SelectableCard, CardSkeleton } from './components/SelectableCard';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import { isApiError } from '@/shared/api/http';
 import { ReceiptUpload } from './components/ReceiptUpload';
 import { EnrollmentSuccess } from './components/EnrollmentSuccess';
@@ -97,6 +98,7 @@ export default function StudentRegistration() {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
+  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -229,6 +231,7 @@ export default function StudentRegistration() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = 'Enter a valid email address.';
     if (!form.password) errors.password = 'Password is required.';
     else if (form.password.length < 8) errors.password = 'Password must be at least 8 characters.';
+    else if (!/[a-zA-Z]/.test(form.password) || !/[0-9]/.test(form.password)) errors.password = 'Password must contain at least one letter and one number.';
     if (!form.phoneNumber.trim()) errors.phoneNumber = 'Phone number is required.';
     else if (!/^[+\d][\d\s()-]{6,}$/.test(form.phoneNumber.trim())) errors.phoneNumber = 'Enter a valid phone number.';
     if (form.guardianName.trim() && !form.guardianPhone.trim()) errors.guardianPhone = 'Phone required when guardian name is provided.';
@@ -478,9 +481,9 @@ export default function StudentRegistration() {
                         icon={<BookOpen className="w-5 h-5" />}
                         meta={
                           <p className="text-xs font-bold text-brand-blue">
-                            Group {Number(sub.group_fee || 0).toLocaleString()} Birr
+                            Group {formatMoneyCompact(sub.group_fee || 0)}
                             {sub.individual_fee != null && (
-                              <> · Individual {Number(sub.individual_fee).toLocaleString()} Birr</>
+                              <> · Individual {formatMoneyCompact(sub.individual_fee)}</>
                             )}
                           </p>
                         }
@@ -605,16 +608,24 @@ export default function StudentRegistration() {
                       </InputIcon>
                     </Field>
                     <Field label="Password" required error={fieldErrors.password} className="md:col-span-2">
-                      <InputIcon icon={<Lock className="w-4 h-4" />}>
+                      <div className="relative group">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-blue transition-colors pointer-events-none">
+                          <Lock className="w-4 h-4" />
+                        </span>
                         <input
-                          type="password"
+                          type={showPassword ? 'text' : 'password'}
                           autoComplete="new-password"
                           value={form.password}
                           onChange={(e) => updateForm('password', e.target.value)}
                           className={inputClass(fieldErrors.password)}
-                          placeholder="Min. 8 characters"
+                          placeholder="Min. 8 characters, letter + number"
                         />
-                      </InputIcon>
+                        <button type="button" onClick={() => setShowPassword(p => !p)} tabIndex={-1}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </Field>
                     <Field label="Phone Number" required error={fieldErrors.phoneNumber} className="md:col-span-2">
                       <InputIcon icon={<Phone className="w-4 h-4" />}>
@@ -869,7 +880,7 @@ export default function StudentRegistration() {
                 branchName={selectedBranch?.name}
                 branchCity={selectedBranch?.city}
                 paymentMethod={showForm ? paymentMethod : ''}
-                feeLabel={selectedSub && classType ? `${fee.toLocaleString()} Birr` : undefined}
+                feeLabel={selectedSub && classType ? formatMoneyCompact(fee) : undefined}
                 canSubmit={canSubmit && showForm}
                 isSubmitting={isSubmitting}
                 onSubmit={handleSubmit}

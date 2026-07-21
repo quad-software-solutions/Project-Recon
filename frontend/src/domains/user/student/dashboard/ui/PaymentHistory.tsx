@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ElementType } from 'react';
-import { CheckCircle, Clock, XCircle, Loader2, DollarSign } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, Loader2, DollarSign, Building2, Smartphone, Landmark } from 'lucide-react';
 import { fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment } from '@/shared/types';
 import { isForbiddenError } from '@/shared/api/http';
@@ -13,6 +13,13 @@ const statusStyles: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-700',
   UNPAID: 'bg-red-100 text-red-600',
   CANCELLED: 'bg-slate-100 text-slate-500',
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: 'Cash',
+  BANK_TRANSFER: 'Bank Transfer',
+  MOBILE_MONEY: 'Mobile Money',
+  CHEQUE: 'Cheque',
 };
 
 const statusIcons: Record<string, ElementType> = {
@@ -97,7 +104,7 @@ export default function PaymentHistory({ studentId }: Props) {
                         {enr.payment_status || 'UNPAID'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{enr.payment_method || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{PAYMENT_METHOD_LABELS[enr.payment_method || ''] || enr.payment_method || '—'}</td>
                   </tr>
                 );
               })}

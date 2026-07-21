@@ -8,7 +8,11 @@ import type { UserProfile } from '@/shared/types';
 import { updateUserApi, uploadProfilePictureApi } from '@/domains/user/shared/api/adminApi';
 import { securityApi } from '@/domains/auth/login/api/securityApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
-const profileImg = "https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff";
+
+function avatarUrl(name: string) {
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D8ABC&color=fff&bold=true`;
+}
+
 
 interface Props {
   currentUser: UserProfile;
@@ -160,7 +164,7 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
         )}
 
         <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-slate-50 shadow-md shrink-0 group">
-          <img src={currentUser.profile_picture || profileImg} alt="" className="w-full h-full object-cover" />
+          <img src={currentUser.profile_picture || avatarUrl(currentUser.name)} alt="" className="w-full h-full object-cover" />
           <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity rounded-full">
             {uploading ? (
               <Loader2 className="w-6 h-6 text-white animate-spin" />
@@ -232,7 +236,7 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
                   <Mail className="w-3.5 h-3.5 text-slate-400" /> {currentUser.email}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold bg-slate-100 px-3 py-1.5 rounded-lg">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" /> {currentUser.phone_number || 'Not provided'}
+                  <Phone className="w-3.5 h-3.5 text-slate-400" /> {currentUser.phone_number || 'Not Available'}
                 </span>
                 <span className={`flex items-center gap-1.5 text-xs font-semibold bg-slate-100 px-3 py-1.5 rounded-lg ${currentUser.date_of_birth ? 'text-slate-700' : 'text-slate-400'}`}>
                   <Calendar className="w-3.5 h-3.5 text-slate-400" /> {currentUser.date_of_birth ? new Date(currentUser.date_of_birth).toLocaleDateString() : 'No DOB'}
@@ -321,7 +325,7 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
                     <div className="flex items-center gap-2 min-w-0">
                       <Smartphone className="w-4 h-4 text-slate-400 shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-700 truncate">{d.device_name || d.device_type || 'Unknown device'}</p>
+                        <p className="text-xs font-medium text-slate-700 truncate">{d.device_name || d.device_type || 'Not Available'}</p>
                         {d.last_used && <p className="text-[10px] text-slate-400">Last used: {new Date(d.last_used).toLocaleDateString()}</p>}
                       </div>
                     </div>
@@ -364,7 +368,6 @@ function TrustCurrentDevice({ onTrusted }: { onTrusted: () => void }) {
       setPhase('otp');
       setMsg('OTP sent. Enter the code to trust this browser.');
     } catch (e: unknown) {
-      const { formatApiError } = await import('@/shared/utils/formatApiError');
       setErr(formatApiError(e));
     } finally {
       setBusy(false);
@@ -382,7 +385,6 @@ function TrustCurrentDevice({ onTrusted }: { onTrusted: () => void }) {
       setMsg('This device is now trusted.');
       onTrusted();
     } catch (e: unknown) {
-      const { formatApiError } = await import('@/shared/utils/formatApiError');
       setErr(formatApiError(e));
     } finally {
       setBusy(false);

@@ -11,6 +11,7 @@ import {
   REGISTRATION_MODE_LABELS,
 } from './eventRegistrationUtils';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 interface EventRegistrationModalProps {
   event: Tournament | Workshop;
@@ -290,7 +291,7 @@ export default function EventRegistrationModal({
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-amber-600 shrink-0" />
                   <p className="text-[11px] font-bold text-amber-700">
-                    Registration fee: {event.registrationFee} Birr (payment may be required after approval)
+                    Registration fee: {formatMoneyCompact(event.registrationFee)} (payment may be required after approval)
                   </p>
                 </div>
               )}
@@ -386,7 +387,7 @@ export default function EventRegistrationModal({
                   {event.paymentRequired && (
                     <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
                       <p className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5" /> Manual payment · {event.registrationFee || 'Required'} Birr
+                        <CreditCard className="w-3.5 h-3.5" /> Manual payment · {event.registrationFee ? formatMoneyCompact(event.registrationFee) : 'Required'}
                       </p>
                       <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as typeof paymentMethod)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
                         <option value="BANK_TRANSFER">Bank transfer</option>

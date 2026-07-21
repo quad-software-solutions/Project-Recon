@@ -1,13 +1,12 @@
 import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
-  Users, Edit3, BarChart3, Activity, BookOpen, Calendar, FileText,
+  Users, Edit3, BarChart3, BookOpen, Calendar, FileText,
   GraduationCap, CheckCircle2, DollarSign, Clock, LayoutDashboard, User,
 } from 'lucide-react';
 
 export type TeacherSectionId =
   | 'overview' | 'class' | 'workshops' | 'attendance' | 'progress' | 'milestones'
-  | 'materials' | 'metrics' | 'activity' | 'reports' | 'announcements' | 'account'
-  | 'calendar' | 'profile';
+  | 'materials' | 'reports' | 'announcements' | 'account' | 'profile';
 
 export interface TeacherHubStats {
   classStudents: number;
@@ -38,10 +37,10 @@ export function getTeacherCommandCenter(
       title: 'Instructor Hub',
       subtitle: 'Loading class data...',
       signals: [
-        { label: 'Students', value: '—', detail: 'loading...', icon: Users, tone: 'slate' },
-        { label: 'Active', value: '—', detail: 'loading...', icon: CheckCircle2, tone: 'slate' },
-        { label: 'Pending', value: '—', detail: 'loading...', icon: DollarSign, tone: 'slate' },
-        { label: 'Classes', value: '—', detail: 'loading...', icon: BookOpen, tone: 'slate' },
+        { label: 'Students', value: '\u2014', detail: 'loading...', icon: Users, tone: 'slate' },
+        { label: 'Active', value: '\u2014', detail: 'loading...', icon: CheckCircle2, tone: 'slate' },
+        { label: 'Pending', value: '\u2014', detail: 'loading...', icon: DollarSign, tone: 'slate' },
+        { label: 'Classes', value: '\u2014', detail: 'loading...', icon: BookOpen, tone: 'slate' },
       ],
     };
   }
@@ -52,7 +51,7 @@ export function getTeacherCommandCenter(
     case 'class':
       return {
         title: 'Class Management',
-        subtitle: `Manage your class roster and enrollments — ${modeLabel}.`,
+        subtitle: `Manage your class roster and enrollments \u2014 ${modeLabel}.`,
         signals: [
           { label: 'Students', value: String(classStudents), detail: 'in selected class', icon: Users, tone: classStudents ? 'blue' : 'slate' },
           { label: 'Active', value: String(classActive), detail: 'active enrollments', icon: CheckCircle2, tone: 'emerald' },
@@ -121,30 +120,6 @@ export function getTeacherCommandCenter(
         ],
       };
 
-    case 'metrics':
-      return {
-        title: 'Performance Metrics',
-        subtitle: 'Class performance and enrollment analytics.',
-        signals: [
-          { label: 'Students', value: String(classStudents), detail: 'in scope', icon: Users, tone: 'blue' },
-          { label: 'Active', value: String(classActive), detail: 'performing', icon: BarChart3, tone: 'emerald' },
-          { label: 'Classes', value: String(classesCount), detail: 'compared', icon: BookOpen, tone: 'purple' },
-          { label: 'Pending', value: String(classPending), detail: 'at risk', icon: DollarSign, tone: classPending ? 'amber' : 'slate' },
-        ],
-      };
-
-    case 'activity':
-      return {
-        title: 'Activity Feed',
-        subtitle: 'Recent class and student activity.',
-        signals: [
-          { label: 'Students', value: String(classStudents), detail: 'monitored', icon: Activity, tone: 'blue' },
-          { label: 'Active', value: String(classActive), detail: 'recent activity', icon: Users, tone: 'emerald' },
-          { label: 'Classes', value: String(classesCount), detail: 'tracked', icon: BookOpen, tone: 'slate' },
-          { label: 'Workshops', value: String(workshopsCount), detail: 'workshop events', icon: GraduationCap, tone: 'purple' },
-        ],
-      };
-
     case 'reports':
       return {
         title: 'Reports',
@@ -172,23 +147,12 @@ export function getTeacherCommandCenter(
     case 'overview':
       return {
         title: 'Dashboard',
-        subtitle: `${modeLabel} — ${classStudents} students across ${classesCount} classes.`,
+        subtitle: `${modeLabel} \u2014 ${classStudents} students across ${classesCount} classes.`,
         signals: [
           { label: 'Students', value: String(classStudents), detail: 'across classes', icon: Users, tone: 'blue' },
           { label: 'Active', value: String(classActive), detail: 'active enrollments', icon: CheckCircle2, tone: 'emerald' },
           { label: 'Pending', value: String(classPending), detail: 'awaiting payment', icon: DollarSign, tone: classPending ? 'amber' : 'slate' },
           { label: 'Classes', value: String(classesCount), detail: mode === 'staff' ? 'catalog' : 'assigned', icon: BookOpen, tone: 'emerald' },
-        ],
-      };
-
-    case 'calendar':
-      return {
-        title: 'Calendar',
-        subtitle: 'Class schedule and upcoming events.',
-        signals: [
-          { label: 'Classes', value: String(classesCount), detail: 'scheduled', icon: Calendar, tone: 'blue' },
-          { label: 'Students', value: String(classStudents), detail: 'enrolled', icon: Users, tone: 'emerald' },
-          { label: 'Workshops', value: String(workshopsCount), detail: 'assigned', icon: GraduationCap, tone: 'purple' },
         ],
       };
 

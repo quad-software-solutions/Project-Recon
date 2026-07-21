@@ -1,31 +1,20 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  User, Home, GraduationCap, Briefcase, Calendar, Megaphone,
-  MessageCircle, FileText, ShoppingBag, Loader2, Target, BookOpen, DollarSign,
+  User, Home, GraduationCap, Calendar, Megaphone,
+  FileText, ShoppingBag, Loader2, Target, BookOpen, DollarSign,
 } from 'lucide-react';
 import { UserProfile } from '@/shared/types';
-import {
-  fetchStudentCertificatesApi,
-} from '@/domains/learning/academics/api/academicApi';
-import { getMyRegistrations } from '@/domains/competition/api/competitionApi';
 import { cacheStudentId, resolveStudentId } from '@/domains/user/student/api/studentContext';
 import { getCachedStudentId } from '@/shared/utils/storage';
 import { AppLayout } from '@/shared/ui/AppLayout';
 import { NavItem } from '@/shared/ui/Sidebar';
-import DashboardCommandCenter from '@/shared/ui/DashboardCommandCenter';
 import StudentAccount from './Account';
 import AdminAccount from '@/domains/user/shared/ui/AdminAccount';
-import {
-  getSectionCommandCenter,
-  type StudentSectionId,
-  type StudentHubStats,
-} from '../studentCommandCenter';
+import type { StudentSectionId } from '../studentCommandCenter';
 
 import DashboardHome, { type HomeNavigateTarget } from './DashboardHome';
-import CareerCenterModule from './modules/CareerCenterModule';
 import EventsModule from './modules/EventsModule';
 import AnnouncementsPage from './modules/AnnouncementsPage';
-import MessagingModule from './modules/MessagingModule';
 import CertificateGenerator from './CertificateGenerator';
 import StoreModule from './modules/StoreModule';
 import MyRegistrations from './MyRegistrations';
@@ -33,6 +22,7 @@ import ProgressMilestones from './ProgressMilestones';
 import AttendanceTracker from './AttendanceTracker';
 import LearningResources from './LearningResources';
 import PaymentHistory from './PaymentHistory';
+
 
 interface StudentDashboardProps {
   currentUser: UserProfile;
@@ -48,12 +38,10 @@ function buildNavItems(): NavItem[] {
     { id: 'attendance', label: 'Attendance', icon: Calendar, group: 'academic' },
     { id: 'materials', label: 'Learning Materials', icon: BookOpen, group: 'academic' },
     { id: 'payments', label: 'Payments', icon: DollarSign, group: 'academic' },
-    { id: 'store', label: 'Store', icon: ShoppingBag, group: 'main' },
     { id: 'certificates', label: 'Certificates', icon: FileText, group: 'academic' },
-    { id: 'career', label: 'Career Center', icon: Briefcase, group: 'career' },
+    { id: 'store', label: 'Store', icon: ShoppingBag, group: 'main' },
     { id: 'events', label: 'Events', icon: Calendar, group: 'competition' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'communication' },
-    { id: 'messaging', label: 'Support', icon: MessageCircle, group: 'communication' },
     { id: 'account', label: 'My Account', icon: User, group: 'system' },
   ];
 }
@@ -62,23 +50,6 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   const [activeSection, setActiveSection] = useState<StudentSectionId>('home');
   const [studentId, setStudentId] = useState<string | null>(null);
   const [studentLoading, setStudentLoading] = useState(true);
-  const [certificateCount, setCertificateCount] = useState(0);
-  const [eventRegCount, setEventRegCount] = useState(0);
-  const [announcementCount, setAnnouncementCount] = useState(0);
-
-  const loadSupplementaryStats = useCallback(async (sid?: string) => {
-    const [certs, regs, news] = await Promise.all([
-      fetchStudentCertificatesApi(sid).catch(() => []),
-      getMyRegistrations().catch(() => []),
-      import('@/domains/cms/public/api/cmsPublicApi')
-        .then(m => m.cmsPublicApi.getNews({ limit: '50' }))
-        .catch(() => ({ results: [] as { id: string }[] })),
-    ]);
-    setCertificateCount(certs.length);
-    setEventRegCount(regs.filter(r => r.registration_status !== 'CANCELLED').length);
-    setAnnouncementCount(news?.results?.length ?? 0);
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -88,7 +59,6 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
       const tryLoadForId = async (sid: string) => {
         if (!cancelled) setStudentId(sid);
         cacheStudentId(currentUser.email, sid);
-        await loadSupplementaryStats(sid);
         finish();
       };
 
@@ -109,22 +79,12 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return;
       }
 
-      await loadSupplementaryStats();
       finish();
     }
 
     resolveStudent();
     return () => { cancelled = true; };
-  }, [currentUser.id, currentUser.email, currentUser.studentId, loadSupplementaryStats]);
-
-  const hubStats: StudentHubStats = useMemo(() => ({
-    certificateCount,
-    eventRegCount,
-    announcementCount,
-    loading: studentLoading,
-  }), [certificateCount, eventRegCount, announcementCount, studentLoading]);
-
-  const commandCenter = getSectionCommandCenter(activeSection, hubStats);
+  }, [currentUser.id, currentUser.email, currentUser.studentId]);
 
   const handleHomeNavigate = (section: HomeNavigateTarget) => {
     setActiveSection(section);
@@ -137,20 +97,32 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         : <AdminAccount currentUser={currentUser} onUserUpdate={onUserUpdate} />;
     }
 
-    const needsStudent = ['home', 'store', 'career', 'certificates', 'academics', 'progress', 'attendance', 'payments'].includes(activeSection);
+    const needsStudent = ['certificates', 'academics', 'progress', 'attendance', 'payments'].includes(activeSection);
 
     if (!studentId && needsStudent) {
       return (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex items-center justify-center py-16">
           {studentLoading ? (
             <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
           ) : (
-            <div className="text-center text-slate-400 max-w-sm mx-auto px-4">
-              <User className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p className="text-sm font-medium">Student profile not found.</p>
-              <p className="text-xs mt-2 text-slate-500">
-                You can still browse events, announcements, and the store. Contact administration to link your academic profile.
+            <div className="max-w-sm mx-auto px-4 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <User className="h-7 w-7" />
+              </span>
+              <h3 className="mt-4 text-base font-black text-slate-900">Profile not linked</h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                Your account is active, but no academic enrollment is linked to it yet.
+                Academic features (certificates, progress, attendance, payments, materials)
+                will become available once an admin links your profile.
               </p>
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-4 py-1.5 text-[11px] font-semibold text-slate-600">
+                  Contact administration to get linked
+                </span>
+                <p className="text-[10px] text-slate-400">
+                  You can still browse <strong>Events</strong>, <strong>Announcements</strong>, and the <strong>Store</strong> in the sidebar.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -159,7 +131,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
 
     switch (activeSection) {
       case 'home':
-        return <DashboardHome currentUser={currentUser} studentId={studentId!} onNavigate={handleHomeNavigate} />;
+        return <DashboardHome currentUser={currentUser} studentId={studentId} onNavigate={handleHomeNavigate} />;
       case 'academics':
         return <MyRegistrations studentId={studentId!} />;
       case 'progress':
@@ -172,14 +144,10 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return <PaymentHistory studentId={studentId!} />;
       case 'store':
         return <StoreModule currentUser={currentUser} />;
-      case 'career':
-        return <CareerCenterModule studentId={studentId!} currentUser={currentUser} />;
       case 'events':
         return <EventsModule currentUser={currentUser} />;
       case 'announcements':
         return <AnnouncementsPage />;
-      case 'messaging':
-        return <MessagingModule currentUser={currentUser} />;
       case 'certificates':
         return <CertificateGenerator studentId={studentId!} />;
     }
@@ -205,14 +173,6 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
       }}
       onLogout={onLogout}
     >
-      {commandCenter && (
-        <DashboardCommandCenter
-          title={commandCenter.title}
-          subtitle={commandCenter.subtitle}
-          signals={commandCenter.signals}
-          loading={studentLoading}
-        />
-      )}
       {renderPage()}
     </AppLayout>
   );

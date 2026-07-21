@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, Download, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff, ArrowRight } from 'lucide-react';
+import { Search, Calendar, Download, CheckCircle, Clock, XCircle, AlertCircle, Eye, X, Loader2, Shield, ShieldOff, ArrowRight } from 'lucide-react';
 import { fetchEnrollmentsApi, cancelEnrollmentApi, fetchStudentCertificatesApi, downloadEnrollmentReportPdf, fetchBranchesApi, fetchClassesApi, requestTransferApi } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment, StudentCertificate, AcademicClass } from '@/shared/types';
 import { isForbiddenError } from '@/shared/api/http';
@@ -40,6 +40,9 @@ export default function MyRegistrations({ studentId }: Props) {
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [transferDone, setTransferDone] = useState(false);
+  const [selectedRegistration, setSelectedRegistration] = useState<Enrollment | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEnrollmentsApi(studentId).then(setRegistrations).catch((err) => {
@@ -51,10 +54,18 @@ export default function MyRegistrations({ studentId }: Props) {
   }, [studentId]);
 
   const cancelRegistration = async (id: string) => {
+    if (!window.confirm('Cancel this enrollment? This action may require staff review.')) return;
+    setCancellingId(id);
+    setActionError(null);
     try {
       await cancelEnrollmentApi(id);
       setRegistrations(prev => prev.map(r => r.id === id ? { ...r, status: 'CANCELLED' as const } : r));
-    } catch {}
+      setSelectedRegistration(prev => prev?.id === id ? { ...prev, status: 'CANCELLED' as const } : prev);
+    } catch (e: unknown) {
+      setActionError(formatApiError(e) || 'Unable to cancel this enrollment.');
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   const openTransfer = async (reg: Enrollment) => {
@@ -91,7 +102,13 @@ export default function MyRegistrations({ studentId }: Props) {
     return matchSearch && matchStatus;
   });
 
-  const totalFee = 0;
+  const statusLabel = (value?: string | null) => value
+    ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+    : 'Not Available';
+
+  const dateLabel = (value?: string | null) => value
+    ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'Not Available';
 
   if (loading) {
     return (
@@ -134,6 +151,13 @@ export default function MyRegistrations({ studentId }: Props) {
 
   return (
     <div>
+      {actionError && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} aria-label="Dismiss error"><X className="h-4 w-4" /></button>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
           { label: 'Total', value: registrations.length.toString(), color: 'text-brand-blue' },
@@ -201,6 +225,9 @@ export default function MyRegistrations({ studentId }: Props) {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => setSelectedRegistration(reg)} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50" title="View enrollment details" aria-label={`View details for ${reg.program_name || reg.sub_program_name || 'enrollment'}`}>
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         {reg.status === 'ACTIVE' && (
                           <button onClick={() => openTransfer(reg)} className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50" title="Request transfer">
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -208,7 +235,7 @@ export default function MyRegistrations({ studentId }: Props) {
                         )}
                         {reg.status === 'ACTIVE' || reg.status === 'PENDING_VERIFICATION' ? (
                           <button onClick={() => cancelRegistration(reg.id)} className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" title="Cancel">
-                            <X className="w-3.5 h-3.5" />
+                            {cancellingId === reg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
                           </button>
                         ) : null}
                       </div>
@@ -217,12 +244,69 @@ export default function MyRegistrations({ studentId }: Props) {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-8 text-xs text-slate-400">No registrations found</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-xs text-slate-400">
+                  {search || filterStatus !== 'all' ? 'No registrations matching your filters' : 'No registrations found'}
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {selectedRegistration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSelectedRegistration(null)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-brand-border bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-brand-border px-5 py-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Enrollment details</p>
+                <h3 className="mt-1 text-lg font-black text-slate-900">{selectedRegistration.program_name || selectedRegistration.sub_program_name || 'Program'}</h3>
+                <p className="mt-1 text-xs text-slate-500">{selectedRegistration.class_name || 'Class not available'}</p>
+              </div>
+              <button onClick={() => setSelectedRegistration(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close details"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${STATUS_STYLES[selectedRegistration.status] || 'bg-slate-100 text-slate-600'}`}>{statusLabel(selectedRegistration.status)}</span>
+                {selectedRegistration.verification_status && <span className="rounded-full bg-violet-100 px-3 py-1 text-[11px] font-bold text-violet-700">Verification: {statusLabel(selectedRegistration.verification_status)}</span>}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ['Program', selectedRegistration.program_name || selectedRegistration.sub_program_name],
+                  ['Class', selectedRegistration.class_name],
+                  ['Class type', selectedRegistration.class_type],
+                  ['Branch', selectedRegistration.branch_name],
+                  ['Enrollment number', selectedRegistration.enrollment_number || selectedRegistration.pending_code],
+                  ['Enrolled on', dateLabel(selectedRegistration.enrolled_at)],
+                  ['Payment status', selectedRegistration.payment_status],
+                  ['Payment method', selectedRegistration.payment_method],
+                  ['Last updated', dateLabel(selectedRegistration.updated_at)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-brand-border bg-slate-50/70 px-3 py-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">{value ? statusLabel(value) : 'Not Available'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {(selectedRegistration.rejection_reason || selectedRegistration.remarks || selectedRegistration.transferred_from) && (
+                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                  {selectedRegistration.rejection_reason && <p><strong>Reason:</strong> {selectedRegistration.rejection_reason}</p>}
+                  {selectedRegistration.remarks && <p><strong>Remarks:</strong> {selectedRegistration.remarks}</p>}
+                  {selectedRegistration.transferred_from && <p><strong>Transferred from:</strong> {selectedRegistration.transferred_from}</p>}
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-brand-border pt-4">
+                <button onClick={() => downloadEnrollmentReportPdf(studentId)} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"><Download className="h-3.5 w-3.5" /> Download report</button>
+                {selectedRegistration.status === 'ACTIVE' && <button onClick={() => { setSelectedRegistration(null); openTransfer(selectedRegistration); }} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"><ArrowRight className="h-3.5 w-3.5" /> Request transfer</button>}
+                {(selectedRegistration.status === 'ACTIVE' || selectedRegistration.status === 'PENDING_VERIFICATION') && <button onClick={() => cancelRegistration(selectedRegistration.id)} disabled={cancellingId === selectedRegistration.id} className="inline-flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"><X className="h-3.5 w-3.5" /> Cancel enrollment</button>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {transferTarget && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setTransferTarget(null)}>

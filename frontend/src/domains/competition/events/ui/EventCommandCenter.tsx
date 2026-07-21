@@ -14,6 +14,7 @@ import * as eventsApi from '../../api/eventsApi';
 import MatchManager from '../../admin/MatchManager';
 import TeamManager from '../../admin/TeamManager';
 import VexRulesPanel from '../../shared/VexRulesPanel';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 
 import { AppLayout } from '@/shared/ui/AppLayout';
@@ -289,7 +290,7 @@ function CreateEvent() {
         </div>
         <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Date *</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" /></div>
         <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Max Teams</label><input type="number" value={maxTeams} onChange={e => setMaxTeams(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. 40" /></div>
-        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Registration Fee (Birr)</label><input type="number" value={fee} onChange={e => setFee(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="0 for free" /></div>
+        <div><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Registration Fee (ETB)</label><input type="number" value={fee} onChange={e => setFee(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="0 for free" /></div>
         <div className="md:col-span-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Location</label><input value={location} onChange={e => setLocation(e.target.value)} className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Bole Prep Hall" /></div>
       </div>
       <button onClick={handleSubmit} disabled={saving}
@@ -378,7 +379,7 @@ function AllEvents() {
             <div className="text-[10px] text-slate-500 space-y-1">
               <p className="flex items-center gap-1.5"><Users className="w-3 h-3" />{e.max_teams || '—'} max teams</p>
               <p className="flex items-center gap-1.5"><Gamepad2 className="w-3 h-3" />{matches.filter((m: any) => m.tournament === e.id).length} matches</p>
-              {e.prize_pool && <p className="flex items-center gap-1.5"><DollarSign className="w-3 h-3" />{e.prize_pool} Birr</p>}
+              {e.prize_pool && <p className="flex items-center gap-1.5">{formatMoneyCompact(e.prize_pool)}</p>}
             </div>
             <div className="flex gap-2 mt-4">
               {e.is_closed ? (

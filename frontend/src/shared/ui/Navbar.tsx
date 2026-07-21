@@ -175,8 +175,8 @@ export default function Navbar({
       <nav
         className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 ${
           scrolled
-            ? 'bg-white/95 backdrop-blur-xl border-b border-brand-border/40 shadow-[0_4px_20px_-4px_rgba(16,20,38,0.08)]'
-            : 'bg-white/80 backdrop-blur-md border-b border-transparent'
+            ? 'bg-white border-b border-brand-border/40 shadow-[0_4px_20px_-4px_rgba(16,20,38,0.08)]'
+            : 'bg-white border-b border-transparent'
         }`}
       >
         {/* Brand accent bar: blue-red-blue like the logo gear */}

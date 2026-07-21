@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 
 export type StudentSectionId =
-  | 'home' | 'account' | 'store' | 'career' | 'events'
-  | 'announcements' | 'messaging' | 'certificates'
+  | 'home' | 'account' | 'store' | 'events'
+  | 'announcements' | 'certificates'
   | 'academics' | 'progress' | 'attendance' | 'materials' | 'payments';
 
 export interface StudentHubStats {
@@ -35,11 +35,11 @@ export function getSectionCommandCenter(
   if (loading) {
     return {
       title: section === 'home' ? 'Student Hub' : 'Loading',
-      subtitle: 'Fetching your dashboard data…',
+      subtitle: 'Fetching your dashboard data\u2026',
       signals: [
-        { label: 'Certificates', value: '—', detail: 'loading…', icon: FileText, tone: 'slate' },
-        { label: 'Events', value: '—', detail: 'loading…', icon: Calendar, tone: 'slate' },
-        { label: 'News', value: '—', detail: 'loading…', icon: Megaphone, tone: 'slate' },
+        { label: 'Certificates', value: '\u2014', detail: 'loading\u2026', icon: FileText, tone: 'slate' },
+        { label: 'Events', value: '\u2014', detail: 'loading\u2026', icon: Calendar, tone: 'slate' },
+        { label: 'News', value: '\u2014', detail: 'loading\u2026', icon: Megaphone, tone: 'slate' },
       ],
     };
   }
@@ -61,19 +61,9 @@ export function getSectionCommandCenter(
         title: 'Store',
         subtitle: 'Browse products and manage your orders.',
         signals: [
-          { label: 'Products', value: '—', detail: 'browse catalog', icon: ShoppingBag, tone: 'blue' },
-          { label: 'Cart', value: '—', detail: 'view your cart', icon: ShoppingBag, tone: 'emerald' },
-          { label: 'Orders', value: '—', detail: 'order history', icon: ClipboardList, tone: 'slate' },
-        ],
-      };
-
-    case 'career':
-      return {
-        title: 'Career Center',
-        subtitle: 'Workshops, guidance, and professional certificates.',
-        signals: [
-          { label: 'Certificates', value: String(certificateCount), detail: 'earned credentials', icon: FileText, tone: certificateCount ? 'emerald' : 'slate' },
-          { label: 'Events', value: String(eventRegCount), detail: 'event registrations', icon: Calendar, tone: eventRegCount ? 'blue' : 'slate' },
+          { label: 'Products', value: '\u2014', detail: 'browse catalog', icon: ShoppingBag, tone: 'blue' },
+          { label: 'Cart', value: '\u2014', detail: 'view your cart', icon: ShoppingBag, tone: 'emerald' },
+          { label: 'Orders', value: '\u2014', detail: 'order history', icon: ClipboardList, tone: 'slate' },
         ],
       };
 
@@ -93,15 +83,6 @@ export function getSectionCommandCenter(
         subtitle: 'Official news and updates from the institution.',
         signals: [
           { label: 'News', value: String(announcementCount), detail: 'published items', icon: Megaphone, tone: announcementCount ? 'blue' : 'slate' },
-        ],
-      };
-
-    case 'messaging':
-      return {
-        title: 'Messages & Support',
-        subtitle: 'Announcements and contact support.',
-        signals: [
-          { label: 'Support', value: 'Open', detail: 'contact form available', icon: Megaphone, tone: 'emerald' },
         ],
       };
 

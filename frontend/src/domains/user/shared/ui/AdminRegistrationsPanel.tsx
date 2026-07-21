@@ -3,6 +3,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import type { Enrollment, EnrollmentPayment } from '@/shared/types';
 import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import { formatApiError } from '@/shared/utils/formatApiError';
 
 export default function AdminRegistrationsPanel() {
@@ -57,7 +58,7 @@ export default function AdminRegistrationsPanel() {
                 <td className="px-4 py-3 text-slate-600">{r.class_name || r.sub_program_name || 'Class'}</td>
                 <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{r.enrolled_at?.slice(0, 10) || '—'}</td>
                 <td className="px-4 py-3"><span className={`text-xs font-semibold px-2 py-1 rounded-lg ${statusClass(r.status)}`}>{r.status.replace('_', ' ')}</span></td>
-                <td className="px-4 py-3 text-slate-600 font-medium hidden lg:table-cell">{paymentByEnrollment[r.id] ? `${Number(paymentByEnrollment[r.id].amount).toLocaleString()} Birr` : '—'}</td>
+                <td className="px-4 py-3 text-slate-600 font-medium hidden lg:table-cell">{paymentByEnrollment[r.id] ? formatMoneyCompact(paymentByEnrollment[r.id].amount) : '—'}</td>
                 <td className="px-4 py-3"><span className="text-xs text-slate-400">—</span></td>
               </tr>
             ))}

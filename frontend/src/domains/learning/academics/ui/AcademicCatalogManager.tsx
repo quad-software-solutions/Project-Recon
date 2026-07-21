@@ -33,6 +33,7 @@ import {
   type AcademicSubProgramPayload,
 } from '@/domains/learning/academics/api/academicApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 type ProgramForm = AcademicProgramPayload & { id?: string };
 type SubProgramForm = AcademicSubProgramPayload & { id?: string };
@@ -438,11 +439,11 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                   <option value="MONTH">Month</option>
                 </select>
               </FormField>
-              <FormField label="Group Fee (Birr)" required>
+              <FormField label="Group Fee (ETB)" required>
                 <input value={subProgramForm.group_fee} onChange={e => setSubProgramForm(p => ({ ...p, group_fee: e.target.value }))}
                   placeholder="e.g. 5000" className="form-input" />
               </FormField>
-              <FormField label="Individual Fee (Birr)">
+              <FormField label="Individual Fee (ETB)">
                 <input value={subProgramForm.individual_fee || ''} onChange={e => setSubProgramForm(p => ({ ...p, individual_fee: e.target.value }))}
                   placeholder="e.g. 8000" className="form-input" />
               </FormField>
@@ -514,7 +515,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                           <div key={sp.id} className="flex items-center gap-2 pl-6 py-1.5 text-xs text-slate-600 border-l-2 border-brand-red/20">
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sp.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                             <span className="font-medium flex-1 truncate">{sp.name}</span>
-                            <span className="text-slate-400">{Number(sp.group_fee).toLocaleString()} Birr</span>
+                            <span className="text-slate-400">{formatMoneyCompact(sp.group_fee)}</span>
                             {sp.duration && <span className="text-slate-400">({sp.duration} {sp.duration_unit?.toLowerCase()})</span>}
                             <button type="button" onClick={() => editSubProgram(sp)} className="text-[10px] font-bold text-blue-600 hover:underline">Edit</button>
                           </div>
@@ -586,7 +587,7 @@ export default function AcademicCatalogManager({ role = 'Manager' }: { role?: 'A
                         <p className="text-xs text-slate-400 truncate">{parentProgram?.name || sp.program_name || '—'}</p>
                       </div>
                       <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 shrink-0">
-                        {Number(sp.group_fee) > 0 && <span className="font-bold text-slate-700">{Number(sp.group_fee).toLocaleString()} Birr</span>}
+                        {Number(sp.group_fee) > 0 && <span className="font-bold text-slate-700">{formatMoneyCompact(sp.group_fee)}</span>}
                         {sp.duration && <span className="text-slate-400">| {sp.duration}{sp.duration_unit?.charAt(0)?.toLowerCase()}</span>}
                       </div>
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sp.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>

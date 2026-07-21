@@ -15,6 +15,7 @@ import {
 import { fetchAllPages } from '@/shared/api/pagination';
 import { cmsContactRequestsApi } from '@/domains/cms/shared/api/cmsApi';
 import LiveLeaderboardWidget from '@/domains/competition/shared/LiveLeaderboardWidget';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { AdminSectionId } from '../adminCommandCenter';
 
 type StatCard = {
@@ -193,7 +194,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
     { label: 'Total Users', value: String(totalUsers), icon: Users, color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
     { label: 'Students', value: String(usersByRole['Student'] || 0), icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Active Enrollments', value: String(activeEnrollments.length), icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50', detail: `${pendingEnrollments.length} pending payment` },
-    { label: 'Revenue', value: `${totalRevenue.toLocaleString()} Birr`, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', detail: `${paidPayments.length} paid` },
+    { label: 'Revenue', value: formatMoneyCompact(totalRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', detail: `${paidPayments.length} paid` },
     { label: 'Programs', value: String(programs.filter((p: any) => p.is_active !== false).length), icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Classes', value: String(classes.filter((c: any) => c.is_active !== false).length), icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Open Messages', value: String(openContacts.length), icon: MessageSquare, color: 'text-cyan-600', bg: 'bg-cyan-50' },
@@ -409,7 +410,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
               </div>
               <div className="mt-4 pt-4 border-t border-slate-100 flex items-baseline justify-between">
                 <span className="text-xs text-slate-500">Total Revenue</span>
-                <span className="text-lg font-bold text-slate-900">{totalRevenue.toLocaleString()} Birr</span>
+                <span className="text-lg font-bold text-slate-900">{formatMoneyCompact(totalRevenue)}</span>
               </div>
             </>
           )}

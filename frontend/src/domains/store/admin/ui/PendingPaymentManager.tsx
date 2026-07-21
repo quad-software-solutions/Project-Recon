@@ -11,6 +11,7 @@ import {
 import type { StorePayment } from '../../model/types';
 import { cn } from '@/shared/utils/cn';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { formatMoney } from '@/shared/utils/formatCurrency';
 
 interface Props {
   addToast: (message: string, type: 'success' | 'error') => void;
@@ -30,10 +31,6 @@ const PAYMENT_METHOD_MAP: Record<string, { label: string; color: string }> = {
   CHEQUE: { label: 'Cheque', color: 'text-amber-600 bg-amber-50' },
 };
 
-function formatMoney(n: number | string): string {
-  const val = typeof n === 'string' ? parseFloat(n) : n;
-  return `${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Birr`;
-}
 
 export default function PendingPaymentManager({ addToast }: Props) {
   const [payments, setPayments] = useState<StorePayment[]>([]);

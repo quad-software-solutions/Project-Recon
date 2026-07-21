@@ -352,7 +352,7 @@ export default function ProductManager({ addToast }: Props) {
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-brand-muted">
                       <span className="flex items-center gap-1"><Tag className="w-3 h-3" />{item.category_name}</span>
                       <span>SKU: {item.sku}</span>
-                      <span className="flex items-center gap-1 font-semibold text-brand-ink"><DollarSign className="w-3 h-3" />{Number(item.price).toFixed(2)}</span>
+                      <span className="font-semibold text-brand-ink tabular-nums">{formatMoney(item.price)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">

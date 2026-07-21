@@ -22,6 +22,7 @@ import EventRegisterButton from '../../shared/EventRegisterButton';
 import { REGISTRATION_MODE_LABELS } from '../../shared/eventRegistrationUtils';
 import HubSkeleton from './components/HubSkeleton';
 import EventDetailModal from './components/EventDetailModal';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import MatchViewOverlay from './components/MatchViewOverlay';
 import { statusBadge } from '@/shared/utils/status';
 
@@ -612,7 +613,7 @@ export default function CompetitionHub({ currentUser, onViewTournament, onSelect
                         {event.paymentRequired && event.registrationFee && (
                           <span className="flex items-center gap-1 text-amber-600 font-bold">
                             <DollarSign className="w-3 h-3" />
-                            {event.registrationFee} Birr
+                            {formatMoneyCompact(event.registrationFee)}
                           </span>
                         )}
                         {event.registrationDeadline && (

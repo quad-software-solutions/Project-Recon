@@ -17,6 +17,7 @@ import { fetchTournamentStandings } from '@/domains/competition/api/matchApi';
 import type { Tournament, Workshop } from '@/shared/types';
 import EventRegisterButton from '@/domains/competition/shared/EventRegisterButton';
 import EventRegistrationModal from '@/domains/competition/shared/EventRegistrationModal';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 type DetailState = 'loading' | 'ready' | 'error';
 
@@ -501,7 +502,7 @@ export default function PublicEventDetailsPage({
               {event.payment_required && (
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Payment</span>
-                  <span className="font-black text-amber-700">{event.registration_fee ? `${event.registration_fee} Birr` : 'Required'}</span>
+                  <span className="font-black text-amber-700">{event.registration_fee ? formatMoneyCompact(event.registration_fee) : 'Required'}</span>
                 </div>
               )}
             </div>

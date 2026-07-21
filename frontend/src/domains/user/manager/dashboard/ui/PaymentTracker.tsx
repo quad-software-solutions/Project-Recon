@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DollarSign, TrendingUp, CreditCard, Loader2, Store, Calendar, Search, X, Plus, Eye, Banknote, BookOpen, Shield, CheckCircle2, Clock, AlertCircle, Building, Smartphone, FileText } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Loader2, Store, Calendar, Search, X, Plus, Eye, Banknote, BookOpen, Shield, Clock, AlertCircle, Building, Smartphone, FileText } from 'lucide-react';
 import { fetchPaymentsApi, fetchEnrollmentsPaginatedApi, fetchVerificationQueueApi, recordPaymentApi, setUnderReviewApi, rejectPaymentApi } from '@/domains/learning/academics/api/academicApi';
 import { fetchAllPages } from '@/shared/api/pagination';
 import PendingPaymentManager from '@/domains/store/admin/ui/PendingPaymentManager';
@@ -7,6 +7,7 @@ import { canManageStore } from '@/shared/auth/permissions';
 import { getUserProfile } from '@/shared/utils/storage';
 import * as eventsApi from '@/domains/competition/api/eventsApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 
 type Tab = 'enrollment' | 'store' | 'event';
 type EnrollSubTab = 'payments' | 'verification-queue';
@@ -59,7 +60,6 @@ export default function PaymentTracker() {
   const [selectedEnrollPayment, setSelectedEnrollPayment] = useState<any | null>(null);
   const [showRecordPay, setShowRecordPay] = useState(false);
   const [recordForm, setRecordForm] = useState({ enrollment: '', amount: '', payment_method: 'CASH', transaction_reference: '', transfer_reference: '', bank_name: '' });
-  const [verifyQueueId, setVerifyQueueId] = useState<string | null>(null);
   const [recordSubmitting, setRecordSubmitting] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<any | null>(null);
   const [rejectQReason, setRejectQReason] = useState('');
@@ -177,24 +177,6 @@ export default function PaymentTracker() {
       setToast({ message: 'Marked as under review', type: 'success' });
     } catch (e) {
       setToast({ message: `Failed: ${formatApiError(e)}`, type: 'error' });
-    }
-  };
-
-  const handleQuickVerify = async (queueItem: any) => {
-    setVerifyQueueId(queueItem.id);
-    setError(null);
-    try {
-      await recordPaymentApi({
-        enrollment: queueItem.enrollment,
-        amount: String(queueItem.amount),
-        payment_method: queueItem.payment_method || 'CASH',
-      });
-      loadEnrollmentData();
-      setToast({ message: `${queueItem.student_name || 'Student'} verified`, type: 'success' });
-    } catch (e) {
-      setToast({ message: `Verify failed: ${formatApiError(e)}`, type: 'error' });
-    } finally {
-      setVerifyQueueId(null);
     }
   };
 
@@ -326,7 +308,7 @@ export default function PaymentTracker() {
               </div>
               <div>
                 <p className="text-xs font-bold text-emerald-600 uppercase">Total Revenue</p>
-                <p className="font-display font-bold text-2xl text-slate-900">{totalRevenue.toLocaleString()} Birr</p>
+                <p className="font-display font-bold text-2xl text-slate-900">{formatMoneyCompact(totalRevenue)}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">{paid.length} paid transactions</p>
               </div>
             </div>
@@ -336,7 +318,7 @@ export default function PaymentTracker() {
               </div>
               <div>
                 <p className="text-xs font-bold text-[#2563EB] uppercase">Cash Payments</p>
-                <p className="font-display font-bold text-2xl text-slate-900">{totalCash.toLocaleString()} Birr</p>
+                <p className="font-display font-bold text-2xl text-slate-900">{formatMoneyCompact(totalCash)}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">{cashPayments.length} cash transactions</p>
               </div>
             </div>
@@ -436,7 +418,7 @@ export default function PaymentTracker() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
+                          <span className="text-xs font-bold text-slate-900">{formatMoneyCompact(p.amount)}</span>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${METHOD_BG[p.payment_method] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
@@ -483,7 +465,7 @@ export default function PaymentTracker() {
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">{p.sub_program_name || '—'}</td>
                       <td className="px-4 py-3">
-                        <span className="text-xs font-bold text-slate-900">{Number(p.amount).toLocaleString()} <span className="text-[10px] text-slate-400">Birr</span></span>
+                        <span className="text-xs font-bold text-slate-900">{formatMoneyCompact(p.amount)}</span>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${METHOD_BG[p.payment_method] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
@@ -498,11 +480,6 @@ export default function PaymentTracker() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => handleQuickVerify(p)} disabled={verifyQueueId === p.id}
-                            className="p-1 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-colors disabled:opacity-40" title="Quick verify"
-                          >
-                            {verifyQueueId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                          </button>
                           <button onClick={() => handleUnderReview(p.enrollment)}
                             className="p-1 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors" title="Mark under review"
                           >
@@ -598,7 +575,7 @@ export default function PaymentTracker() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-500 uppercase">Amount</p>
-                      <p className="text-sm font-bold text-slate-900">{selectedPay.amount} Birr</p>
+                      <p className="text-sm font-bold text-slate-900">{formatMoneyCompact(selectedPay.amount)}</p>
                     </div>
                   </div>
                   <div>
@@ -665,116 +642,194 @@ export default function PaymentTracker() {
         </div>
       )}
 
-      {selectedEnrollPayment && (
+      {selectedEnrollPayment && (() => {
+        const p = selectedEnrollPayment;
+        const methodLabel = PAYMENT_METHODS.find(m => m.value === p.payment_method)?.label || p.payment_method;
+        const initial = (p.student_name || '?').charAt(0).toUpperCase();
+        const isVerified = p.verified_at || p.status === 'PAID' || p.status === 'VERIFIED';
+        const isPending = p.status === 'PENDING' || p.status === 'PENDING_VERIFICATION';
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedEnrollPayment(null)} />
-          <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-brand-border z-10 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-brand-border">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-brand-blue/5 flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-brand-blue" />
+          <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-brand-border z-10 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-brand-border sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center text-sm font-black text-white shadow-sm">
+                  {initial}
                 </div>
-                <h3 className="font-bold text-base text-slate-900">Payment Details</h3>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Payment Details</h3>
+                  <p className="text-[11px] text-slate-500">{p.student_name || '—'}</p>
+                </div>
               </div>
               <button onClick={() => setSelectedEnrollPayment(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
 
-            {/* Hero Status Section */}
-            <div className="px-4 py-4 bg-gradient-to-br from-slate-50 to-white border-b border-brand-border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</p>
-                  <p className="text-2xl font-black text-slate-900 mt-0.5">{Number(selectedEnrollPayment.amount).toLocaleString()} <span className="text-sm font-bold text-slate-400">Birr</span></p>
+            {/* Hero */}
+            <div className="px-5 py-5 bg-gradient-to-br from-slate-50 to-white border-b border-brand-border">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-black text-slate-900">{formatMoneyCompact(p.amount)}</p>
+                    <span className="text-[11px] font-bold text-slate-400">ETB</span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
-                  <span className={`inline-block text-[11px] font-bold px-3 py-1 rounded-full ${STATUS_STYLES[selectedEnrollPayment.status] || 'bg-slate-100 text-slate-500'}`}>
-                    {selectedEnrollPayment.status}
+                <div className="flex flex-col items-end gap-1.5">
+                  <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${STATUS_STYLES[p.status] || 'bg-slate-100 text-slate-500'}`}>
+                    {p.status?.replace('_', ' ') || '—'}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${METHOD_BG[p.payment_method] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                    {payMethodIcon(p.payment_method)} {methodLabel}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Payment Info */}
-            <div className="p-4 space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Student</p>
-                  <p className="font-semibold text-slate-900 text-sm">{selectedEnrollPayment.student_name || '—'}</p>
+            {/* Two-column grid */}
+            <div className="p-5 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Payment Info */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5" /> Payment Information
+                  </h4>
+                  <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-semibold text-slate-400">Method</span>
+                      <span className="text-xs font-bold text-slate-800">{methodLabel}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-semibold text-slate-400">Payment Date</span>
+                      <span className="text-xs font-semibold text-slate-800">{p.payment_date?.slice(0, 10) || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-semibold text-slate-400">Created</span>
+                      <span className="text-xs font-semibold text-slate-800">{p.created_at?.slice(0, 10) || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-semibold text-slate-400">Updated</span>
+                      <span className="text-xs font-semibold text-slate-800">{p.updated_at?.slice(0, 10) || '—'}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Method</p>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">
-                    {selectedEnrollPayment.payment_method === 'CASH' ? <Banknote className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
-                    {PAYMENT_METHODS.find(m => m.value === selectedEnrollPayment.payment_method)?.label || selectedEnrollPayment.payment_method}
-                  </span>
+
+                {/* Reference Details */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" /> Reference Details
+                  </h4>
+                  <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-[10px] font-semibold text-slate-400 shrink-0">Transaction Ref</span>
+                      <span className="text-xs font-mono font-bold text-slate-800 text-right break-all">{p.transaction_reference || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-[10px] font-semibold text-slate-400 shrink-0">Transfer Ref</span>
+                      <span className="text-xs font-mono font-bold text-slate-800 text-right break-all">{p.transfer_reference || '—'}</span>
+                    </div>
+                    {p.bank_name && (
+                      <div className="flex justify-between items-start">
+                        <span className="text-[10px] font-semibold text-slate-400 shrink-0">Bank</span>
+                        <span className="text-xs font-bold text-slate-800 text-right">{p.bank_name}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {selectedEnrollPayment.sub_program_name && (
-                <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Program</p>
-                  <p className="font-semibold text-slate-900 text-sm">{selectedEnrollPayment.sub_program_name}</p>
-                  {selectedEnrollPayment.class_name && <p className="text-xs text-slate-500 mt-0.5">{selectedEnrollPayment.class_name}</p>}
+              {/* Program info row */}
+              {(p.sub_program_name || p.class_name) && (
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5" /> Academic Info
+                  </h4>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {p.sub_program_name && (
+                        <div>
+                          <span className="text-[10px] font-semibold text-slate-400">Program</span>
+                          <p className="text-xs font-bold text-slate-800 mt-0.5">{p.sub_program_name}</p>
+                        </div>
+                      )}
+                      {p.class_name && (
+                        <div>
+                          <span className="text-[10px] font-semibold text-slate-400">Class</span>
+                          <p className="text-xs font-bold text-slate-800 mt-0.5">{p.class_name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Reference Details */}
-              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reference Details</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-slate-400">Transaction Ref</span>
-                    <p className="font-mono font-bold text-slate-700 break-all">{selectedEnrollPayment.transaction_reference || '—'}</p>
-                  </div>
-                  {selectedEnrollPayment.bank_name && (
-                    <div>
-                      <span className="text-slate-400">Bank</span>
-                      <p className="font-semibold text-slate-700">{selectedEnrollPayment.bank_name}</p>
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-slate-400">Date</span>
-                    <p className="font-semibold text-slate-700">{selectedEnrollPayment.payment_date?.slice(0, 10) || '—'}</p>
+              {/* Verification info */}
+              {(isVerified || isPending) && (
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" /> Verification
+                  </h4>
+                  <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                    {p.verified_by ? (
+                      <>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] font-semibold text-slate-400">Verified By</span>
+                          <span className="text-xs font-bold text-slate-800">{p.verified_by}</span>
+                        </div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] font-semibold text-slate-400">Verified At</span>
+                          <span className="text-xs font-semibold text-slate-800">{p.verified_at ? new Date(p.verified_at).toLocaleString() : '—'}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-amber-700">
+                        <Clock className="w-3.5 h-3.5" /> Pending verification
+                      </div>
+                    )}
+                    {p.verification_notes && (
+                      <div className="border-t border-slate-200 pt-2 mt-2">
+                        <span className="text-[10px] font-semibold text-slate-400">Notes</span>
+                        <p className="text-xs text-slate-700 mt-0.5">{p.verification_notes}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Receipt / Attachment Section */}
-              {(selectedEnrollPayment as any).attachment ? (
-                <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Receipt</p>
-                  <a href={(selectedEnrollPayment as any).attachment} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all">
+              {/* Receipt / Attachment */}
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" /> Receipt
+                </h4>
+                {(p as any).attachment ? (
+                  <a href={(p as any).attachment} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-brand-border rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm">
                     <FileText className="w-4 h-4" /> View Receipt
                   </a>
-                </div>
-              ) : (
-                <div className="bg-slate-50 rounded-xl p-3 text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Receipt</p>
-                  <p className="text-xs text-slate-400">No receipt uploaded</p>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-slate-50 rounded-xl px-4 py-3 text-center">
+                    <p className="text-xs text-slate-400">No receipt uploaded</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="px-4 py-3 border-t border-brand-border bg-slate-50/50 flex items-center gap-2">
-              <button onClick={() => { handleQuickVerify(selectedEnrollPayment); setSelectedEnrollPayment(null); }}
-                className="flex-1 px-3 py-2 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center justify-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Verify
-              </button>
-              <button onClick={() => { handleUnderReview(selectedEnrollPayment.enrollment); setSelectedEnrollPayment(null); }}
+            <div className="px-5 py-4 border-t border-brand-border bg-slate-50/80 flex items-center gap-2 sticky bottom-0 bg-white">
+              <button onClick={() => { handleUnderReview(p.enrollment); setSelectedEnrollPayment(null); }}
                 className="flex-1 px-3 py-2 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 flex items-center justify-center gap-1.5">
                 <Shield className="w-3.5 h-3.5" /> Under Review
               </button>
-              <button onClick={() => { setRejectTarget(selectedEnrollPayment); setRejectQReason(''); setSelectedEnrollPayment(null); }}
+              <button onClick={() => { setRejectTarget(p); setRejectQReason(''); setSelectedEnrollPayment(null); }}
                 className="flex-1 px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 flex items-center justify-center gap-1.5">
                 <X className="w-3.5 h-3.5" /> Reject
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {showRecordPay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -802,9 +857,9 @@ export default function PaymentTracker() {
                 </select>
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Amount (Birr)</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Amount (ETB)</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Birr</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">ETB</span>
                   <input value={recordForm.amount} onChange={e => setRecordForm(p => ({ ...p, amount: e.target.value }))}
                     className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"
                     placeholder="e.g. 2500" type="number" min="0" />
@@ -863,7 +918,7 @@ export default function PaymentTracker() {
             </div>
             <div className="p-4 space-y-3">
               <p className="text-xs text-slate-500">Student: <strong>{rejectTarget.student_name || 'Unknown'}</strong></p>
-              <p className="text-xs text-slate-500">Amount: <strong>{Number(rejectTarget.amount).toLocaleString()} Birr</strong></p>
+              <p className="text-xs text-slate-500">Amount: <strong>{formatMoneyCompact(rejectTarget.amount)}</strong></p>
               <div>
                 <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Rejection Reason *</label>
                 <textarea value={rejectQReason} onChange={e => setRejectQReason(e.target.value)}
