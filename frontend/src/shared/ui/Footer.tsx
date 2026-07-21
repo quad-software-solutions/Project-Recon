@@ -7,9 +7,8 @@ interface FooterProps { onNavigate: (tab: ActiveTab) => void }
 
 const QUICK_LINKS: { label: string; tab: ActiveTab }[] = [
   { label: 'Home', tab: 'home' },
-  { label: 'Programs', tab: 'about' },
+  { label: 'Programs', tab: 'registration' },
   { label: 'Store', tab: 'store' },
-  { label: 'Simulator', tab: 'simulator' },
   { label: 'Competitions', tab: 'competitions' },
 ];
 
@@ -17,7 +16,7 @@ const LEGAL_LINKS: { label: string; tab: ActiveTab }[] = [
   { label: 'Verify Certificate', tab: 'cert-verify' },
   { label: 'Privacy Policy', tab: 'privacy' },
   { label: 'Terms of Service', tab: 'terms' },
-  { label: 'Help Center', tab: 'help' },
+  { label: 'Contact Us', tab: 'help' },
 ];
 
 const SOCIAL_LINKS = [
@@ -30,7 +29,7 @@ export default function Footer({ onNavigate }: FooterProps) {
   const branding = useBranding();
 
   return (
-    <footer className="bg-brand-blue text-white/70 py-10 sm:py-12 px-3 sm:px-6 mt-auto">
+    <footer className="bg-slate-950 text-slate-400 py-10 sm:py-12 px-3 sm:px-6 mt-auto border-t border-white/5">
       <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 sm:gap-8">
         <div className="sm:col-span-2 lg:col-span-1">
           <BrandLogo className="h-8 w-[100px]" compact logoUrl={branding.logoUrl || undefined} />
@@ -78,7 +77,7 @@ export default function Footer({ onNavigate }: FooterProps) {
             <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Burayu Talent Development Institute</li>
           </ul>
           <div className="mt-3 pt-3 border-t border-white/10">
-            <p className="text-xs sm:text-sm">info@ethiorobotics.com</p>
+            <p className="text-xs sm:text-sm">ethiorobo@gmail.com</p>
             <a href="tel:+251911675401" className="inline-flex items-center gap-1.5 text-xs sm:text-sm mt-1 hover:text-white transition-colors min-h-[44px] sm:min-h-[36px]"><Phone className="w-3.5 h-3.5 shrink-0" /> 0911 675 401</a>
           </div>
         </div>

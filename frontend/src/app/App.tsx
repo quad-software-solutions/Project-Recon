@@ -5,7 +5,6 @@ import ErrorBoundary from '../shared/ui/ErrorBoundary';
 import Navbar from '../shared/ui/Navbar';
 import AboutTab from '../domains/learning/programs/ui/AboutTab';
 import StudentRegistration from '../domains/auth/register/ui/StudentRegistration';
-import VexSimulator from '../domains/learning/simulator/ui/VexSimulator';
 
 import EventCommandCenter from '../domains/competition/events/ui/EventCommandCenter';
 import CartDrawer from '../domains/store/cart/ui/CartDrawer';
@@ -187,11 +186,7 @@ function AppInner() {
             </motion.div>
           )}
 
-          {activeTab === 'simulator' && (
-            <motion.div key="simulator-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-              <VexSimulator />
-            </motion.div>
-          )}
+
 
           {activeTab === 'competitions' && (
             <CompetitionPage

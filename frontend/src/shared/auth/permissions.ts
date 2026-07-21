@@ -48,7 +48,6 @@ const PUBLIC_TABS: ActiveTab[] = [
   'login',
   'register',
   'registration',
-  'simulator',
   'competitions',
   'cert-verify',
   'forgot-password',

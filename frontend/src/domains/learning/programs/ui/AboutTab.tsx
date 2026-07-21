@@ -32,9 +32,9 @@ interface MapNode {
 
 function getVideoEmbed(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}?autoplay=1&mute=1&loop=1&playlist=${yt[1]}`;
   const vimeo = url.match(/vimeo\.com\/(\d+)/);
-  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=1&muted=1&loop=1`;
   return null;
 }
 
@@ -413,7 +413,7 @@ export default function AboutTab() {
                     </div>
                   ) : isDirectVideo && t.video_url ? (
                     <div className="relative aspect-video bg-slate-900">
-                      <video controls className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
+                      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" src={t.video_url} poster={t.image ?? undefined} />
                     </div>
                   ) : t.video_url ? (
                     <a
