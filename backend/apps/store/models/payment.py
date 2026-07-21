@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from django.conf import settings
@@ -8,10 +9,15 @@ from apps.store.constants import PaymentMethod, PaymentStatus
 from apps.store.models.pending_order import PendingOrder
 
 
+def _payment_attachment_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return f"payment_attachments/{instance.pk}{ext}"
+
+
 class StorePayment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pending_order = models.OneToOneField(
-        PendingOrder, on_delete=models.CASCADE, related_name="payment"
+        PendingOrder, on_delete=models.SET_NULL, null=True, related_name="payment"
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(
@@ -27,7 +33,7 @@ class StorePayment(models.Model):
     )
     bank_name = models.CharField(max_length=255, blank=True, default="")
     attachment = models.FileField(
-        upload_to="payment_attachments/", null=True, blank=True
+        upload_to=_payment_attachment_path, null=True, blank=True
     )
     status = models.CharField(
         max_length=20,
@@ -45,7 +51,7 @@ class StorePayment(models.Model):
     )
     verified_at = models.DateTimeField(null=True, blank=True)
     verification_notes = models.TextField(blank=True, default="")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

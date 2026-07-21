@@ -2,7 +2,9 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.store.api.permissions import IsStoreStaff
+from apps.store.api.auth_helpers import filter_by_branch
+from apps.store.api.pagination import StoreAdminPagination, StorePublicPagination
+from apps.store.api.permissions import IsStoreStaffOrManager
 from apps.store.api.serializers.order import (
     OrderSerializer,
     OrderStatusSerializer,
@@ -16,28 +18,42 @@ from apps.store.services.order_service import (
 
 
 class AdminOrderListView(generics.ListAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = OrderSerializer
+    pagination_class = StoreAdminPagination
+    throttle_scope = "store_admin"
 
     def get_queryset(self):
-        return get_admin_orders()
+        qs = get_admin_orders()
+        return filter_by_branch(self.request.user, qs)
 
 
 class AdminOrderDetailView(generics.RetrieveAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = OrderSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     def get_object(self):
-        return get_order_or_404(self.kwargs["pk"])
+        order = get_order_or_404(self.kwargs["pk"])
+        qs = filter_by_branch(self.request.user, type(order).objects.filter(pk=order.pk))
+        if not qs.exists():
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Order not found.")
+        return order
 
 
 class AdminOrderStatusView(generics.GenericAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = OrderStatusSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         order = get_order_or_404(self.kwargs["pk"])
+        qs = filter_by_branch(self.request.user, type(order).objects.filter(pk=order.pk))
+        if not qs.exists():
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Order not found.")
         serializer = OrderStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         order = change_order_status(
@@ -52,6 +68,8 @@ class AdminOrderStatusView(generics.GenericAPIView):
 class UserOrderListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderSerializer
+    pagination_class = StorePublicPagination
+    throttle_scope = "store_cart"
 
     def get_queryset(self):
         return get_user_orders(self.request.user)
@@ -61,6 +79,7 @@ class UserOrderDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_cart"
 
     def get_object(self):
         order = get_order_or_404(self.kwargs["pk"])

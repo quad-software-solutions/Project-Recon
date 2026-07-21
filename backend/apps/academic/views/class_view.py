@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from apps.academic.models import Class
 from apps.academic.permissions import IsAcademicAdmin
+from apps.academic.permissions.mixins import check_branch_access
 from apps.shared.audit.services import log_action
 from apps.academic.serializers import (
     AssignInstructorSerializer,
@@ -29,6 +30,7 @@ from apps.academic.services.class_service import (
 )
 class ClassListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAcademicAdmin]
+    throttle_scope = "academic_admin"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -63,9 +65,12 @@ class ClassRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAcademicAdmin]
     serializer_class = ClassSerializer
     lookup_field = "pk"
+    throttle_scope = "academic_admin"
 
     def get_object(self):
-        return get_class_or_404(self.kwargs["pk"])
+        obj = get_class_or_404(self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def perform_update(self, serializer):
         klass = self.get_object()
@@ -88,9 +93,11 @@ class ClassRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 )
 class ClassAssignInstructorView(generics.GenericAPIView):
     permission_classes = [IsAcademicAdmin]
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         klass = get_class_or_404(pk)
+        check_branch_access(request.user, klass.branch_id)
         serializer = AssignInstructorSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -117,9 +124,11 @@ class ClassAssignInstructorView(generics.GenericAPIView):
 class ClassActivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicAdmin]
     serializer_class = ClassSerializer
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         klass = get_class_or_404(pk)
+        check_branch_access(request.user, klass.branch_id)
         activate_class(klass)
         log_action(
             actor=request.user,
@@ -136,9 +145,11 @@ class ClassActivateView(generics.GenericAPIView):
 class ClassDeactivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicAdmin]
     serializer_class = ClassSerializer
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         klass = get_class_or_404(pk)
+        check_branch_access(request.user, klass.branch_id)
         deactivate_class(klass)
         log_action(
             actor=request.user,

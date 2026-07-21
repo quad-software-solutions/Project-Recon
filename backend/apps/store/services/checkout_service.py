@@ -1,13 +1,19 @@
+import logging
 from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Branch
+from apps.shared.email.services import send_email
 from apps.store.models import Product
 from apps.store.models.pending_order import PendingOrder, PendingOrderItem
 from apps.store.services.branch_inventory_service import validate_stock
+
+logger = logging.getLogger(__name__)
 
 
 def checkout(cart, branch_input, actor=None, guest_info: dict = None, payment_data: dict = None) -> PendingOrder:
@@ -61,10 +67,12 @@ def checkout(cart, branch_input, actor=None, guest_info: dict = None, payment_da
                 f"Available: {available}, requested: {qty}."
             )
 
-        subtotal += float(product.price) * qty
+        subtotal += product.price * qty
 
     total = subtotal
     expires_at = timezone.now() + timedelta(minutes=30)
+
+    send_otp = False
 
     with transaction.atomic():
         order = PendingOrder.objects.create(
@@ -85,7 +93,7 @@ def checkout(cart, branch_input, actor=None, guest_info: dict = None, payment_da
                 product=cart_item.product,
                 quantity=cart_item.quantity,
                 unit_price=cart_item.product.price,
-                subtotal=float(cart_item.product.price) * cart_item.quantity,
+                subtotal=cart_item.product.price * cart_item.quantity,
             )
 
         if payment_data:
@@ -102,6 +110,22 @@ def checkout(cart, branch_input, actor=None, guest_info: dict = None, payment_da
             )
 
         cart.items.all().delete()
+
+        if not order.user and order.guest_email:
+            otp = get_random_string(length=6, allowed_chars="0123456789")
+            order.email_verification_otp = make_password(otp)
+            order.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+            order.save(update_fields=["email_verification_otp", "email_verification_otp_expiry"])
+            send_email(
+                to=order.guest_email,
+                subject="Verify your email for your order",
+                body=(
+                    f"Hello {order.guest_name or 'Valued Customer'},\n\n"
+                    f"Your verification code is: {otp}\n\n"
+                    f"This code expires in 10 minutes.\n"
+                    f"Use it to verify your email before submitting payment."
+                ),
+            )
 
     return PendingOrder.objects.prefetch_related(
         "items__product__category"

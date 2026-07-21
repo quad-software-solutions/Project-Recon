@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from apps.academic.constants import AttendanceStatus
@@ -47,7 +48,7 @@ class AttendanceRecord(models.Model):
         "academic.Enrollment", on_delete=models.PROTECT, related_name="attendance_records"
     )
     status = models.CharField(max_length=10, choices=AttendanceStatus.choices)
-    remarks = models.TextField(blank=True, default="")
+    remarks = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

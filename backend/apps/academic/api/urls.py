@@ -39,6 +39,7 @@ from apps.academic.views import (
     MilestoneListCreateView,
     MilestoneRetrieveUpdateView,
     OnlineEnrollmentView,
+    OnlineEnrollmentVerifyEmailView,
     PaymentCreateView,
     PaymentListView,
     EnrollmentVerificationQueueView,
@@ -127,6 +128,7 @@ urlpatterns = [
     path("enrollments/<uuid:pk>/complete/", EnrollmentCompleteView.as_view(), name="enrollment-complete"),
     path("enrollments/available-branches/", AvailableBranchesView.as_view(), name="enrollment-available-branches"),
     path("enrollments/online/", OnlineEnrollmentView.as_view(), name="enrollment-online"),
+    path("enrollments/online/<uuid:pk>/verify-email/", OnlineEnrollmentVerifyEmailView.as_view(), name="enrollment-online-verify-email"),
     path("enrollments/<uuid:pk>/move/", EnrollmentMoveView.as_view(), name="enrollment-move"),
     # Class Split
     path("classes/<uuid:pk>/split/", ClassSplitView.as_view(), name="class-split"),

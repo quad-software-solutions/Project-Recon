@@ -84,6 +84,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AuditLogSerializer
     permission_classes = [IsSuperAdmin]
     lookup_field = "id"
+    throttle_scope = "shared_audit"
 
     def get_queryset(self):
         """Return the filtered AuditLog queryset.

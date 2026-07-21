@@ -3,8 +3,10 @@ from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from apps.academic.constants import (
     ClassType, ClassPeriod, AttendanceStatus, SessionStatus,
@@ -46,6 +48,8 @@ from apps.academic.services.enrollment_service import (
     complete_enrollment,
     get_enrollment_or_404,
     list_enrollments,
+    online_enrollment,
+    verify_online_enrollment_email,
 )
 from apps.academic.services.payment_service import (
     record_payment,
@@ -890,7 +894,7 @@ class EnrollmentServiceTest(TestCase):
             sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
             name="Bulk Target", class_type=ClassType.INDIVIDUAL,
         )
-        moved = bulk_move_enrollments(
+        moved, _ = bulk_move_enrollments(
             self.instructor, source_class=self.individual_class,
             target_class=target_class, enrollment_ids=[enrollment.pk],
         )
@@ -908,7 +912,7 @@ class EnrollmentServiceTest(TestCase):
             sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
             name="Bulk Count Target", class_type=ClassType.INDIVIDUAL,
         )
-        moved = bulk_move_enrollments(
+        moved, _ = bulk_move_enrollments(
             self.instructor, source_class=self.individual_class,
             target_class=target_class, count=1,
         )
@@ -970,6 +974,52 @@ class EnrollmentServiceTest(TestCase):
                 self.instructor, source_class=self.individual_class,
                 target_class=target_class, count=1,
             )
+
+    def test_verify_online_enrollment_email_success(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        otp = "123456"
+        enrollment.email_verification_otp = make_password(otp)
+        enrollment.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        enrollment.save()
+        result = verify_online_enrollment_email(enrollment, otp)
+        result.refresh_from_db()
+        self.assertTrue(result.email_verified)
+        self.assertIsNone(result.email_verification_otp)
+        self.assertIsNone(result.email_verification_otp_expiry)
+
+    def test_verify_online_enrollment_email_already_verified_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.email_verified = True
+        enrollment.email_verification_otp = make_password("123456")
+        enrollment.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        enrollment.save()
+        with self.assertRaises(DjangoValidationError) as ctx:
+            verify_online_enrollment_email(enrollment, "123456")
+        self.assertIn("already verified", str(ctx.exception).lower())
+
+    def test_verify_online_enrollment_email_no_otp_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        with self.assertRaises(DjangoValidationError) as ctx:
+            verify_online_enrollment_email(enrollment, "123456")
+        self.assertIn("no verification code", str(ctx.exception).lower())
+
+    def test_verify_online_enrollment_email_expired_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.email_verification_otp = make_password("123456")
+        enrollment.email_verification_otp_expiry = timezone.now() - timedelta(minutes=1)
+        enrollment.save()
+        with self.assertRaises(DjangoValidationError) as ctx:
+            verify_online_enrollment_email(enrollment, "123456")
+        self.assertIn("expired", str(ctx.exception).lower())
+
+    def test_verify_online_enrollment_email_wrong_otp_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.email_verification_otp = make_password("123456")
+        enrollment.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        enrollment.save()
+        with self.assertRaises(DjangoValidationError) as ctx:
+            verify_online_enrollment_email(enrollment, "000000")
+        self.assertIn("invalid", str(ctx.exception).lower())
 
 
 class PaymentServiceTest(TestCase):
@@ -1448,7 +1498,7 @@ class ProgressServiceTest(TestCase):
             )
 
     def test_record_progress(self):
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
@@ -1459,7 +1509,7 @@ class ProgressServiceTest(TestCase):
         self.assertEqual(record.enrollment, self.enrollment)
 
     def test_record_progress_sets_completed_at(self):
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
@@ -1486,12 +1536,12 @@ class ProgressServiceTest(TestCase):
             )
 
     def test_update_progress(self):
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
         )
-        updated = progress_service.update_progress(
+        updated, _ = progress_service.update_progress(
             self.instructor, record, status=ProgressStatus.COMPLETED
         )
         self.assertEqual(updated.status, ProgressStatus.COMPLETED)
@@ -1534,7 +1584,7 @@ class ProgressServiceTest(TestCase):
             milestone=self.shared_milestone,
             status=ProgressStatus.NOT_STARTED,
         )
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
@@ -1895,7 +1945,7 @@ class CertificateServiceTest(TestCase):
             issue_certificate,
         )
         cert = self._create_certificate()
-        sc = issue_certificate(
+        sc, _ = issue_certificate(
             actor=self.manager, student=self.student_model,
             certificate=cert,
         )
@@ -1904,7 +1954,7 @@ class CertificateServiceTest(TestCase):
     def test_issue_certificate(self):
         from apps.academic.services.certificate_service import issue_certificate
         cert = self._create_certificate()
-        sc = issue_certificate(
+        sc, _ = issue_certificate(
             actor=self.manager, student=self.student_model,
             certificate=cert,
         )
@@ -1941,7 +1991,7 @@ class CertificateServiceTest(TestCase):
             issue_certificate,
         )
         cert = self._create_certificate()
-        sc = issue_certificate(
+        sc, _ = issue_certificate(
             actor=self.secretary, student=self.student_model,
             certificate=cert,
         )

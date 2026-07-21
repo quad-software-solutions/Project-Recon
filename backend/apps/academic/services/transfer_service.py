@@ -118,15 +118,16 @@ def approve_transfer(actor, *, transfer_request):
     year = date.today().year
     enrollment_number = _generate_enrollment_number(to_branch.code, year)
 
-    old_enrollment.status = EnrollmentStatus.CANCELLED
-    old_enrollment.save(update_fields=["status", "updated_at"])
+    locked_enrollment = Enrollment.objects.select_for_update().get(pk=old_enrollment.pk)
+    locked_enrollment.status = EnrollmentStatus.CANCELLED
+    locked_enrollment.save(update_fields=["status", "updated_at"])
 
     new_enrollment = Enrollment(
-        student=old_enrollment.student,
+        student=locked_enrollment.student,
         enrolled_class=target_class,
         status=EnrollmentStatus.ACTIVE,
         enrollment_number=enrollment_number,
-        transferred_from=old_enrollment,
+        transferred_from=locked_enrollment,
     )
     new_enrollment.full_clean()
     new_enrollment.save()
@@ -140,7 +141,7 @@ def approve_transfer(actor, *, transfer_request):
         verification_notes="Branch transfer — no fee change",
     )
 
-    _repoint_records(old_enrollment, new_enrollment)
+    _repoint_records(locked_enrollment, new_enrollment)
 
     transfer_request.status = BranchTransferRequest.TransferStatus.APPROVED
     transfer_request.approved_by = actor
@@ -154,7 +155,7 @@ def approve_transfer(actor, *, transfer_request):
         resource_id=transfer_request.id,
         branch=to_branch,
         details={
-            "old_enrollment_id": str(old_enrollment.id),
+            "old_enrollment_id": str(locked_enrollment.id),
             "new_enrollment_id": str(new_enrollment.id),
             "from_branch": str(transfer_request.from_branch_id),
             "to_branch": str(to_branch.id),

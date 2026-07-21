@@ -35,6 +35,7 @@ def admit_student(
             password=password,
             branch=branch,
             assigned_by=assigned_by,
+            bypass_password_validation=True,
         )
 
         if phone_number:

@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from apps.academic.constants import EnrollmentStatus, VerificationStatus
@@ -29,12 +30,15 @@ class Enrollment(models.Model):
     verification_status = models.CharField(
         max_length=20, choices=VerificationStatus.choices, null=True, blank=True
     )
-    rejection_reason = models.TextField(blank=True, default="")
+    rejection_reason = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     transferred_from = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="transferred_to_enrollments",
     )
-    remarks = models.TextField(blank=True, default="")
+    email_verified = models.BooleanField(default=False)
+    email_verification_otp = models.CharField(max_length=128, null=True, blank=True)
+    email_verification_otp_expiry = models.DateTimeField(null=True, blank=True)
+    remarks = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -41,10 +41,11 @@ class PendingOrderSerializer(serializers.ModelSerializer):
             "guest_phone",
             "expires_at",
             "created_at",
+            "access_token",
         ]
         read_only_fields = [
             "id", "payment_reference", "subtotal", "total",
-            "expires_at", "created_at",
+            "expires_at", "created_at", "access_token",
         ]
 
 
@@ -91,3 +92,7 @@ class CheckoutInputSerializer(serializers.Serializer):
                     "Guest email is required for guest checkout."
                 )
         return attrs
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    otp = serializers.CharField(max_length=6, min_length=6)

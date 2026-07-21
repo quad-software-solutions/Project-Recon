@@ -1,9 +1,17 @@
+import os
 import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.academic.constants import DurationUnit
+from apps.shared.validators import sanitize_filename, UploadedFileValidator
+
+
+def sub_program_image_upload_to(instance, filename):
+    safe = sanitize_filename(filename)
+    ext = os.path.splitext(safe)[1]
+    return f"sub_program_images/{uuid.uuid4().hex}{ext}"
 
 
 class SubProgram(models.Model):
@@ -18,7 +26,10 @@ class SubProgram(models.Model):
     duration_unit = models.CharField(
         max_length=10, choices=DurationUnit.choices, null=True, blank=True
     )
-    image = models.ImageField(upload_to="sub_program_images/", null=True, blank=True)
+    image = models.ImageField(
+        upload_to=sub_program_image_upload_to, null=True, blank=True,
+        validators=[UploadedFileValidator()],
+    )
     group_fee = models.DecimalField(max_digits=10, decimal_places=2)
     individual_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)

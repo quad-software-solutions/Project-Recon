@@ -21,6 +21,7 @@ class BranchInventory(models.Model):
 
     class Meta:
         db_table = "store_branch_inventory"
+        ordering = ["branch", "product"]
         unique_together = [["branch", "product"]]
         constraints = [
             models.CheckConstraint(

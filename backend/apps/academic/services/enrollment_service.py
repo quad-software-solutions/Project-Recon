@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.crypto import get_random_string
 
 from apps.academic.constants import (
     ClassType,
@@ -242,6 +244,24 @@ def online_enrollment(
         payment.full_clean()
         payment.save()
 
+    otp = get_random_string(length=6, allowed_chars="0123456789")
+    enrollment.email_verification_otp = make_password(otp)
+    enrollment.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+    enrollment.save(update_fields=["email_verification_otp", "email_verification_otp_expiry"])
+
+    student_email = student.user.email
+    student_full_name = student.user.full_name
+    otp_subject = "Email Verification — Ethio Robo Robotics"
+    otp_body = (
+        f"Dear {student_full_name},\n\n"
+        f"Your email verification code is: {otp}\n\n"
+        f"This code will expire in 10 minutes.\n\n"
+        f"If you did not submit this enrollment, please ignore this email.\n\n"
+        f"Thank you,\n"
+        f"Ethio Robo Robotics"
+    )
+    send_email(student_email, otp_subject, otp_body)
+
     log_action(
         actor=student.user if user else None,
         action="enrollment.online_created",
@@ -283,18 +303,20 @@ def cancel_enrollment(actor, enrollment):
             f"Cannot cancel enrollment with status '{enrollment.status}'."
         )
 
-    enrollment.status = EnrollmentStatus.CANCELLED
-    enrollment.save()
+    with transaction.atomic():
+        locked = Enrollment.objects.select_for_update().get(pk=enrollment.pk)
+        locked.status = EnrollmentStatus.CANCELLED
+        locked.save(update_fields=["status", "updated_at"])
 
     log_action(
         actor=actor,
         action="enrollment.cancelled",
         resource_type="Enrollment",
-        resource_id=enrollment.id,
+        resource_id=locked.id,
         branch=enrollment.enrolled_class.branch,
     )
 
-    return enrollment
+    return locked
 
 
 def complete_enrollment(actor, enrollment):
@@ -303,18 +325,20 @@ def complete_enrollment(actor, enrollment):
             f"Only active enrollments can be completed. Current status: '{enrollment.status}'."
         )
 
-    enrollment.status = EnrollmentStatus.COMPLETED
-    enrollment.save()
+    with transaction.atomic():
+        locked = Enrollment.objects.select_for_update().get(pk=enrollment.pk)
+        locked.status = EnrollmentStatus.COMPLETED
+        locked.save(update_fields=["status", "updated_at"])
 
     log_action(
         actor=actor,
         action="enrollment.completed",
         resource_type="Enrollment",
-        resource_id=enrollment.id,
+        resource_id=locked.id,
         branch=enrollment.enrolled_class.branch,
     )
 
-    return enrollment
+    return locked
 
 
 def move_enrollment(actor, *, enrollment, target_class):
@@ -399,14 +423,16 @@ def bulk_move_enrollments(actor, *, source_class, target_class, enrollment_ids=N
     if not enrollments_to_move.exists():
         raise ValidationError("No active enrollments found to move.")
 
+    warnings = []
     if target_class.capacity:
         current_count = Enrollment.objects.filter(
             enrolled_class=target_class,
             status=EnrollmentStatus.ACTIVE,
         ).count()
         if current_count + enrollments_to_move.count() > target_class.capacity:
-            raise ValidationError(
-                "Target class does not have enough capacity for all enrollments."
+            warnings.append(
+                f"Moving these enrollments will exceed target class capacity "
+                f"({target_class.capacity})."
             )
 
     for e in enrollments_to_move:
@@ -442,9 +468,19 @@ def bulk_move_enrollments(actor, *, source_class, target_class, enrollment_ids=N
         },
     )
 
+    if warnings:
+        log_action(
+            actor=actor,
+            action="enrollment.bulk_moved_capacity_warning",
+            resource_type="Class",
+            resource_id=source_class.id,
+            branch=source_class.branch,
+            details={"warnings": warnings},
+        )
+
     return Enrollment.objects.filter(id__in=moved_ids).select_related(
         "student__user", "enrolled_class__sub_program"
-    )
+    ), warnings
 
 
 def switch_subprogram(actor, *, current_enrollment, target_class):
@@ -481,8 +517,9 @@ def switch_subprogram(actor, *, current_enrollment, target_class):
 
     with transaction.atomic():
         old_enrollment_pk = current_enrollment.pk
-        current_enrollment.status = EnrollmentStatus.CANCELLED
-        current_enrollment.save(update_fields=["status", "updated_at"])
+        locked_enrollment = Enrollment.objects.select_for_update().get(pk=current_enrollment.pk)
+        locked_enrollment.status = EnrollmentStatus.CANCELLED
+        locked_enrollment.save(update_fields=["status", "updated_at"])
 
         year = date.today().year
         enrollment_number = _generate_enrollment_number(
@@ -490,11 +527,11 @@ def switch_subprogram(actor, *, current_enrollment, target_class):
         )
 
         new_enrollment = Enrollment(
-            student=current_enrollment.student,
+            student=locked_enrollment.student,
             enrolled_class=target_class,
             status=EnrollmentStatus.ACTIVE,
             enrollment_number=enrollment_number,
-            transferred_from=current_enrollment,
+            transferred_from=locked_enrollment,
         )
         new_enrollment.full_clean()
         new_enrollment.save()
@@ -513,10 +550,10 @@ def switch_subprogram(actor, *, current_enrollment, target_class):
             verification_notes=notes,
         )
 
-        AttendanceRecord.objects.filter(enrollment=current_enrollment).update(
+        AttendanceRecord.objects.filter(enrollment=locked_enrollment).update(
             enrollment=new_enrollment
         )
-        StudentProgress.objects.filter(enrollment=current_enrollment).update(
+        StudentProgress.objects.filter(enrollment=locked_enrollment).update(
             enrollment=new_enrollment
         )
 
@@ -545,3 +582,44 @@ def get_all_related_enrollments(enrollment):
         current = current.transferred_from
         chain.insert(0, current)
     return chain
+
+
+def verify_online_enrollment_email(enrollment, otp):
+    """Verify the OTP for an online enrollment's email address.
+
+    Args:
+        enrollment: Enrollment instance with OTP fields set.
+        otp: The 6-digit code submitted by the user.
+
+    Raises:
+        ValidationError: If already verified, no OTP exists, expired, or wrong code.
+
+    Returns:
+        The updated Enrollment instance.
+    """
+    if enrollment.email_verified:
+        raise ValidationError("Email is already verified.")
+
+    if not enrollment.email_verification_otp or not enrollment.email_verification_otp_expiry:
+        raise ValidationError("No verification code has been sent for this enrollment.")
+
+    if timezone.now() > enrollment.email_verification_otp_expiry:
+        raise ValidationError("Verification code has expired. Please submit a new enrollment.")
+
+    if not check_password(otp, enrollment.email_verification_otp):
+        raise ValidationError("Invalid verification code.")
+
+    enrollment.email_verified = True
+    enrollment.email_verification_otp = None
+    enrollment.email_verification_otp_expiry = None
+    enrollment.save(update_fields=["email_verified", "email_verification_otp", "email_verification_otp_expiry"])
+
+    log_action(
+        actor=None,
+        action="enrollment.email_verified",
+        resource_type="Enrollment",
+        resource_id=enrollment.id,
+        branch=enrollment.enrolled_class.branch,
+    )
+
+    return enrollment

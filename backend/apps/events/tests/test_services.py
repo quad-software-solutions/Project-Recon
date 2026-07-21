@@ -1137,6 +1137,24 @@ class RegistrationServiceTest(TestCase):
         with self.assertRaises(ValidationError):
             register_for_event(self.event.id, data)
 
+    def test_register_after_rejection_cooldown(self):
+        registration = register_for_event(self.event.id, {"student": str(self.student.id)})
+        reject_registration(registration)
+        with self.assertRaises(ValidationError) as ctx:
+            register_for_event(self.event.id, {"student": str(self.student.id)})
+        self.assertIn("24 hours", str(ctx.exception))
+
+    def test_register_after_cancellation_cooldown(self):
+        self._make_public_event()
+        data = {"public_full_name": "John", "public_email": "john@cooldown.com", "public_phone": "+123"}
+        registration = register_for_event(self.event.id, data)
+        registration.registration_status = "APPROVED"
+        registration.save(update_fields=["registration_status"])
+        cancel_registration(registration)
+        with self.assertRaises(ValidationError) as ctx:
+            register_for_event(self.event.id, data)
+        self.assertIn("24 hours", str(ctx.exception))
+
     def test_register_deadline_passed(self):
         event = Event.objects.create(
             title="Late Event", description="desc", location="loc",
@@ -1279,6 +1297,7 @@ class RegistrationServiceTest(TestCase):
 
 class EventPaymentServiceTest(TestCase):
     def setUp(self):
+        from decimal import Decimal
         from apps.events.constants import RegistrationMode
         from apps.accounts.models import Branch
 
@@ -1295,6 +1314,8 @@ class EventPaymentServiceTest(TestCase):
             "is_active": True,
             "registration_enabled": True,
             "registration_mode": RegistrationMode.PUBLIC,
+            "payment_required": True,
+            "registration_fee": Decimal("100.00"),
         }
         self.event = create_event(self.valid_data)
         self.registration = EventRegistration.objects.create(
@@ -1304,6 +1325,21 @@ class EventPaymentServiceTest(TestCase):
             public_phone="+1234567890",
             registration_status="PENDING",
         )
+
+    def test_record_cash_payment_no_payment_required(self):
+        self.event.payment_required = False
+        self.event.registration_fee = None
+        self.event.save(update_fields=["payment_required", "registration_fee"])
+        with self.assertRaises(ValidationError):
+            record_cash_payment(self.registration, 100.00)
+
+    def test_record_cash_payment_below_fee(self):
+        from decimal import Decimal
+        self.event.payment_required = True
+        self.event.registration_fee = Decimal("200.00")
+        self.event.save(update_fields=["payment_required", "registration_fee"])
+        with self.assertRaises(ValidationError):
+            record_cash_payment(self.registration, 50.00)
 
     def test_record_cash_payment(self):
         payment = record_cash_payment(self.registration, 100.00)

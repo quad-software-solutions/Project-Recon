@@ -1,8 +1,10 @@
+from datetime import date
+
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 
 from apps.academic.constants import ClassPeriod, ClassType
-from apps.academic.models import Class
+from apps.academic.models import Class, EnrollmentPeriod
 
 
 def get_class_or_404(pk):
@@ -93,11 +95,30 @@ def resolve_class_for_enrollment(*, sub_program_id, class_type, branch_id):
         branch_id: UUID of the branch.
 
     Returns:
-        Class instance or None if no active class matches.
+        Class instance or None if no active class matches or no active enrollment period exists.
     """
-    return Class.objects.filter(
+    klass = Class.objects.filter(
         sub_program_id=sub_program_id,
         class_type=class_type,
         branch_id=branch_id,
         is_active=True,
     ).select_related("sub_program__program", "branch").first()
+
+    if klass is None:
+        return None
+
+    if class_type == ClassType.GROUP:
+        today = date.today()
+        has_period = EnrollmentPeriod.objects.filter(
+            branch=klass.branch,
+            program=klass.sub_program.program,
+            sub_program=klass.sub_program,
+            class_type=class_type,
+            is_active=True,
+            start_date__lte=today,
+            end_date__gte=today,
+        ).exists()
+        if not has_period:
+            return None
+
+    return klass

@@ -1,8 +1,9 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 from apps.accounts.permissions.roles import (
     user_is_branch_manager,
     user_is_instructor,
+    user_is_secretary,
     user_is_super_admin,
     user_manages_branch,
 )
@@ -10,10 +11,9 @@ from apps.accounts.permissions.roles import (
 
 class CanManageAttendance(BasePermission):
     """
-    Grants access to Super Admins, Branch Managers, and Instructors.
     - Super Admin: unrestricted.
-    - Branch Manager: scoped to their branch.
-    - Instructor: scoped to classes they teach.
+    - Instructor: CRUD on own classes.
+    - Branch Manager / Secretary: read-only (GET), branch scoped.
     """
 
     def has_permission(self, request, view):
@@ -22,7 +22,9 @@ class CanManageAttendance(BasePermission):
             return False
         if user_is_super_admin(user):
             return True
-        if user_is_branch_manager(user) or user_is_instructor(user):
+        if user_is_instructor(user):
+            return True
+        if request.method in SAFE_METHODS and (user_is_branch_manager(user) or user_is_secretary(user)):
             return True
         return False
 
@@ -37,8 +39,8 @@ class CanManageAttendance(BasePermission):
 
         if enrolled_class:
             branch = enrolled_class.branch
-            if user_is_branch_manager(user) and user_manages_branch(user, branch.pk):
-                return True
+            if request.method in SAFE_METHODS and (user_is_branch_manager(user) or user_is_secretary(user)):
+                return user_manages_branch(user, branch.pk)
             if user_is_instructor(user) and enrolled_class.instructor == user:
                 return True
 

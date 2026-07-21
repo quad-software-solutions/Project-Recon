@@ -1,6 +1,8 @@
 import uuid
+from datetime import timedelta
 
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework.throttling import SimpleRateThrottle
@@ -8,6 +10,7 @@ from rest_framework.throttling import SimpleRateThrottle
 from apps.accounts.models import Branch
 from apps.accounts.services import user_service
 from apps.store.models import Order, Product, ProductCategory, ProductImage
+from apps.store.models.pending_order import PendingOrder
 from apps.store.services.category_service import (
     create_category,
     deactivate_category,
@@ -27,6 +30,10 @@ class StoreApiTestCase(APITestCase):
         SimpleRateThrottle.THROTTLE_RATES = {
             **SimpleRateThrottle.THROTTLE_RATES,
             "anon_login": "1000/min",
+            "store_public": "1000/min",
+            "store_cart": "1000/min",
+            "store_checkout": "1000/min",
+            "store_admin": "1000/min",
         }
 
         self.password = "StrongP@ssw0rd!2026"
@@ -82,7 +89,7 @@ class StoreApiTestCase(APITestCase):
     def test_public_list_categories(self):
         resp = self.client.get(f"{self.base_url}/categories/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [c["name"] for c in resp.data]
+        names = [cat["name"] for cat in resp.data["results"]]
         self.assertIn("Electronics", names)
         self.assertNotIn("Discontinued", names)
 
@@ -102,7 +109,7 @@ class StoreApiTestCase(APITestCase):
     def test_public_list_products(self):
         resp = self.client.get(f"{self.base_url}/products/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [p["name"] for p in resp.data]
+        names = [p["name"] for p in resp.data["results"]]
         self.assertIn("Robot Kit", names)
         self.assertNotIn("Old Kit", names)
 
@@ -150,7 +157,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/categories/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [c["name"] for c in resp.data]
+        names = [c["name"] for c in resp.data["results"]]
         self.assertIn("Electronics", names)
         self.assertIn("Discontinued", names)
 
@@ -217,7 +224,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/products/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        names = [p["name"] for p in resp.data]
+        names = [p["name"] for p in resp.data["results"]]
         self.assertIn("Robot Kit", names)
         self.assertIn("Old Kit", names)
 
@@ -282,7 +289,7 @@ class StoreApiTestCase(APITestCase):
         )
         self.client.credentials()
         resp = self.client.get(f"{self.base_url}/products/")
-        names = [p["name"] for p in resp.data]
+        names = [p["name"] for p in resp.data["results"]]
         self.assertNotIn("Old Kit", names)
 
     # --- Public Inventory Endpoints ---
@@ -295,8 +302,8 @@ class StoreApiTestCase(APITestCase):
             f"{self.base_url}/inventory/?branch={self.branch.pk}"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["quantity"], 10)
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["quantity"], 10)
 
     def test_public_list_inventory_missing_branch(self):
         resp = self.client.get(f"{self.base_url}/inventory/")
@@ -310,7 +317,7 @@ class StoreApiTestCase(APITestCase):
             f"{self.base_url}/inventory/availability/{self.product.pk}/"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(len(resp.data["results"]), 1)
 
     # --- Admin Inventory Endpoints ---
 
@@ -335,7 +342,7 @@ class StoreApiTestCase(APITestCase):
         add_inventory(self.branch, self.product, 15)
         resp = self.client.get(f"{self.base_url}/admin/inventory/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(resp.data), 1)
+        self.assertGreaterEqual(len(resp.data["results"]), 1)
 
     def test_admin_inventory_branch_manager_can_access(self):
         self._auth(self.branch_manager)
@@ -564,6 +571,12 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(session_key="checkout-guest")
         add_to_cart(cart, self.product, self.branch, 1)
 
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "checkout-guest"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
         resp = self.client.post(
             f"{self.base_url}/cart/checkout/",
             {
@@ -572,7 +585,10 @@ class StoreApiTestCase(APITestCase):
                 "guest_email": "guest@test.com",
             },
             format="json",
-            **{"HTTP_X_SESSION_KEY": "checkout-guest"},
+            **{
+                "HTTP_X_SESSION_KEY": "checkout-guest",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp.data["guest_name"], "Guest User")
@@ -708,6 +724,12 @@ class StoreApiTestCase(APITestCase):
         cart = get_or_create_cart(session_key="anon-evid")
         add_to_cart(cart, self.product, self.branch, 1)
 
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "anon-evid"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
         resp = self.client.post(
             f"{self.base_url}/cart/checkout/",
             {
@@ -721,7 +743,10 @@ class StoreApiTestCase(APITestCase):
                 },
             },
             format="json",
-            **{"HTTP_X_SESSION_KEY": "anon-evid"},
+            **{
+                "HTTP_X_SESSION_KEY": "anon-evid",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         pending_id = resp.data["id"]
@@ -756,8 +781,8 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/payments/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["status"], "PENDING_VERIFICATION")
+        self.assertGreaterEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["results"][0]["status"], "PENDING_VERIFICATION")
 
     def test_admin_payment_list_filters_by_status(self):
         from apps.store.services.branch_inventory_service import add_inventory
@@ -784,7 +809,7 @@ class StoreApiTestCase(APITestCase):
             f"{self.base_url}/admin/payments/?status=VERIFIED"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 0)
+        self.assertEqual(len(resp.data["results"]), 0)
 
     def test_admin_payment_list_forbidden_for_student(self):
         self._auth(self.student)
@@ -967,7 +992,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.super_admin)
         resp = self.client.get(f"{self.base_url}/admin/orders/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertGreaterEqual(len(resp.data), 1)
+        self.assertGreaterEqual(len(resp.data["results"]), 1)
 
     def test_admin_order_list_forbidden(self):
         self._create_paid_pending_order()
@@ -1026,7 +1051,7 @@ class StoreApiTestCase(APITestCase):
         self._auth(self.student)
         resp = self.client.get(f"{self.base_url}/orders/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        order_ids = [o["id"] for o in resp.data]
+        order_ids = [o["id"] for o in resp.data["results"]]
         self.assertIn(str(order.pk), order_ids)
 
     def test_user_order_list_unauthenticated(self):
@@ -1150,3 +1175,468 @@ class StoreApiTestCase(APITestCase):
 
         inv = BranchInventory.objects.get(branch=self.branch, product=self.product)
         self.assertEqual(inv.quantity, 10)
+
+    # --- Auth Fix: Guest Pending Order Access (Finding 2) ---
+
+    def test_guest_pending_order_detail_with_access_token(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="guest-token-test")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "guest-token-test"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Guest Token",
+                "guest_email": "guest.token@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "guest-token-test",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        resp = self.client.get(
+            f"{self.base_url}/pending-orders/{pending_id}/",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["guest_email"], "guest.token@test.com")
+
+    def test_guest_pending_order_detail_without_token_returns_404(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="guest-no-token")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "guest-no-token"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Guest No Token",
+                "guest_email": "guest.notoken@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "guest-no-token",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+
+        resp = self.client.get(
+            f"{self.base_url}/pending-orders/{pending_id}/",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- Auth Fix: Payment Evidence Submit Ownership (Finding 3) ---
+
+    def test_evidence_submit_by_different_user_blocked(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        pending_id = resp.data["id"]
+
+        self._auth(self.branch_manager)
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/evidence/",
+            {
+                "amount": 199.98,
+                "payment_method": "BANK_TRANSFER",
+                "transaction_reference": "TXN-OTHER-USER",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_evidence_submit_by_owner_succeeds(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {"branch": str(self.branch.pk)},
+            format="json",
+        )
+        pending_id = resp.data["id"]
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/evidence/",
+            {
+                "amount": 199.98,
+                "payment_method": "BANK_TRANSFER",
+                "transaction_reference": "TXN-OWNER",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["status"], "PENDING_VERIFICATION")
+
+    def test_evidence_submit_guest_with_access_token(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="guest-evid-token")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "guest-evid-token"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Guest Evidence",
+                "guest_email": "guest.evid@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "guest-evid-token",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        from apps.store.models.pending_order import PendingOrder
+        PendingOrder.objects.filter(pk=pending_id).update(email_verified=True)
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/evidence/",
+            {
+                "amount": 99.99,
+                "payment_method": "MOBILE_MONEY",
+                "transaction_reference": "MM-GUEST-TOKEN",
+            },
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+    # --- OWASP A07: Guest Email Verification ---
+
+    def test_guest_email_verification_success(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="email-verify-test")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "email-verify-test"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Email Verify",
+                "guest_email": "email.verify@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "email-verify-test",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        from django.contrib.auth.hashers import check_password
+        from apps.store.models.pending_order import PendingOrder
+        po = PendingOrder.objects.get(pk=pending_id)
+        self.assertFalse(po.email_verified)
+        self.assertIsNotNone(po.email_verification_otp)
+        self.assertIsNotNone(po.email_verification_otp_expiry)
+
+        from django.utils.crypto import get_random_string
+        from django.contrib.auth.hashers import make_password
+        known_otp = "123456"
+        po.email_verification_otp = make_password(known_otp)
+        po.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        po.save()
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/verify-email/",
+            {"otp": known_otp},
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        po.refresh_from_db()
+        self.assertTrue(po.email_verified)
+        self.assertIsNone(po.email_verification_otp)
+        self.assertIsNone(po.email_verification_otp_expiry)
+
+    def test_guest_email_verification_wrong_otp(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="email-wrong-otp")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "email-wrong-otp"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Wrong OTP",
+                "guest_email": "wrong.otp@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "email-wrong-otp",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        from django.utils.crypto import get_random_string
+        from django.contrib.auth.hashers import make_password
+        known_otp = "654321"
+        from apps.store.models.pending_order import PendingOrder
+        PendingOrder.objects.filter(pk=pending_id).update(
+            email_verification_otp=make_password(known_otp),
+            email_verification_otp_expiry=timezone.now() + timedelta(minutes=10),
+        )
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/verify-email/",
+            {"otp": "000000"},
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_evidence_submit_unverified_email_blocked(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="unverified-evid")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        token_resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "unverified-evid"},
+        )
+        cart_token = token_resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Unverified",
+                "guest_email": "unverified@test.com",
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "unverified-evid",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        pending_id = resp.data["id"]
+        access_token = resp.data["access_token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/pending-orders/{pending_id}/evidence/",
+            {
+                "amount": 99.99,
+                "payment_method": "MOBILE_MONEY",
+                "transaction_reference": "MM-UNVERIFIED",
+            },
+            format="json",
+            **{"HTTP_X_ORDER_TOKEN": str(access_token)},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- Auth Fix: Cart Write Token (Finding 5) ---
+
+    def test_guest_cart_add_without_token_blocked(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+
+        self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "cart-write-test"},
+        )
+        resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 1,
+            },
+            format="json",
+            **{"HTTP_X_SESSION_KEY": "cart-write-test"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_guest_cart_add_with_token_succeeds(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+
+        add_inventory(self.branch, self.product, 10)
+
+        resp = self.client.get(
+            f"{self.base_url}/cart/",
+            **{"HTTP_X_SESSION_KEY": "cart-token-test"},
+        )
+        cart_token = resp["X-Cart-Token"]
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/items/",
+            {
+                "product": str(self.product.pk),
+                "branch": str(self.branch.pk),
+                "quantity": 1,
+            },
+            format="json",
+            **{
+                "HTTP_X_SESSION_KEY": "cart-token-test",
+                "HTTP_X_CART_TOKEN": cart_token,
+            },
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+    def test_guest_cart_clear_without_token_blocked(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="cart-clear-test")
+        add_to_cart(cart, self.product, self.branch, 2)
+
+        resp = self.client.delete(
+            f"{self.base_url}/cart/clear/",
+            **{"HTTP_X_SESSION_KEY": "cart-clear-test"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_guest_checkout_without_token_blocked(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        cart = get_or_create_cart(session_key="checkout-token-test")
+        add_to_cart(cart, self.product, self.branch, 1)
+
+        resp = self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "guest_name": "Token Test",
+                "guest_email": "token@test.com",
+            },
+            format="json",
+            **{"HTTP_X_SESSION_KEY": "checkout-token-test"},
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- Auth Fix: Branch Manager Admin Access (Finding 6) ---
+
+    def test_branch_manager_can_list_orders(self):
+        pending = self._create_paid_pending_order()
+        self._auth(self.branch_manager)
+        resp = self.client.get(f"{self.base_url}/admin/orders/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_branch_manager_can_list_payments(self):
+        from apps.store.services.branch_inventory_service import add_inventory
+        from apps.store.services.shopping_cart_service import add_to_cart, get_or_create_cart
+
+        add_inventory(self.branch, self.product, 10)
+        self._auth(self.student)
+        cart = get_or_create_cart(user=self.student)
+        add_to_cart(cart, self.product, self.branch, 1)
+        self.client.post(
+            f"{self.base_url}/cart/checkout/",
+            {
+                "branch": str(self.branch.pk),
+                "payment": {
+                    "amount": 99.99,
+                    "payment_method": "BANK_TRANSFER",
+                    "transaction_reference": "TXN-BM-LIST",
+                },
+            },
+            format="json",
+        )
+        self._auth(self.branch_manager)
+        resp = self.client.get(f"{self.base_url}/admin/payments/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_branch_manager_cannot_access_other_branch_orders(self):
+        other_branch = Branch.objects.create(name="Other Branch", code="OB")
+        other_manager = user_service.create_branch_manager(
+            "other-manager@test.com", "Other", "Manager", self.password, other_branch
+        )
+        user_service.activate_user(other_manager)
+
+        pending = self._create_paid_pending_order()
+
+        self._auth(other_manager)
+        resp = self.client.get(f"{self.base_url}/admin/orders/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data["results"]), 0)
+
+    def test_student_still_blocked_from_admin_orders(self):
+        self._create_paid_pending_order()
+        self._auth(self.student)
+        resp = self.client.get(f"{self.base_url}/admin/orders/")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_branch_manager_can_view_report(self):
+        self._auth(self.branch_manager)
+        resp = self.client.get(f"{self.base_url}/admin/reports/products/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)

@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 
 from apps.academic.permissions import IsAcademicStaff
+from apps.academic.permissions.mixins import check_branch_access
 from apps.academic.serializers import (
     EnrollmentPeriodListSerializer,
     EnrollmentPeriodSerializer,
@@ -24,6 +25,7 @@ from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super
 )
 class EnrollmentPeriodListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAcademicStaff]
+    throttle_scope = "academic_staff"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -50,9 +52,12 @@ class EnrollmentPeriodRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentPeriodSerializer
     lookup_field = "pk"
+    throttle_scope = "academic_staff"
 
     def get_object(self):
-        return get_enrollment_period_or_404(self.kwargs["pk"])
+        obj = get_enrollment_period_or_404(self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def perform_update(self, serializer):
         period = self.get_object()
@@ -66,9 +71,11 @@ class EnrollmentPeriodRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 class EnrollmentPeriodActivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentPeriodSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         period = get_enrollment_period_or_404(pk)
+        self.check_object_permissions(request, period)
         activate_enrollment_period(request.user, period)
         return Response(EnrollmentPeriodSerializer(period).data, status=status.HTTP_200_OK)
 
@@ -79,8 +86,10 @@ class EnrollmentPeriodActivateView(generics.GenericAPIView):
 class EnrollmentPeriodDeactivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentPeriodSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         period = get_enrollment_period_or_404(pk)
+        self.check_object_permissions(request, period)
         deactivate_enrollment_period(request.user, period)
         return Response(EnrollmentPeriodSerializer(period).data, status=status.HTTP_200_OK)

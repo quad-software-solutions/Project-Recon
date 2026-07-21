@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from apps.academic.constants import AttendanceStatus, SessionStatus
@@ -12,7 +13,7 @@ class StaffAttendanceSession(models.Model):
     )
     date = models.DateField(db_index=True)
     status = models.CharField(max_length=10, choices=SessionStatus.choices, default=SessionStatus.DRAFT, db_index=True)
-    notes = models.TextField(blank=True, default="")
+    notes = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     created_by = models.ForeignKey(
         "accounts.User", on_delete=models.PROTECT, related_name="created_attendance_sessions"
     )
@@ -38,7 +39,7 @@ class StaffAttendanceRecord(models.Model):
         "accounts.User", on_delete=models.PROTECT, related_name="attendance_records"
     )
     status = models.CharField(max_length=10, choices=AttendanceStatus.choices, db_index=True)
-    notes = models.TextField(blank=True, default="")
+    notes = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

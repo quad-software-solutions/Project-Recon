@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -123,6 +125,27 @@ class RegistrationValidator:
                 qs = qs.exclude(id=exclude_id)
             if qs.exists():
                 raise ValidationError("A registration with this email already exists for this event.")
+
+        recent_cutoff = timezone.now() - timedelta(hours=24)
+        recent_rejected_or_cancelled = EventRegistration.objects.filter(
+            event=event,
+            registration_status__in=[
+                RegistrationStatus.REJECTED,
+                RegistrationStatus.CANCELLED,
+            ],
+            updated_at__gte=recent_cutoff,
+        )
+        if student:
+            recent_rejected_or_cancelled = recent_rejected_or_cancelled.filter(student=student)
+        elif public_email:
+            recent_rejected_or_cancelled = recent_rejected_or_cancelled.filter(public_email=public_email)
+        if exclude_id:
+            recent_rejected_or_cancelled = recent_rejected_or_cancelled.exclude(id=exclude_id)
+        if recent_rejected_or_cancelled.exists():
+            raise ValidationError(
+                "A recent registration was rejected or cancelled. "
+                "Please wait 24 hours before re-registering."
+            )
 
     @staticmethod
     def validate_payment_evidence(event, payment_data):

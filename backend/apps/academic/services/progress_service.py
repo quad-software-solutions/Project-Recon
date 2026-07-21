@@ -190,6 +190,26 @@ def customize_milestone(actor, source_milestone, target_class):
     return customized
 
 
+def _check_attendance_warning(enrollment):
+    from apps.academic.constants import AttendanceStatus
+    from apps.academic.models import AttendanceRecord
+
+    total = AttendanceRecord.objects.filter(enrollment=enrollment).count()
+    if total == 0:
+        return "No attendance records found for this enrollment."
+    present = AttendanceRecord.objects.filter(
+        enrollment=enrollment, status=AttendanceStatus.PRESENT,
+    ).count()
+    rate = present / total
+    threshold = 0.5
+    if rate < threshold:
+        return (
+            f"Student attendance rate ({rate:.0%}) is below {threshold:.0%} "
+            f"({present}/{total} sessions attended)."
+        )
+    return ""
+
+
 def record_progress(actor, *, enrollment, milestone, status=ProgressStatus.NOT_STARTED, remarks=""):
     if milestone.sub_program != enrollment.enrolled_class.sub_program:
         raise DjangoValidationError(
@@ -217,6 +237,20 @@ def record_progress(actor, *, enrollment, milestone, status=ProgressStatus.NOT_S
         },
     )
 
+    warnings = []
+    if status == ProgressStatus.COMPLETED:
+        warning = _check_attendance_warning(enrollment)
+        if warning:
+            warnings.append(warning)
+            log_action(
+                actor=actor,
+                action="STUDENT_PROGRESS_COMPLETED_WITH_WARNINGS",
+                resource_type="StudentProgress",
+                resource_id=str(record.id),
+                branch=enrollment.enrolled_class.branch,
+                details={"warning": warning},
+            )
+
     action = "STUDENT_PROGRESS_CREATED" if created else "STUDENT_PROGRESS_UPDATED"
     log_action(
         actor=actor,
@@ -225,7 +259,7 @@ def record_progress(actor, *, enrollment, milestone, status=ProgressStatus.NOT_S
         resource_id=str(record.id),
         branch=enrollment.enrolled_class.branch,
     )
-    return record
+    return record, warnings
 
 
 def update_progress(actor, record, *, status=None, remarks=None):
@@ -242,6 +276,20 @@ def update_progress(actor, record, *, status=None, remarks=None):
     record.full_clean()
     record.save()
 
+    warnings = []
+    if status == ProgressStatus.COMPLETED:
+        warning = _check_attendance_warning(record.enrollment)
+        if warning:
+            warnings.append(warning)
+            log_action(
+                actor=actor,
+                action="STUDENT_PROGRESS_COMPLETED_WITH_WARNINGS",
+                resource_type="StudentProgress",
+                resource_id=str(record.id),
+                branch=record.enrollment.enrolled_class.branch,
+                details={"warning": warning},
+            )
+
     log_action(
         actor=actor,
         action="STUDENT_PROGRESS_UPDATED",
@@ -249,7 +297,7 @@ def update_progress(actor, record, *, status=None, remarks=None):
         resource_id=str(record.id),
         branch=record.enrollment.enrolled_class.branch,
     )
-    return record
+    return record, warnings
 
 
 def get_progress_history(enrollment):

@@ -40,8 +40,11 @@ def list_sessions(branch=None, date_from=None, date_to=None, status=None):
     qs = StaffAttendanceSession.objects.filter(is_active=True).select_related(
         "branch", "created_by"
     )
-    if branch:
-        qs = qs.filter(branch=branch)
+    if branch is not None:
+        if isinstance(branch, (list, set)):
+            qs = qs.filter(branch_id__in=branch)
+        else:
+            qs = qs.filter(branch=branch)
     if date_from:
         qs = qs.filter(date__gte=date_from)
     if date_to:
@@ -108,6 +111,10 @@ def upsert_records(actor, session, records_data):
             staff_member = item["staff_member"]
             if not isinstance(staff_member, User):
                 staff_member = User.objects.get(pk=staff_member)
+            if staff_member.pk == actor.pk:
+                raise DjangoValidationError(
+                    "You cannot record attendance for yourself."
+                )
             record, _ = StaffAttendanceRecord.objects.update_or_create(
                 session=session,
                 staff_member=staff_member,

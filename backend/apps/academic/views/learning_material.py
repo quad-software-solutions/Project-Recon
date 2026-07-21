@@ -37,6 +37,7 @@ from apps.academic.services.learning_material_service import (
 )
 class MaterialListCreateView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
+    throttle_scope = "academic_material"
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -90,6 +91,7 @@ class MaterialRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     parser_classes = [MultiPartParser, FormParser]
     lookup_field = "pk"
     serializer_class = LearningMaterialSerializer
+    throttle_scope = "academic_material"
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -123,6 +125,7 @@ class MaterialRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 )
 class MaterialDeleteView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanManageMaterial]
+    throttle_scope = "academic_material"
 
     def post(self, request, pk):
         material = get_material_or_404(pk)
@@ -140,6 +143,7 @@ class MaterialDeleteView(generics.GenericAPIView):
 )
 class MaterialDownloadView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanViewMaterial]
+    throttle_scope = "academic_material"
 
     def get(self, request, pk):
         material = get_material_or_404(pk)
@@ -158,9 +162,10 @@ class MaterialDownloadView(generics.GenericAPIView):
                 {"detail": "File not found on disk."}, status=status.HTTP_404_NOT_FOUND
             )
 
+        ext = os.path.splitext(material.file.name)[1]
         response = FileResponse(
             f,
             as_attachment=True,
-            filename=os.path.basename(material.file.name),
+            filename=f"{material.title}{ext}",
         )
         return response

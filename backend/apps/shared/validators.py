@@ -4,6 +4,7 @@ import uuid
 
 import magic
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.utils.deconstruct import deconstructible
@@ -29,7 +30,7 @@ MAGIC_MIME_MAP = {
     },
 }
 
-MAX_FILE_SIZE_MB = 10
+MAX_FILE_SIZE_MB = getattr(settings, "SHARED_MAX_FILE_SIZE_MB", 10)
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 UNSAFE_FILENAME_PATTERN = re.compile(r"[^\w\s.-]")

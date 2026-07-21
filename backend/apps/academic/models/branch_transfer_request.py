@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 
@@ -13,7 +14,7 @@ class BranchTransferRequest(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.ForeignKey(
-        "academic.Enrollment", on_delete=models.CASCADE,
+        "academic.Enrollment", on_delete=models.PROTECT,
         related_name="branch_transfer_requests"
     )
     from_branch = models.ForeignKey(
@@ -41,7 +42,7 @@ class BranchTransferRequest(models.Model):
         max_length=20, choices=TransferStatus.choices,
         default=TransferStatus.PENDING, db_index=True
     )
-    rejection_reason = models.TextField(blank=True, default="")
+    rejection_reason = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
 

@@ -3,6 +3,9 @@ from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib.auth.hashers import make_password
+from django.utils import timezone
+
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -1134,6 +1137,63 @@ class EnrollmentAPITest(AcademicAPITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_verify_online_enrollment_email_success(self):
+        enrollment = enroll_student(
+            None, student=self.student_model, enrolled_class=self.individual_class,
+        )
+        otp = "123456"
+        enrollment.email_verification_otp = make_password(otp)
+        enrollment.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        enrollment.save()
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/{enrollment.pk}/verify-email/",
+            {"otp": otp},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"detail": "Email verified successfully."})
+        enrollment.refresh_from_db()
+        self.assertTrue(enrollment.email_verified)
+
+    def test_verify_online_enrollment_email_wrong_otp_returns_400(self):
+        enrollment = enroll_student(
+            None, student=self.student_model, enrolled_class=self.individual_class,
+        )
+        enrollment.email_verification_otp = make_password("123456")
+        enrollment.email_verification_otp_expiry = timezone.now() + timedelta(minutes=10)
+        enrollment.save()
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/{enrollment.pk}/verify-email/",
+            {"otp": "000000"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_verify_online_enrollment_email_expired_returns_400(self):
+        enrollment = enroll_student(
+            None, student=self.student_model, enrolled_class=self.individual_class,
+        )
+        enrollment.email_verification_otp = make_password("123456")
+        enrollment.email_verification_otp_expiry = timezone.now() - timedelta(minutes=1)
+        enrollment.save()
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/{enrollment.pk}/verify-email/",
+            {"otp": "123456"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_verify_online_enrollment_email_no_otp_returns_400(self):
+        enrollment = enroll_student(
+            None, student=self.student_model, enrolled_class=self.individual_class,
+        )
+        response = self.client.post(
+            f"{self.base_url}/enrollments/online/{enrollment.pk}/verify-email/",
+            {"otp": "123456"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
     def _create_active_enrollment(self):
         enrollment = enroll_student(
             None, student=self.student_model, enrolled_class=self.individual_class,
@@ -1762,7 +1822,7 @@ class ProgressAPITest(AcademicAPITestCase):
             actor=self.super_admin, sub_program=self.sub_program,
             title="Update Me", scope_class=None,
         )
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor, enrollment=self.enrollment,
             milestone=milestone, status=ProgressStatus.NOT_STARTED,
         )

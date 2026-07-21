@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from apps.academic.permissions import IsAcademicStaff
 from apps.academic.serializers import (
     StudentListSerializer,
+    StudentSearchSerializer,
     StudentSerializer,
     StudentUpdateSerializer,
 )
@@ -25,6 +26,7 @@ from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super
 )
 class StudentRetrieveUpdateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
+    throttle_scope = "academic_staff"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -33,6 +35,7 @@ class StudentRetrieveUpdateView(generics.GenericAPIView):
 
     def get(self, request, pk):
         student = get_student_or_404(pk)
+        self.check_object_permissions(request, student)
         return Response(StudentSerializer(student).data)
 
     def patch(self, request, pk):
@@ -40,6 +43,7 @@ class StudentRetrieveUpdateView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         student = get_student_or_404(pk)
+        self.check_object_permissions(request, student)
         student = update_student(
             student, actor=request.user, **serializer.validated_data
         )
@@ -52,6 +56,7 @@ class StudentRetrieveUpdateView(generics.GenericAPIView):
 class StudentListView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = StudentListSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request):
         branch_ids = None
@@ -66,18 +71,19 @@ class StudentListView(generics.GenericAPIView):
 )
 class StudentSearchView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
-    serializer_class = StudentListSerializer
+    serializer_class = StudentSearchSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request):
         query = request.query_params.get("q", "").strip()
-        if not query:
+        if not query or len(query) < 3:
             return Response([])
 
         branch_ids = None
         if not user_is_super_admin(request.user):
             branch_ids = get_active_branch_ids(request.user)
         students = search_students(query, branch_ids=branch_ids)
-        return Response(StudentListSerializer(students, many=True).data)
+        return Response(StudentSearchSerializer(students, many=True).data)
 
 
 @extend_schema_view(
@@ -86,9 +92,11 @@ class StudentSearchView(generics.GenericAPIView):
 class StudentActivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = StudentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         student = get_student_or_404(pk)
+        self.check_object_permissions(request, student)
         activate_student(student, actor=request.user)
         return Response(StudentSerializer(student).data)
 
@@ -99,8 +107,10 @@ class StudentActivateView(generics.GenericAPIView):
 class StudentDeactivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = StudentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         student = get_student_or_404(pk)
+        self.check_object_permissions(request, student)
         deactivate_student(student, actor=request.user)
         return Response(StudentSerializer(student).data)

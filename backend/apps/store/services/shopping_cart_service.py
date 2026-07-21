@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.db import transaction
@@ -8,6 +9,7 @@ from apps.accounts.models import Branch
 from apps.store.models import Product, ProductCategory
 from apps.store.models.shopping_cart import ShoppingCart, ShoppingCartItem
 
+logger = logging.getLogger(__name__)
 
 CART_EXPIRY_DAYS = 30
 
@@ -100,6 +102,10 @@ def add_to_cart(
             item.save(update_fields=["quantity"])
 
     _touch_cart(cart)
+    logger.info(
+        "Cart %s: %s %d x %s",
+        cart.pk, "added" if created else "increased", quantity, product.sku,
+    )
     return item
 
 
@@ -156,5 +162,8 @@ def clear_cart(cart: ShoppingCart, actor=None) -> None:
 def delete_expired_carts() -> int:
     now = timezone.now()
     expired = ShoppingCart.objects.filter(expires_at__lt=now)
-    count, _ = expired.delete()
+    count = expired.count()
+    if count:
+        logger.warning("Deleted %d expired shopping carts", count)
+        expired.delete()
     return count

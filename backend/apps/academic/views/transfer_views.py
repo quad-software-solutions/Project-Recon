@@ -42,6 +42,7 @@ from apps.accounts.services.branch_service import get_branch_or_404
 class BranchTransferRequestView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = BranchTransferRequestCreateSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -79,6 +80,7 @@ class BranchTransferRequestView(generics.GenericAPIView):
 class BranchTransferListView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = BranchTransferRequestSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request):
         branch_ids = None
@@ -101,6 +103,7 @@ class BranchTransferListView(generics.GenericAPIView):
 class BranchTransferApproveView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = BranchTransferApproveSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         try:
@@ -137,6 +140,7 @@ class BranchTransferApproveView(generics.GenericAPIView):
 class BranchTransferRejectView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = BranchTransferRejectSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         serializer = self.get_serializer(data=request.data)
@@ -174,6 +178,7 @@ class BranchTransferRejectView(generics.GenericAPIView):
 class EnrollmentSwitchSubProgramView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = SwitchSubProgramSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         serializer = self.get_serializer(data=request.data)

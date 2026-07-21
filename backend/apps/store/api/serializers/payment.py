@@ -1,7 +1,13 @@
+import os
+
 from rest_framework import serializers
 
 from apps.store.constants import PaymentMethod, PaymentStatus
 from apps.store.models.payment import StorePayment
+
+_ALLOWED_ATTACHMENT_TYPES = {"application/pdf", "image/jpeg", "image/png"}
+_ALLOWED_ATTACHMENT_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
+_MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
 
 class PaymentEvidenceSerializer(serializers.Serializer):
@@ -14,6 +20,34 @@ class PaymentEvidenceSerializer(serializers.Serializer):
         max_length=255, required=False, allow_blank=True, default=""
     )
     attachment = serializers.FileField(required=False, allow_null=True)
+
+    def validate_attachment(self, value):
+        if value is None:
+            return value
+        if value.size > _MAX_ATTACHMENT_SIZE:
+            raise serializers.ValidationError("Attachment must be less than 10MB.")
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in _ALLOWED_ATTACHMENT_EXTS:
+            raise serializers.ValidationError(
+                f"Unsupported file extension '{ext}'. "
+                f"Allowed: {', '.join(sorted(_ALLOWED_ATTACHMENT_EXTS))}"
+            )
+        content_type = getattr(value, "content_type", None)
+        if content_type and content_type not in _ALLOWED_ATTACHMENT_TYPES:
+            raise serializers.ValidationError(
+                f"Unsupported file type '{content_type}'. "
+                f"Allowed: {', '.join(sorted(_ALLOWED_ATTACHMENT_TYPES))}"
+            )
+        return value
+
+    def validate(self, attrs):
+        if attrs.get("payment_method") != PaymentMethod.CASH:
+            if not attrs.get("transaction_reference") and not attrs.get("attachment"):
+                raise serializers.ValidationError(
+                    "At least a transaction reference or payment attachment "
+                    "is required for non-cash payments."
+                )
+        return attrs
 
 
 class StorePaymentSerializer(serializers.ModelSerializer):

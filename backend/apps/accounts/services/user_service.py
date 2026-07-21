@@ -184,9 +184,13 @@ def create_branch_manager(email, first_name, last_name, password, branch, assign
     )
 
 
-def create_student_user(email, first_name, last_name, password, branch, assigned_by=None):
+def create_student_user(email, first_name, last_name, password, branch, assigned_by=None, bypass_password_validation=False):
     """
     Create a student user (intended for Academic module orchestration).
+
+    Args:
+        bypass_password_validation: Skip Django password validators when True.
+            Used for in-person admissions where staff sets a temp password.
 
     Returns:
         Created User instance.
@@ -201,6 +205,7 @@ def create_student_user(email, first_name, last_name, password, branch, assigned
         role=Roles.STUDENT,
         branch=branch,
         assigned_by=assigned_by,
+        bypass_password_validation=bypass_password_validation,
     )
 
 

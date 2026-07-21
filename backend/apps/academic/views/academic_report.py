@@ -26,6 +26,7 @@ from apps.academic.services.academic_report_service import (
 
 class BaseReportView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = "academic_report"
 
     def get_pdf_response(self, pdf_bytes, filename):
         response = HttpResponse(pdf_bytes, content_type="application/pdf")

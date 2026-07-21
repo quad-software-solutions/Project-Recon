@@ -92,13 +92,15 @@ def submit_payment_evidence(
         except EventRegistration.DoesNotExist:
             raise NotFound("Registration not found.")
 
-    if hasattr(registration, "payment"):
-        raise ValidationError("This registration already has a payment record.")
-
     if amount <= 0:
         raise ValidationError("Payment amount must be greater than zero.")
 
     with transaction.atomic():
+        registration = EventRegistration.objects.select_for_update().get(pk=registration.pk)
+
+        if hasattr(registration, "payment"):
+            raise ValidationError("This registration already has a payment record.")
+
         payment = EventPayment(
             registration=registration,
             amount=amount,
@@ -150,8 +152,16 @@ def record_cash_payment(registration, amount, actor=None, payment_date=None):
         except EventRegistration.DoesNotExist:
             raise NotFound("Registration not found.")
 
-    if hasattr(registration, "payment"):
-        raise ValidationError("This registration already has a payment record.")
+    if not registration.event.payment_required:
+        raise ValidationError("Payment is not required for this event.")
+
+    if (
+        registration.event.registration_fee is not None
+        and amount < registration.event.registration_fee
+    ):
+        raise ValidationError(
+            f"Amount must be at least {registration.event.registration_fee}."
+        )
 
     if amount <= 0:
         raise ValidationError("Payment amount must be greater than zero.")
@@ -159,6 +169,11 @@ def record_cash_payment(registration, amount, actor=None, payment_date=None):
     now = timezone.now()
 
     with transaction.atomic():
+        registration = EventRegistration.objects.select_for_update().get(pk=registration.pk)
+
+        if hasattr(registration, "payment"):
+            raise ValidationError("This registration already has a payment record.")
+
         payment = EventPayment(
             registration=registration,
             amount=amount,

@@ -43,11 +43,17 @@ def product_statistics():
     }
 
 
-def inventory_report(branch_id=None):
+def _apply_limit(qs, limit):
+    if limit is not None:
+        qs = qs[:limit]
+    return qs
+
+
+def inventory_report(branch_id=None, limit=1000):
     qs = BranchInventory.objects.select_related("branch", "product__category")
     if branch_id:
         qs = qs.filter(branch_id=branch_id)
-    qs = qs.order_by("branch__name", "product__name")
+    qs = _apply_limit(qs.order_by("branch__name", "product__name"), limit)
 
     return [
         {
@@ -64,11 +70,13 @@ def inventory_report(branch_id=None):
     ]
 
 
-def low_stock_report():
+def low_stock_report(limit=1000):
     qs = BranchInventory.objects.select_related("branch", "product").filter(
         Q(quantity__lt=F("minimum_quantity"), minimum_quantity__isnull=False)
         | Q(quantity=0)
     ).order_by("quantity")
+
+    qs = _apply_limit(qs, limit)
 
     return [
         {
@@ -98,7 +106,7 @@ def _default_date_range():
     return start, end
 
 
-def sales_report(start_date=None, end_date=None, branch_id=None, group_by="day"):
+def sales_report(start_date=None, end_date=None, branch_id=None, group_by="day", limit=1000):
     if start_date is None or end_date is None:
         dstart, dend = _default_date_range()
         start_date = start_date or dstart
@@ -121,6 +129,8 @@ def sales_report(start_date=None, end_date=None, branch_id=None, group_by="day")
         avg_order_value=Avg("total", output_field=DecimalField()),
     ).order_by("period")
 
+    qs = _apply_limit(qs, limit)
+
     return [
         {
             "period": entry["period"].isoformat() if entry["period"] else None,
@@ -132,7 +142,7 @@ def sales_report(start_date=None, end_date=None, branch_id=None, group_by="day")
     ]
 
 
-def order_report(status=None, branch_id=None, start_date=None, end_date=None, group_by="day"):
+def order_report(status=None, branch_id=None, start_date=None, end_date=None, group_by="day", limit=1000):
     if start_date is None or end_date is None:
         dstart, dend = _default_date_range()
         start_date = start_date or dstart
@@ -154,6 +164,8 @@ def order_report(status=None, branch_id=None, start_date=None, end_date=None, gr
         total_value=Sum("total", output_field=DecimalField()),
     ).order_by("period")
 
+    qs = _apply_limit(qs, limit)
+
     return [
         {
             "period": entry["period"].isoformat() if entry["period"] else None,
@@ -164,7 +176,7 @@ def order_report(status=None, branch_id=None, start_date=None, end_date=None, gr
     ]
 
 
-def branch_sales_report(branch_id=None, group_by="month"):
+def branch_sales_report(branch_id=None, group_by="month", limit=1000):
     start, end = _default_date_range()
 
     trunc = _get_group_trunc(group_by)
@@ -185,6 +197,8 @@ def branch_sales_report(branch_id=None, group_by="month"):
         order_count=Count("id"),
         total_revenue=Sum("total", output_field=DecimalField()),
     ).order_by("period", "branch_name")
+
+    qs = _apply_limit(qs, limit)
 
     return [
         {

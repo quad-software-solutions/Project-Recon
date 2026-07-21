@@ -11,15 +11,17 @@ def get_category_or_404(pk):
     except ProductCategory.DoesNotExist:
         raise NotFound("Category not found.")
 
-
 def list_categories():
-    return ProductCategory.objects.annotate(product_count=Count("products")).all()
+    return ProductCategory.objects.annotate(
+        product_count=Count("products")
+    ).order_by("name")
+
 
 
 def list_active_categories():
     return ProductCategory.objects.filter(is_active=True).annotate(
         product_count=Count("products")
-    )
+    ).order_by("name")
 
 
 def create_category(data: dict, actor=None) -> ProductCategory:

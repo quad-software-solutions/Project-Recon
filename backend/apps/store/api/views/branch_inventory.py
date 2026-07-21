@@ -10,6 +10,7 @@ from apps.accounts.permissions.roles import (
     user_is_branch_manager,
     user_is_super_admin,
 )
+from apps.store.api.pagination import StoreAdminPagination, StorePublicPagination
 from apps.store.api.permissions import IsStoreInventoryStaff
 from apps.store.api.serializers import (
     BranchInventoryAdminSerializer,
@@ -35,6 +36,8 @@ from apps.store.services.product_service import get_product_or_404
 class PublicBranchInventoryListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = BranchInventorySerializer
+    pagination_class = StorePublicPagination
+    throttle_scope = "store_public"
 
     @extend_schema(
         tags=["Store - Inventory"],
@@ -61,6 +64,8 @@ class PublicBranchInventoryListView(generics.ListAPIView):
 class PublicProductAvailabilityView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = BranchInventorySerializer
+    pagination_class = StorePublicPagination
+    throttle_scope = "store_public"
 
     @extend_schema(tags=["Store - Inventory"])
     def get_queryset(self):
@@ -71,6 +76,8 @@ class PublicProductAvailabilityView(generics.ListAPIView):
 class AdminInventoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = BranchInventoryAdminSerializer
+    pagination_class = StoreAdminPagination
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Inventory"])
     def get_queryset(self):
@@ -110,6 +117,7 @@ class AdminInventoryRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = BranchInventoryAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Inventory"])
     def get_object(self):
@@ -144,6 +152,7 @@ class AdminInventoryRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 class AdminInventoryAddView(generics.GenericAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = InventoryAdjustSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         inv = get_inventory_by_id_or_404(self.kwargs["pk"])
@@ -166,6 +175,7 @@ class AdminInventoryAddView(generics.GenericAPIView):
 class AdminInventoryReduceView(generics.GenericAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = InventoryAdjustSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         inv = get_inventory_by_id_or_404(self.kwargs["pk"])
@@ -188,6 +198,7 @@ class AdminInventoryReduceView(generics.GenericAPIView):
 class AdminInventoryCorrectView(generics.GenericAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = InventoryCorrectSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         inv = get_inventory_by_id_or_404(self.kwargs["pk"])
@@ -210,6 +221,7 @@ class AdminInventoryCorrectView(generics.GenericAPIView):
 class AdminInventoryTransferView(generics.GenericAPIView):
     permission_classes = [IsStoreInventoryStaff]
     serializer_class = InventoryTransferSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         serializer = InventoryTransferSerializer(data=request.data)

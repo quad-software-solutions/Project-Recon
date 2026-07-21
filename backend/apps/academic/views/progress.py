@@ -10,6 +10,7 @@ from apps.academic.constants import ProgressStatus as ProgressStatusChoice
 from apps.academic.models import LearningMilestone, StudentProgress, Enrollment
 from apps.academic.models.sub_program import SubProgram
 from apps.academic.models.class_model import Class as ClassModel
+from apps.academic.permissions.mixins import check_enrollment_branch_access
 from apps.academic.permissions.progress import CanManageProgress
 from apps.academic.serializers import (
     LearningMilestoneSerializer,
@@ -40,6 +41,7 @@ from apps.academic.services.progress_service import (
 )
 class MilestoneListCreateView(generics.ListCreateAPIView):
     permission_classes = [CanManageProgress]
+    throttle_scope = "academic_admin"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -47,9 +49,25 @@ class MilestoneListCreateView(generics.ListCreateAPIView):
         return LearningMilestoneSerializer
 
     def get_queryset(self):
+        from uuid import UUID
+
+        sub_program = self.request.query_params.get("sub_program")
+        scope_class = self.request.query_params.get("scope_class")
+
+        if sub_program:
+            try:
+                UUID(sub_program)
+            except ValueError:
+                raise ValidationError("Invalid sub_program UUID.")
+        if scope_class:
+            try:
+                UUID(scope_class)
+            except ValueError:
+                raise ValidationError("Invalid scope_class UUID.")
+
         return list_milestones(
-            sub_program=self.request.query_params.get("sub_program"),
-            scope_class=self.request.query_params.get("scope_class"),
+            sub_program=sub_program,
+            scope_class=scope_class,
         )
 
     def perform_create(self, serializer):
@@ -81,6 +99,7 @@ class MilestoneRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [CanManageProgress]
     lookup_field = "pk"
     serializer_class = LearningMilestoneSerializer
+    throttle_scope = "academic_admin"
 
     def get_object(self):
         return get_milestone_or_404(self.kwargs["pk"])
@@ -105,6 +124,7 @@ class MilestoneRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 )
 class MilestoneArchiveView(generics.GenericAPIView):
     permission_classes = [CanManageProgress]
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         milestone = get_milestone_or_404(pk)
@@ -123,6 +143,7 @@ class MilestoneArchiveView(generics.GenericAPIView):
 class MilestoneCustomizeView(generics.GenericAPIView):
     permission_classes = [CanManageProgress]
     serializer_class = CustomizeMilestoneSerializer
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         source_milestone = get_milestone_or_404(pk)
@@ -149,6 +170,7 @@ class MilestoneCustomizeView(generics.GenericAPIView):
 class RecordProgressView(generics.GenericAPIView):
     permission_classes = [CanManageProgress]
     serializer_class = RecordProgressSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -157,7 +179,7 @@ class RecordProgressView(generics.GenericAPIView):
         enrollment = get_object_or_404(Enrollment, pk=serializer.validated_data["enrollment"])
         milestone = get_milestone_or_404(serializer.validated_data["milestone"])
         try:
-            record = record_progress(
+            record, warnings = record_progress(
                 actor=request.user,
                 enrollment=enrollment,
                 milestone=milestone,
@@ -167,7 +189,10 @@ class RecordProgressView(generics.GenericAPIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
         result_serializer = StudentProgressSerializer(record)
-        return Response(result_serializer.data, status=status.HTTP_201_CREATED)
+        data = result_serializer.data
+        if warnings:
+            data["warnings"] = warnings
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(
@@ -177,6 +202,7 @@ class UpdateProgressView(generics.RetrieveUpdateAPIView):
     permission_classes = [CanManageProgress]
     lookup_field = "pk"
     serializer_class = StudentProgressSerializer
+    throttle_scope = "academic_staff"
 
     def get_serializer_class(self):
         if self.request.method == "PATCH":
@@ -199,7 +225,7 @@ class UpdateProgressView(generics.RetrieveUpdateAPIView):
         serializer = UpdateProgressSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
-            updated = update_progress(
+            updated, warnings = update_progress(
                 request.user,
                 record,
                 status=serializer.validated_data.get("status"),
@@ -208,7 +234,10 @@ class UpdateProgressView(generics.RetrieveUpdateAPIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
         result_serializer = StudentProgressSerializer(updated)
-        return Response(result_serializer.data, status=status.HTTP_200_OK)
+        data = result_serializer.data
+        if warnings:
+            data["warnings"] = warnings
+        return Response(data, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(
@@ -217,9 +246,11 @@ class UpdateProgressView(generics.RetrieveUpdateAPIView):
 class ProgressHistoryView(generics.GenericAPIView):
     permission_classes = [CanManageProgress]
     serializer_class = StudentProgressSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request, enrollment_pk):
         enrollment = get_object_or_404(Enrollment, pk=enrollment_pk)
+        check_enrollment_branch_access(request.user, enrollment)
         records = get_progress_history(enrollment)
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -231,9 +262,11 @@ class ProgressHistoryView(generics.GenericAPIView):
 class ProgressSummaryView(generics.GenericAPIView):
     permission_classes = [CanManageProgress]
     serializer_class = ProgressSummarySerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request, enrollment_pk):
         enrollment = get_object_or_404(Enrollment, pk=enrollment_pk)
+        check_enrollment_branch_access(request.user, enrollment)
         summary = get_progress_summary(enrollment)
         serializer = self.get_serializer(summary)
         return Response(serializer.data, status=status.HTTP_200_OK)

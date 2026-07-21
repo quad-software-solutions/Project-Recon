@@ -536,8 +536,23 @@ REST_FRAMEWORK = {
         "events_admin": os.getenv("THROTTLE_EVENTS_ADMIN", "100/min"),
         "events_register": os.getenv("THROTTLE_EVENTS_REGISTER", "5/min"),
         "email_otp": os.getenv("THROTTLE_EMAIL_OTP", "3/min"),
+        "store_public": os.getenv("THROTTLE_STORE_PUBLIC", "60/min"),
+        "store_cart": os.getenv("THROTTLE_STORE_CART", "20/min"),
+        "store_checkout": os.getenv("THROTTLE_STORE_CHECKOUT", "10/min"),
+        "store_admin": os.getenv("THROTTLE_STORE_ADMIN", "120/min"),
+        "shared_bank": os.getenv("THROTTLE_SHARED_BANK", "30/min"),
+        "shared_audit": os.getenv("THROTTLE_SHARED_AUDIT", "30/min"),
+        "academic_admin": os.getenv("THROTTLE_ACADEMIC_ADMIN", "120/min"),
+        "academic_staff": os.getenv("THROTTLE_ACADEMIC_STAFF", "60/min"),
+        "academic_attendance": os.getenv("THROTTLE_ACADEMIC_ATTENDANCE", "30/min"),
+        "academic_report": os.getenv("THROTTLE_ACADEMIC_REPORT", "20/min"),
+        "academic_enroll": os.getenv("THROTTLE_ACADEMIC_ENROLL", "10/min"),
+        "academic_public": os.getenv("THROTTLE_ACADEMIC_PUBLIC", "60/min"),
+        "academic_material": os.getenv("THROTTLE_ACADEMIC_MATERIAL", "20/min"),
     },
 }
+
+SHARED_MAX_FILE_SIZE_MB = int(os.getenv("SHARED_MAX_FILE_SIZE_MB", "10"))
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "15"))),
@@ -588,6 +603,7 @@ CSRF_COOKIE_SECURE = (
     os.getenv("CSRF_COOKIE_SECURE", "true" if not DEBUG else "false").lower() == "true"
 )
 
+SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG

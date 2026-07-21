@@ -42,3 +42,22 @@ class IsStoreInventoryStaff(BasePermission):
         if user_is_branch_manager(request.user):
             return obj.branch_id in get_active_branch_ids(request.user)
         return False
+
+
+class IsStoreStaffOrManager(BasePermission):
+    """
+    Allow Super Admin (unrestricted) or Branch Manager (branch-scoped).
+
+    Branch Manager access is scoped at the view level via get_queryset
+    or explicit object-level checks.
+    """
+
+    def has_permission(self, request, view) -> bool:
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (
+                user_is_super_admin(request.user)
+                or user_is_branch_manager(request.user)
+            )
+        )

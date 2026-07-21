@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.db.models import F, Q
 
 from apps.academic.constants import ClassPeriod, ClassType
 
@@ -29,6 +30,12 @@ class EnrollmentPeriod(models.Model):
         ordering = ["-start_date"]
         verbose_name = "Enrollment Period"
         verbose_name_plural = "Enrollment Periods"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(end_date__gte=F("start_date")),
+                name="enrollment_period_dates_valid",
+            ),
+        ]
 
     def __str__(self):
         return self.title
@@ -40,5 +47,5 @@ class EnrollmentPeriod(models.Model):
             raise ValidationError("start_date must be before end_date.")
 
     def save(self, *args, **kwargs):
-        self.clean()
+        self.full_clean()
         super().save(*args, **kwargs)

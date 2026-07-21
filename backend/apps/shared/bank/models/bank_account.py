@@ -19,6 +19,12 @@ class BankAccount(models.Model):
     class Meta:
         db_table = "shared_bank_account"
         ordering = ["bank_name", "account_holder"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["bank_name", "account_number"],
+                name="uq_bank_name_account_number",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.bank_name} — {self.account_holder} ({self.account_number})"

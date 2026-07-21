@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from apps.academic.models.class_model import Class as ClassModel
 from apps.academic.permissions import IsAcademicStaff
+from apps.academic.permissions.mixins import check_branch_access, check_enrollment_branch_access
 from apps.academic.serializers import (
     EnrollmentSerializer,
     MoveEnrollmentSerializer,
@@ -31,6 +32,7 @@ from apps.academic.services.enrollment_service import (
 class EnrollmentMoveView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = MoveEnrollmentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         serializer = self.get_serializer(data=request.data)
@@ -38,6 +40,7 @@ class EnrollmentMoveView(generics.GenericAPIView):
 
         try:
             enrollment = get_enrollment_or_404(pk)
+            check_enrollment_branch_access(request.user, enrollment)
             target_class = get_active_class_or_404(serializer.validated_data["target_class"])
             moved = move_enrollment(
                 request.user,
@@ -63,6 +66,7 @@ class EnrollmentMoveView(generics.GenericAPIView):
 class ClassSplitView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = BulkMoveEnrollmentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         serializer = self.get_serializer(data=request.data)
@@ -72,8 +76,10 @@ class ClassSplitView(generics.GenericAPIView):
 
         try:
             source_class = get_object_or_404(ClassModel, pk=pk)
+            check_branch_access(request.user, source_class.branch_id)
             target_class = get_active_class_or_404(data["target_class"])
-            moved_enrollments = bulk_move_enrollments(
+            check_branch_access(request.user, target_class.branch_id)
+            moved_enrollments, warnings = bulk_move_enrollments(
                 request.user,
                 source_class=source_class,
                 target_class=target_class,
@@ -83,7 +89,10 @@ class ClassSplitView(generics.GenericAPIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
 
+        data = EnrollmentSerializer(moved_enrollments, many=True).data
+        if warnings:
+            data = {"enrollments": data, "warnings": warnings}
         return Response(
-            EnrollmentSerializer(moved_enrollments, many=True).data,
+            data,
             status=status.HTTP_200_OK,
         )

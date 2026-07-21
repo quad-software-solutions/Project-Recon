@@ -34,5 +34,5 @@ class Student(models.Model):
             raise ValidationError({"date_joined": "Admission date is required."})
 
     def save(self, *args, **kwargs):
-        self.clean()
+        self.full_clean()
         super().save(*args, **kwargs)

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -10,6 +12,13 @@ from django.shortcuts import get_object_or_404
 from apps.academic.models import AttendanceSession, AttendanceRecord, Enrollment
 from apps.academic.models.class_model import Class as ClassModel
 from apps.academic.permissions.attendance import CanManageAttendance
+from apps.accounts.permissions.roles import (
+    get_active_branch_ids,
+    user_is_branch_manager,
+    user_is_instructor,
+    user_is_secretary,
+    user_is_super_admin,
+)
 from apps.academic.serializers import (
     AttendanceSessionSerializer,
     AttendanceSessionListSerializer,
@@ -36,6 +45,7 @@ from apps.academic.services.attendance_service import (
 )
 class SessionListCreateView(generics.ListCreateAPIView):
     permission_classes = [CanManageAttendance]
+    throttle_scope = "academic_attendance"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -43,10 +53,43 @@ class SessionListCreateView(generics.ListCreateAPIView):
         return AttendanceSessionSerializer
 
     def get_queryset(self):
+        user = self.request.user
+        branch_ids = None
+        instructor = None
+        if user_is_super_admin(user):
+            pass
+        elif user_is_instructor(user):
+            instructor = user
+        else:
+            branch_ids = get_active_branch_ids(user)
+
+        enrolled_class = self.request.query_params.get("enrolled_class")
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+
+        if enrolled_class:
+            try:
+                from uuid import UUID
+                UUID(enrolled_class)
+            except ValueError:
+                raise ValidationError("Invalid enrolled_class UUID.")
+        if date_from:
+            try:
+                datetime.strptime(date_from, "%Y-%m-%d").date()
+            except ValueError:
+                raise ValidationError("Invalid date_from format. Use YYYY-MM-DD.")
+        if date_to:
+            try:
+                datetime.strptime(date_to, "%Y-%m-%d").date()
+            except ValueError:
+                raise ValidationError("Invalid date_to format. Use YYYY-MM-DD.")
+
         return list_sessions(
-            enrolled_class=self.request.query_params.get("enrolled_class"),
-            date_from=self.request.query_params.get("date_from"),
-            date_to=self.request.query_params.get("date_to"),
+            enrolled_class=enrolled_class,
+            date_from=date_from,
+            date_to=date_to,
+            branch_ids=branch_ids,
+            instructor=instructor,
         )
 
     def perform_create(self, serializer):
@@ -71,6 +114,7 @@ class SessionDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [CanManageAttendance]
     lookup_field = "pk"
     serializer_class = AttendanceSessionSerializer
+    throttle_scope = "academic_attendance"
 
     def get_object(self):
         return get_session_or_404(self.kwargs["pk"])
@@ -96,6 +140,7 @@ class SessionDetailView(generics.RetrieveUpdateAPIView):
 class SessionRecordBulkView(generics.GenericAPIView):
     permission_classes = [CanManageAttendance]
     serializer_class = AttendanceRecordBulkSerializer
+    throttle_scope = "academic_attendance"
 
     def post(self, request, pk):
         session = get_session_or_404(pk)
@@ -125,6 +170,7 @@ class SessionRecordBulkView(generics.GenericAPIView):
 class RecordDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [CanManageAttendance]
     serializer_class = AttendanceRecordSerializer
+    throttle_scope = "academic_attendance"
 
     def get_object(self):
         return get_object_or_404(
@@ -156,6 +202,7 @@ class RecordDetailView(generics.RetrieveUpdateAPIView):
 class EnrollmentAttendanceHistoryView(generics.GenericAPIView):
     permission_classes = [CanManageAttendance]
     serializer_class = AttendanceRecordSerializer
+    throttle_scope = "academic_attendance"
 
     def get(self, request, enrollment_pk):
         enrollment = get_object_or_404(Enrollment, pk=enrollment_pk)
@@ -170,6 +217,7 @@ class EnrollmentAttendanceHistoryView(generics.GenericAPIView):
 class EnrollmentAttendanceSummaryView(generics.GenericAPIView):
     permission_classes = [CanManageAttendance]
     serializer_class = AttendanceSummarySerializer
+    throttle_scope = "academic_attendance"
 
     def get(self, request, enrollment_pk):
         enrollment = get_object_or_404(Enrollment, pk=enrollment_pk)

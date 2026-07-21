@@ -1,7 +1,12 @@
 from rest_framework import generics, status
+from rest_framework.exceptions import NotFound as DRFNotFound, ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.store.api.permissions import IsStoreStaff
+from apps.accounts.permissions.roles import get_active_branch_ids, user_is_branch_manager, user_is_super_admin
+from apps.store.api.auth_helpers import check_pending_order_access, filter_by_branch
+from apps.store.api.pagination import StoreAdminPagination
+from apps.store.api.permissions import IsStoreStaff, IsStoreStaffOrManager
 from apps.store.api.serializers.payment import (
     PaymentCashSerializer,
     PaymentEvidenceSerializer,
@@ -22,11 +27,19 @@ from apps.store.services.pending_order_service import get_pending_order_or_404
 
 
 class PaymentEvidenceSubmitView(generics.GenericAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [AllowAny]
     serializer_class = PaymentEvidenceSerializer
+    throttle_scope = "store_checkout"
 
     def post(self, request, *args, **kwargs):
         pending_order = get_pending_order_or_404(kwargs["pending_order_pk"])
+        check_pending_order_access(pending_order, request)
+
+        if pending_order.guest_email and not pending_order.email_verified:
+            raise ValidationError(
+                "Please verify your email before submitting payment evidence."
+            )
+
         serializer = PaymentEvidenceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -39,7 +52,7 @@ class PaymentEvidenceSubmitView(generics.GenericAPIView):
             ),
             bank_name=serializer.validated_data.get("bank_name", ""),
             attachment=serializer.validated_data.get("attachment"),
-            actor=request.user,
+            actor=request.user if request.user.is_authenticated else None,
         )
         return Response(
             StorePaymentSerializer(payment).data,
@@ -48,8 +61,10 @@ class PaymentEvidenceSubmitView(generics.GenericAPIView):
 
 
 class AdminPaymentListView(generics.GenericAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = StorePaymentSerializer
+    pagination_class = StoreAdminPagination
+    throttle_scope = "store_admin"
 
     def get(self, request, *args, **kwargs):
         status_filter = request.query_params.get("status")
@@ -57,16 +72,28 @@ class AdminPaymentListView(generics.GenericAPIView):
         payments = list_payments(
             status=status_filter, pending_order_id=pending_order_id
         )
+        if user_is_branch_manager(request.user):
+            payments = payments.filter(
+                pending_order__branch_id__in=get_active_branch_ids(request.user)
+            )
+        page = self.paginate_queryset(payments)
+        if page is not None:
+            serializer = StorePaymentSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = StorePaymentSerializer(payments, many=True)
         return Response(serializer.data)
 
 
 class AdminPaymentVerifyView(generics.GenericAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = PaymentVerifySerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         pending_order = get_pending_order_or_404(kwargs["pending_order_pk"])
+        if not user_is_super_admin(request.user):
+            if pending_order.branch_id not in get_active_branch_ids(request.user):
+                raise DRFNotFound("Pending order not found.")
         serializer = PaymentVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -81,11 +108,15 @@ class AdminPaymentVerifyView(generics.GenericAPIView):
 
 
 class AdminPaymentRejectView(generics.GenericAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = PaymentRejectSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         pending_order = get_pending_order_or_404(kwargs["pending_order_pk"])
+        if not user_is_super_admin(request.user):
+            if pending_order.branch_id not in get_active_branch_ids(request.user):
+                raise DRFNotFound("Pending order not found.")
         serializer = PaymentRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -98,11 +129,15 @@ class AdminPaymentRejectView(generics.GenericAPIView):
 
 
 class AdminPaymentCashView(generics.GenericAPIView):
-    permission_classes = [IsStoreStaff]
+    permission_classes = [IsStoreStaffOrManager]
     serializer_class = PaymentCashSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         pending_order = get_pending_order_or_404(kwargs["pending_order_pk"])
+        if not user_is_super_admin(request.user):
+            if pending_order.branch_id not in get_active_branch_ids(request.user):
+                raise DRFNotFound("Pending order not found.")
         serializer = PaymentCashSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

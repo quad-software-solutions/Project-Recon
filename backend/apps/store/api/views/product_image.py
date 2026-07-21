@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from apps.store.api.pagination import StoreAdminPagination
 from apps.store.api.permissions import IsStoreStaff
 from apps.store.api.serializers import (
     ImageReorderSerializer,
@@ -23,6 +24,7 @@ class AdminProductImageUploadView(generics.CreateAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductImageAdminSerializer
     parser_classes = [MultiPartParser, FormParser]
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Product Images"])
     def create(self, request, *args, **kwargs):
@@ -45,6 +47,8 @@ class AdminProductImageUploadView(generics.CreateAPIView):
 class AdminProductImageListView(generics.ListAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductImageAdminSerializer
+    pagination_class = StoreAdminPagination
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Product Images"])
     def get_queryset(self):
@@ -56,6 +60,7 @@ class AdminProductImageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductImageAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Product Images"])
     def get_object(self):
@@ -73,6 +78,7 @@ class AdminProductImageSetPrimaryView(generics.GenericAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductImageAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         image = get_image_or_404(self.kwargs["pk"])
@@ -87,6 +93,7 @@ class AdminProductImageSetPrimaryView(generics.GenericAPIView):
 class AdminProductImageReorderView(generics.GenericAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ImageReorderSerializer
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         product = get_product_or_404(self.kwargs["product_pk"])

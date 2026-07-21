@@ -21,6 +21,8 @@ from apps.shared.audit.services import log_action
     post=extend_schema(summary="Create Sub Program", tags=["Academic - Sub Programs"]),
 )
 class SubProgramListCreateView(generics.ListCreateAPIView):
+    throttle_scope = "academic_admin"
+
     def get_serializer_class(self):
         if self.request.method == "GET":
             return SubProgramListSerializer
@@ -57,6 +59,7 @@ class SubProgramListCreateView(generics.ListCreateAPIView):
 )
 class SubProgramRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     serializer_class = SubProgramSerializer
+    throttle_scope = "academic_admin"
     lookup_field = "pk"
 
     def get_permissions(self):
@@ -85,6 +88,7 @@ class SubProgramRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 class SubProgramActivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicAdmin]
     serializer_class = SubProgramSerializer
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         sub_program = get_sub_program_or_404(pk)
@@ -104,6 +108,7 @@ class SubProgramActivateView(generics.GenericAPIView):
 class SubProgramDeactivateView(generics.GenericAPIView):
     permission_classes = [IsAcademicAdmin]
     serializer_class = SubProgramSerializer
+    throttle_scope = "academic_admin"
 
     def post(self, request, pk):
         sub_program = get_sub_program_or_404(pk)

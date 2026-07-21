@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import filters, generics, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -17,11 +17,13 @@ from apps.academic.constants import ClassType
 from apps.academic.models import Student
 from apps.academic.models.class_model import Class as ClassModel
 from apps.academic.permissions import IsAcademicStaff
+from apps.academic.permissions.mixins import check_enrollment_branch_access
 from apps.academic.serializers import (
     EnrollmentSerializer,
     EnrollmentListSerializer,
     EnrollStudentSerializer,
     OnlineEnrollmentSerializer,
+    VerifyEmailSerializer,
 )
 from apps.academic.services.class_service import (
     get_active_class_or_404,
@@ -34,6 +36,7 @@ from apps.academic.services.enrollment_service import (
     complete_enrollment,
     list_enrollments,
     get_enrollment_or_404,
+    verify_online_enrollment_email,
 )
 from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
 from apps.accounts.services.branch_service import list_available_branches_for_enrollment
@@ -46,6 +49,7 @@ from apps.accounts.services.branch_service import list_available_branches_for_en
 class EnrollmentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAcademicStaff]
     pagination_class = EnrollmentPagination
+    throttle_scope = "academic_staff"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -95,11 +99,13 @@ class EnrollmentListCreateView(generics.ListCreateAPIView):
 class EnrollmentCancelView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         enrollment = get_enrollment_or_404(pk)
+        check_enrollment_branch_access(request.user, enrollment)
         try:
-            cancel_enrollment(request.user, enrollment)
+            enrollment = cancel_enrollment(request.user, enrollment)
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
         return Response(EnrollmentSerializer(enrollment).data, status=status.HTTP_200_OK)
@@ -111,11 +117,13 @@ class EnrollmentCancelView(generics.GenericAPIView):
 class EnrollmentCompleteView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         enrollment = get_enrollment_or_404(pk)
+        check_enrollment_branch_access(request.user, enrollment)
         try:
-            complete_enrollment(request.user, enrollment)
+            enrollment = complete_enrollment(request.user, enrollment)
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
         return Response(EnrollmentSerializer(enrollment).data, status=status.HTTP_200_OK)
@@ -134,6 +142,7 @@ class EnrollmentCompleteView(generics.GenericAPIView):
 )
 class AvailableBranchesView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "academic_public"
 
     def get(self, request):
         sub_program = request.query_params.get("sub_program")
@@ -160,6 +169,7 @@ class AvailableBranchesView(APIView):
 class OnlineEnrollmentView(generics.GenericAPIView):
     serializer_class = OnlineEnrollmentSerializer
     permission_classes = [AllowAny]
+    throttle_scope = "academic_enroll"
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -191,3 +201,22 @@ class OnlineEnrollmentView(generics.GenericAPIView):
             EnrollmentSerializer(enrollment).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+@extend_schema_view(
+    post=extend_schema(summary="Verify Online Enrollment Email", tags=["Academic - Enrollment"]),
+)
+class OnlineEnrollmentVerifyEmailView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = VerifyEmailSerializer
+    throttle_scope = "academic_public"
+
+    def post(self, request, pk):
+        enrollment = get_enrollment_or_404(pk)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            verify_online_enrollment_email(enrollment, serializer.validated_data["otp"])
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
+        return Response({"detail": "Email verified successfully."})

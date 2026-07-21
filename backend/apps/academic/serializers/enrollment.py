@@ -123,3 +123,7 @@ class OnlineEnrollmentSerializer(serializers.Serializer):
                 "is required for non-cash payments."
             )
         return data
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    otp = serializers.CharField(max_length=6, min_length=6)

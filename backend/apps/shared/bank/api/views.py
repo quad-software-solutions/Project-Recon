@@ -43,3 +43,4 @@ class BankAccountViewSet(viewsets.ModelViewSet):
     serializer_class = BankAccountSerializer
     permission_classes = [BankAccountPermission]
     lookup_field = "id"
+    throttle_scope = "shared_bank"

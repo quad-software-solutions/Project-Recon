@@ -57,6 +57,28 @@ class StudentListSerializer(serializers.ModelSerializer):
         ]
 
 
+class StudentSearchSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", read_only=True)
+    last_name = serializers.CharField(source="user.last_name", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+
+    class Meta:
+        model = Student
+        fields = [
+            "id",
+            "user",
+            "email",
+            "first_name",
+            "last_name",
+            "branch",
+            "branch_name",
+            "date_joined",
+            "is_active",
+            "created_at",
+        ]
+
+
 class StudentUpdateSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=100, required=False)
     last_name = serializers.CharField(max_length=100, required=False)

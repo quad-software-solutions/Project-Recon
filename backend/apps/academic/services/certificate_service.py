@@ -1,3 +1,4 @@
+import secrets
 from datetime import date
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -5,11 +6,15 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from apps.academic.models import Certificate, StudentCertificate
+from apps.academic.services.learning_material_service import _reencode_image
 from apps.shared.audit.services import log_action
 
 
 def _validate_can_issue(actor, student, certificate):
+    from apps.academic.constants import EnrollmentStatus
+    from apps.academic.models import Enrollment
     from apps.accounts.permissions.roles import (
+        get_active_branch_ids,
         user_is_branch_manager,
         user_is_secretary,
         user_is_super_admin,
@@ -30,23 +35,96 @@ def _validate_can_issue(actor, student, certificate):
             "A certificate has already been issued for this student and sub-program."
         )
 
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        enrolled_class__sub_program=certificate.sub_program,
+        status__in=[EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+    ).select_related("enrolled_class__branch")
+    if not enrollments.exists():
+        raise DjangoValidationError(
+            "Student is not enrolled in this sub-program."
+        )
+    if not user_is_super_admin(actor):
+        branch_ids = get_active_branch_ids(actor)
+        if not enrollments.filter(enrolled_class__branch_id__in=branch_ids).exists():
+            raise DjangoValidationError(
+                "Student's enrollment is not in a branch you manage."
+            )
+
 
 def generate_certificate_number(certificate):
     year = date.today().year
-    prefix = f"CERT-{certificate.sub_program.slug}-{year}-"
-    last = StudentCertificate.objects.filter(
-        certificate_number__startswith=prefix,
-    ).order_by("certificate_number").last()
-    if last:
-        seq = int(last.certificate_number.rsplit("-", 1)[-1]) + 1
-    else:
-        seq = 1
-    return f"{prefix}{seq:04d}"
+    rand = secrets.token_hex(4)
+    return f"CERT-{certificate.sub_program.slug}-{year}-{rand}"
+
+
+def _check_completion_warnings(actor, student, certificate):
+    from apps.academic.constants import AttendanceStatus, EnrollmentStatus, ProgressStatus
+    from apps.academic.models import AttendanceRecord, Enrollment, StudentProgress
+
+    warnings = []
+
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        enrolled_class__sub_program=certificate.sub_program,
+        status=EnrollmentStatus.COMPLETED,
+    )
+    if not enrollments.exists():
+        warnings.append("Student does not have a COMPLETED enrollment in this sub-program.")
+
+    milestones = list(certificate.sub_program.milestones.filter(is_active=True))
+    if milestones:
+        enrollment_ids = enrollments.values_list("id", flat=True)
+        completed_milestone_ids = set(
+            StudentProgress.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                milestone__in=milestones,
+                status=ProgressStatus.COMPLETED,
+            ).values_list("milestone_id", flat=True)
+        )
+        milestone_ids = {m.id for m in milestones}
+        missing = milestone_ids - completed_milestone_ids
+        if missing:
+            missing_titles = [
+                m.title for m in milestones if m.id in missing
+            ]
+            warnings.append(
+                f"Required milestones not completed: {', '.join(missing_titles)}."
+            )
+
+    enrollment_ids = enrollments.values_list("id", flat=True)
+    if enrollment_ids:
+        total_records = AttendanceRecord.objects.filter(
+            enrollment_id__in=enrollment_ids,
+        ).count()
+        if total_records > 0:
+            present_records = AttendanceRecord.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                status=AttendanceStatus.PRESENT,
+            ).count()
+            rate = present_records / total_records
+            threshold = 0.5
+            if rate < threshold:
+                warnings.append(
+                    f"Student attendance rate ({rate:.0%}) is below {threshold:.0%}."
+                )
+
+    if warnings:
+        log_action(
+            actor=actor,
+            action="STUDENT_CERTIFICATE_ISSUED_WITH_WARNINGS",
+            resource_type="StudentCertificate",
+            resource_id=None,
+            details={"warnings": warnings, "student": str(student.id)},
+        )
+
+    return warnings
 
 
 @transaction.atomic
 def issue_certificate(actor, *, student, certificate):
     _validate_can_issue(actor, student, certificate)
+    warnings = _check_completion_warnings(actor, student, certificate)
 
     number = generate_certificate_number(certificate)
 
@@ -67,7 +145,7 @@ def issue_certificate(actor, *, student, certificate):
         resource_id=str(sc.id),
         details={"certificate_number": number},
     )
-    return sc
+    return sc, warnings
 
 
 def get_student_certificate_or_404(pk):
@@ -122,10 +200,13 @@ def create_certificate(
 ):
     from apps.shared.validators import validate_uploaded_file
     validate_uploaded_file(background)
+    background = _reencode_image(background)
     if institute_logo:
         validate_uploaded_file(institute_logo)
+        institute_logo = _reencode_image(institute_logo)
     if signature:
         validate_uploaded_file(signature)
+        signature = _reencode_image(signature)
 
     cert = Certificate(
         sub_program=sub_program,
@@ -155,18 +236,21 @@ def update_certificate(
     from apps.shared.validators import validate_uploaded_file
     if background is not None:
         validate_uploaded_file(background)
+        background = _reencode_image(background)
         if certificate.background:
             certificate.background.delete(save=False)
         certificate.background = background
     if institute_logo is not None:
         if institute_logo:
             validate_uploaded_file(institute_logo)
+            institute_logo = _reencode_image(institute_logo)
         if certificate.institute_logo:
             certificate.institute_logo.delete(save=False)
         certificate.institute_logo = institute_logo
     if signature is not None:
         if signature:
             validate_uploaded_file(signature)
+            signature = _reencode_image(signature)
         if certificate.signature:
             certificate.signature.delete(save=False)
         certificate.signature = signature

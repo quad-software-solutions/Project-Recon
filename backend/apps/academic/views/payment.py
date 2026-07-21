@@ -33,6 +33,7 @@ from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super
 class PaymentListView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentPaymentListSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request):
         branch_ids = None
@@ -49,6 +50,7 @@ class PaymentListView(generics.GenericAPIView):
 class PaymentCreateView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = PaymentSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -85,6 +87,7 @@ class PaymentCreateView(generics.GenericAPIView):
 class EnrollmentVerificationQueueView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = EnrollmentPaymentListSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request):
         branch_ids = None
@@ -121,6 +124,7 @@ class EnrollmentVerificationQueueView(generics.GenericAPIView):
 )
 class EnrollmentUnderReviewView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         enrollment = get_object_or_404(Enrollment, pk=pk)
@@ -145,6 +149,7 @@ class EnrollmentUnderReviewView(generics.GenericAPIView):
 class EnrollmentRejectView(generics.GenericAPIView):
     permission_classes = [IsAcademicStaff]
     serializer_class = RejectionSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         serializer = self.get_serializer(data=request.data)

@@ -11,6 +11,7 @@ from apps.store.models.order import (
     OrderStatus,
     OrderStatusHistory,
 )
+from apps.store.models.payment import StorePayment
 from apps.store.models.pending_order import PendingOrder
 from apps.store.services.branch_inventory_service import add_inventory, reduce_inventory
 
@@ -40,13 +41,14 @@ def create_order_from_pending_order(
             "Cannot create an order from a pending order whose payment is not verified."
         )
 
-    existing = Order.objects.filter(
-        payment_reference=payment.transaction_reference or str(payment.id)
-    ).first()
-    if existing:
-        return existing
-
     with transaction.atomic():
+        payment = StorePayment.objects.select_for_update().get(pk=payment.pk)
+        existing = Order.objects.filter(
+            payment_reference=payment.transaction_reference or str(payment.id)
+        ).first()
+        if existing:
+            return existing
+
         order_number = generate_order_number(pending_order.branch)
 
         order = Order.objects.create(

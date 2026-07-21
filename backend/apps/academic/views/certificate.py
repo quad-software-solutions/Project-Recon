@@ -42,6 +42,7 @@ from apps.academic.services.certificate_service import (
 class CertificateTemplateListCreateView(generics.ListCreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated, CanManageCertificate]
+    throttle_scope = "academic_staff"
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -49,8 +50,17 @@ class CertificateTemplateListCreateView(generics.ListCreateAPIView):
         return CertificateSerializer
 
     def get_queryset(self):
+        from uuid import UUID
+
+        sub_program = self.request.query_params.get("sub_program")
+        if sub_program:
+            try:
+                UUID(sub_program)
+            except ValueError:
+                raise ValidationError("Invalid sub_program UUID.")
+
         return list_certificate_templates(
-            sub_program=self.request.query_params.get("sub_program"),
+            sub_program=sub_program,
             active_only=False,
         )
 
@@ -84,6 +94,7 @@ class CertificateTemplateRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated, CanManageCertificate]
     lookup_field = "pk"
     serializer_class = CertificateSerializer
+    throttle_scope = "academic_staff"
 
     def get_object(self):
         obj = get_certificate_template_or_404(self.kwargs["pk"])
@@ -118,6 +129,7 @@ class CertificateTemplateRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 )
 class CertificateTemplateActivateView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanManageCertificate]
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         cert = get_certificate_template_or_404(pk)
@@ -139,6 +151,7 @@ class CertificateTemplateActivateView(generics.GenericAPIView):
 )
 class CertificateTemplateDeactivateView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanManageCertificate]
+    throttle_scope = "academic_staff"
 
     def post(self, request, pk):
         cert = get_certificate_template_or_404(pk)
@@ -161,6 +174,7 @@ class CertificateTemplateDeactivateView(generics.GenericAPIView):
 class StudentCertificateIssueView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanManageCertificate]
     serializer_class = IssueCertificateSerializer
+    throttle_scope = "academic_staff"
 
     def post(self, request):
         serializer = IssueCertificateSerializer(data=request.data)
@@ -175,7 +189,7 @@ class StudentCertificateIssueView(generics.GenericAPIView):
         self.check_object_permissions(request, certificate)
 
         try:
-            sc = issue_certificate(
+            sc, warnings = issue_certificate(
                 actor=request.user,
                 student=student,
                 certificate=certificate,
@@ -185,7 +199,10 @@ class StudentCertificateIssueView(generics.GenericAPIView):
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
 
         out = StudentCertificateSerializer(sc)
-        return Response(out.data, status=status.HTTP_201_CREATED)
+        data = out.data
+        if warnings:
+            data["warnings"] = warnings
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(
@@ -197,6 +214,7 @@ class StudentCertificateIssueView(generics.GenericAPIView):
 class StudentCertificateListView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanViewCertificate]
     serializer_class = StudentCertificateListSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request):
         from apps.accounts.permissions.roles import user_is_student
@@ -230,6 +248,7 @@ class StudentCertificateListView(generics.GenericAPIView):
 class StudentCertificateRetrieveView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated, CanViewCertificate]
     serializer_class = StudentCertificateSerializer
+    throttle_scope = "academic_staff"
 
     def get(self, request, pk):
         sc = get_student_certificate_or_404(pk)
@@ -248,6 +267,7 @@ class StudentCertificateRetrieveView(generics.GenericAPIView):
 class CertificatePublicVerifyView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PublicCertificateVerifySerializer
+    throttle_scope = "academic_public"
 
     def get(self, request, number):
         try:

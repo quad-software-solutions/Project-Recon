@@ -47,5 +47,5 @@ class Class(models.Model):
             self.capacity = 1
 
     def save(self, *args, **kwargs):
-        self.clean()
+        self.full_clean()
         super().save(*args, **kwargs)

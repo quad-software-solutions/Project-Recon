@@ -1,6 +1,7 @@
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from apps.academic.constants import ProgressStatus
@@ -23,7 +24,7 @@ class StudentProgress(models.Model):
         db_index=True,
     )
     completed_at = models.DateTimeField(null=True, blank=True)
-    remarks = models.TextField(blank=True, default="")
+    remarks = models.TextField(blank=True, default="", validators=[MaxLengthValidator(2000)])
     updated_by = models.ForeignKey(
         "accounts.User", on_delete=models.PROTECT, related_name="progress_updates"
     )

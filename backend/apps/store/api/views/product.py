@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.store.api.pagination import StoreAdminPagination, StorePublicPagination
 from apps.store.api.permissions import IsStoreStaff
 from apps.store.api.serializers import (
     ProductAdminSerializer,
@@ -24,6 +25,8 @@ from apps.store.services.product_service import (
 class PublicProductListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = ProductSerializer
+    pagination_class = StorePublicPagination
+    throttle_scope = "store_public"
 
     @extend_schema(tags=["Store - Products"])
     def get_queryset(self):
@@ -34,6 +37,7 @@ class PublicProductDetailView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]
     serializer_class = ProductSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_public"
 
     @extend_schema(tags=["Store - Products"])
     def get_object(self):
@@ -43,6 +47,8 @@ class PublicProductDetailView(generics.RetrieveAPIView):
 class AdminProductListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
+    pagination_class = StoreAdminPagination
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Products"])
     def get_queryset(self):
@@ -62,6 +68,7 @@ class AdminProductRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     @extend_schema(tags=["Store - Admin - Products"])
     def get_object(self):
@@ -86,6 +93,7 @@ class AdminProductArchiveView(generics.GenericAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         product = get_product_or_404(self.kwargs["pk"])
@@ -101,6 +109,7 @@ class AdminProductRestoreView(generics.GenericAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         product = get_product_or_404(self.kwargs["pk"])
@@ -116,6 +125,7 @@ class AdminProductActivateView(generics.GenericAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         product = get_product_or_404(self.kwargs["pk"])
@@ -131,6 +141,7 @@ class AdminProductDeactivateView(generics.GenericAPIView):
     permission_classes = [IsStoreStaff]
     serializer_class = ProductAdminSerializer
     lookup_url_kwarg = "pk"
+    throttle_scope = "store_admin"
 
     def post(self, request, *args, **kwargs):
         product = get_product_or_404(self.kwargs["pk"])

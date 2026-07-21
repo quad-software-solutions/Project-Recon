@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import override_settings
@@ -1036,6 +1037,25 @@ class RegistrationApiTest(EventApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_register_after_rejection_cooldown(self):
+        self._auth(self.student)
+        event = self._make_registerable_event()
+        reg_resp = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/", format="json",
+        )
+        reg_id = reg_resp.data["id"]
+        self._auth(self.super_admin)
+        reject_resp = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg_id}/reject/",
+        )
+        self.assertEqual(reject_resp.status_code, status.HTTP_200_OK)
+        self._auth(self.student)
+        response = self.client.post(
+            f"{self.base_url}/events/{event.id}/register/", format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("24 hours", str(response.data))
+
     def test_register_registration_disabled(self):
         event = self._create_event()
         response = self.client.post(
@@ -1217,6 +1237,8 @@ class EventPaymentApiTest(EventApiTestCase):
             "registration_enabled": True,
             "registration_mode": RegistrationMode.STUDENT,
             "status": EventStatus.PUBLISHED,
+            "payment_required": True,
+            "registration_fee": Decimal("50.00"),
         }
         data.update(overrides)
         event = Event.objects.create(**data)
@@ -1308,6 +1330,31 @@ class EventPaymentApiTest(EventApiTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_cash_payment_not_required(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event(payment_required=False, registration_fee=None)
+        reg = EventRegistration.objects.create(
+            event=event, registration_status=RegistrationStatus.PENDING,
+        )
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg.id}/pay/cash/",
+            {"amount": 50.00},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cash_payment_below_fee(self):
+        self._auth(self.super_admin)
+        event = self._make_registerable_event(registration_fee=Decimal("200.00"))
+        reg = EventRegistration.objects.create(
+            event=event, registration_status=RegistrationStatus.PENDING,
+        )
+        response = self.client.post(
+            f"{self.base_url}/admin/registrations/{reg.id}/pay/cash/",
+            {"amount": 50.00},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -1672,6 +1719,7 @@ class SecretaryRoleApiTest(EventApiTestCase):
         event = self._create_event(
             title="Reg Event", status=EventStatus.PUBLISHED,
             registration_enabled=True, registration_mode=RegistrationMode.PUBLIC,
+            payment_required=True, registration_fee=Decimal("50.00"),
         )
         self.registration = EventRegistration.objects.create(
             event=event,
@@ -1687,6 +1735,8 @@ class SecretaryRoleApiTest(EventApiTestCase):
 
     def test_secretary_can_approve_registration(self):
         self._auth(self.secretary)
+        self.registration.payment_status = "VERIFIED"
+        self.registration.save(update_fields=["payment_status"])
         response = self.client.post(
             f"{self.base_url}/admin/registrations/{self.registration.id}/approve/",
         )
