@@ -69,16 +69,16 @@ export default function Footer({ onNavigate }: FooterProps) {
         <div className="col-span-2 sm:col-span-2 lg:col-span-1">
           <h4 className="text-white font-bold text-xs sm:text-sm mb-3 uppercase tracking-wider">Locations</h4>
           <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-            <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Bole Reality Plaza, 12th Floor</li>
-            <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> CMC (Addis International Convention Center)</li>
-            <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Bole TK Building, 1st Floor</li>
-            <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Bisrate Gabriel, International Tennis Club, 3rd Floor</li>
-            <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Space Science and Geospatial Institute</li>
-            <li className="inline-flex items-start gap-2"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Burayu Talent Development Institute</li>
+            <li><a href="https://maps.app.goo.gl/Fh7WxM73XwjYvS7V9" target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-2 hover:text-white transition-colors"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Bole Reality</a></li>
+            <li><a href="https://maps.app.goo.gl/8goTWU71tYfUC5z66" target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-2 hover:text-white transition-colors"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> CMC</a></li>
+            <li><a href="https://maps.app.goo.gl/PpZQJjhvnnuJRSt66" target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-2 hover:text-white transition-colors"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Bisrate Gabriel</a></li>
+            <li><a href="https://maps.app.goo.gl/AiQHt8qyWicAteHE8" target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-2 hover:text-white transition-colors"><MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Betel</a></li>
           </ul>
           <div className="mt-3 pt-3 border-t border-white/10">
-            <p className="text-xs sm:text-sm">ethiorobo@gmail.com</p>
-            <a href="tel:+251911675401" className="inline-flex items-center gap-1.5 text-xs sm:text-sm mt-1 hover:text-white transition-colors min-h-[28px] sm:min-h-[36px]"><Phone className="w-3.5 h-3.5 shrink-0" /> 0911 675 401</a>
+            <p className="text-xs sm:text-sm">  ethiorobo@gmail.com</p>
+            <a href="tel:+251911675401" className="inline-flex items-center gap-1.5 text-xs sm:text-sm mt-1 hover:text-white transition-colors min-h-[28px] sm:min-h-[36px]"><Phone className="w-3.5 h-3.5 shrink-0" />+251911675401</a>
+            <br />
+            <a href="tel:+251909790386" className="inline-flex items-center gap-1.5 text-xs sm:text-sm mt-1 hover:text-white transition-colors min-h-[28px] sm:min-h-[36px]"><Phone className="w-3.5 h-3.5 shrink-0" />+251909790386</a>
           </div>
         </div>
       </div>
