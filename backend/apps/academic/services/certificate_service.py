@@ -1,3 +1,4 @@
+import secrets
 from datetime import date
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -33,15 +34,8 @@ def _validate_can_issue(actor, student, certificate):
 
 def generate_certificate_number(certificate):
     year = date.today().year
-    prefix = f"CERT-{certificate.sub_program.slug}-{year}-"
-    last = StudentCertificate.objects.filter(
-        certificate_number__startswith=prefix,
-    ).order_by("certificate_number").last()
-    if last:
-        seq = int(last.certificate_number.rsplit("-", 1)[-1]) + 1
-    else:
-        seq = 1
-    return f"{prefix}{seq:04d}"
+    rand = secrets.token_hex(4)
+    return f"CERT-{certificate.sub_program.slug}-{year}-{rand}"
 
 
 @transaction.atomic
