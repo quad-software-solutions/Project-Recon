@@ -158,7 +158,6 @@ export default function StoreTab({ openCart }: StoreTabProps) {
       }
       await handleAddToCart({ product: product.id, branch, quantity });
       setAddedToCart(product.id);
-      openCart();
       setTimeout(() => setAddedToCart((id) => (id === product.id ? null : id)), 1800);
     } catch (err: unknown) {
       setCartErrorMessage(err instanceof Error ? err.message : 'Failed to add item to cart');
