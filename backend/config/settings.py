@@ -540,6 +540,8 @@ REST_FRAMEWORK = {
         "store_cart": os.getenv("THROTTLE_STORE_CART", "20/min"),
         "store_checkout": os.getenv("THROTTLE_STORE_CHECKOUT", "10/min"),
         "store_admin": os.getenv("THROTTLE_STORE_ADMIN", "120/min"),
+        "shared_bank": os.getenv("THROTTLE_SHARED_BANK", "30/min"),
+        "shared_audit": os.getenv("THROTTLE_SHARED_AUDIT", "30/min"),
     },
 }
 
