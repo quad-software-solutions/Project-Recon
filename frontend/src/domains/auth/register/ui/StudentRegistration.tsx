@@ -101,6 +101,7 @@ export default function StudentRegistration() {
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const selectedProgram = useMemo(
     () => programs.find((p) => p.id === selectedProgramId),
@@ -335,6 +336,7 @@ export default function StudentRegistration() {
     setAttachment(null);
     setFieldErrors({});
     setSubmitError('');
+    setCurrentStep(1);
   };
 
   if (enrollment) {
@@ -350,7 +352,7 @@ export default function StudentRegistration() {
   }
 
   const showForm = Boolean(selectedBranchId);
-  const progressStep =
+  const maxAllowedStep =
     !selectedProgramId ? 1
       : !selectedSubProgramId ? 2
         : !classType ? 3
@@ -376,8 +378,8 @@ export default function StudentRegistration() {
           <ol className="flex items-center justify-center lg:justify-start gap-1 sm:gap-3 min-w-max sm:min-w-0">
             {['Program', 'Course', 'Class Type', 'Branch', 'Details'].map((label, idx) => {
               const n = idx + 1;
-              const done = progressStep > n;
-              const current = progressStep === n;
+              const done = n < maxAllowedStep || (n < currentStep);
+              const current = currentStep === n;
               return (
                 <li key={label} className="flex items-center gap-1 sm:gap-3">
                   <div className="flex items-center gap-1.5 sm:gap-2">
@@ -407,6 +409,7 @@ export default function StudentRegistration() {
           <div className="lg:col-span-8 space-y-8">
 
             {/* Step 1 — Programs */}
+            {currentStep === 1 && (
             <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="bg-white/95 rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6" aria-labelledby="programs-heading">
               <SectionHeader step={1} title="Select a Program" subtitle="Choose the academic program you want to join." />
               <h3 id="programs-heading" className="sr-only">Programs</h3>
@@ -443,9 +446,10 @@ export default function StudentRegistration() {
                 </div>
               )}
             </motion.section>
+            )}
 
             {/* Step 2 — Sub programs */}
-            {selectedProgramId && (
+            {currentStep === 2 && (
               <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }} className="bg-white/95 rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6" aria-labelledby="subprograms-heading">
                 <SectionHeader step={2} title="Select a Sub Program" subtitle={`Courses under ${selectedProgram?.name || 'this program'}.`} />
                 <h3 id="subprograms-heading" className="sr-only">Sub programs</h3>
@@ -488,7 +492,7 @@ export default function StudentRegistration() {
             )}
 
             {/* Step 3 — Class type */}
-            {selectedSubProgramId && (
+            {currentStep === 3 && (
               <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }} className="bg-white/95 rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6" aria-labelledby="classtype-heading">
                 <SectionHeader step={3} title="Select Class Type" subtitle="Choose group classes or individual tutoring." />
                 <h3 id="classtype-heading" className="sr-only">Class type</h3>
@@ -519,7 +523,7 @@ export default function StudentRegistration() {
             )}
 
             {/* Step 4 — Branches */}
-            {selectedSubProgramId && classType && (
+            {currentStep === 4 && (
               <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }} className="bg-white/95 rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6" aria-labelledby="branches-heading">
                 <SectionHeader step={4} title="Select a Branch" subtitle="Only branches with an available class are listed." />
                 <h3 id="branches-heading" className="sr-only">Branches</h3>
@@ -556,7 +560,7 @@ export default function StudentRegistration() {
             )}
 
             {/* Enrollment form */}
-            {showForm && (
+            {currentStep === 5 && (
               <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.25 }} className="bg-white/95 rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-8" aria-labelledby="form-heading">
                 <SectionHeader step={5} title="Enrollment Details" subtitle="Personal information and payment evidence." />
                 <h3 id="form-heading" className="sr-only">Enrollment form</h3>
@@ -822,6 +826,37 @@ export default function StudentRegistration() {
                 )}
               </motion.section>
             )}
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-4">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                  currentStep > 1
+                    ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                Back
+              </button>
+
+              {currentStep < 5 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(s => Math.min(5, s + 1))}
+                  disabled={
+                    (currentStep === 1 && !selectedProgramId) ||
+                    (currentStep === 2 && !selectedSubProgramId) ||
+                    (currentStep === 3 && !classType) ||
+                    (currentStep === 4 && !selectedBranchId)
+                  }
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm bg-brand-blue text-white hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
+              )}
+            </div>
           </div>
 
           {/* ── Right column — sticky summary ── */}
