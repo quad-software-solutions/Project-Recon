@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 from apps.academic.constants import PaymentMethod, PaymentStatus
 
@@ -47,6 +48,13 @@ class EnrollmentPayment(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Enrollment Payment"
         verbose_name_plural = "Enrollment Payments"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["transaction_reference"],
+                name="unique_transaction_reference_non_blank",
+                condition=Q(transaction_reference__gt=""),
+            ),
+        ]
 
     def __str__(self):
         return f"Payment for {self.enrollment} — {self.get_status_display()}"

@@ -894,7 +894,7 @@ class EnrollmentServiceTest(TestCase):
             sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
             name="Bulk Target", class_type=ClassType.INDIVIDUAL,
         )
-        moved = bulk_move_enrollments(
+        moved, _ = bulk_move_enrollments(
             self.instructor, source_class=self.individual_class,
             target_class=target_class, enrollment_ids=[enrollment.pk],
         )
@@ -912,7 +912,7 @@ class EnrollmentServiceTest(TestCase):
             sub_program=self.sub_program, branch=self.branch, instructor=self.instructor,
             name="Bulk Count Target", class_type=ClassType.INDIVIDUAL,
         )
-        moved = bulk_move_enrollments(
+        moved, _ = bulk_move_enrollments(
             self.instructor, source_class=self.individual_class,
             target_class=target_class, count=1,
         )
@@ -1498,7 +1498,7 @@ class ProgressServiceTest(TestCase):
             )
 
     def test_record_progress(self):
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
@@ -1509,7 +1509,7 @@ class ProgressServiceTest(TestCase):
         self.assertEqual(record.enrollment, self.enrollment)
 
     def test_record_progress_sets_completed_at(self):
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
@@ -1536,12 +1536,12 @@ class ProgressServiceTest(TestCase):
             )
 
     def test_update_progress(self):
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
         )
-        updated = progress_service.update_progress(
+        updated, _ = progress_service.update_progress(
             self.instructor, record, status=ProgressStatus.COMPLETED
         )
         self.assertEqual(updated.status, ProgressStatus.COMPLETED)
@@ -1584,7 +1584,7 @@ class ProgressServiceTest(TestCase):
             milestone=self.shared_milestone,
             status=ProgressStatus.NOT_STARTED,
         )
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor,
             enrollment=self.enrollment,
             milestone=self.shared_milestone,
@@ -1945,7 +1945,7 @@ class CertificateServiceTest(TestCase):
             issue_certificate,
         )
         cert = self._create_certificate()
-        sc = issue_certificate(
+        sc, _ = issue_certificate(
             actor=self.manager, student=self.student_model,
             certificate=cert,
         )
@@ -1954,7 +1954,7 @@ class CertificateServiceTest(TestCase):
     def test_issue_certificate(self):
         from apps.academic.services.certificate_service import issue_certificate
         cert = self._create_certificate()
-        sc = issue_certificate(
+        sc, _ = issue_certificate(
             actor=self.manager, student=self.student_model,
             certificate=cert,
         )
@@ -1991,7 +1991,7 @@ class CertificateServiceTest(TestCase):
             issue_certificate,
         )
         cert = self._create_certificate()
-        sc = issue_certificate(
+        sc, _ = issue_certificate(
             actor=self.secretary, student=self.student_model,
             certificate=cert,
         )

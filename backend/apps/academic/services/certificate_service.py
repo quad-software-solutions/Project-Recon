@@ -57,9 +57,73 @@ def generate_certificate_number(certificate):
     return f"CERT-{certificate.sub_program.slug}-{year}-{rand}"
 
 
+def _check_completion_warnings(actor, student, certificate):
+    from apps.academic.constants import AttendanceStatus, EnrollmentStatus, ProgressStatus
+    from apps.academic.models import AttendanceRecord, Enrollment, StudentProgress
+
+    warnings = []
+
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        enrolled_class__sub_program=certificate.sub_program,
+        status=EnrollmentStatus.COMPLETED,
+    )
+    if not enrollments.exists():
+        warnings.append("Student does not have a COMPLETED enrollment in this sub-program.")
+
+    milestones = list(certificate.sub_program.milestones.filter(is_active=True))
+    if milestones:
+        enrollment_ids = enrollments.values_list("id", flat=True)
+        completed_milestone_ids = set(
+            StudentProgress.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                milestone__in=milestones,
+                status=ProgressStatus.COMPLETED,
+            ).values_list("milestone_id", flat=True)
+        )
+        milestone_ids = {m.id for m in milestones}
+        missing = milestone_ids - completed_milestone_ids
+        if missing:
+            missing_titles = [
+                m.title for m in milestones if m.id in missing
+            ]
+            warnings.append(
+                f"Required milestones not completed: {', '.join(missing_titles)}."
+            )
+
+    enrollment_ids = enrollments.values_list("id", flat=True)
+    if enrollment_ids:
+        total_records = AttendanceRecord.objects.filter(
+            enrollment_id__in=enrollment_ids,
+        ).count()
+        if total_records > 0:
+            present_records = AttendanceRecord.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                status=AttendanceStatus.PRESENT,
+            ).count()
+            rate = present_records / total_records
+            threshold = 0.5
+            if rate < threshold:
+                warnings.append(
+                    f"Student attendance rate ({rate:.0%}) is below {threshold:.0%}."
+                )
+
+    if warnings:
+        log_action(
+            actor=actor,
+            action="STUDENT_CERTIFICATE_ISSUED_WITH_WARNINGS",
+            resource_type="StudentCertificate",
+            resource_id=None,
+            details={"warnings": warnings, "student": str(student.id)},
+        )
+
+    return warnings
+
+
 @transaction.atomic
 def issue_certificate(actor, *, student, certificate):
     _validate_can_issue(actor, student, certificate)
+    warnings = _check_completion_warnings(actor, student, certificate)
 
     number = generate_certificate_number(certificate)
 
@@ -80,7 +144,7 @@ def issue_certificate(actor, *, student, certificate):
         resource_id=str(sc.id),
         details={"certificate_number": number},
     )
-    return sc
+    return sc, warnings
 
 
 def get_student_certificate_or_404(pk):

@@ -79,7 +79,7 @@ class ClassSplitView(generics.GenericAPIView):
             check_branch_access(request.user, source_class.branch_id)
             target_class = get_active_class_or_404(data["target_class"])
             check_branch_access(request.user, target_class.branch_id)
-            moved_enrollments = bulk_move_enrollments(
+            moved_enrollments, warnings = bulk_move_enrollments(
                 request.user,
                 source_class=source_class,
                 target_class=target_class,
@@ -89,7 +89,10 @@ class ClassSplitView(generics.GenericAPIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
 
+        data = EnrollmentSerializer(moved_enrollments, many=True).data
+        if warnings:
+            data = {"enrollments": data, "warnings": warnings}
         return Response(
-            EnrollmentSerializer(moved_enrollments, many=True).data,
+            data,
             status=status.HTTP_200_OK,
         )

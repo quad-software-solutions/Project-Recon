@@ -163,7 +163,7 @@ class RecordProgressView(generics.GenericAPIView):
         enrollment = get_object_or_404(Enrollment, pk=serializer.validated_data["enrollment"])
         milestone = get_milestone_or_404(serializer.validated_data["milestone"])
         try:
-            record = record_progress(
+            record, warnings = record_progress(
                 actor=request.user,
                 enrollment=enrollment,
                 milestone=milestone,
@@ -173,7 +173,10 @@ class RecordProgressView(generics.GenericAPIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
         result_serializer = StudentProgressSerializer(record)
-        return Response(result_serializer.data, status=status.HTTP_201_CREATED)
+        data = result_serializer.data
+        if warnings:
+            data["warnings"] = warnings
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(
@@ -206,7 +209,7 @@ class UpdateProgressView(generics.RetrieveUpdateAPIView):
         serializer = UpdateProgressSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
-            updated = update_progress(
+            updated, warnings = update_progress(
                 request.user,
                 record,
                 status=serializer.validated_data.get("status"),
@@ -215,7 +218,10 @@ class UpdateProgressView(generics.RetrieveUpdateAPIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
         result_serializer = StudentProgressSerializer(updated)
-        return Response(result_serializer.data, status=status.HTTP_200_OK)
+        data = result_serializer.data
+        if warnings:
+            data["warnings"] = warnings
+        return Response(data, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(

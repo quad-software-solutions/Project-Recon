@@ -1822,7 +1822,7 @@ class ProgressAPITest(AcademicAPITestCase):
             actor=self.super_admin, sub_program=self.sub_program,
             title="Update Me", scope_class=None,
         )
-        record = progress_service.record_progress(
+        record, _ = progress_service.record_progress(
             actor=self.instructor, enrollment=self.enrollment,
             milestone=milestone, status=ProgressStatus.NOT_STARTED,
         )

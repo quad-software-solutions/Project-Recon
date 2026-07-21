@@ -58,6 +58,14 @@ def record_payment(
                 "is required for non-cash payments."
             )
 
+    if transaction_reference:
+        if EnrollmentPayment.objects.filter(
+            transaction_reference=transaction_reference
+        ).exclude(enrollment=enrollment).exists():
+            raise ValidationError(
+                "This transaction reference has already been used for another enrollment."
+            )
+
     with transaction.atomic():
         payment = EnrollmentPayment(
             enrollment=enrollment,

@@ -419,14 +419,16 @@ def bulk_move_enrollments(actor, *, source_class, target_class, enrollment_ids=N
     if not enrollments_to_move.exists():
         raise ValidationError("No active enrollments found to move.")
 
+    warnings = []
     if target_class.capacity:
         current_count = Enrollment.objects.filter(
             enrolled_class=target_class,
             status=EnrollmentStatus.ACTIVE,
         ).count()
         if current_count + enrollments_to_move.count() > target_class.capacity:
-            raise ValidationError(
-                "Target class does not have enough capacity for all enrollments."
+            warnings.append(
+                f"Moving these enrollments will exceed target class capacity "
+                f"({target_class.capacity})."
             )
 
     for e in enrollments_to_move:
@@ -462,9 +464,19 @@ def bulk_move_enrollments(actor, *, source_class, target_class, enrollment_ids=N
         },
     )
 
+    if warnings:
+        log_action(
+            actor=actor,
+            action="enrollment.bulk_moved_capacity_warning",
+            resource_type="Class",
+            resource_id=source_class.id,
+            branch=source_class.branch,
+            details={"warnings": warnings},
+        )
+
     return Enrollment.objects.filter(id__in=moved_ids).select_related(
         "student__user", "enrolled_class__sub_program"
-    )
+    ), warnings
 
 
 def switch_subprogram(actor, *, current_enrollment, target_class):

@@ -111,6 +111,10 @@ def upsert_records(actor, session, records_data):
             staff_member = item["staff_member"]
             if not isinstance(staff_member, User):
                 staff_member = User.objects.get(pk=staff_member)
+            if staff_member.pk == actor.pk:
+                raise DjangoValidationError(
+                    "You cannot record attendance for yourself."
+                )
             record, _ = StaffAttendanceRecord.objects.update_or_create(
                 session=session,
                 staff_member=staff_member,

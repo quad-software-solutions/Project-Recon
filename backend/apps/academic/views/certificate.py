@@ -180,7 +180,7 @@ class StudentCertificateIssueView(generics.GenericAPIView):
         self.check_object_permissions(request, certificate)
 
         try:
-            sc = issue_certificate(
+            sc, warnings = issue_certificate(
                 actor=request.user,
                 student=student,
                 certificate=certificate,
@@ -190,7 +190,10 @@ class StudentCertificateIssueView(generics.GenericAPIView):
             raise ValidationError(exc.message if hasattr(exc, 'message') else str(exc))
 
         out = StudentCertificateSerializer(sc)
-        return Response(out.data, status=status.HTTP_201_CREATED)
+        data = out.data
+        if warnings:
+            data["warnings"] = warnings
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(
