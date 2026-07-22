@@ -1,4 +1,5 @@
 import { http } from '@/shared/api/http';
+import { unwrapList } from '@/shared/api/pagination';
 import { getStoreRequestHeaders } from '@/domains/store/utils/session';
 import type { PaymentEvidencePayload, StorePayment } from '@/domains/store/model/types';
 
@@ -9,7 +10,7 @@ export async function listPayments(filters?: { status?: string; pending_order_id
   const params: Record<string, string> = {};
   if (filters?.status) params.status = filters.status;
   if (filters?.pending_order_id) params.pending_order_id = filters.pending_order_id;
-  return await http.get<StorePayment[]>(`${ADMIN_BASE}/payments/`, { params });
+  return unwrapList(await http.get<StorePayment[]>(`${ADMIN_BASE}/payments/`, { params }));
 }
 
 export async function verifyPayment(pendingOrderPk: string, verificationNotes?: string): Promise<StorePayment> {

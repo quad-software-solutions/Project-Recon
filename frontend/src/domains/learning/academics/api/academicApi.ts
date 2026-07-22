@@ -12,8 +12,9 @@ export interface PaginatedListResponse<T> {
 }
 type QueryValue = string | number | boolean | null | undefined;
 
-function unwrapList<T>(response: ListResponse<T>): T[] {
-  return Array.isArray(response) ? response : response.results;
+function unwrapList<T>(response: ListResponse<T> | null | undefined): T[] {
+  if (!response) return [];
+  return Array.isArray(response) ? response : response.results ?? [];
 }
 
 function queryString(params: { [key: string]: QueryValue } = {}): string {
@@ -740,7 +741,7 @@ export async function fetchAvailableBranchesApi(subProgramId: string, classType:
 }
 
 export async function fetchBranchesApi(): Promise<Branch[]> {
-  return http.get<Branch[]>('/accounts/branches/');
+  return unwrapList(await http.get<Branch[]>('/accounts/branches/'));
 }
 
 export async function requestTransferApi(data: { enrollment: string; target_class: string; to_branch: string }): Promise<BranchTransferRequest> {
@@ -748,7 +749,7 @@ export async function requestTransferApi(data: { enrollment: string; target_clas
 }
 
 export async function listTransferRequestsApi(): Promise<BranchTransferRequest[]> {
-  return http.get<BranchTransferRequest[]>(`${BASE}/transfers/`);
+  return unwrapList(await http.get<BranchTransferRequest[]>(`${BASE}/transfers/`));
 }
 
 export async function approveTransferApi(id: string): Promise<BranchTransferRequest> {

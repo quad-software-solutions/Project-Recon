@@ -5,7 +5,8 @@ import { mapBackendMatchToDetail, type MatchDetail } from './matchMappers';
 
 type ListResponse<T> = T[] | { results: T[]; count?: number };
 
-export function unwrapMatchList<T>(response: ListResponse<T>): T[] {
+export function unwrapMatchList<T>(response: ListResponse<T> | null | undefined): T[] {
+  if (!response) return [];
   return Array.isArray(response) ? response : response.results ?? [];
 }
 

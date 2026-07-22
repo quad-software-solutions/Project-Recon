@@ -1,4 +1,5 @@
 import { http } from '@/shared/api/http';
+import { unwrapList } from '@/shared/api/pagination';
 import type { Product, ProductFilters } from '@/domains/store/model/types';
 
 const BASE = '/store/products';
@@ -12,8 +13,7 @@ export async function listProducts(filters?: ProductFilters): Promise<Product[]>
   if (filters?.category_id) params.category = filters.category_id;
   if (filters?.search) params.search = filters.search;
   if (filters?.sort_by) params.sorting = filters.sort_by;
-  const res = await http.get<Product[]>(`${BASE}/`, { params });
-  return res;
+  return unwrapList(await http.get<Product[]>(`${BASE}/`, { params }));
 }
 
 export async function getProduct(id: string): Promise<Product | undefined> {

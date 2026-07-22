@@ -57,7 +57,7 @@ export function CategoryChips({
         ? Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="shrink-0 h-11 w-28 bg-brand-surface rounded-xl animate-pulse" />
           ))
-        : categories.map((cat) => {
+        : (Array.isArray(categories) ? categories : []).map((cat) => {
             const Icon = getCategoryIcon(cat.name);
             const active = selectedId === cat.id;
             return (

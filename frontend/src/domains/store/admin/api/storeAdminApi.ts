@@ -1,4 +1,5 @@
 import { http } from '@/shared/api/http';
+import { unwrapList } from '@/shared/api/pagination';
 import type {
   ProductCategory, Product, BranchInventory, Order, ProductImage,
 } from '@/domains/store/model/types';
@@ -114,7 +115,7 @@ export interface BranchSalesReportRow {
 
 export const storeAdminApi = {
   categories: {
-    list: () => http.get<ProductCategory[]>(`${PREFIX}/categories/`),
+    list: async () => unwrapList(await http.get<ProductCategory[]>(`${PREFIX}/categories/`)),
     get: (id: string) => http.get<ProductCategory>(`${PREFIX}/categories/${id}/`),
     create: (data: CategoryPayload) => http.post<ProductCategory>(`${PREFIX}/categories/`, data),
     update: (id: string, data: Partial<CategoryPayload>) => http.patch<ProductCategory>(`${PREFIX}/categories/${id}/`, data),
@@ -123,7 +124,7 @@ export const storeAdminApi = {
   },
 
   products: {
-    list: (params?: Record<string, string>) => http.get<Product[]>(`${PREFIX}/products/`, { params }),
+    list: async (params?: Record<string, string>) => unwrapList(await http.get<Product[]>(`${PREFIX}/products/`, { params })),
     get: (id: string) => http.get<Product>(`${PREFIX}/products/${id}/`),
     create: (data: ProductPayload) => {
       const payload = { ...data } as Record<string, unknown>;
@@ -150,7 +151,7 @@ export const storeAdminApi = {
   },
 
   inventory: {
-    list: (params?: Record<string, string>) => http.get<BranchInventory[]>(`${PREFIX}/inventory/`, { params }),
+    list: async (params?: Record<string, string>) => unwrapList(await http.get<BranchInventory[]>(`${PREFIX}/inventory/`, { params })),
     create: (data: InventoryPayload) => http.post<BranchInventory>(`${PREFIX}/inventory/`, data),
     adjust: (id: string, data: InventoryAdjustPayload) => http.post<BranchInventory>(`${PREFIX}/inventory/${id}/add/`, data),
     reduce: (id: string, data: InventoryAdjustPayload) => http.post<BranchInventory>(`${PREFIX}/inventory/${id}/reduce/`, data),
@@ -159,7 +160,7 @@ export const storeAdminApi = {
   },
 
   orders: {
-    list: (params?: Record<string, string>) => http.get<Order[]>(`${PREFIX}/orders/`, { params }),
+    list: async (params?: Record<string, string>) => unwrapList(await http.get<Order[]>(`${PREFIX}/orders/`, { params })),
     get: (id: string) => http.get<Order>(`${PREFIX}/orders/${id}/`),
     updateStatus: (id: string, data: OrderStatusPayload) =>
       http.post<Order>(`${PREFIX}/orders/${id}/status/`, data),
