@@ -124,7 +124,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "csp.middleware.CSPMiddleware",
+    # "csp.middleware.CSPMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -577,17 +577,6 @@ SPECTACULAR_SETTINGS = {
         "persistAuthorization": True,
     },
 }
-
-
-# ── Content Security Policy ───────────────────────────────────────────────
-
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
-CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
-CSP_IMG_SRC = ("'self'", "data:", "https:")
-CSP_FONT_SRC = ("'self'",)
-CSP_FORM_ACTION = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)
 
 
 # ── SSL / HTTPS ───────────────────────────────────────────────────────────
