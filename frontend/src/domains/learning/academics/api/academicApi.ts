@@ -400,6 +400,10 @@ export async function fetchAttendanceSessionsApi(classId?: string): Promise<Atte
 }
 
 
+export async function fetchAttendanceSessionApi(sessionId: string): Promise<AttendanceSession & { records?: AttendanceRecord[] }> {
+  return http.get<AttendanceSession & { records?: AttendanceRecord[] }>(`${BASE}/attendance/sessions/${sessionId}/`);
+}
+
 
 export async function createAttendanceSessionApi(payload: { enrolled_class: string; session_date: string; topic?: string }): Promise<AttendanceSession> {
   return http.post<AttendanceSession>(`${BASE}/attendance/sessions/`, payload);

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, CheckCircle2, Clock, Calendar, Loader2, Users, UserCheck, AlertCircle, TrendingUp, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi } from '@/domains/learning/academics/api/academicApi';
+import { createAttendanceSessionApi, recordBulkAttendanceApi, fetchAttendanceSessionsApi, fetchAttendanceSessionApi } from '@/domains/learning/academics/api/academicApi';
 
-import { StudentProfile, Enrollment, AttendanceSession } from '@/shared/types';
+import { StudentProfile, Enrollment, AttendanceRecord, AttendanceSession } from '@/shared/types';
 
 interface AttendanceSessionExtended extends AttendanceSession {
   records_count?: number;
@@ -37,8 +37,51 @@ export default function ClassManagement({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyDate, setHistoryDate] = useState(new Date().toISOString().slice(0, 10));
 
+  const localDateString = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+  };
   const selectedDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateString();
+
+  const applyAttendanceRecords = (records: AttendanceRecord[] = []) => {
+    const enrollmentToStudent = new Map(enrollments.map(e => [e.id, e.student]));
+    const nextPresent = new Set<string>();
+    const nextAbsent = new Set<string>();
+    records.forEach(record => {
+      const studentId = enrollmentToStudent.get(record.enrollment_id || record.enrollment);
+      if (!studentId) return;
+      if (record.status === 'PRESENT') nextPresent.add(studentId);
+      if (record.status === 'ABSENT') nextAbsent.add(studentId);
+    });
+    setAttended(nextPresent);
+    setAbsent(nextAbsent);
+  };
+
+  useEffect(() => {
+    if (!selectedClassId || enrollments.length === 0) {
+      setAttended(new Set());
+      setAbsent(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const sessions = await fetchAttendanceSessionsApi(selectedClassId);
+      const todaySession = sessions.find(s => s.session_date?.slice(0, 10) === todayStr);
+      if (!todaySession) {
+        if (!cancelled) applyAttendanceRecords([]);
+        return;
+      }
+      const detail = await fetchAttendanceSessionApi(todaySession.id);
+      if (!cancelled) applyAttendanceRecords(detail.records || []);
+    })().catch(() => {
+      if (!cancelled) applyAttendanceRecords([]);
+    });
+
+    return () => { cancelled = true; };
+  }, [selectedClassId, enrollments, todayStr]);
 
   const markPresent = (id: string) => {
     setAttended(prev => {
@@ -101,7 +144,8 @@ export default function ClassManagement({
         return { enrollment: enrollment?.id || '', status: record.status };
       }).filter(r => r.enrollment);
       if (records.length > 0) {
-        await recordBulkAttendanceApi(session.id, records);
+        const savedRecords = await recordBulkAttendanceApi(session.id, records);
+        applyAttendanceRecords(Array.isArray(savedRecords) ? savedRecords : []);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
