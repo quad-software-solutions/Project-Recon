@@ -60,10 +60,14 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
     setSaving(true);
     setError(null);
     try {
+      const payload = {
+        ...form,
+        scope_class: form.scope_class || null,
+      };
       if (editing) {
-        await updateMilestoneApi(editing.id, form);
+        await updateMilestoneApi(editing.id, payload);
       } else {
-        await createMilestoneApi(form);
+        await createMilestoneApi(payload);
       }
       setShowForm(false);
       setEditing(null);
