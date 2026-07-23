@@ -44,6 +44,7 @@ from apps.academic.views.enrollment import (
     EnrollmentListCreateView,
     EnrollmentCancelView,
     EnrollmentCompleteView,
+    MyEnrollmentListView,
     OnlineEnrollmentView,
 )
 from apps.academic.views.payment import (
@@ -131,6 +132,7 @@ __all__ = [
     "EnrollmentListCreateView",
     "EnrollmentCancelView",
     "EnrollmentCompleteView",
+    "MyEnrollmentListView",
     "AvailableBranchesView",
     "OnlineEnrollmentView",
     "PaymentListView",

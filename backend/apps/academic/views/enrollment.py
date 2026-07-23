@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import filters, generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -86,6 +87,26 @@ class EnrollmentListCreateView(generics.ListCreateAPIView):
         return Response(
             EnrollmentSerializer(enrollment).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(summary="List My Enrollments", tags=["Academic - Enrollment"]),
+)
+class MyEnrollmentListView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = EnrollmentSerializer
+
+    def get(self, request):
+        try:
+            student = Student.objects.get(user=request.user)
+        except Student.DoesNotExist:
+            return Response([], status=status.HTTP_200_OK)
+
+        enrollments = list_enrollments().filter(student=student)
+        return Response(
+            self.get_serializer(enrollments, many=True).data,
+            status=status.HTTP_200_OK,
         )
 
 

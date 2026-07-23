@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   User, Home, GraduationCap, Briefcase, Calendar, Megaphone,
   MessageCircle, FileText, ShoppingBag, Loader2, Target, BookOpen, DollarSign,
+  Clock, CheckCircle2, AlertCircle, RefreshCw,
 } from 'lucide-react';
-import { UserProfile } from '@/shared/types';
+import type { Enrollment, UserProfile } from '@/shared/types';
 import {
   fetchStudentCertificatesApi,
+  fetchMyEnrollmentsApi,
 } from '@/domains/learning/academics/api/academicApi';
 import { getMyRegistrations } from '@/domains/competition/api/competitionApi';
 import { cacheStudentId, resolveStudentId } from '@/domains/user/student/api/studentContext';
@@ -58,10 +60,121 @@ function buildNavItems(): NavItem[] {
   ];
 }
 
+function prettyStatus(status?: string) {
+  return status ? status.replace(/_/g, ' ') : 'Pending verification';
+}
+
+function EnrollmentGatePage({
+  enrollment,
+  loading,
+  error,
+  onRetry,
+  onLogout,
+}: {
+  enrollment?: Enrollment;
+  loading?: boolean;
+  error?: string;
+  onRetry: () => void;
+  onLogout: () => void;
+}) {
+  const isRejected = enrollment?.status === 'REJECTED';
+  const isUnavailable = !loading && !enrollment;
+  const Icon = loading ? Loader2 : isRejected || isUnavailable ? AlertCircle : Clock;
+  const title = loading
+    ? 'Checking enrollment status'
+    : isRejected
+      ? 'Enrollment Not Approved'
+      : isUnavailable
+        ? 'No Active Enrollment Found'
+        : 'Pending Verification';
+  const message = loading
+    ? 'Please wait while we confirm whether your portal is ready.'
+    : isRejected
+      ? 'Your enrollment was not approved. Please contact the administration for more information.'
+      : isUnavailable
+        ? 'We could not find an active enrollment for your account yet.'
+        : 'Your submission is being reviewed. You will get access to the student portal once your enrollment is approved.';
+
+  return (
+    <div className="min-h-screen bg-brand-paper flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-xl bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden">
+        <div className="h-1 bg-brand-blue" />
+        <div className="p-8 text-center">
+          <div className={`w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center ${
+            isRejected || isUnavailable ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+          }`}>
+            <Icon className={`w-8 h-8 ${loading ? 'animate-spin' : ''}`} />
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-blue mb-2">
+            Student Portal
+          </p>
+          <h1 className="font-black text-2xl text-slate-900 tracking-tight">{title}</h1>
+          <p className="text-sm text-slate-500 leading-relaxed mt-3 max-w-md mx-auto">{message}</p>
+
+          {enrollment && (
+            <div className="mt-6 bg-slate-50 border border-slate-100 rounded-xl divide-y divide-slate-100 text-left">
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <span className="text-xs text-slate-500">Reference</span>
+                <span className="text-xs font-mono font-bold text-brand-blue text-right">{enrollment.pending_code || enrollment.enrollment_number || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <span className="text-xs text-slate-500">Program</span>
+                <span className="text-xs font-bold text-slate-900 text-right">{enrollment.program_name || enrollment.sub_program_name || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <span className="text-xs text-slate-500">Status</span>
+                <span className="text-xs font-bold text-slate-900 text-right">{prettyStatus(enrollment.status)}</span>
+              </div>
+              {enrollment.rejection_reason && (
+                <div className="px-4 py-3">
+                  <span className="text-xs text-slate-500 block mb-1">Reason</span>
+                  <span className="text-xs font-medium text-slate-800">{enrollment.rejection_reason}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <p className="mt-4 text-xs font-medium text-red-600">{error}</p>
+          )}
+
+          <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-blue text-white text-sm font-bold hover:bg-brand-blue-dark transition-colors"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Refresh Status
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex-1 px-4 py-3 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+
+          {!loading && !isRejected && !isUnavailable && (
+            <p className="mt-5 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-700">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Your account is ready. Portal access starts after approval.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }: StudentDashboardProps) {
   const [activeSection, setActiveSection] = useState<StudentSectionId>('home');
   const [studentId, setStudentId] = useState<string | null>(null);
   const [studentLoading, setStudentLoading] = useState(true);
+  const [myEnrollments, setMyEnrollments] = useState<Enrollment[]>([]);
+  const [enrollmentGateLoading, setEnrollmentGateLoading] = useState(true);
+  const [enrollmentGateError, setEnrollmentGateError] = useState('');
   const [certificateCount, setCertificateCount] = useState(0);
   const [eventRegCount, setEventRegCount] = useState(0);
   const [announcementCount, setAnnouncementCount] = useState(0);
@@ -79,6 +192,27 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
     setAnnouncementCount(news?.results?.length ?? 0);
   }, []);
 
+  const loadMyEnrollments = useCallback(async () => {
+    setEnrollmentGateLoading(true);
+    setEnrollmentGateError('');
+    try {
+      const rows = await fetchMyEnrollmentsApi();
+      setMyEnrollments(rows);
+      const sid = rows.find(e => e.student)?.student;
+      if (sid) {
+        setStudentId(sid);
+        cacheStudentId(currentUser.email, sid);
+      }
+      return rows;
+    } catch (err) {
+      setMyEnrollments([]);
+      setEnrollmentGateError(err instanceof Error ? err.message : 'Could not load enrollment status.');
+      return [];
+    } finally {
+      setEnrollmentGateLoading(false);
+    }
+  }, [currentUser.email]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -91,6 +225,14 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         await loadSupplementaryStats(sid);
         finish();
       };
+
+      const ownEnrollments = await loadMyEnrollments();
+      if (cancelled) return;
+      const ownStudentId = ownEnrollments.find(e => e.student)?.student;
+      if (ownStudentId) {
+        await tryLoadForId(ownStudentId);
+        return;
+      }
 
       if (currentUser.studentId) {
         await tryLoadForId(currentUser.studentId);
@@ -115,7 +257,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
 
     resolveStudent();
     return () => { cancelled = true; };
-  }, [currentUser.id, currentUser.email, currentUser.studentId, loadSupplementaryStats]);
+  }, [currentUser.id, currentUser.email, currentUser.studentId, loadMyEnrollments, loadSupplementaryStats]);
 
   const hubStats: StudentHubStats = useMemo(() => ({
     certificateCount,
@@ -187,6 +329,23 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
 
   const navItems = buildNavItems();
   const activeLabel = navItems.find(n => n.id === activeSection)?.label ?? '';
+  const hasActiveEnrollment = myEnrollments.some(e => e.status === 'ACTIVE');
+  const blockingEnrollment =
+    myEnrollments.find(e => e.status === 'PENDING_VERIFICATION')
+    || myEnrollments.find(e => e.status === 'REJECTED')
+    || myEnrollments[0];
+
+  if (enrollmentGateLoading || !hasActiveEnrollment) {
+    return (
+      <EnrollmentGatePage
+        enrollment={blockingEnrollment}
+        loading={enrollmentGateLoading}
+        error={enrollmentGateError}
+        onRetry={loadMyEnrollments}
+        onLogout={onLogout}
+      />
+    );
+  }
 
   return (
     <AppLayout

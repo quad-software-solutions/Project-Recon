@@ -25,6 +25,7 @@ from apps.academic.views import (
     EnrollmentCancelView,
     EnrollmentCompleteView,
     EnrollmentListCreateView,
+    MyEnrollmentListView,
     EnrollmentPeriodActivateView,
     EnrollmentPeriodDeactivateView,
     EnrollmentPeriodListCreateView,
@@ -123,6 +124,7 @@ urlpatterns = [
     path("staff-attendance/sessions/<uuid:pk>/records/<uuid:record_pk>/", RecordDetailView.as_view(), name="staff-attendance-record-detail"),
     # Enrollment
     path("enrollments/", EnrollmentListCreateView.as_view(), name="enrollment-list-create"),
+    path("enrollments/me/", MyEnrollmentListView.as_view(), name="my-enrollment-list"),
     path("enrollments/<uuid:pk>/cancel/", EnrollmentCancelView.as_view(), name="enrollment-cancel"),
     path("enrollments/<uuid:pk>/complete/", EnrollmentCompleteView.as_view(), name="enrollment-complete"),
     path("enrollments/available-branches/", AvailableBranchesView.as_view(), name="enrollment-available-branches"),

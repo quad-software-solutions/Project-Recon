@@ -101,7 +101,12 @@ export function setSidebarCollapsed(collapsed: boolean): void {
 export function getOrCreateDeviceId(): string {
   const existing = safeGet(STORAGE_KEYS.DEVICE_ID);
   if (existing) return existing;
-  const id = crypto.randomUUID();
+  const id = typeof crypto !== 'undefined' && crypto.randomUUID 
+    ? crypto.randomUUID() 
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
   safeSet(STORAGE_KEYS.DEVICE_ID, id);
   return id;
 }

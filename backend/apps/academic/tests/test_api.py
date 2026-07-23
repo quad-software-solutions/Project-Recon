@@ -978,6 +978,17 @@ class EnrollmentAPITest(AcademicAPITestCase):
         response = self.client.get(f"{self.base_url}/enrollments/")
         self.assertEqual(response.status_code, 200)
 
+    def test_student_lists_own_enrollments(self):
+        enrollment = enroll_student(None, student=self.student_model, enrolled_class=self.individual_class)
+        self._authenticate(self.student_user)
+
+        response = self.client.get(f"{self.base_url}/enrollments/me/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["id"], str(enrollment.pk))
+        self.assertEqual(response.json()[0]["status"], EnrollmentStatus.PENDING_VERIFICATION)
+
     def test_enroll_student_as_secretary(self):
         self.authenticate_as_secretary()
         data = {

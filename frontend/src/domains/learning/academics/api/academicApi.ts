@@ -276,6 +276,10 @@ export async function fetchEnrollmentsApi(studentId?: string): Promise<Enrollmen
   return all.filter((e) => e.student === studentId);
 }
 
+export async function fetchMyEnrollmentsApi(): Promise<Enrollment[]> {
+  return unwrapList(await http.get<ListResponse<Enrollment>>(`${BASE}/enrollments/me/`));
+}
+
 export async function fetchEnrollmentsPaginatedApi(
   page = 1,
   pageSize = 20,
