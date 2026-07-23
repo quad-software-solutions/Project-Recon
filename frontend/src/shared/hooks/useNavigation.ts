@@ -41,7 +41,7 @@ export function useNavigation(currentUser: UserProfile | null) {
     const user = getUserProfile();
     let tab = tabFromPath(window.location.pathname);
     tab = canAccessTab(user, tab) ? tab : getDefaultAuthenticatedTab(user);
-    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration', 'home'];
     if (user && authRoutes.includes(tab)) {
       tab = 'dashboard';
       window.history.replaceState(null, '', pathFromTab(tab, user));
@@ -53,7 +53,7 @@ export function useNavigation(currentUser: UserProfile | null) {
     const handlePopState = () => {
       const requestedTab = tabFromPath(window.location.pathname);
       let nextTab = canAccessTab(currentUser, requestedTab) ? requestedTab : getDefaultAuthenticatedTab(currentUser);
-      const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+      const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration', 'home'];
       if (currentUser && authRoutes.includes(nextTab)) {
         nextTab = 'dashboard';
       }
@@ -66,7 +66,7 @@ export function useNavigation(currentUser: UserProfile | null) {
 
   const handleTabChange = useCallback((tab: ActiveTab) => {
     let nextTab = canAccessTab(currentUser, tab) ? tab : getDefaultAuthenticatedTab(currentUser);
-    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration'];
+    const authRoutes: ActiveTab[] = ['login', 'register', 'forgot-password', 'reset-password', 'registration', 'home'];
     if (currentUser && authRoutes.includes(nextTab)) {
       nextTab = 'dashboard';
     }
