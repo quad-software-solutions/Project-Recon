@@ -58,6 +58,36 @@ function prettyStatus(status?: string) {
   return status ? status.replace(/_/g, ' ') : 'Pending verification';
 }
 
+function normalizeStatus(status?: string | null) {
+  return String(status || '').trim().toUpperCase();
+}
+
+function hasPortalAccess(enrollments: Enrollment[]) {
+  return enrollments.some(e => ['ACTIVE', 'COMPLETED'].includes(normalizeStatus(e.status)));
+}
+
+function enrollmentCacheKey(email: string) {
+  return `studentEnrollments_${email}`;
+}
+
+function getCachedEnrollments(email: string): Enrollment[] {
+  try {
+    const raw = localStorage.getItem(enrollmentCacheKey(email));
+    const rows = raw ? JSON.parse(raw) : [];
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+function setCachedEnrollments(email: string, rows: Enrollment[]) {
+  try {
+    localStorage.setItem(enrollmentCacheKey(email), JSON.stringify(rows));
+  } catch {
+    /* quota or private mode */
+  }
+}
+
 function EnrollmentGatePage({
   enrollment,
   loading,
@@ -71,9 +101,10 @@ function EnrollmentGatePage({
   onRetry: () => void;
   onLogout: () => void;
 }) {
-  const isRejected = enrollment?.status === 'REJECTED';
+  const status = normalizeStatus(enrollment?.status);
+  const isRejected = status === 'REJECTED';
   const isUnavailable = !loading && !enrollment;
-  const isPending = enrollment?.status === 'PENDING_VERIFICATION';
+  const isPending = status === 'PENDING_VERIFICATION';
   const Icon = loading ? Loader2 : isRejected || isUnavailable ? AlertCircle : Clock;
   const title = loading
     ? 'Checking enrollment status'
@@ -171,8 +202,8 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
   const [activeSection, setActiveSection] = useState<StudentSectionId>('home');
   const [studentId, setStudentId] = useState<string | null>(null);
   const [studentLoading, setStudentLoading] = useState(true);
-  const [myEnrollments, setMyEnrollments] = useState<Enrollment[]>([]);
-  const [enrollmentGateLoading, setEnrollmentGateLoading] = useState(true);
+  const [myEnrollments, setMyEnrollments] = useState<Enrollment[]>(() => getCachedEnrollments(currentUser.email));
+  const [enrollmentGateLoading, setEnrollmentGateLoading] = useState(() => getCachedEnrollments(currentUser.email).length === 0);
   const [enrollmentGateError, setEnrollmentGateError] = useState('');
   const [certificateCount, setCertificateCount] = useState(0);
   const [eventRegCount, setEventRegCount] = useState(0);
@@ -191,12 +222,13 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
     setAnnouncementCount(news?.results?.length ?? 0);
   }, []);
 
-  const loadMyEnrollments = useCallback(async () => {
-    setEnrollmentGateLoading(true);
+  const loadMyEnrollments = useCallback(async (showGate = false) => {
+    if (showGate) setEnrollmentGateLoading(true);
     setEnrollmentGateError('');
     try {
       const rows = await fetchMyEnrollmentsApi();
       setMyEnrollments(rows);
+      setCachedEnrollments(currentUser.email, rows);
       const sid = rows.find(e => e.student)?.student;
       if (sid) {
         setStudentId(sid);
@@ -204,9 +236,10 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
       }
       return rows;
     } catch (err) {
-      setMyEnrollments([]);
+      const cachedRows = getCachedEnrollments(currentUser.email);
+      setMyEnrollments(cachedRows);
       setEnrollmentGateError(err instanceof Error ? err.message : 'Could not load enrollment status.');
-      return [];
+      return cachedRows;
     } finally {
       setEnrollmentGateLoading(false);
     }
@@ -326,10 +359,10 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
 
   const navItems = buildNavItems();
   const activeLabel = navItems.find(n => n.id === activeSection)?.label ?? '';
-  const hasPortalEnrollment = myEnrollments.some(e => e.status === 'ACTIVE' || e.status === 'COMPLETED');
+  const hasPortalEnrollment = hasPortalAccess(myEnrollments);
   const blockingEnrollment =
-    myEnrollments.find(e => e.status === 'PENDING_VERIFICATION')
-    || myEnrollments.find(e => e.status === 'REJECTED')
+    myEnrollments.find(e => normalizeStatus(e.status) === 'PENDING_VERIFICATION')
+    || myEnrollments.find(e => normalizeStatus(e.status) === 'REJECTED')
     || myEnrollments[0];
 
   if (enrollmentGateLoading || !hasPortalEnrollment) {
@@ -338,7 +371,7 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         enrollment={blockingEnrollment}
         loading={enrollmentGateLoading}
         error={enrollmentGateError}
-        onRetry={loadMyEnrollments}
+        onRetry={() => loadMyEnrollments(true)}
         onLogout={onLogout}
       />
     );
