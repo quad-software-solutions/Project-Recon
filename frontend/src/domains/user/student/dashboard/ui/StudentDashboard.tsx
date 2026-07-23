@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   User, Home, GraduationCap, Briefcase, Calendar, Megaphone,
   MessageCircle, FileText, ShoppingBag, Loader2, Target, BookOpen, DollarSign,
@@ -247,15 +247,6 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
     resolveStudent();
     return () => { cancelled = true; };
   }, [currentUser.id, currentUser.email, currentUser.studentId, loadMyEnrollments, loadSupplementaryStats]);
-
-  const hubStats: StudentHubStats = useMemo(() => ({
-    certificateCount,
-    eventRegCount,
-    announcementCount,
-    loading: studentLoading,
-  }), [certificateCount, eventRegCount, announcementCount, studentLoading]);
-
-  const commandCenter = getSectionCommandCenter(activeSection, hubStats);
 
   const handleHomeNavigate = (section: HomeNavigateTarget) => {
     setActiveSection(section);
