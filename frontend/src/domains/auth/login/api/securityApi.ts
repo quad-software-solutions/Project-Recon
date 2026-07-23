@@ -23,7 +23,7 @@ export const securityApi = {
 
   listDevices: () => http.get('/accounts/devices/'),
   revokeDevice: (id: string) => http.delete(`/accounts/devices/${id}/`),
-  revokeAllDevices: () => http.post('/accounts/devices/revoke-all/', {}),
+  revokeAllDevices: () => http.post('/accounts/devices/revoke-all/', { current_fingerprint: getOrCreateDeviceId() }),
 
   /** Request OTP to trust the current browser device (authenticated). */
   requestDeviceVerification: () =>

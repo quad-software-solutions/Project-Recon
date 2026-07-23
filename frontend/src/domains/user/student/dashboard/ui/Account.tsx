@@ -40,6 +40,11 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
 
+  const [emailForm, setEmailForm] = useState({ new_email: '', current_password: '' });
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
   const handleSave = async () => {
     if (!currentUser.id) { setError('User ID not available.'); return; }
     setSaving(true);
@@ -120,6 +125,25 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
       setPwError(formatApiError(e));
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const handleEmailChange = async () => {
+    if (!emailForm.new_email.trim()) { setEmailError('Email is required'); return; }
+    if (!emailForm.current_password) { setEmailError('Current password is required to change email'); return; }
+    if (emailForm.new_email === currentUser.email) { setEmailError('New email is the same as current'); return; }
+    setEmailSaving(true);
+    setEmailError('');
+    setEmailSuccess(false);
+    try {
+      await updateUserApi(currentUser.id, { email: emailForm.new_email, current_password: emailForm.current_password } as any);
+      setEmailSuccess(true);
+      setEmailForm({ new_email: '', current_password: '' });
+      onUserUpdate?.({ ...currentUser, email: emailForm.new_email });
+    } catch (e: any) {
+      setEmailError(formatApiError(e));
+    } finally {
+      setEmailSaving(false);
     }
   };
 
@@ -289,6 +313,38 @@ export default function Account({ currentUser, onUserUpdate }: Props) {
           </div>
         </div>
         {pwError && <p className="text-xs text-red-600 mt-2">{pwError}</p>}
+      </div>
+
+      {/* Change Email */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-brand-border-light/60">
+        <div className="flex items-center gap-2 mb-5">
+          <Mail className="w-5 h-5 text-slate-500" />
+          <h3 className="font-bold text-lg text-slate-900">Change Email</h3>
+        </div>
+
+        {emailSuccess && (
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> Email changed successfully.
+          </div>
+        )}
+
+        <p className="text-xs text-slate-500 mb-3">Your current email is <strong>{currentUser.email}</strong>. Enter a new email and your current password to confirm the change.</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input type="email" value={emailForm.new_email} onChange={e => setEmailForm(f => ({ ...f, new_email: e.target.value }))}
+            placeholder="New email address"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+          <div className="flex gap-2">
+            <input type="password" value={emailForm.current_password} onChange={e => setEmailForm(f => ({ ...f, current_password: e.target.value }))}
+              placeholder="Current password"
+              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+            <button onClick={handleEmailChange} disabled={emailSaving}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              {emailSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+        {emailError && <p className="text-xs text-red-600 mt-2">{emailError}</p>}
       </div>
 
       {/* Devices & Sessions */}
