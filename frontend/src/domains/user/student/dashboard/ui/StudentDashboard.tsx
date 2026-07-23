@@ -46,7 +46,7 @@ function buildNavItems(): NavItem[] {
     { id: 'materials', label: 'Learning Materials', icon: BookOpen, group: 'academic' },
     { id: 'payments', label: 'Payments', icon: DollarSign, group: 'academic' },
     { id: 'certificates', label: 'Certificates', icon: FileText, group: 'academic' },
-    { id: 'store', label: 'Store', icon: ShoppingBag, group: 'main' },
+    { id: 'store', label: 'Store', icon: ShoppingBag, group: 'shop' },
     { id: 'events', label: 'Events', icon: Calendar, group: 'competition' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'communication' },
     { id: 'feedback', label: 'Support & Feedback', icon: MessageCircle, group: 'communication' },
