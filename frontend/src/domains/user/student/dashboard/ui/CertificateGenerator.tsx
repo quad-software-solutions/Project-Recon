@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Award, Download, Loader2, ExternalLink } from 'lucide-react';
-import { fetchStudentCertificatesApi, fetchCertificateTemplatesApi, downloadCertificateReportPdf } from '@/domains/learning/academics/api/academicApi';
-import type { StudentCertificate, Certificate } from '@/domains/learning/model/types';
-import CertificateCanvas, { issuedToCanvasData, resolveCertificateTemplate } from '@/domains/user/shared/ui/components/CertificateCanvas';
+import { fetchStudentCertificatesApi, downloadCertificateReportPdf } from '@/domains/learning/academics/api/academicApi';
+import type { StudentCertificate } from '@/domains/learning/model/types';
+import CertificateCanvas, { issuedToCanvasData } from '@/domains/user/shared/ui/components/CertificateCanvas';
 
 interface Props { studentId?: string | null }
 
 export default function CertificateGenerator({ studentId }: Props) {
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
-  const [templates, setTemplates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCert, setSelectedCert] = useState<string | null>(null);
   const selected = certificates.find(c => c.id === selectedCert);
 
   useEffect(() => {
-    Promise.all([
-      fetchStudentCertificatesApi(studentId ?? undefined).catch(() => [] as StudentCertificate[]),
-      fetchCertificateTemplatesApi().catch(() => [] as Certificate[]),
-    ]).then(([certs, tmpls]) => {
+    fetchStudentCertificatesApi(studentId ?? undefined).then((certs) => {
       setCertificates(certs);
-      setTemplates(tmpls);
+    }).catch(() => {
+      setCertificates([]);
     }).finally(() => setLoading(false));
   }, [studentId]);
 
@@ -58,7 +55,7 @@ export default function CertificateGenerator({ studentId }: Props) {
           {selected && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <CertificateCanvas
-                data={issuedToCanvasData(selected, resolveCertificateTemplate(selected, templates))}
+                data={issuedToCanvasData(selected)}
                 footer={
                   <div className="p-4 flex items-center justify-between bg-slate-50 border-t border-brand-border-light">
                     <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">

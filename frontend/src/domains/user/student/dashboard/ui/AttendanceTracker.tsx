@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Loader2, ShieldOff, Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/domains/learning/academics/api/academicApi';
+import { fetchMyEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/domains/learning/academics/api/academicApi';
 import type { AttendanceSession } from '@/shared/types';
 
 interface Props { studentId: string }
@@ -19,7 +19,7 @@ export default function AttendanceTracker({ studentId }: Props) {
   const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(async enr => {
+    fetchMyEnrollmentsApi().then(async enr => {
       const all: AttendanceSession[] = [];
       for (const e of enr) {
         try {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Check, Target, Loader2, ShieldOff, Download } from 'lucide-react';
-import { fetchEnrollmentsApi, fetchMilestonesApi, fetchStudentProgressApi, downloadProgressReportPdf } from '@/domains/learning/academics/api/academicApi';
+import { fetchMyEnrollmentsApi, fetchMilestonesApi, fetchStudentProgressApi, downloadProgressReportPdf } from '@/domains/learning/academics/api/academicApi';
 import type { LearningMilestone, StudentProgress } from '@/shared/types';
 
 interface Props { studentId: string }
@@ -12,7 +12,7 @@ export default function ProgressMilestones({ studentId }: Props) {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId).then(async enr => {
+    fetchMyEnrollmentsApi().then(async enr => {
       const allMilestones: LearningMilestone[] = [];
       const allProgress: StudentProgress[] = [];
       for (const e of enr) {

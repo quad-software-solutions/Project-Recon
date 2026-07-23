@@ -1,4 +1,4 @@
-import { fetchEnrollmentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchMyEnrollmentsApi, fetchStudentCertificatesApi } from '@/domains/learning/academics/api/academicApi';
 import { getCachedStudentId, setCachedStudentId, studentIdKey } from '@/shared/utils/storage';
 
 /**
@@ -13,7 +13,7 @@ export async function resolveStudentId(email: string, _userId?: string, cachedId
   if (stored) return stored;
 
   try {
-    const enrollments = await fetchEnrollmentsApi();
+    const enrollments = await fetchMyEnrollmentsApi();
     const enrollmentStudent = enrollments.find(enrollment => enrollment.student)?.student;
     if (enrollmentStudent) {
       setCachedStudentId(email, enrollmentStudent);

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile, StudentCertificate, Enrollment, StudentProgress } from '@/shared/types';
 import {
-  fetchEnrollmentsApi, fetchStudentCertificatesApi, fetchStudentProgressApi,
+  fetchMyEnrollmentsApi, fetchStudentCertificatesApi, fetchStudentProgressApi,
 } from '@/domains/learning/academics/api/academicApi';
 import { getUpcomingEvents } from '@/domains/competition/api/eventsApi';
 import { cmsPublicApi } from '@/domains/cms/public/api/cmsPublicApi';
@@ -60,7 +60,7 @@ export default function DashboardHome({ currentUser, studentId, onNavigate }: Pr
         cmsPublicApi.getNews({ limit: '3' }).catch(() => ({ results: [] })),
         getUpcomingEvents().catch(() => []),
         studentId ? fetchStudentCertificatesApi(studentId).catch(() => []) : Promise.resolve([]),
-        studentId ? fetchEnrollmentsApi(studentId).catch(() => []) : Promise.resolve([]),
+        studentId ? fetchMyEnrollmentsApi().catch(() => []) : Promise.resolve([]),
       ]);
       if (cancelled) return;
       setAnnouncements((newsRes?.results || []).map(n => ({

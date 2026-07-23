@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ElementType } from 'react';
 import { CheckCircle, Clock, XCircle, Loader2, DollarSign, Building2, Smartphone, Landmark } from 'lucide-react';
-import { fetchEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchMyEnrollmentsApi } from '@/domains/learning/academics/api/academicApi';
 import type { Enrollment } from '@/shared/types';
 import { isForbiddenError } from '@/shared/api/http';
 
@@ -36,7 +36,7 @@ export default function PaymentHistory({ studentId }: Props) {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
-    fetchEnrollmentsApi(studentId)
+    fetchMyEnrollmentsApi()
       .then((data) => setEnrollments(Array.isArray(data) ? data : []))
       .catch((err) => {
         if (isForbiddenError(err)) setPermissionDenied(true);
