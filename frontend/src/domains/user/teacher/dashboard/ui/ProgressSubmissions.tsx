@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { CheckCircle2, Search, Clock, ChevronDown, Loader2, RotateCcw, BarChart3 } from 'lucide-react';
+import { CheckCircle2, Search, Clock, ChevronDown, Loader2, RotateCcw, BarChart3, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { ProgressStatus } from '@/shared/types';
 import { fetchStudentProgressApi, updateStudentProgressApi, fetchMilestonesApi, recordStudentProgressApi } from '@/domains/learning/academics/api/academicApi';
@@ -141,6 +141,17 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
     }
   };
 
+  const startAddingMilestone = (enrollmentId: string) => {
+    setCreatingProgress(enrollmentId);
+    setCreateMilestoneId('');
+    loadMilestones(enrollmentId, enrollments.find(e => e.id === enrollmentId)?.enrolled_class);
+  };
+
+  const availableMilestones = (enrollmentId: string) => {
+    const existing = new Set(getProgress(enrollmentId).map(p => p.milestone));
+    return (milestoneMap[enrollmentId] || []).filter(m => !existing.has(m.id));
+  };
+
   const nextStatus = (current: string) => {
     if (current === 'NOT_STARTED') return 'IN_PROGRESS';
     if (current === 'IN_PROGRESS') return 'COMPLETED';
@@ -225,6 +236,7 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                 <th className="px-6 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">In Progress</th>
                 <th className="px-6 py-3 text-center font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending</th>
                 <th className="px-6 py-3 text-right font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Details</th>
+                <th className="px-6 py-3 text-right font-mono text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border-light/30">
@@ -238,13 +250,14 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                       <td className="px-6 py-4"><div className="h-3 w-6 bg-slate-200 rounded mx-auto" /></td>
                       <td className="px-6 py-4"><div className="flex items-center justify-center gap-2"><div className="h-2 w-16 bg-slate-200 rounded-full" /><div className="h-3 w-6 bg-slate-200 rounded" /></div></td>
                       <td className="px-6 py-4"><div className="h-4 w-4 bg-slate-200 rounded ml-auto" /></td>
+                      <td className="px-6 py-4"><div className="h-8 w-28 bg-slate-200 rounded-lg ml-auto" /></td>
                     </tr>
                   ))}
                 </>
               ) : progressError ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center"><p className="text-sm text-red-500 mb-2">{progressError}</p><button onClick={() => window.location.reload()} className="text-xs font-bold text-blue-600 hover:underline">Retry</button></td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center"><p className="text-sm text-red-500 mb-2">{progressError}</p><button onClick={() => window.location.reload()} className="text-xs font-bold text-blue-600 hover:underline">Retry</button></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-400">No students found.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-400">No students found.</td></tr>
               ) : filtered.map((row, idx) => {
                 const total = totalCount(row.enrollmentId);
                 const completed = completedCount(row.enrollmentId);
@@ -253,6 +266,8 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                 const isExpanded = expandedStudent === row.enrollmentId;
                 const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
                 const name = row.name;
+                const isAdding = creatingProgress === row.enrollmentId;
+                const milestones = availableMilestones(row.enrollmentId);
                 return (
                   <React.Fragment key={row.enrollmentId}>
                     <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.04 }}
@@ -288,36 +303,38 @@ export default function ProgressSubmissions({ students, enrollments }: Props) {
                           <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                       </td>
+                      <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                        {isAdding ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <select value={createMilestoneId} onChange={e => setCreateMilestoneId(e.target.value)}
+                              className="w-48 px-2 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-brand-blue-bright">
+                              <option value="">Select milestone...</option>
+                              {milestones.map(m => (
+                                <option key={m.id} value={m.id}>{m.title}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => createProgressRecord(row.enrollmentId, createMilestoneId)} disabled={!createMilestoneId || creating}
+                              className="inline-flex h-8 items-center justify-center rounded-lg bg-blue-600 px-3 text-[11px] font-bold text-white hover:bg-blue-700 disabled:opacity-50">
+                              {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+                            </button>
+                            <button onClick={() => setCreatingProgress(null)} className="h-8 rounded-lg px-2 text-[11px] font-bold text-slate-500 hover:bg-slate-100">Cancel</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => startAddingMilestone(row.enrollmentId)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-50 px-3 text-[11px] font-bold text-blue-700 hover:bg-blue-100">
+                            <Plus className="w-3.5 h-3.5" /> Add Milestone
+                          </button>
+                        )}
+                      </td>
                     </motion.tr>
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.tr key="details-row" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                          <td colSpan={6} className="px-6 py-4 bg-slate-50/50">
+                          <td colSpan={7} className="px-6 py-4 bg-slate-50/50">
                             <div className="space-y-2">
                               {getProgress(row.enrollmentId).length === 0 ? (
                                 <div className="text-center py-3">
-                                  <p className="text-xs text-slate-400 mb-2">No progress records yet</p>
-                                  {creatingProgress === row.enrollmentId ? (
-                                    <div className="flex items-center justify-center gap-2">
-                                      <select value={createMilestoneId} onChange={e => setCreateMilestoneId(e.target.value)}
-                                        className="px-2 py-1 border border-slate-200 rounded-lg text-xs max-w-[200px]">
-                                        <option value="">Select milestone...</option>
-                                        {(milestoneMap[row.enrollmentId] || []).map(m => (
-                                          <option key={m.id} value={m.id}>{m.title}</option>
-                                        ))}
-                                      </select>
-                                      <button onClick={() => createProgressRecord(row.enrollmentId, createMilestoneId)} disabled={!createMilestoneId || creating}
-                                        className="text-[10px] font-bold bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                                        {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
-                                      </button>
-                                      <button onClick={() => setCreatingProgress(null)} className="text-[10px] text-slate-400 hover:text-slate-600">Cancel</button>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => { setCreatingProgress(row.enrollmentId); loadMilestones(row.enrollmentId, enrollments.find(e => e.id === row.enrollmentId)?.enrolled_class); }}
-                                      className="text-xs font-medium text-brand-blue hover:underline">
-                                      + Add milestone progress
-                                    </button>
-                                  )}
+                                  <p className="text-xs text-slate-400">No progress records yet</p>
                                 </div>
                               ) : getProgress(row.enrollmentId).map((p, pi) => (
                                 <div key={p.id} className="flex items-center justify-between bg-white rounded-xl p-3 border border-slate-200">
