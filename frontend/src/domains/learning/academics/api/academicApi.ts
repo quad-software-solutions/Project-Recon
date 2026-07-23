@@ -534,7 +534,7 @@ export async function archiveMilestoneApi(id: string): Promise<LearningMilestone
   return http.post<LearningMilestone>(`${BASE}/learning-milestones/${id}/archive/`, {});
 }
 
-export async function customizeMilestoneApi(id: string, payload: { scope_class: string; title?: string; description?: string }): Promise<LearningMilestone> {
+export async function customizeMilestoneApi(id: string, payload: { target_class: string }): Promise<LearningMilestone> {
   return http.post<LearningMilestone>(`${BASE}/learning-milestones/${id}/customize/`, payload);
 }
 

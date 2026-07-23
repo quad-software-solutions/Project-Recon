@@ -173,6 +173,10 @@ def customize_milestone(actor, source_milestone, target_class):
         raise DjangoValidationError(
             "Can only customize shared milestones owned by the SubProgram."
         )
+    if target_class.sub_program != source_milestone.sub_program:
+        raise DjangoValidationError(
+            "Target class must belong to the same SubProgram as the milestone."
+        )
 
     customized = LearningMilestone(
         sub_program=source_milestone.sub_program,

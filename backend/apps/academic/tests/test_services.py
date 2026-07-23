@@ -1547,6 +1547,27 @@ class ProgressServiceTest(TestCase):
                 self.instructor, class_milestone, self.klass
             )
 
+    def test_customize_requires_target_class_in_same_sub_program(self):
+        other_sub = program_service.create_sub_program(
+            program=self.program,
+            name="Other Sub",
+            slug="other-sub-customize",
+            group_fee=Decimal("500.00"),
+            individual_fee=Decimal("500.00"),
+        )
+        other_class = class_service.create_class(
+            sub_program=other_sub,
+            branch=self.branch,
+            instructor=self.instructor,
+            name="Other Sub Class",
+            class_type=ClassType.INDIVIDUAL,
+        )
+
+        with self.assertRaises(DjangoValidationError):
+            progress_service.customize_milestone(
+                self.instructor, self.shared_milestone, other_class
+            )
+
     def test_record_progress(self):
         record, _ = progress_service.record_progress(
             actor=self.instructor,

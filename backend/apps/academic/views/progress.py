@@ -86,7 +86,22 @@ class MilestoneListCreateView(generics.ListCreateAPIView):
             )
 
         if not self.request.user.is_superuser:
-            from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
+            from django.db.models import Q
+            from apps.accounts.permissions.roles import (
+                get_active_branch_ids,
+                user_is_branch_manager,
+                user_is_instructor,
+                user_is_super_admin,
+            )
+
+            if user_is_instructor(self.request.user) and not user_is_branch_manager(self.request.user):
+                return list_milestones(
+                    sub_program=sub_program,
+                    scope_class=scope_class,
+                ).filter(
+                    Q(scope_class__isnull=True) | Q(scope_class__instructor=self.request.user)
+                )
+
             if not user_is_super_admin(self.request.user):
                 branch_ids = get_active_branch_ids(self.request.user)
 

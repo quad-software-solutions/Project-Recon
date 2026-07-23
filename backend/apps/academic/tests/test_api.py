@@ -1872,6 +1872,43 @@ class ProgressAPITest(AcademicAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()), 2)
 
+    def test_instructor_lists_shared_and_own_class_milestones_only(self):
+        other_instructor = user_service.create_staff_user(
+            "other-instructor@test.com",
+            "Other",
+            "Instructor",
+            self.password,
+            branch=self.branch,
+        )
+        user_service.activate_user(other_instructor)
+        other_instructor.is_email_verified = True
+        other_instructor.save()
+        other_class = class_service.create_class(
+            sub_program=self.sub_program,
+            branch=self.branch,
+            instructor=other_instructor,
+            name="Other Class",
+            class_type=ClassType.INDIVIDUAL,
+        )
+        progress_service.create_milestone(
+            actor=self.super_admin, sub_program=self.sub_program,
+            title="Shared", scope_class=None,
+        )
+        progress_service.create_milestone(
+            actor=self.instructor, sub_program=self.sub_program,
+            title="Mine", scope_class=self.klass,
+        )
+        progress_service.create_milestone(
+            actor=other_instructor, sub_program=self.sub_program,
+            title="Not Mine", scope_class=other_class,
+        )
+
+        self._authenticate(self.instructor)
+        response = self.client.get(f"{self.base_url}/learning-milestones/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({row["title"] for row in response.json()}, {"Shared", "Mine"})
+
     def test_retrieve_milestone(self):
         self.authenticate_as_super_admin()
         milestone = progress_service.create_milestone(
