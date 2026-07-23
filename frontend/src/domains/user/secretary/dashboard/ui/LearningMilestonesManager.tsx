@@ -24,7 +24,7 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
 
   const load = () => {
     setLoading(true);
-    const skipStaffCalls = currentUser?.role === 'Secretary' || isInstructor(currentUser);
+    const skipStaffCalls = currentUser?.role === 'Secretary';
     Promise.allSettled([
       skipStaffCalls ? Promise.resolve([]) : fetchMilestonesApi(),
       fetchSubProgramsApi(),
@@ -39,8 +39,13 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
   useEffect(() => { load(); }, []);
 
   const openCreate = () => {
+    const firstClass = isInstructor(currentUser) ? classes[0] : null;
     setEditing(null);
-    setForm(defaultForm);
+    setForm(firstClass ? {
+      ...defaultForm,
+      sub_program: firstClass.sub_program,
+      scope_class: firstClass.id,
+    } : defaultForm);
     setShowForm(true);
   };
 
@@ -57,6 +62,10 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
 
   const handleSave = async () => {
     if (!form.title || !form.sub_program) return;
+    if (isInstructor(currentUser) && !form.scope_class) {
+      setError('Instructors must choose one of their classes for a milestone.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -94,6 +103,9 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
     const q = searchQuery.toLowerCase();
     return m.title.toLowerCase().includes(q) || ((m as any).description || '').toLowerCase().includes(q);
   });
+  const scopedClasses = form.sub_program
+    ? classes.filter(c => c.sub_program === form.sub_program)
+    : classes;
 
   return (
     <div className="space-y-4">
@@ -193,21 +205,29 @@ export default function LearningMilestonesManager({ currentUser }: { currentUser
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Title</label>
                     <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="e.g. Build Base Robot" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Sub-Program</label>
-                    <select value={form.sub_program} onChange={e => setForm(p => ({ ...p, sub_program: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                    <select value={form.sub_program} onChange={e => {
+                      const nextSubProgram = e.target.value;
+                      const nextClass = classes.find(c => c.sub_program === nextSubProgram);
+                      setForm(p => ({
+                        ...p,
+                        sub_program: nextSubProgram,
+                        scope_class: nextClass && (isInstructor(currentUser) || p.scope_class) ? nextClass.id : '',
+                      }));
+                    }} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
                       <option value="">Select sub-program...</option>
                       {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
                     </select></div>
                   {classes.length > 0 && <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Scope Class (optional)</label>
                     <select value={form.scope_class} onChange={e => setForm(p => ({ ...p, scope_class: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
-                      <option value="">All classes (shared milestone)</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name} — {(c as any).sub_program_name || ''}</option>)}
+                      {!isInstructor(currentUser) && <option value="">All classes (shared milestone)</option>}
+                      {scopedClasses.map(c => <option key={c.id} value={c.id}>{c.name} — {(c as any).sub_program_name || ''}</option>)}
                     </select></div>}
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Description</label>
                     <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" /></div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
                   <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                  <button onClick={handleSave} disabled={saving || !form.title || !form.sub_program}
+                  <button onClick={handleSave} disabled={saving || !form.title || !form.sub_program || (isInstructor(currentUser) && !form.scope_class)}
                     className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {saving ? 'Saving...' : editing ? 'Update' : 'Create Milestone'}

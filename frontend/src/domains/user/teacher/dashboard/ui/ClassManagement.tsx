@@ -29,6 +29,7 @@ export default function ClassManagement({
 }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [attended, setAttended] = useState<Set<string>>(new Set());
+  const [absent, setAbsent] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -39,10 +40,29 @@ export default function ClassManagement({
   const selectedDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const toggleAttendance = (id: string) => {
+  const markPresent = (id: string) => {
     setAttended(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setAbsent(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setSaved(false);
+  };
+
+  const markAbsent = (id: string) => {
+    setAbsent(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setAttended(prev => {
+      const next = new Set(prev);
+      next.delete(id);
       return next;
     });
     setSaved(false);
@@ -51,11 +71,13 @@ export default function ClassManagement({
   const markAllPresent = () => {
     const enrolledIds = students.filter(s => enrollments.some(e => e.student === s.id)).map(s => s.id);
     setAttended(new Set(enrolledIds));
+    setAbsent(new Set());
     setSaved(false);
   };
 
   const clearAttendance = () => {
     setAttended(new Set());
+    setAbsent(new Set());
     setSaved(false);
   };
 
@@ -64,14 +86,19 @@ export default function ClassManagement({
     if (enrolledStudents.length === 0 || !selectedClassId) return;
     setSaving(true);
     try {
-      const session = await createAttendanceSessionApi({
-        enrolled_class: selectedClassId,
-        session_date: todayStr,
-        topic: 'Daily Attendance',
-      });
-      const records = Array.from(attended).map(studentId => {
-        const enrollment = enrollments.find(e => e.student === studentId);
-        return { enrollment: enrollment?.id || '', status: 'PRESENT' };
+      const sessions = await fetchAttendanceSessionsApi(selectedClassId);
+      const session = sessions.find(s => s.session_date?.slice(0, 10) === todayStr)
+        || await createAttendanceSessionApi({
+          enrolled_class: selectedClassId,
+          session_date: todayStr,
+          topic: 'Daily Attendance',
+        });
+      const records = [
+        ...Array.from(attended).map(studentId => ({ studentId, status: 'PRESENT' })),
+        ...Array.from(absent).map(studentId => ({ studentId, status: 'ABSENT' })),
+      ].map(record => {
+        const enrollment = enrollments.find(e => e.student === record.studentId);
+        return { enrollment: enrollment?.id || '', status: record.status };
       }).filter(r => r.enrollment);
       if (records.length > 0) {
         await recordBulkAttendanceApi(session.id, records);
@@ -91,7 +118,7 @@ export default function ClassManagement({
     try {
       const sessions = await fetchAttendanceSessionsApi(selectedClassId);
       const arr = Array.isArray(sessions) ? sessions : [];
-      setHistoryData(arr.filter(s => s.session_date?.startsWith(historyDate.slice(0, 7))));
+      setHistoryData(arr.filter(s => s.session_date?.slice(0, 10) === historyDate));
     } catch {
       setHistoryData([]);
     } finally {
@@ -110,6 +137,7 @@ export default function ClassManagement({
     course: enrollments.find(e => e.student === s.id)?.class_name || '—',
     status: s.is_active ? 'Active' : 'Inactive',
     attended: attended.has(s.id),
+    absent: absent.has(s.id),
   }));
 
   const filtered = searchQuery.trim()
@@ -118,7 +146,8 @@ export default function ClassManagement({
 
   const totalCount = displayList.length;
   const attendedCount = attended.size;
-  const absentCount = totalCount - attendedCount;
+  const absentCount = absent.size;
+  const unmarkedCount = Math.max(totalCount - attendedCount - absentCount, 0);
   const attendancePct = totalCount > 0 ? Math.round((attendedCount / totalCount) * 100) : 0;
 
   return (
@@ -201,7 +230,7 @@ export default function ClassManagement({
                 </button>
               )}
             </div>
-            <button onClick={recordAttendance} disabled={saving || attendedCount === 0}
+            <button onClick={recordAttendance} disabled={saving || attendedCount + absentCount === 0}
               className="flex items-center gap-1.5 text-xs font-bold bg-emerald-500 text-white px-3 py-2 rounded-xl hover:bg-emerald-600 disabled:opacity-50 transition-colors"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
@@ -228,13 +257,13 @@ export default function ClassManagement({
               )}
               {filtered.map((st, idx) => (
                 <motion.tr key={st.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.04 }}
-                  className={`transition-colors ${st.attended ? 'bg-emerald-50/50' : 'hover:bg-slate-50/50'}`}
+                  className={`transition-colors ${st.attended ? 'bg-emerald-50/50' : st.absent ? 'bg-red-50/40' : 'hover:bg-slate-50/50'}`}
                 >
                   <td className="px-6 py-3.5 font-mono text-xs text-slate-400">{idx + 1}</td>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                        st.attended ? 'bg-emerald-500 text-white' : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600'
+                        st.attended ? 'bg-emerald-500 text-white' : st.absent ? 'bg-red-500 text-white' : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600'
                       }`}>
                         {st.attended ? <CheckCircle2 className="w-4 h-4" /> : st.name.charAt(0)}
                       </div>
@@ -257,20 +286,35 @@ export default function ClassManagement({
                       <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                         <CheckCircle2 className="w-3 h-3" /> Present
                       </span>
+                    ) : st.absent ? (
+                      <span className="inline-flex items-center gap-1 text-red-600 font-bold text-[10px] bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                        <AlertCircle className="w-3 h-3" /> Absent
+                      </span>
                     ) : (
                       <span className="text-slate-400 font-mono text-[10px]">—</span>
                     )}
                   </td>
                   <td className="px-6 py-3.5 text-right">
-                    <button onClick={() => toggleAttendance(st.id)}
-                      className={`text-[11px] font-bold px-4 py-2 rounded-lg transition-all active:scale-95 ${
-                        st.attended
-                          ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 border border-slate-200'
-                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
-                      }`}
-                    >
-                      {st.attended ? 'Undo' : 'Mark Present'}
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => markPresent(st.id)}
+                        className={`text-[11px] font-bold px-3 py-2 rounded-lg transition-all active:scale-95 ${
+                          st.attended
+                            ? 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                        }`}
+                      >
+                        {st.attended ? 'Undo Present' : 'Mark Present'}
+                      </button>
+                      <button onClick={() => markAbsent(st.id)}
+                        className={`text-[11px] font-bold px-3 py-2 rounded-lg transition-all active:scale-95 ${
+                          st.absent
+                            ? 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                            : 'bg-red-600 text-white hover:bg-red-700 shadow-sm'
+                        }`}
+                      >
+                        {st.absent ? 'Undo Absent' : 'Mark Absent'}
+                      </button>
+                    </div>
                   </td>
                 </motion.tr>
               ))}
@@ -281,6 +325,7 @@ export default function ClassManagement({
         <div className="px-6 py-4 bg-slate-50/50 border-t border-brand-border-light/40 flex items-center justify-between">
           <span className="font-sans text-xs text-slate-500">
             Showing <strong className="text-slate-800">{filtered.length}</strong> of {totalCount} students
+            {unmarkedCount > 0 && <span className="ml-2">- {unmarkedCount} unmarked</span>}
           </span>
           <div className="flex items-center gap-3">
             <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -308,7 +353,7 @@ export default function ClassManagement({
                 <button onClick={() => setShowHistory(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
               </div>
               <div className="p-4 border-b border-slate-100">
-                <input type="month" value={historyDate} onChange={e => { setHistoryDate(e.target.value); }}
+                <input type="date" value={historyDate} onChange={e => { setHistoryDate(e.target.value); }}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue-bright" />
               </div>
               <div className="flex-1 overflow-y-auto p-4">
@@ -317,7 +362,7 @@ export default function ClassManagement({
                 ) : historyData.length === 0 ? (
                   <div className="text-center py-8 text-slate-400">
                     <Calendar className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-xs">No attendance records for this month</p>
+                    <p className="text-xs">No attendance records for this date</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
