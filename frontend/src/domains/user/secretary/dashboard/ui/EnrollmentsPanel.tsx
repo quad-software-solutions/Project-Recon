@@ -31,7 +31,7 @@ function hasExistingPayment(e: Enrollment): boolean {
 }
 
 function canRecordApproval(e: Enrollment): boolean {
-  return e.status === 'PENDING_VERIFICATION' && !hasExistingPayment(e);
+  return e.status === 'PENDING_VERIFICATION' && !hasExistingPayment(e) && !e.pending_code;
 }
 
 /** Backend reject_payment requires pending_code (online enrollments only). */
@@ -426,6 +426,20 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
 
   const handleEnroll = async () => {
     if (!form.student || !form.enrolled_class) return;
+    const existing = allEnrollments.find(e =>
+      e.student === form.student &&
+      e.enrolled_class === form.enrolled_class &&
+      !['CANCELLED', 'REJECTED'].includes(e.status)
+    );
+    if (existing) {
+      setShowEnroll(false);
+      setForm({ student: '', enrolled_class: '', remarks: '' });
+      setStudentSearch('');
+      setStudentResults([]);
+      await openDetail(existing);
+      flashSuccess('Existing enrollment opened');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -539,6 +553,14 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   const selectedClass = selected
     ? classes.find(c => c.id === selected.enrolled_class)
     : undefined;
+
+  const existingFormEnrollment = form.student && form.enrolled_class
+    ? allEnrollments.find(e =>
+        e.student === form.student &&
+        e.enrolled_class === form.enrolled_class &&
+        !['CANCELLED', 'REJECTED'].includes(e.status)
+      )
+    : null;
 
   const exportCsv = () => {
     const headers = ['Student', 'Email', 'Class', 'Program', 'Branch', 'Reference', 'Date', 'Status', 'Verification', 'Payment'];
@@ -1149,13 +1171,18 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
                     <input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
                       className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm" placeholder="Optional" />
                   </div>
+                  {existingFormEnrollment && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      This student already has an enrollment for this class. Continue to open the existing record.
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2 p-5 border-t">
                   <button type="button" onClick={() => setShowEnroll(false)} className="px-4 py-2 text-xs rounded-xl hover:bg-slate-100">Cancel</button>
                   <button type="button" onClick={handleEnroll} disabled={submitting || !form.student || !form.enrolled_class}
                     className="bg-blue-600 text-white text-xs font-bold px-5 py-2 rounded-xl disabled:opacity-50 flex items-center gap-1.5">
                     {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                    Enroll
+                    {existingFormEnrollment ? 'Open Existing' : 'Enroll'}
                   </button>
                 </div>
               </div>

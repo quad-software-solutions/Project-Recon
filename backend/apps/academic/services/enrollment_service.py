@@ -24,6 +24,13 @@ from apps.shared.audit.services import log_action
 from apps.shared.email.services import send_email
 
 
+CURRENT_ENROLLMENT_STATUSES = [
+    EnrollmentStatus.PENDING_VERIFICATION,
+    EnrollmentStatus.ACTIVE,
+    EnrollmentStatus.COMPLETED,
+]
+
+
 def _generate_enrollment_number(branch_code: str, year: int) -> str:
     prefix = f"ENR-{branch_code}-{year}-"
     last = Enrollment.objects.filter(
@@ -112,7 +119,7 @@ def enroll_student(actor, *, student, enrolled_class, remarks=""):
     existing = Enrollment.objects.filter(
         student=student,
         enrolled_class=enrolled_class,
-        status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
+        status__in=CURRENT_ENROLLMENT_STATUSES,
     ).exists()
     if existing:
         raise ValidationError("Student is already enrolled in this class.")
@@ -181,7 +188,7 @@ def online_enrollment(
         existing = Enrollment.objects.filter(
             student=student,
             enrolled_class=enrolled_class,
-            status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
+            status__in=CURRENT_ENROLLMENT_STATUSES,
         ).exists()
         if existing:
             raise ValidationError("Already enrolled in this class.")
@@ -213,7 +220,7 @@ def online_enrollment(
             existing = Enrollment.objects.filter(
                 student=student,
                 enrolled_class=enrolled_class,
-                status__in=[EnrollmentStatus.PENDING_VERIFICATION, EnrollmentStatus.ACTIVE],
+                status__in=CURRENT_ENROLLMENT_STATUSES,
             ).exists()
             if existing:
                 raise ValidationError("Already enrolled in this class.")

@@ -737,6 +737,14 @@ class EnrollmentServiceTest(TestCase):
             enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
         self.assertIn("already enrolled", str(ctx.exception).lower())
 
+    def test_enroll_duplicate_completed_same_class_raises(self):
+        enrollment = enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        enrollment.status = EnrollmentStatus.COMPLETED
+        enrollment.save(update_fields=["status"])
+        with self.assertRaises(DjangoValidationError) as ctx:
+            enroll_student(actor=self.instructor, student=self.student, enrolled_class=self.individual_class)
+        self.assertIn("already enrolled", str(ctx.exception).lower())
+
     def test_enroll_class_at_capacity_raises(self):
         other_student_user = user_service.create_student_user(
             "other@test.com", "Other", "Student", "StrongP@ssw0rd!2026", self.branch,
