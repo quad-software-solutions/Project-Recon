@@ -14,7 +14,7 @@ import { fetchAllPages } from '@/shared/api/pagination';
 import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { Program, SubProgram } from '@/shared/types';
 
-export default function ReportsPanel({ currentUser }: { currentUser?: UserProfile }) {
+export default function ReportsPanel({ currentUser: _currentUser }: { currentUser?: UserProfile }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<EnrollmentPayment[]>([]);
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -31,13 +31,12 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
   const [reportType, setReportType] = useState<'student' | 'class' | 'subprogram' | 'program'>('student');
 
   useEffect(() => {
-    const isSecretary = currentUser?.role === 'Secretary';
     Promise.allSettled([
       fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)),
       fetchPaymentsApi(),
       fetchStudentsApi(),
       fetchStudentCertificatesApi(),
-      isSecretary ? Promise.resolve([]) : fetchClassesApi(),
+      fetchClassesApi(),
       fetchProgramsApi(),
       fetchSubProgramsApi(),
     ]).then(([enr, pay, stu, cer, cls, prog, sub]) => {
@@ -72,6 +71,15 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
     setDownloading(key);
     try { await fn(); } catch (e) { console.error('Download failed', e); }
     setTimeout(() => setDownloading(null), 1500);
+  };
+
+  const downloadAllStudentReports = async () => {
+    if (!selectedStudent) return;
+    await downloadStudentReportPdf(selectedStudent);
+    await downloadEnrollmentReportPdf(selectedStudent);
+    await downloadAttendanceReportPdf(selectedStudent);
+    await downloadProgressReportPdf(selectedStudent);
+    await downloadCertificateReportPdf(selectedStudent);
   };
 
   if (loading) {
@@ -183,7 +191,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
             </div>
             <div>
               <h3 className="font-bold text-sm text-slate-900">Download Reports</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Choose a report subject, then download exactly the PDF you need.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Separate PDFs by student, class, sub-program, and program.</p>
             </div>
           </div>
 
@@ -250,7 +258,7 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
           </div>
 
           <div className="p-5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Available PDFs</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Single PDF Downloads</p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {reportActions[reportType].map(action => {
                 const ActionIcon = action.icon;
@@ -277,6 +285,30 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
                 );
               })}
             </div>
+
+            {reportType === 'student' && (
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0">
+                      <Download className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Bulk Student Pack</p>
+                      <p className="text-xs text-slate-500 mt-1 leading-5">Downloads complete, enrollment, attendance, progress, and certificate PDFs for the selected student.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => doDownload('student-bulk', downloadAllStudentReports)}
+                    disabled={!selectedStudent || !!downloading}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {downloading === 'student-bulk' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    Download Pack
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

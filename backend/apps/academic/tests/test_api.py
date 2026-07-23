@@ -2690,12 +2690,28 @@ class ReportAPITest(AcademicAPITestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+    def test_class_report_as_secretary(self):
+        self.authenticate_as_secretary()
+        response = self.client.get(
+            f"{self.base_url}/reports/classes/{self.class_model.pk}/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
     def test_sub_program_report_as_branch_manager(self):
         self.authenticate_as_branch_manager()
         response = self.client.get(
             f"{self.base_url}/reports/sub-programs/{self.sub_program.pk}/"
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_sub_program_report_as_secretary(self):
+        self.authenticate_as_secretary()
+        response = self.client.get(
+            f"{self.base_url}/reports/sub-programs/{self.sub_program.pk}/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
 
     def test_program_report_as_secretary(self):
         self.authenticate_as_secretary()
