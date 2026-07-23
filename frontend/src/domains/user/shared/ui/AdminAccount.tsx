@@ -444,6 +444,33 @@ function EmailVerificationForm({ currentUser, onVerify }: { currentUser: UserPro
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
+  // Change email state
+  const [emailForm, setEmailForm] = useState({ new_email: '', current_password: '' });
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
+  const handleEmailChange = async () => {
+    if (!emailForm.new_email.trim()) { setEmailError('Email is required'); return; }
+    if (!emailForm.current_password) { setEmailError('Current password is required'); return; }
+    if (emailForm.new_email === currentUser.email) { setEmailError('New email is the same as current'); return; }
+    setEmailSaving(true);
+    setEmailError('');
+    setEmailSuccess(false);
+    try {
+      await updateUserApi(currentUser.id, { email: emailForm.new_email, current_password: emailForm.current_password } as any);
+      setEmailSuccess(true);
+      setEmailForm({ new_email: '', current_password: '' });
+      const updated = { ...currentUser, email: emailForm.new_email };
+      updateUserProfile(updated);
+      onVerify?.();
+    } catch (e: any) {
+      setEmailError(formatApiError(e));
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
   React.useEffect(() => {
     if (resendCooldown > 0) {
       cooldownRef.current = setInterval(() => setResendCooldown(p => p - 1), 1000);
@@ -500,11 +527,44 @@ function EmailVerificationForm({ currentUser, onVerify }: { currentUser: UserPro
           <Mail className="w-4 h-4 text-brand-blue" />
         </div>
         <div>
-          <h3 className="font-bold text-sm text-slate-900">Email Verification</h3>
-          <p className="text-[11px] text-slate-500">Verify your email address</p>
+          <h3 className="font-bold text-sm text-slate-900">Email Settings</h3>
+          <p className="text-[11px] text-slate-500">Manage and verify your email</p>
         </div>
       </div>
 
+      {/* Change Email Section */}
+      <div className="mb-6 pb-6 border-b border-slate-100">
+        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Change Email</h4>
+        {emailSuccess && (
+          <div className="mb-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-700 flex items-center gap-2">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Email changed successfully.
+          </div>
+        )}
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">New Email Address</label>
+            <input type="email" value={emailForm.new_email} onChange={e => setEmailForm(f => ({ ...f, new_email: e.target.value }))}
+              placeholder="e.g. new_email@example.com"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Current Password</label>
+            <div className="flex gap-2">
+              <input type="password" value={emailForm.current_password} onChange={e => setEmailForm(f => ({ ...f, current_password: e.target.value }))}
+                placeholder="Required to confirm"
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue" />
+              <button onClick={handleEmailChange} disabled={emailSaving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 shrink-0">
+                {emailSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                Save
+              </button>
+            </div>
+          </div>
+          {emailError && <p className="text-xs text-red-600">{emailError}</p>}
+        </div>
+      </div>
+
+      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Verification Status</h4>
       <AnimatePresence>
         {error && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
