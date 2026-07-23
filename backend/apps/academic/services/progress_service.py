@@ -58,7 +58,7 @@ def get_milestone_or_404(pk):
     )
 
 
-def list_milestones(sub_program=None, scope_class=None, include_inactive=False):
+def list_milestones(sub_program=None, scope_class=None, include_inactive=False, branch_ids=None):
     qs = LearningMilestone.objects.select_related(
         "sub_program__program",
         "scope_class__branch",
@@ -69,6 +69,9 @@ def list_milestones(sub_program=None, scope_class=None, include_inactive=False):
     if scope_class:
         from django.db.models import Q
         qs = qs.filter(Q(scope_class=scope_class) | Q(scope_class__isnull=True))
+    if branch_ids is not None:
+        from django.db.models import Q
+        qs = qs.filter(Q(scope_class__isnull=True) | Q(scope_class__branch_id__in=branch_ids))
     if not include_inactive:
         qs = qs.filter(is_active=True)
     return qs

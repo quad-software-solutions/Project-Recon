@@ -223,12 +223,18 @@ class StudentCertificateListView(generics.GenericAPIView):
             student = get_object_or_404(Student, user=request.user)
             qs = get_student_certificates(student=student)
         else:
+            branch_ids = None
+            if not request.user.is_superuser:
+                from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
+                if not user_is_super_admin(request.user):
+                    branch_ids = get_active_branch_ids(request.user)
+            
             student_pk = request.query_params.get("student")
             if student_pk:
                 student = get_object_or_404(Student, pk=student_pk)
-                qs = get_student_certificates(student=student)
+                qs = get_student_certificates(student=student, branch_ids=branch_ids)
             else:
-                qs = get_student_certificates()
+                qs = get_student_certificates(branch_ids=branch_ids)
 
         page = self.paginate_queryset(qs)
         if page is not None:

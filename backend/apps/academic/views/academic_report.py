@@ -138,7 +138,12 @@ class SubProgramReportView(BaseReportView):
     def get(self, request, pk):
         sub = program_service.get_sub_program_or_404(pk)
         self.check_object_permissions(request, sub)
-        pdf_bytes = generate_sub_program_report(sub.id)
+        branch_ids = None
+        if not request.user.is_superuser:
+            from apps.accounts.permissions.roles import get_active_branch_ids
+            branch_ids = get_active_branch_ids(request.user)
+
+        pdf_bytes = generate_sub_program_report(sub.id, branch_ids=branch_ids)
         filename = f"sub_program_report_{sub.name}".replace(" ", "_")
         return self.get_pdf_response(pdf_bytes, filename)
 
@@ -152,6 +157,11 @@ class ProgramReportView(BaseReportView):
     def get(self, request, pk):
         prog = program_service.get_program_or_404(pk)
         self.check_object_permissions(request, prog)
-        pdf_bytes = generate_program_report(prog.id)
+        branch_ids = None
+        if not request.user.is_superuser:
+            from apps.accounts.permissions.roles import get_active_branch_ids
+            branch_ids = get_active_branch_ids(request.user)
+
+        pdf_bytes = generate_program_report(prog.id, branch_ids=branch_ids)
         filename = f"program_report_{prog.name}".replace(" ", "_")
         return self.get_pdf_response(pdf_bytes, filename)

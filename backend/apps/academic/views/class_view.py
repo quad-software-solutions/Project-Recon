@@ -43,7 +43,12 @@ class ClassListCreateView(generics.ListCreateAPIView):
     ordering = ["name"]
 
     def get_queryset(self):
-        return list_classes()
+        branch_ids = None
+        if not self.request.user.is_superuser:
+            from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
+            if not user_is_super_admin(self.request.user):
+                branch_ids = get_active_branch_ids(self.request.user)
+        return list_classes(branch_ids=branch_ids)
 
     def perform_create(self, serializer):
         instance = create_class(**serializer.validated_data)

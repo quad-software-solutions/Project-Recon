@@ -18,8 +18,11 @@ def get_active_class_or_404(pk):
     return klass
 
 
-def list_classes():
-    return Class.objects.select_related("sub_program", "branch", "instructor").all()
+def list_classes(branch_ids=None):
+    qs = Class.objects.select_related("sub_program", "branch", "instructor")
+    if branch_ids is not None:
+        qs = qs.filter(branch_id__in=branch_ids)
+    return qs.all()
 
 
 def create_class(

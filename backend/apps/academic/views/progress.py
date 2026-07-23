@@ -65,9 +65,16 @@ class MilestoneListCreateView(generics.ListCreateAPIView):
             except ValueError:
                 raise ValidationError("Invalid scope_class UUID.")
 
+        branch_ids = None
+        if not self.request.user.is_superuser:
+            from apps.accounts.permissions.roles import get_active_branch_ids, user_is_super_admin
+            if not user_is_super_admin(self.request.user):
+                branch_ids = get_active_branch_ids(self.request.user)
+
         return list_milestones(
             sub_program=sub_program,
             scope_class=scope_class,
+            branch_ids=branch_ids,
         )
 
     def perform_create(self, serializer):

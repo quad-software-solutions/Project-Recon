@@ -611,7 +611,7 @@ def generate_class_report(class_id):
     return _build_pdf(f"Class Report \u2014 {klass.name}", sections)
 
 
-def generate_sub_program_report(sub_program_id):
+def generate_sub_program_report(sub_program_id, branch_ids=None):
     sub = get_object_or_404(
         SubProgram.objects.select_related("program"), pk=sub_program_id
     )
@@ -641,11 +641,11 @@ def generate_sub_program_report(sub_program_id):
     items.append(t)
     items.append(Spacer(1, 6))
 
-    classes = list(
-        Class.objects.filter(sub_program=sub).select_related("branch", "instructor")
-        .annotate(enrollment_count=Count("enrollments"))
-        .order_by("name")
-    )
+    class_qs = Class.objects.filter(sub_program=sub).select_related("branch", "instructor").annotate(enrollment_count=Count("enrollments"))
+    if branch_ids is not None:
+        class_qs = class_qs.filter(branch_id__in=branch_ids)
+    
+    classes = list(class_qs.order_by("name"))
     if classes:
         items.append(Paragraph(f"Classes ({len(classes)})", _section_style()))
         headers = ["Name", "Branch", "Instructor", "Type", "Capacity", "Enrollments", "Active"]
@@ -669,7 +669,7 @@ def generate_sub_program_report(sub_program_id):
     return _build_pdf(f"Sub Program Report \u2014 {sub.name}", sections)
 
 
-def generate_program_report(program_id):
+def generate_program_report(program_id, branch_ids=None):
     prog = get_object_or_404(Program, pk=program_id)
 
     items = []
@@ -696,12 +696,20 @@ def generate_program_report(program_id):
     items.append(t)
     items.append(Spacer(1, 6))
 
-    subs = list(
-        SubProgram.objects.filter(program=prog).annotate(
+    subs_qs = SubProgram.objects.filter(program=prog)
+    if branch_ids is not None:
+        from django.db.models import Q
+        subs_qs = subs_qs.annotate(
+            class_count=Count("classes", filter=Q(classes__branch_id__in=branch_ids), distinct=True),
+            total_enrollments=Count("classes__enrollments", filter=Q(classes__branch_id__in=branch_ids), distinct=True),
+        )
+    else:
+        subs_qs = subs_qs.annotate(
             class_count=Count("classes", distinct=True),
             total_enrollments=Count("classes__enrollments", distinct=True),
-        ).order_by("name")
-    )
+        )
+        
+    subs = list(subs_qs.order_by("name"))
     if subs:
         items.append(Paragraph(f"Sub Programs ({len(subs)})", _section_style()))
         headers = ["Name", "Fee", "Duration", "Classes", "Total Enrollments"]

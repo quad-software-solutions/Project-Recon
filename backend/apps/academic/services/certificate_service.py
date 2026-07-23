@@ -167,7 +167,7 @@ def get_student_certificate_by_number(number):
     )
 
 
-def get_student_certificates(student=None, sub_program=None):
+def get_student_certificates(student=None, sub_program=None, branch_ids=None):
     qs = StudentCertificate.objects.select_related(
         "student__user", "sub_program", "certificate", "issued_by",
     ).all()
@@ -175,6 +175,8 @@ def get_student_certificates(student=None, sub_program=None):
         qs = qs.filter(student=student)
     if sub_program:
         qs = qs.filter(sub_program=sub_program)
+    if branch_ids is not None:
+        qs = qs.filter(student__branch_id__in=branch_ids)
     return qs
 
 
