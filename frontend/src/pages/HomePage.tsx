@@ -34,6 +34,7 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
   const [stats, setStats] = useState<HomepageStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [showAllPrograms, setShowAllPrograms] = useState(false);
+  const [galleryVisibleCount, setGalleryVisibleCount] = useState(8);
   const INITIAL_PROGRAM_COUNT = 3;
 
   React.useEffect(() => {
@@ -450,37 +451,54 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
         {galleryItems.length === 0 ? (
           <p className="text-center text-sm text-slate-400">No gallery items published yet.</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {galleryItems.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.6) }}
-                className="group relative rounded-card overflow-hidden border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all aspect-[4/3] cursor-pointer"
-                onClick={() => setPreviewItem(item)}
-              >
-                {item.image ? (
-                  <img src={item.image} alt={item.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                ) : item.video_url ? (
-                  <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                    <Image className="w-8 h-8 text-white/40" />
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {galleryItems.slice(0, galleryVisibleCount).map((item, idx) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: Math.min(idx * 0.08, 0.6) }}
+                  className="group relative rounded-card overflow-hidden border border-brand-border-light/60 shadow-premium-sm hover:shadow-premium-md transition-all aspect-[4/3] cursor-pointer"
+                  onClick={() => setPreviewItem(item)}
+                >
+                  {item.image ? (
+                    <img src={item.image} alt={item.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : item.video_url ? (
+                    <video
+                      src={item.video_url}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                      <Image className="w-8 h-8 text-slate-300" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                    <span className="text-white font-sans font-bold text-xs">{item.title}</span>
                   </div>
-                ) : (
-                  <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                    <Image className="w-8 h-8 text-slate-300" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                  <span className="text-white font-sans font-bold text-xs">{item.title}</span>
-                </div>
-                {item.video_url && (
-                  <div className="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Video</div>
-                )}
-              </motion.div>
-            ))}
-          </div>
+                  {item.video_url && (
+                    <div className="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Video</div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+            {galleryItems.length > galleryVisibleCount && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => setGalleryVisibleCount(prev => prev + 4)}
+                  className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full border border-brand-border-light bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
+                >
+                  Show More
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -508,14 +526,23 @@ export default function HomePage({ currentUser, onEnrollInProgram, onNavigate, o
               </button>
               {previewItem.video_url ? (
                 <div className="aspect-video bg-slate-900 flex items-center justify-center">
-                  {previewItem.video_url.includes('youtube') || previewItem.video_url.includes('youtu.be') ? (
-                    <iframe
-                      src={previewItem.video_url.replace('watch?v=', 'embed/').split('&')[0]}
-                      className="w-full h-full"
-                      allowFullScreen
-                      title={previewItem.title}
-                    />
-                  ) : (
+                  {previewItem.video_url.includes('youtube') || previewItem.video_url.includes('youtu.be') ? (() => {
+                    const url = previewItem.video_url!;
+                    let videoId = '';
+                    const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+                    const longMatch = url.match(/[?&]v=([^&]+)/);
+                    if (shortMatch) videoId = shortMatch[1];
+                    else if (longMatch) videoId = longMatch[1];
+                    return (
+                      <iframe
+                        src={videoId ? `https://www.youtube.com/embed/${videoId}` : url}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title={previewItem.title}
+                      />
+                    );
+                  })() : (
                     <video controls preload="none" className="w-full h-full" src={previewItem.video_url} />
                   )}
                 </div>
