@@ -28,6 +28,7 @@ import ProgressMilestones from './ProgressMilestones';
 import AttendanceTracker from './AttendanceTracker';
 import LearningResources from './LearningResources';
 import PaymentHistory from './PaymentHistory';
+import ParentFeedback from './ParentFeedback';
 
 
 interface StudentDashboardProps {
@@ -48,6 +49,7 @@ function buildNavItems(): NavItem[] {
     { id: 'store', label: 'Store', icon: ShoppingBag, group: 'main' },
     { id: 'events', label: 'Events', icon: Calendar, group: 'competition' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, group: 'communication' },
+    { id: 'feedback', label: 'Support & Feedback', icon: MessageCircle, group: 'communication' },
     { id: 'account', label: 'My Account', icon: User, group: 'system' },
   ];
 }
@@ -315,6 +317,8 @@ export default function StudentDashboard({ currentUser, onLogout, onUserUpdate }
         return <EventsModule currentUser={currentUser} />;
       case 'announcements':
         return <AnnouncementsPage />;
+      case 'feedback':
+        return <div className="p-6 max-w-4xl mx-auto"><ParentFeedback currentUser={currentUser} /></div>;
       case 'certificates':
         return <CertificateGenerator studentId={studentId!} />;
     }

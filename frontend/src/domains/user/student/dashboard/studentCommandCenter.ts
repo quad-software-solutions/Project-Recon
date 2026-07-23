@@ -8,7 +8,7 @@ import {
 export type StudentSectionId =
   | 'home' | 'account' | 'store' | 'events'
   | 'announcements' | 'certificates'
-  | 'academics' | 'progress' | 'attendance' | 'materials' | 'payments';
+  | 'academics' | 'progress' | 'attendance' | 'materials' | 'payments' | 'feedback';
 
 export interface StudentHubStats {
   certificateCount: number;
@@ -83,6 +83,15 @@ export function getSectionCommandCenter(
         subtitle: 'Official news and updates from the institution.',
         signals: [
           { label: 'News', value: String(announcementCount), detail: 'published items', icon: Megaphone, tone: announcementCount ? 'blue' : 'slate' },
+        ],
+      };
+
+    case 'feedback':
+      return {
+        title: 'Support & Feedback',
+        subtitle: 'Contact administration and submit feedback.',
+        signals: [
+          { label: 'Feedback', value: '\u2014', detail: 'submit requests', icon: Megaphone, tone: 'blue' },
         ],
       };
 
