@@ -3,21 +3,36 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 
-from apps.academic.constants import SessionStatus
+from apps.academic.constants import AttendanceStatus, SessionStatus
 from apps.academic.models import StaffAttendanceSession, StaffAttendanceRecord
 from apps.accounts.constants import Roles
 from apps.shared.audit.services import log_action
 
+
+STAFF_ATTENDANCE_ROLES = [Roles.INSTRUCTOR, Roles.SECRETARY]
+
+
 def create_session(*, branch, date, created_by, notes=""):
-    session = StaffAttendanceSession(
-        branch=branch,
-        date=date,
-        status=SessionStatus.DRAFT,
-        notes=notes,
-        created_by=created_by,
-    )
-    session.full_clean()
-    session.save()
+    with transaction.atomic():
+        session = StaffAttendanceSession(
+            branch=branch,
+            date=date,
+            status=SessionStatus.DRAFT,
+            notes=notes,
+            created_by=created_by,
+        )
+        session.full_clean()
+        session.save()
+
+        StaffAttendanceRecord.objects.bulk_create([
+            StaffAttendanceRecord(
+                session=session,
+                staff_member=staff_member,
+                status=AttendanceStatus.PRESENT,
+            )
+            for staff_member in list_available_staff(branch)
+        ])
+
     log_action(
         actor=created_by,
         action="STAFF_ATTENDANCE_SESSION_CREATED",
@@ -100,9 +115,6 @@ def soft_delete_session(actor, session):
 
 
 def upsert_records(actor, session, records_data):
-    if session.status != SessionStatus.DRAFT:
-        raise DjangoValidationError("Cannot modify records in a published session.")
-
     from apps.accounts.models import User
 
     with transaction.atomic():
@@ -175,9 +187,8 @@ def list_available_staff(branch):
         UserAssignment.objects.filter(
             branch=branch,
             is_active=True,
+            role__in=STAFF_ATTENDANCE_ROLES,
         )
-        .exclude(role=Roles.STUDENT)
-        .exclude(role=Roles.SUPER_ADMIN)
         .values_list("user_id", flat=True)
         .distinct()
     )

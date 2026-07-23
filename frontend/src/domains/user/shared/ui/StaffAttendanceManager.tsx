@@ -17,7 +17,17 @@ import { isForbiddenError, isApiError } from '@/shared/api/http';
 
 const defaultForm = { branch: '', date: '', notes: '' };
 
-const STAFF_ROLES = new Set(['instructor', 'secretary', 'branch_manager', 'super_admin']);
+const STAFF_ROLES = new Set(['instructor', 'secretary']);
+const STAFF_ATTENDANCE_STATUSES = [
+  { value: 'PRESENT', label: 'Present', className: 'bg-emerald-600 text-white border-emerald-600', idleClassName: 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' },
+  { value: 'ABSENT', label: 'Absent', className: 'bg-red-600 text-white border-red-600', idleClassName: 'bg-white text-red-700 border-red-200 hover:bg-red-50' },
+  { value: 'LATE', label: 'Late', className: 'bg-amber-500 text-white border-amber-500', idleClassName: 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50' },
+  { value: 'EXCUSED', label: 'Excused', className: 'bg-slate-700 text-white border-slate-700', idleClassName: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' },
+];
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 interface Props {
   currentUser: UserProfile;
@@ -143,6 +153,7 @@ export default function StaffAttendanceManager({ currentUser }: Props) {
     setEditingSession(null);
     setForm({
       ...defaultForm,
+      date: todayString(),
       branch: selectedBranchFilter || assignmentBranches[0]?.id || branches[0]?.id || '',
     });
     setShowCreate(true);
@@ -163,7 +174,13 @@ export default function StaffAttendanceManager({ currentUser }: Props) {
       if (editingSession) {
         await updateStaffAttendanceSessionApi(editingSession.id, payload);
       } else {
-        await createStaffAttendanceSessionApi(payload);
+        const created = await createStaffAttendanceSessionApi(payload);
+        setShowCreate(false);
+        setEditingSession(null);
+        setForm(defaultForm);
+        await load(form.branch);
+        await openRecords(created);
+        return;
       }
       setShowCreate(false);
       setEditingSession(null);
@@ -380,11 +397,20 @@ export default function StaffAttendanceManager({ currentUser }: Props) {
                   <button type="button" onClick={() => setShowCreate(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch</label>
-                    <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
-                      <option value="">Select branch...</option>
-                      {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select></div>
+                  {branches.length > 1 ? (
+                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch</label>
+                      <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                        <option value="">Select branch...</option>
+                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select></div>
+                  ) : (
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-600 mb-1">Branch</p>
+                      <div className="rounded-lg border border-brand-border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                        {branches.find(b => b.id === form.branch)?.name || assignmentBranches[0]?.name || 'Managed branch'}
+                      </div>
+                    </div>
+                  )}
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Date</label>
                     <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" /></div>
                   <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Notes</label>
@@ -395,7 +421,7 @@ export default function StaffAttendanceManager({ currentUser }: Props) {
                   <button type="button" onClick={handleSaveSession} disabled={saving || !form.branch || !form.date}
                     className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {saving ? 'Saving...' : editingSession ? 'Update' : 'Create Session'}
+                    {saving ? 'Saving...' : editingSession ? 'Update' : 'Create & Mark Attendance'}
                   </button>
                 </div>
               </div>
@@ -409,7 +435,7 @@ export default function StaffAttendanceManager({ currentUser }: Props) {
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-md">
+              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-2xl">
                 <div className="flex items-center justify-between p-4 border-b border-brand-border">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"><Users className="w-4 h-4 text-slate-600" /></div>
@@ -424,23 +450,28 @@ export default function StaffAttendanceManager({ currentUser }: Props) {
                   {availableStaff.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-4">No staff members available for this branch.</p>
                   ) : availableStaff.map((staff: any) => (
-                    <div key={staff.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                    <div key={staff.id} className="grid gap-3 bg-slate-50 rounded-lg px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
                           {(staff.full_name || staff.email || '?').charAt(0)}
                         </div>
                         <span className="text-xs font-medium text-slate-700">{staff.full_name || staff.email}</span>
                       </div>
-                      <select
-                        value={recordForm[staff.id] || 'PRESENT'}
-                        onChange={e => setRecordForm(p => ({ ...p, [staff.id]: e.target.value }))}
-                        className="px-2 py-1 bg-white border border-brand-border rounded-lg text-[10px] font-bold focus:outline-none focus:border-blue-600"
-                      >
-                        <option value="PRESENT">Present</option>
-                        <option value="ABSENT">Absent</option>
-                        <option value="LATE">Late</option>
-                        <option value="EXCUSED">Excused</option>
-                      </select>
+                      <div className="grid grid-cols-2 gap-1.5 sm:flex">
+                        {STAFF_ATTENDANCE_STATUSES.map(status => {
+                          const active = (recordForm[staff.id] || 'PRESENT') === status.value;
+                          return (
+                            <button
+                              key={status.value}
+                              type="button"
+                              onClick={() => setRecordForm(p => ({ ...p, [staff.id]: status.value }))}
+                              className={`min-w-20 rounded-lg border px-2.5 py-1.5 text-[10px] font-black transition ${active ? status.className : status.idleClassName}`}
+                            >
+                              {status.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   ))}
                 </div>

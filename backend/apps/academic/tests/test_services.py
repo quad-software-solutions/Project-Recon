@@ -536,6 +536,13 @@ class StaffAttendanceServiceTest(TestCase):
     def test_create_session_defaults_to_draft(self):
         self.assertEqual(self.session.status, SessionStatus.DRAFT)
         self.assertTrue(self.session.is_active)
+        self.assertTrue(
+            StaffAttendanceRecord.objects.filter(
+                session=self.session,
+                staff_member=self.instructor,
+                status=AttendanceStatus.PRESENT,
+            ).exists()
+        )
 
     def test_upsert_records_creates_and_updates(self):
         records = upsert_records(self.manager, self.session, [
@@ -550,12 +557,12 @@ class StaffAttendanceServiceTest(TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].status, AttendanceStatus.LATE)
 
-    def test_upsert_records_raises_after_publish(self):
+    def test_upsert_records_updates_after_publish(self):
         publish_session(self.manager, self.session)
-        with self.assertRaises(DjangoValidationError):
-            upsert_records(self.manager, self.session, [
-                {"staff_member": self.instructor, "status": AttendanceStatus.PRESENT},
-            ])
+        records = upsert_records(self.manager, self.session, [
+            {"staff_member": self.instructor, "status": AttendanceStatus.ABSENT},
+        ])
+        self.assertEqual(records[0].status, AttendanceStatus.ABSENT)
 
     def test_publish_session_flips_status(self):
         publish_session(self.manager, self.session)

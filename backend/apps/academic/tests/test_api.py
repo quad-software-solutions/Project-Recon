@@ -859,7 +859,7 @@ class StaffAttendanceAPITest(AcademicAPITestCase):
         self.assertEqual(len(response.json()), 1)
         self.assertEqual(response.json()[0]["status"], AttendanceStatus.LATE)
 
-    def test_upsert_records_after_publish_returns_400(self):
+    def test_upsert_records_after_publish_updates_records(self):
         self.authenticate_as_super_admin()
         publish_session(None, self.session)
         response = self.client.post(
@@ -867,7 +867,8 @@ class StaffAttendanceAPITest(AcademicAPITestCase):
             [{"staff_member": str(self.instructor.pk), "status": AttendanceStatus.PRESENT}],
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()[0]["status"], AttendanceStatus.PRESENT)
 
     def test_update_record(self):
         self.authenticate_as_super_admin()

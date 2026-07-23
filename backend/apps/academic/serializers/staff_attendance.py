@@ -79,7 +79,12 @@ class StaffAttendanceSessionListSerializer(serializers.ModelSerializer):
         return obj.created_by.full_name
 
     def get_record_count(self, obj):
-        return obj.records.count()
+        count = obj.records.count()
+        if count:
+            return count
+        from apps.academic.services.staff_attendance_service import list_available_staff
+
+        return list_available_staff(obj.branch).count()
 
 
 class StaffAttendanceRecordUpsertSerializer(serializers.Serializer):
