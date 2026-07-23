@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Loader2, ShieldOff, Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import { fetchMyEnrollmentsApi, fetchAttendanceSessionsApi, downloadAttendanceReportPdf } from '@/domains/learning/academics/api/academicApi';
+import {
+  Check,
+  Loader2,
+  ShieldOff,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  CalendarCheck,
+  Clock3,
+} from 'lucide-react';
+import {
+  fetchMyEnrollmentsApi,
+  fetchAttendanceSessionsApi,
+  downloadAttendanceReportPdf,
+} from '@/domains/learning/academics/api/academicApi';
 import type { AttendanceSession } from '@/shared/types';
+import { isForbiddenError } from '@/shared/api/http';
 
 interface Props { studentId: string }
 
@@ -19,17 +33,22 @@ export default function AttendanceTracker({ studentId }: Props) {
   const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   useEffect(() => {
-    fetchMyEnrollmentsApi().then(async enr => {
-      const all: AttendanceSession[] = [];
-      for (const e of enr) {
-        try {
-          const s = await fetchAttendanceSessionsApi(e.enrolled_class);
-          all.push(...s);
-        } catch {}
-      }
-      setSessions(all);
-    }).catch(() => {
-      setPermissionDenied(true);
+    setLoading(true);
+    setPermissionDenied(false);
+
+    fetchMyEnrollmentsApi().then(async enrollments => {
+      const rows = await Promise.all(
+        enrollments
+          .filter(e => e.enrolled_class)
+          .map(e => fetchAttendanceSessionsApi(e.enrolled_class).catch(err => {
+            if (isForbiddenError(err)) throw err;
+            return [] as AttendanceSession[];
+          })),
+      );
+      setSessions(rows.flat());
+    }).catch(err => {
+      if (isForbiddenError(err)) setPermissionDenied(true);
+      setSessions([]);
     }).finally(() => setLoading(false));
   }, [studentId]);
 
@@ -38,94 +57,131 @@ export default function AttendanceTracker({ studentId }: Props) {
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  const attendedDates = new Set(
-    sessionsInView.map(s => new Date(s.session_date).getDate())
-  );
+  const attendedDates = new Set(sessionsInView.map(s => new Date(s.session_date).getDate()));
   const presentCount = sessionsInView.length;
   const totalHours = sessionsInView.length * 2;
   const attendedHours = presentCount * 2;
   const pct = totalHours > 0 ? Math.round((attendedHours / totalHours) * 100) : 0;
+  const calendarDays = Array.from({ length: firstDay + daysInMonth }, (_, i) => {
+    const day = i - firstDay + 1;
+    return day > 0 ? day : null;
+  });
 
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl p-5 shadow-sm border border-brand-border-light/60 w-full">
-        <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
+      <div className="rounded-2xl border border-brand-border bg-white p-5 shadow-sm">
+        <div className="flex min-h-48 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
       </div>
     );
   }
 
   if (permissionDenied) {
     return (
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-border-light/60 w-full text-center">
-        <ShieldOff className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-        <h3 className="font-bold text-lg text-slate-900 mb-2">Attendance Unavailable</h3>
-        <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-          Attendance data requires staff-level access. Please contact your instructor or download the PDF report.
+      <div className="rounded-2xl border border-brand-border bg-white p-6 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
+          <ShieldOff className="h-6 w-6" />
+        </div>
+        <h3 className="text-base font-black text-slate-900">Attendance Unavailable</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+          Attendance records are not available for student self-service yet. You can still download the report.
         </p>
         <button
           onClick={() => downloadAttendanceReportPdf(studentId)}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark"
         >
-          <Download className="w-3.5 h-3.5" /> Download PDF Report
+          <Download className="h-3.5 w-3.5" /> Download PDF
         </button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-3xl p-5 shadow-sm border border-brand-border-light/60 w-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display font-bold text-slate-900 text-lg">Attendance Tracker</h3>
-        <button
-          onClick={() => downloadAttendanceReportPdf(studentId)}
-          className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
-        >
-          <Download className="w-3 h-3" /> PDF
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setViewDate(new Date(year, month - 1))} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-          <ChevronLeft className="w-4 h-4 text-slate-500" />
-        </button>
-        <span className="font-semibold text-sm text-slate-700">{monthLabel}</span>
-        <button onClick={() => setViewDate(new Date(year, month + 1))} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-          <ChevronRight className="w-4 h-4 text-slate-500" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1 text-center mb-2">
-        {days.map(d => <span key={d} className="text-[10px] text-brand-muted font-mono font-semibold">{d}</span>)}
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {Array.from({ length: firstDay }).map((_, i) => <span key={`e${i}`} />)}
-        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
-          <div key={d} className="flex items-center justify-center aspect-square">
-            {attendedDates.has(d) ? (
-              <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm">
-                <Check className="w-3.5 h-3.5" />
-              </div>
-            ) : (
-              <span className="text-xs text-slate-600 font-medium">{d}</span>
-            )}
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-brand-border bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-blue">Attendance</p>
+            <h3 className="mt-1 text-lg font-black text-slate-900">Monthly Overview</h3>
           </div>
-        ))}
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-brand-border-light/50">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-slate-600">
-              <span className="font-bold text-slate-900">{presentCount}</span> session{presentCount !== 1 ? 's' : ''}
-            </span>
-            <span className="text-slate-600">
-              <span className="font-bold text-slate-900">{pct}%</span> rate
-            </span>
-          </div>
-          <span className="text-xs text-slate-500">{attendedHours}h / {totalHours}h</span>
+          <button
+            onClick={() => downloadAttendanceReportPdf(studentId)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 sm:w-auto"
+          >
+            <Download className="h-3.5 w-3.5" /> PDF
+          </button>
         </div>
-        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[
+            { label: 'Sessions', value: presentCount, icon: CalendarCheck },
+            { label: 'Hours', value: attendedHours, icon: Clock3 },
+            { label: 'Rate', value: `${pct}%`, icon: Check },
+          ].map(item => (
+            <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
+              <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white text-brand-blue shadow-sm">
+                <item.icon className="h-3.5 w-3.5" />
+              </div>
+              <p className="text-lg font-black leading-none text-slate-900">{item.value}</p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-brand-border bg-white p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            onClick={() => setViewDate(new Date(year, month - 1))}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-black text-slate-800">{monthLabel}</span>
+          <button
+            onClick={() => setViewDate(new Date(year, month + 1))}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-slate-200 bg-white text-center">
+          {days.map(day => (
+            <div key={day} className="border-b border-slate-200 bg-slate-50 px-1 py-2 text-[10px] font-black uppercase text-slate-400">
+              {day}
+            </div>
+          ))}
+          {calendarDays.map((day, i) => {
+            const attended = day !== null && attendedDates.has(day);
+            return (
+              <div
+                key={`${monthLabel}-${i}`}
+                className="flex min-h-12 items-center justify-center border-b border-r border-slate-100 p-1 text-xs sm:min-h-14 lg:min-h-16"
+              >
+                {day === null ? null : attended ? (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                ) : (
+                  <span className="font-semibold text-slate-500">{day}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-500">Attendance rate</span>
+            <span className="font-black text-slate-800">{attendedHours}h / {totalHours}h</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+          </div>
         </div>
       </div>
     </div>
