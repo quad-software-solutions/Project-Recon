@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { FileText, Users, BookOpen, DollarSign, Award, Download, Loader2 } from 'lucide-react';
+import { FileText, Users, BookOpen, DollarSign, Award, Download, Loader2, CalendarCheck, GraduationCap, Layers3 } from 'lucide-react';
 import { Enrollment, EnrollmentPayment, StudentProfile, StudentCertificate, AcademicClass, UserProfile } from '@/shared/types';
 import {
   fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchStudentsApi, fetchStudentCertificatesApi,
@@ -29,8 +29,6 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
   const [selectedSubProgram, setSelectedSubProgram] = useState('');
   const [selectedProgram, setSelectedProgram] = useState('');
   const [reportType, setReportType] = useState<'student' | 'class' | 'subprogram' | 'program'>('student');
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentResults, setStudentResults] = useState<StudentProfile[]>([]);
 
   useEffect(() => {
     const isSecretary = currentUser?.role === 'Secretary';
@@ -123,27 +121,23 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
     { type: 'program', label: 'By Program' },
   ];
 
-  const handleDownloadAggregate = () => {
-    switch (reportType) {
-      case 'student':
-        if (selectedStudent) {
-          doDownload('academic', () => downloadStudentReportPdf(selectedStudent));
-          doDownload('enrollments', () => downloadEnrollmentReportPdf(selectedStudent));
-          doDownload('attendance', () => downloadAttendanceReportPdf(selectedStudent));
-          doDownload('progress', () => downloadProgressReportPdf(selectedStudent));
-          doDownload('certificates', () => downloadCertificateReportPdf(selectedStudent));
-        }
-        break;
-      case 'class':
-        if (selectedClass) doDownload('class', () => downloadClassReportPdf(selectedClass));
-        break;
-      case 'subprogram':
-        if (selectedSubProgram) doDownload('subprogram', () => downloadSubProgramReportPdf(selectedSubProgram));
-        break;
-      case 'program':
-        if (selectedProgram) doDownload('program', () => downloadProgramReportPdf(selectedProgram));
-        break;
-    }
+  const reportActions = {
+    student: [
+      { key: 'student-academic', title: 'Complete Student Report', desc: 'Profile, enrollment, attendance, progress, and certificates.', icon: FileText, disabled: !selectedStudent, download: () => downloadStudentReportPdf(selectedStudent) },
+      { key: 'student-enrollment', title: 'Enrollment History', desc: 'All enrollment records and payment status for the student.', icon: BookOpen, disabled: !selectedStudent, download: () => downloadEnrollmentReportPdf(selectedStudent) },
+      { key: 'student-attendance', title: 'Attendance Summary', desc: 'Present, absent, late, and excused attendance totals.', icon: CalendarCheck, disabled: !selectedStudent, download: () => downloadAttendanceReportPdf(selectedStudent) },
+      { key: 'student-progress', title: 'Progress Report', desc: 'Milestone status and learning progress details.', icon: GraduationCap, disabled: !selectedStudent, download: () => downloadProgressReportPdf(selectedStudent) },
+      { key: 'student-certificates', title: 'Certificate Report', desc: 'Issued certificate numbers, dates, and issuing staff.', icon: Award, disabled: !selectedStudent, download: () => downloadCertificateReportPdf(selectedStudent) },
+    ],
+    class: [
+      { key: 'class-report', title: 'Class Report', desc: 'Roster, attendance sessions, and class learning progress.', icon: Users, disabled: !selectedClass, download: () => downloadClassReportPdf(selectedClass) },
+    ],
+    subprogram: [
+      { key: 'subprogram-report', title: 'Sub-Program Report', desc: 'Sub-program details, classes, enrollment totals, and capacity.', icon: Layers3, disabled: !selectedSubProgram, download: () => downloadSubProgramReportPdf(selectedSubProgram) },
+    ],
+    program: [
+      { key: 'program-report', title: 'Program Report', desc: 'Program overview, sub-program list, and enrollment totals.', icon: BookOpen, disabled: !selectedProgram, download: () => downloadProgramReportPdf(selectedProgram) },
+    ],
   };
 
   return (
@@ -181,77 +175,109 @@ export default function ReportsPanel({ currentUser }: { currentUser?: UserProfil
         })}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <FileText className="w-4 h-4 text-blue-600" />
-          <h3 className="font-bold text-sm text-slate-900">Download Reports</h3>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600/5 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-900">Download Reports</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Choose a report subject, then download exactly the PDF you need.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {downloadOptions.map(opt => (
+              <button key={opt.type} onClick={() => setReportType(opt.type)}
+                className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${reportType === opt.type ? 'bg-brand-blue text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          {downloadOptions.map(opt => (
-            <button key={opt.type} onClick={() => setReportType(opt.type)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${reportType === opt.type ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-          <div className="flex-1 w-full">
+        <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-0">
+          <div className="p-5 border-b xl:border-b-0 xl:border-r border-slate-100 bg-slate-50/60">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Report Subject</p>
             {reportType === 'student' && (
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Student</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Student</label>
                 <select value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose student...</option>
                   {students.map(s => {
                     const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
                     return <option key={s.id} value={s.id}>{name}</option>;
                   })}
                 </select>
+                <p className="text-[11px] text-slate-500 mt-2">{students.length} students available</p>
               </div>
             )}
             {reportType === 'class' && (
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Class</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Class</label>
                 <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose class...</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} — {c.branch_name || 'Branch'}</option>)}
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.branch_name || 'Branch'}</option>)}
                 </select>
+                <p className="text-[11px] text-slate-500 mt-2">{classes.length} classes available</p>
               </div>
             )}
             {reportType === 'subprogram' && (
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Sub-Program</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Sub-Program</label>
                 <select value={selectedSubProgram} onChange={e => setSelectedSubProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose sub-program...</option>
-                  {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name} — {sp.program_name || 'Program'}</option>)}
+                  {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name} - {sp.program_name || 'Program'}</option>)}
                 </select>
+                <p className="text-[11px] text-slate-500 mt-2">{subPrograms.length} sub-programs available</p>
               </div>
             )}
             {reportType === 'program' && (
               <div>
-                <label className="text-[11px] font-bold text-slate-600 mb-1 block">Select Program</label>
+                <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Program</label>
                 <select value={selectedProgram} onChange={e => setSelectedProgram(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10">
                   <option value="">Choose program...</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
+                <p className="text-[11px] text-slate-500 mt-2">{programs.length} programs available</p>
               </div>
             )}
           </div>
-          <button onClick={handleDownloadAggregate} disabled={
-            (reportType === 'student' && !selectedStudent) ||
-            (reportType === 'class' && !selectedClass) ||
-            (reportType === 'subprogram' && !selectedSubProgram) ||
-            (reportType === 'program' && !selectedProgram) ||
-            !!downloading
-          } className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shrink-0">
-            <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-bounce' : ''}`} />
-            {downloading ? 'Downloading...' : 'Download Report'}
-          </button>
+
+          <div className="p-5">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Available PDFs</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {reportActions[reportType].map(action => {
+                const ActionIcon = action.icon;
+                const isDownloading = downloading === action.key;
+                return (
+                  <button key={action.key}
+                    onClick={() => doDownload(action.key, action.download)}
+                    disabled={action.disabled || !!downloading}
+                    className="group flex min-h-[92px] items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-200 hover:bg-blue-50/40 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center group-hover:bg-white shrink-0">
+                        <ActionIcon className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{action.title}</p>
+                        <p className="text-xs text-slate-500 mt-1 leading-5">{action.desc}</p>
+                      </div>
+                    </div>
+                    <div className="h-8 min-w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                      {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
