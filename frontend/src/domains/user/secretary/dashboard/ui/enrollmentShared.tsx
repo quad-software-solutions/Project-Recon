@@ -30,18 +30,18 @@ export function labelize(value?: string | null): string {
 }
 
 export const ENROLLMENT_STATUS_META: Record<string, { color: string; dot: string; label: string }> = {
-  ACTIVE: { color: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', label: 'Active' },
-  PENDING_VERIFICATION: { color: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500', label: 'Pending Verification' },
-  COMPLETED: { color: 'text-blue-700 bg-blue-50 border-blue-200', dot: 'bg-blue-500', label: 'Completed' },
-  CANCELLED: { color: 'text-red-700 bg-red-50 border-red-200', dot: 'bg-red-500', label: 'Cancelled' },
-  REJECTED: { color: 'text-rose-700 bg-rose-50 border-rose-200', dot: 'bg-rose-500', label: 'Rejected' },
+  ACTIVE: { color: 'text-emerald-700 bg-emerald-50 border-emerald-200/60', dot: 'bg-emerald-500', label: 'Active' },
+  PENDING_VERIFICATION: { color: 'text-amber-700 bg-amber-50 border-amber-200/60', dot: 'bg-amber-500', label: 'Pending' },
+  COMPLETED: { color: 'text-blue-700 bg-blue-50 border-blue-200/60', dot: 'bg-blue-500', label: 'Completed' },
+  CANCELLED: { color: 'text-red-700 bg-red-50 border-red-200/60', dot: 'bg-red-500', label: 'Cancelled' },
+  REJECTED: { color: 'text-rose-700 bg-rose-50 border-rose-200/60', dot: 'bg-rose-500', label: 'Rejected' },
 };
 
 export const VERIFICATION_META: Record<string, { color: string; label: string }> = {
-  SUBMITTED: { color: 'text-amber-700 bg-amber-50 border-amber-200', label: 'Submitted' },
-  UNDER_REVIEW: { color: 'text-blue-700 bg-blue-50 border-blue-200', label: 'Under Review' },
-  VERIFIED: { color: 'text-emerald-700 bg-emerald-50 border-emerald-200', label: 'Verified' },
-  REJECTED: { color: 'text-red-700 bg-red-50 border-red-200', label: 'Rejected' },
+  SUBMITTED: { color: 'text-amber-700 bg-amber-50 border-amber-200/60', label: 'Submitted' },
+  UNDER_REVIEW: { color: 'text-blue-700 bg-blue-50 border-blue-200/60', label: 'Under Review' },
+  VERIFIED: { color: 'text-emerald-700 bg-emerald-50 border-emerald-200/60', label: 'Verified' },
+  REJECTED: { color: 'text-red-700 bg-red-50 border-red-200/60', label: 'Rejected' },
 };
 
 export const PAYMENT_STATUS_META: Record<string, string> = {
@@ -59,14 +59,20 @@ export const PAYMENT_METHODS = [
   { value: 'CHEQUE', label: 'Cheque' },
 ] as const;
 
-export function StatusBadge({ status, map }: { status?: string | null; map: Record<string, { color: string; label: string }> }) {
-  if (!status) return <span className="text-[10px] font-semibold text-slate-400">{NA}</span>;
+export function StatusBadge({ status, map, dot }: { status?: string | null; map: Record<string, { color: string; label: string; dot?: string }>; dot?: boolean }) {
+  if (!status) return <span className="text-[10px] font-semibold text-brand-muted">{NA}</span>;
   const meta = map[status];
   return (
-    <span className={`inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta?.color || 'text-slate-600 bg-slate-50 border-slate-200'}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta?.color || 'text-slate-600 bg-slate-50 border-slate-200'}`}>
+      {dot && <span className={`w-1.5 h-1.5 rounded-full ${(meta as any)?.dot || 'bg-current'}`} />}
       {meta?.label || labelize(status)}
     </span>
   );
+}
+
+export function StatusDot({ status, map }: { status: string; map: Record<string, { color: string; dot: string }> }) {
+  const meta = map[status];
+  return <span className={`w-2 h-2 rounded-full shrink-0 ${meta?.dot || 'bg-slate-400'}`} />;
 }
 
 export function FieldGrid({ children }: { children: ReactNode }) {

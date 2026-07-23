@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Mail, Phone, Calendar, Shield, Edit3, Save, X, Loader2, Camera,
   Lock, Key, Smartphone, Eye, EyeOff, AlertCircle, Check, RefreshCw,
   ShieldCheck, Award, Zap, TrendingUp, BookOpen, Star, CheckCircle2,
-  LogOut
+  LogOut, Monitor
 } from 'lucide-react';
 import type { UserProfile } from '@/shared/types';
 import { updateUserProfile } from '@/shared/utils/storage';
@@ -32,7 +32,7 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [accountTab, setAccountTab] = useState<'profile' | 'password' | 'email' | 'devices'>('profile');
+  const [accountTab, setAccountTab] = useState<'profile' | 'password' | 'email' | 'devices' | 'theme'>('profile');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -247,7 +247,8 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
             { id: 'profile', label: 'Profile', icon: User },
             { id: 'password', label: 'Password', icon: Lock },
             { id: 'email', label: 'Email', icon: Mail },
-            { id: 'devices', label: 'Devices', icon: Smartphone },
+            { id: 'devices', label: 'My Devices', icon: Smartphone },
+            { id: 'theme', label: 'Theme', icon: Zap },
           ] as const).map(tab => {
             const Icon = tab.icon;
             const isActive = accountTab === tab.id;
@@ -270,6 +271,7 @@ export default function AdminAccount({ currentUser, onUserUpdate }: Props) {
             onUserUpdate?.(updated);
           }} />}
           {accountTab === 'devices' && <TrustedDevicesPanel />}
+          {accountTab === 'theme' && <ThemePreferencesPanel />}
         </div>
       </div>
     </div>
@@ -666,7 +668,7 @@ function TrustedDevicesPanel() {
           </div>
           <div>
             <h3 className="font-bold text-sm text-slate-900">Trusted Devices</h3>
-            <p className="text-[11px] text-slate-500">Manage authorized devices</p>
+            <p className="text-[11px] text-slate-500">My trusted devices on this account</p>
           </div>
         </div>
         <div className="flex gap-1">
@@ -800,6 +802,65 @@ function TrustThisDevice({ onTrusted }: { onTrusted: () => void }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function ThemePreferencesPanel() {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    try {
+      const raw = localStorage.getItem('admin.theme');
+      if (raw === 'dark' || raw === 'light' || raw === 'system') return raw;
+    } catch { /* ignore */ }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const apply = () => {
+      const preferDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = theme === 'dark' || (theme === 'system' && preferDark);
+      document.documentElement.classList.toggle('dark', dark);
+      try { localStorage.setItem('admin.theme', theme); } catch { /* ignore */ }
+    };
+    apply();
+    if (theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => apply();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
+  const options = [
+    { id: 'light' as const, label: 'Light', icon: Zap },
+    { id: 'dark' as const, label: 'Dark', icon: Shield },
+    { id: 'system' as const, label: 'System', icon: Monitor },
+  ];
+
+  return (
+    <div className="space-y-4 max-w-md">
+      <div>
+        <h3 className="font-bold text-sm text-slate-900">Appearance</h3>
+        <p className="text-xs text-slate-500 mt-1">Applies the dark class on this browser (same pattern as student settings).</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          const active = theme === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setTheme(opt.id)}
+              className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors ${
+                active ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
+              <span className="text-xs font-bold text-slate-700">{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -3,20 +3,28 @@ import { motion } from 'motion/react';
 import {
   Users, GraduationCap, Award, DollarSign, BookOpen, Building, ClipboardList,
   Calendar, AlertTriangle, RefreshCw, Clock, CheckCircle, Zap, Megaphone,
-  MessageSquare, FileText, UserPlus, Bell,
+  MessageSquare, FileText, UserPlus, Activity, Shield, UserCog,
 } from 'lucide-react';
 import {
-  fetchAllUsersApi, branchesApi, resolveRole, fetchAuditLogsApi,
+  resolveRole, fetchAuditLogsApi,
   type AdminUserResponse, type BranchResponse, type AuditLogEntry,
 } from '../api/adminApi';
-import {
-  fetchProgramsApi, fetchClassesApi, fetchEnrollmentsPaginatedApi, fetchPaymentsApi,
-} from '@/domains/learning/academics/api/academicApi';
-import { fetchAllPages } from '@/shared/api/pagination';
 import { cmsContactRequestsApi } from '@/domains/cms/shared/api/cmsApi';
 import LiveLeaderboardWidget from '@/domains/competition/shared/LiveLeaderboardWidget';
 import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
 import type { AdminSectionId } from '../adminCommandCenter';
+import { AdminOfflineBanner } from './adminQueryState';
+
+export type AdminOverviewHubData = {
+  users: AdminUserResponse[];
+  branches: BranchResponse[];
+  programs: any[];
+  classes: any[];
+  enrollments: any[];
+  payments: any[];
+  apiHealthy: number;
+  apiTotal: number;
+};
 
 type StatCard = {
   label: string;
@@ -29,6 +37,10 @@ type StatCard = {
 
 interface Props {
   onNavigate?: (section: AdminSectionId) => void;
+  hubData?: AdminOverviewHubData | null;
+  hubLoading?: boolean;
+  onRefreshHub?: () => void;
+  recentSections?: AdminSectionId[];
 }
 
 function StatCardSkeleton() {
@@ -127,50 +139,50 @@ function formatDate(dateStr: string | null | undefined): string {
 
 const QUICK_ACTIONS: { id: AdminSectionId; label: string; desc: string; icon: React.ElementType; color: string }[] = [
   { id: 'users', label: 'User Management', desc: 'Accounts & staff', icon: Users, color: 'from-blue-500 to-blue-600' },
+  { id: 'students', label: 'Students', desc: 'Profiles & records', icon: GraduationCap, color: 'from-indigo-500 to-indigo-600' },
   { id: 'registrations', label: 'Enrollments', desc: 'Pending & active', icon: ClipboardList, color: 'from-emerald-500 to-emerald-600' },
+  { id: 'payments', label: 'Payments', desc: 'Verify & record', icon: DollarSign, color: 'from-amber-500 to-orange-600' },
   { id: 'communications', label: 'Contact Requests', desc: 'Inbound messages', icon: MessageSquare, color: 'from-cyan-500 to-cyan-600' },
   { id: 'announcements', label: 'Announcements', desc: 'Publish updates', icon: Megaphone, color: 'from-rose-500 to-pink-600' },
   { id: 'audit', label: 'System Logs', desc: 'Audit trail', icon: FileText, color: 'from-slate-500 to-slate-600' },
   { id: 'cms', label: 'Content Manager', desc: 'CMS & public content', icon: BookOpen, color: 'from-purple-500 to-purple-600' },
 ];
 
-export default function AdminOverviewDashboard({ onNavigate }: Props) {
-  const [users, setUsers] = useState<AdminUserResponse[]>([]);
-  const [branches, setBranches] = useState<BranchResponse[]>([]);
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+const SECTION_LABELS: Partial<Record<AdminSectionId, string>> = {
+  users: 'Users', roles: 'Roles', students: 'Students', registrations: 'Enrollments',
+  payments: 'Payments', store: 'Store', events: 'Events', cms: 'CMS', audit: 'Audit',
+  branches: 'Branches', reports: 'Reports', communications: 'Messages',
+};
+
+export default function AdminOverviewDashboard({
+  onNavigate, hubData, hubLoading, onRefreshHub, recentSections = [],
+}: Props) {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [contactRequests, setContactRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [extrasLoading, setExtrasLoading] = useState(true);
 
-  const fetchAll = () => {
-    setLoading(true);
+  const fetchExtras = () => {
+    setExtrasLoading(true);
     Promise.all([
-      fetchAllUsersApi().catch(() => [] as AdminUserResponse[]),
-      branchesApi.list().catch(() => [] as BranchResponse[]),
-      fetchProgramsApi().catch(() => []),
-      fetchClassesApi().catch(() => []),
-      fetchAllPages((p) => fetchEnrollmentsPaginatedApi(p)).catch(() => []),
-      fetchPaymentsApi().catch(() => []),
       fetchAuditLogsApi().catch(() => [] as AuditLogEntry[]),
       cmsContactRequestsApi.list().catch(() => []),
     ])
-      .then(([u, b, p, c, e, pay, logs, contacts]) => {
-        setUsers(Array.isArray(u) ? u : []);
-        setBranches(Array.isArray(b) ? b : []);
-        setPrograms(Array.isArray(p) ? p : []);
-        setClasses(Array.isArray(c) ? c : []);
-        setEnrollments(Array.isArray(e) ? e : []);
-        setPayments(Array.isArray(pay) ? pay : []);
+      .then(([logs, contacts]) => {
         setAuditLogs(Array.isArray(logs) ? logs : []);
         setContactRequests(Array.isArray(contacts) ? contacts : []);
       })
-      .finally(() => setLoading(false));
+      .finally(() => setExtrasLoading(false));
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchExtras(); }, []);
+
+  const users = hubData?.users ?? [];
+  const branches = hubData?.branches ?? [];
+  const programs = hubData?.programs ?? [];
+  const classes = hubData?.classes ?? [];
+  const enrollments = hubData?.enrollments ?? [];
+  const payments = hubData?.payments ?? [];
+  const loading = !!hubLoading || (!hubData && extrasLoading);
 
   const totalUsers = users.length;
 
@@ -189,16 +201,31 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
   const pendingPayments = payments.filter((p: any) => p.status === 'PENDING');
   const totalRevenue = paidPayments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
   const openContacts = contactRequests.filter((r: any) => r.status === 'OPEN' || r.status === 'IN_PROGRESS');
+  const activeClasses = classes.filter((c: any) => c.is_active !== false);
+  const activeStudents = users.filter((u) => resolveRole(u.assignments || []) === 'Student' && u.status === 'Active');
+  const apiHealthy = hubData?.apiHealthy ?? 0;
+  const apiTotal = hubData?.apiTotal ?? 0;
 
   const stats: StatCard[] = [
     { label: 'Total Users', value: String(totalUsers), icon: Users, color: 'text-brand-blue', bg: 'bg-brand-blue/5' },
-    { label: 'Students', value: String(usersByRole['Student'] || 0), icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Active Enrollments', value: String(activeEnrollments.length), icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50', detail: `${pendingEnrollments.length} pending payment` },
-    { label: 'Revenue', value: formatMoneyCompact(totalRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', detail: `${paidPayments.length} paid` },
+    { label: 'Students', value: String(usersByRole['Student'] || 0), icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50', detail: `${activeStudents.length} active` },
+    { label: 'Instructors', value: String(usersByRole['Instructor'] || 0), icon: UserCog, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Secretaries', value: String(usersByRole['Secretary'] || 0), icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50' },
+    { label: 'Managers', value: String(usersByRole['Manager'] || 0), icon: Shield, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Branches', value: String(branches.filter((b) => b.status === 'Active').length), icon: Building, color: 'text-slate-700', bg: 'bg-slate-100', detail: `${branches.length} total` },
     { label: 'Programs', value: String(programs.filter((p: any) => p.is_active !== false).length), icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Classes', value: String(classes.filter((c: any) => c.is_active !== false).length), icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Classes', value: String(activeClasses.length), icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50', detail: `${classes.length} total` },
+    { label: 'Active Enrollments', value: String(activeEnrollments.length), icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50', detail: `${pendingEnrollments.length} pending` },
+    { label: 'Revenue', value: formatMoneyCompact(totalRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', detail: `${paidPayments.length} paid` },
     { label: 'Open Messages', value: String(openContacts.length), icon: MessageSquare, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-    { label: 'Branches', value: String(branches.filter((b: any) => b.status === 'Active').length), icon: Building, color: 'text-slate-700', bg: 'bg-slate-100' },
+    {
+      label: 'API Connectivity',
+      value: apiTotal ? `${apiHealthy}/${apiTotal}` : '—',
+      icon: Activity,
+      color: apiHealthy === apiTotal && apiTotal > 0 ? 'text-emerald-600' : 'text-amber-600',
+      bg: apiHealthy === apiTotal && apiTotal > 0 ? 'bg-emerald-50' : 'bg-amber-50',
+      detail: 'hub endpoints ok',
+    },
   ];
 
   const recentUsers = [...users]
@@ -213,8 +240,15 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
     .sort((a: any, b: any) => new Date(b.enrolled_at || b.created_at || 0).getTime() - new Date(a.enrolled_at || a.created_at || 0).getTime())
     .slice(0, 5);
 
+  const handleRefresh = () => {
+    onRefreshHub?.();
+    fetchExtras();
+  };
+
   return (
     <div className="space-y-6">
+      <AdminOfflineBanner />
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-slate-900">Overview</h2>
@@ -223,7 +257,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
           </p>
         </div>
         <button
-          onClick={fetchAll}
+          onClick={handleRefresh}
           disabled={loading}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
@@ -234,10 +268,31 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
 
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {Array.from({ length: 8 }).map((_, i) => <StatCardSkeleton key={i} />)}
+          {Array.from({ length: 12 }).map((_, i) => <StatCardSkeleton key={i} />)}
         </div>
       ) : (
         <StatCards stats={stats} />
+      )}
+
+      {onNavigate && recentSections.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <h3 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-slate-400" />
+            Recent Pages
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {recentSections.slice(0, 6).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onNavigate(id)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                {SECTION_LABELS[id] || id}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {onNavigate && (
@@ -297,14 +352,19 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
           ) : (
             <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
               {recentPending.map((e: any) => (
-                <div key={e.id} className="flex items-center gap-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100">
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => onNavigate?.('registrations')}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg bg-amber-50/50 border border-amber-100 text-left hover:bg-amber-50 transition-colors"
+                >
                   <Clock className="w-4 h-4 text-amber-500 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-900 truncate">{e.student_name || e.student_email || 'Student'}</p>
                     <p className="text-[11px] text-slate-500 truncate">{e.class_name || e.program_name || 'Enrollment'}</p>
                   </div>
                   <span className="text-[10px] font-bold text-amber-600 shrink-0">PENDING</span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -324,7 +384,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
               </button>
             )}
           </div>
-          {loading ? (
+          {extrasLoading ? (
             <div className="space-y-2 animate-pulse">
               {[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-slate-100 rounded-lg" />)}
             </div>
@@ -359,7 +419,7 @@ export default function AdminOverviewDashboard({ onNavigate }: Props) {
               </button>
             )}
           </div>
-          {loading ? (
+          {extrasLoading ? (
             <div className="space-y-2 animate-pulse">
               {[1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded-lg" />)}
             </div>

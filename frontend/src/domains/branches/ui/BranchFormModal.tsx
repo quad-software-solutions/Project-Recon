@@ -11,6 +11,13 @@ export interface BranchFormData {
   city: string;
   state_region: string;
   country: string;
+  manager_user_id?: string;
+}
+
+interface UserOption {
+  id: string;
+  full_name: string;
+  email: string;
 }
 
 interface Props {
@@ -18,12 +25,14 @@ interface Props {
   onClose: () => void;
   onSubmit: (data: BranchFormData) => Promise<void>;
   initial?: BranchResponse | null;
+  managerUsers?: UserOption[];
 }
 
-export function BranchFormModal({ isOpen, onClose, onSubmit, initial }: Props) {
+export function BranchFormModal({ isOpen, onClose, onSubmit, initial, managerUsers = [] }: Props) {
   const [form, setForm] = useState<BranchFormData>({
     name: '', code: '', email: '', phone_number: '',
     address: '', city: '', state_region: '', country: '',
+    manager_user_id: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -34,9 +43,10 @@ export function BranchFormModal({ isOpen, onClose, onSubmit, initial }: Props) {
         email: initial.email || '', phone_number: initial.phone_number || '',
         address: initial.address || '', city: initial.city || '',
         state_region: initial.state_region || '', country: initial.country,
+        manager_user_id: '',
       });
     } else if (isOpen && !initial) {
-      setForm({ name: '', code: '', email: '', phone_number: '', address: '', city: '', state_region: '', country: '' });
+      setForm({ name: '', code: '', email: '', phone_number: '', address: '', city: '', state_region: '', country: '', manager_user_id: '' });
     }
   }, [isOpen, initial]);
 
@@ -45,7 +55,7 @@ export function BranchFormModal({ isOpen, onClose, onSubmit, initial }: Props) {
     try { await onSubmit(form); onClose(); } finally { setSaving(false); }
   };
 
-  const update = (k: keyof BranchFormData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const update = (k: keyof BranchFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(p => ({ ...p, [k]: k === 'code' ? e.target.value.toUpperCase() : e.target.value }));
 
   return (
@@ -65,11 +75,22 @@ export function BranchFormModal({ isOpen, onClose, onSubmit, initial }: Props) {
           <Field label="State"><input value={form.state_region} onChange={update('state_region')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" /></Field>
           <Field label="Country"><input value={form.country} onChange={update('country')} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30" placeholder="Ethiopia" /></Field>
         </div>
+        {!initial && managerUsers.length > 0 && (
+          <Field label="Manager (optional)">
+            <select value={form.manager_user_id || ''} onChange={update('manager_user_id')}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand-blue/30 bg-white">
+              <option value="">Create without manager</option>
+              {managerUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
+              ))}
+            </select>
+          </Field>
+        )}
         <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
           <button onClick={handleSubmit} disabled={!form.name || !form.code || saving}
             className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark disabled:opacity-50">
-            {saving ? 'Saving...' : initial ? 'Save' : 'Create'}
+            {saving ? 'Saving...' : initial ? 'Save' : form.manager_user_id ? 'Create with Manager' : 'Create'}
           </button>
         </div>
       </div>

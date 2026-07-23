@@ -199,8 +199,8 @@ export const branchesApi = {
     manager_user_id: string;
   }) => http.post<BranchResponse>('/accounts/branches/with-manager/', data),
 
-  changeManager: (branchId: string, newManagerUserId: string) =>
-    http.post(`/accounts/branches/${branchId}/change-manager/`, { new_manager_user_id: newManagerUserId }),
+  changeManager: (branchId: string, managerUserId: string) =>
+    http.post(`/accounts/branches/${branchId}/change-manager/`, { manager_user_id: managerUserId }),
 
   toggleActive: (branchId: string, isActive: boolean) => {
     const action = isActive ? 'deactivate' : 'activate';

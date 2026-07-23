@@ -16,6 +16,7 @@ import {
 import type { UserProfile } from '@/shared/types';
 import { canManageAccounts } from '@/shared/auth/permissions';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { AdminOfflineBanner } from './adminQueryState';
 
 const ROLE_DEFS = [
   { key: 'student', label: 'Student', icon: Users, color: 'bg-emerald-500' },
@@ -112,23 +113,20 @@ export default function PendingUsersPanel({ currentUser }: Props) {
 
   const handleQuickAssign = async (user: AdminUserResponse, role: string) => {
     if (!canManage || saving) return;
+    // Always require explicit branch selection for branch-scoped roles (never auto-pick first branch).
+    if (role !== 'super_admin') {
+      setSelectedUser(user);
+      setAssignForm({ user_id: user.id, branch_id: '', role, is_primary: true });
+      setShowAssignModal(true);
+      return;
+    }
     setQuickRole(`${user.id}-${role}`);
     setSaving(true);
     setError(null);
     try {
-      const requiresBranch = role !== 'super_admin';
-      const branchId = requiresBranch && activeBranches.length > 0
-        ? activeBranches[0].id
-        : '';
-      if (requiresBranch && !branchId) {
-        setSelectedUser(user);
-        setAssignForm({ user_id: user.id, branch_id: '', role, is_primary: true });
-        setShowAssignModal(true);
-        return;
-      }
       await assignmentsApi.create({
         user_id: user.id,
-        branch_id: requiresBranch ? branchId : null,
+        branch_id: null,
         role,
         is_primary: true,
       });
@@ -197,6 +195,7 @@ export default function PendingUsersPanel({ currentUser }: Props) {
 
   return (
     <div className="space-y-6">
+      <AdminOfflineBanner />
       {error && (
         <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           <AlertTriangle className="w-4 h-4 shrink-0" />

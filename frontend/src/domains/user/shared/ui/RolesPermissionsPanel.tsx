@@ -91,6 +91,8 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [transferForm, setTransferForm] = useState({ to_branch_id: '' });
+  const [showTransfer, setShowTransfer] = useState(false);
 
   const clearSuccessLater = () => {
     setTimeout(() => setSuccess(null), 3500);
@@ -175,6 +177,9 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
     setSaving(true);
     setError(null);
     try {
+      if (editAssign.is_primary) {
+        await assignmentsApi.makePrimary(editAssign.id);
+      }
       await assignmentsApi.update(editAssign.id, {
         is_primary: editAssign.is_primary,
         is_active: editAssign.is_active,
@@ -203,6 +208,30 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
       await assignmentsApi.delete(id);
       setEditAssign(null);
       setSuccess('Role assignment revoked.');
+      clearSuccessLater();
+      await load();
+    } catch (e) {
+      setError(formatApiError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!editAssign?.user?.id || !editAssign.branch?.id || !transferForm.to_branch_id || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await assignmentsApi.transfer({
+        user_id: editAssign.user.id,
+        from_branch_id: editAssign.branch.id,
+        to_branch_id: transferForm.to_branch_id,
+        role: editAssign.role,
+      });
+      setEditAssign(null);
+      setShowTransfer(false);
+      setTransferForm({ to_branch_id: '' });
+      setSuccess('Assignment transferred to new branch.');
       clearSuccessLater();
       await load();
     } catch (e) {
@@ -255,6 +284,9 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">{users.length}</h2>
             <p className="text-sm font-medium text-slate-500">Total System Users</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-md">
+              Roles are fixed platform constants. This panel manages assignments only — permissions cannot be edited via API.
+            </p>
           </div>
           {canManage && (
             <button
@@ -834,6 +866,45 @@ export default function RolesPermissionsPanel({ currentUser }: Props) {
                     </div>
                   </label>
                 </div>
+
+                {editAssign.branch?.id && (
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowTransfer((v) => !v)}
+                      className="text-xs font-bold text-blue-600 hover:underline"
+                    >
+                      {showTransfer ? 'Hide transfer' : 'Transfer to another branch'}
+                    </button>
+                    {showTransfer && (
+                      <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <label className="text-xs font-bold text-slate-600 mb-1 block">Destination branch</label>
+                          <select
+                            value={transferForm.to_branch_id}
+                            onChange={(e) => setTransferForm({ to_branch_id: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                          >
+                            <option value="">Select branch…</option>
+                            {branches
+                              .filter((b) => b.id !== editAssign.branch?.id && b.status === 'Active')
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                              ))}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleTransfer}
+                          disabled={!transferForm.to_branch_id || saving}
+                          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                        >
+                          Transfer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100 items-center">
                   <button

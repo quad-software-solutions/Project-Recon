@@ -5,9 +5,10 @@ import {
   Trophy, BarChart3, Activity, Shield, AlertTriangle, X, Loader2, Search,
   ChevronRight, Download,   FileSpreadsheet, Code, Eye, LayoutGrid, RefreshCw,
 } from 'lucide-react';
-import { fetchAllUsersApi, branchesApi, type AdminUserResponse, type BranchResponse } from '../api/adminApi';
+import { fetchAllUsersApi, branchesApi, fetchAuditLogsApi, type AdminUserResponse, type BranchResponse, type AuditLogEntry } from '../api/adminApi';
 import { fetchAllPages } from '@/shared/api/pagination';
 import { fetchEnrollmentsPaginatedApi, fetchPaymentsApi, fetchProgramsApi, fetchClassesApi } from '@/domains/learning/academics/api/academicApi';
+import { adminGetEvents, adminGetTournaments } from '@/domains/competition/api/eventsApi';
 import { downloadCsv, downloadJson, downloadPdf } from '@/shared/utils/export';
 import ReportFilters, { DATE_PRESETS } from '@/shared/ui/ReportFilters';
 
@@ -40,6 +41,11 @@ const CATEGORIES: { id: ReportCategory; label: string; icon: any; color: string;
       { id: 'events', label: 'Events', icon: Calendar },
       { id: 'tournaments', label: 'Tournaments', icon: Trophy },
     ] },
+  { id: 'finance', label: 'Finance', icon: DollarSign, color: 'text-emerald-700',
+    reports: [
+      { id: 'revenue', label: 'Revenue Summary', icon: DollarSign },
+      { id: 'payment-status', label: 'Payment Status', icon: Award },
+    ] },
   { id: 'system', label: 'System', icon: Activity, color: 'text-purple-600',
     reports: [
       { id: 'audit', label: 'Audit Logs', icon: FileText },
@@ -65,6 +71,9 @@ export default function ReportsHub({ currentUser }: Props) {
   const [classes, setClasses] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -74,13 +83,19 @@ export default function ReportsHub({ currentUser }: Props) {
       fetchClassesApi().catch(() => []),
       fetchAllPages(p => fetchEnrollmentsPaginatedApi(p)).catch(() => []),
       fetchPaymentsApi().catch(() => []),
-    ]).then(([u, b, pr, cl, en, pa]) => {
+      adminGetEvents().catch(() => []),
+      adminGetTournaments().catch(() => []),
+      fetchAuditLogsApi().catch(() => []),
+    ]).then(([u, b, pr, cl, en, pa, ev, tn, logs]) => {
       setAllUsers(Array.isArray(u) ? u : []);
       setBranches(Array.isArray(b) ? b : []);
       setPrograms(Array.isArray(pr) ? pr : []);
       setClasses(Array.isArray(cl) ? cl : []);
       setEnrollments(Array.isArray(en) ? en : []);
       setPayments(Array.isArray(pa) ? pa : []);
+      setEvents(Array.isArray(ev) ? ev : []);
+      setTournaments(Array.isArray(tn) ? tn : []);
+      setAuditLogs(Array.isArray(logs) ? logs : []);
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
@@ -193,6 +208,67 @@ export default function ReportsHub({ currentUser }: Props) {
           Date: p.created_at?.slice(0, 10) || '—',
         }));
         data = { title: 'Payments Report', rows, filename: 'payments' };
+        break;
+      }
+      case 'events': {
+        const rows = filterByDate(Array.isArray(events) ? events : [], 'created_at').map((e: any) => ({
+          Name: e.name || e.title || '—',
+          Status: e.status || (e.is_active ? 'Active' : 'Inactive'),
+          Published: e.is_published ? 'Yes' : 'No',
+          Start: e.start_date?.slice?.(0, 10) || e.start_at?.slice?.(0, 10) || '—',
+          End: e.end_date?.slice?.(0, 10) || e.end_at?.slice?.(0, 10) || '—',
+          Created: e.created_at?.slice(0, 10) || '—',
+        }));
+        data = { title: 'Events Report', rows, filename: 'events' };
+        break;
+      }
+      case 'tournaments': {
+        const rows = filterByDate(Array.isArray(tournaments) ? tournaments : [], 'created_at').map((t: any) => ({
+          Name: t.name || t.title || '—',
+          Event: t.event_name || t.event || '—',
+          Status: t.status || (t.is_closed ? 'Closed' : 'Open'),
+          Created: t.created_at?.slice(0, 10) || '—',
+        }));
+        data = { title: 'Tournaments Report', rows, filename: 'tournaments' };
+        break;
+      }
+      case 'revenue': {
+        const paid = (Array.isArray(payments) ? payments : []).filter((p: any) => p.status === 'PAID');
+        const rows = filterByDate(paid, 'created_at').map((p: any) => ({
+          Student: p.student_name || p.student || '—',
+          Amount: p.amount || '—',
+          Method: p.payment_method || '—',
+          Date: p.created_at?.slice(0, 10) || '—',
+        }));
+        data = { title: 'Revenue Summary', rows, filename: 'revenue' };
+        break;
+      }
+      case 'payment-status': {
+        const statusCount: Record<string, number> = {};
+        (Array.isArray(payments) ? payments : []).forEach((p: any) => {
+          const s = p.status || 'UNKNOWN';
+          statusCount[s] = (statusCount[s] || 0) + 1;
+        });
+        const rows = Object.entries(statusCount).map(([Status, Count]) => ({ Status, Count }));
+        data = { title: 'Payment Status Report', rows, filename: 'payment-status' };
+        break;
+      }
+      case 'audit':
+      case 'activity': {
+        const rows = filterByDate(Array.isArray(auditLogs) ? auditLogs : [], 'created_at').map((log) => ({
+          Action: log.action,
+          Actor: log.actor?.full_name || log.actor?.email || 'System',
+          Resource: log.resource_type,
+          Resource_ID: log.resource_id || '—',
+          Branch: log.branch?.name || '—',
+          IP: log.ip_address || '—',
+          Date: log.created_at?.slice(0, 19)?.replace('T', ' ') || '—',
+        }));
+        data = {
+          title: reportId === 'activity' ? 'Activity Logs' : 'Audit Logs',
+          rows,
+          filename: reportId === 'activity' ? 'activity-logs' : 'audit-logs',
+        };
         break;
       }
       default:

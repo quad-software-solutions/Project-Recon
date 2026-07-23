@@ -5,12 +5,13 @@ import { searchStudentsApi, issueStudentCertificateApi } from '@/domains/learnin
 import EventIssuePanel from './EventIssuePanel';
 import { formatApiError } from '@/shared/utils/formatApiError';
 
-export default function IssueTab({ templates, students, onRefresh, canManage, onError }: {
+export default function IssueTab({ templates, students, onRefresh, canManage, onError, onSuccess }: {
   templates: Certificate[];
   students: StudentProfile[];
   onRefresh: () => void;
   canManage: boolean;
   onError: (msg: string | null) => void;
+  onSuccess?: (msg: string) => void;
 }) {
   const [mode, setMode] = useState<'individual' | 'bulk'>('individual');
   const [studentSearch, setStudentSearch] = useState('');
@@ -47,13 +48,14 @@ export default function IssueTab({ templates, students, onRefresh, canManage, on
   };
 
   const handleIssueIndividual = async () => {
-    if (!form.student || !form.certificate) return;
+    if (!canManage || !form.student || !form.certificate) return;
     setSubmitting(true);
     try {
       await issueStudentCertificateApi({ student: form.student, certificate: form.certificate });
       setForm({ student: '', certificate: '' });
       setStudentSearch('');
       setStudentResults([]);
+      onSuccess?.('Certificate issued successfully.');
       onRefresh();
     } catch (e) {
       onError(formatApiError(e));
@@ -67,7 +69,7 @@ export default function IssueTab({ templates, students, onRefresh, canManage, on
   };
 
   const handleBulkIssue = async () => {
-    if (selectedStudents.length === 0 || !bulkTemplate) return;
+    if (!canManage || selectedStudents.length === 0 || !bulkTemplate) return;
     setBulkRunning(true);
     setBulkResults([]);
     const results: { studentId: string; name: string; success: boolean; error?: string }[] = [];
@@ -82,8 +84,18 @@ export default function IssueTab({ templates, students, onRefresh, canManage, on
     }
     setBulkResults(results);
     setBulkRunning(false);
+    const ok = results.filter((r) => r.success).length;
+    onSuccess?.(`Bulk issue finished: ${ok}/${results.length} succeeded.`);
     onRefresh();
   };
+
+  if (!canManage) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        You do not have permission to issue certificates. Ask a Super Admin, Branch Manager, or Secretary with certificate access.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

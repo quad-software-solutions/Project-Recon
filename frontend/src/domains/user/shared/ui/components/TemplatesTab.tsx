@@ -18,14 +18,16 @@ const defaultTemplateForm: TemplateForm = {
   sub_program: '', title: '', body_text: '', signatory_name: '', signatory_title: '',
 };
 
-export default function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError }: {
+export default function TemplatesTab({ templates, subPrograms, onRefresh, canManage, onError, onSuccess }: {
   templates: Certificate[];
   subPrograms: any[];
   onRefresh: () => void;
   canManage: boolean;
   onError: (msg: string | null) => void;
+  onSuccess?: (msg: string) => void;
 }) {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Certificate | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,6 +41,8 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
 
   const filtered = templates.filter(t => {
+    if (statusFilter === 'active' && t.is_active === false) return false;
+    if (statusFilter === 'inactive' && t.is_active !== false) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return t.title.toLowerCase().includes(q) || (t.sub_program_name || '').toLowerCase().includes(q);
@@ -95,6 +99,7 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
       setEditing(null);
       setForm(defaultTemplateForm);
       resetFileState();
+      onSuccess?.(editing ? 'Template updated.' : 'Template created.');
       onRefresh();
     } catch (e) {
       onError(formatApiError(e));
@@ -106,6 +111,7 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
   const toggleActive = async (t: Certificate) => {
     try {
       await setCertificateTemplateActiveApi(t.id, t.is_active === false);
+      onSuccess?.(t.is_active === false ? 'Template activated.' : 'Template deactivated.');
       onRefresh();
     } catch (e) {
       onError(formatApiError(e));
@@ -122,6 +128,7 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
         signatory_name: decoded.signatory_name,
         signatory_title: decoded.signatory_title,
       });
+      onSuccess?.('Template duplicated.');
       onRefresh();
     } catch (e) {
       onError(formatApiError(e));
@@ -130,14 +137,25 @@ export default function TemplatesTab({ templates, subPrograms, onRefresh, canMan
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search templates..."
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-1 flex-col sm:flex-row gap-2 max-w-xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search templates..."
+              className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600" />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+            className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600"
+          >
+            <option value="all">All status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
         {canManage && (
-          <button onClick={openCreate} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+          <button onClick={openCreate} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors self-start">
             <Plus className="w-3.5 h-3.5" /> New Template
           </button>
         )}

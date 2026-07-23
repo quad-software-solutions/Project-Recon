@@ -8,6 +8,8 @@ interface Props {
   loading: boolean;
   search: string;
   onSearchChange: (v: string) => void;
+  onSelect?: (b: BranchResponse) => void;
+  selectedId?: string | null;
   onEdit: (b: BranchResponse) => void;
   onAssignManager: (b: BranchResponse) => void;
   onToggleActive: (id: string) => Promise<void>;
@@ -23,8 +25,10 @@ const statusStyle = (s: string) => {
   return map[s] || 'bg-slate-50 text-slate-600';
 };
 
-const Row = memo(function Row({ branch, onEdit, onAssignManager, onToggleActive, onArchive }: {
+const Row = memo(function Row({ branch, selected, onSelect, onEdit, onAssignManager, onToggleActive, onArchive }: {
   branch: BranchResponse;
+  selected?: boolean;
+  onSelect?: (b: BranchResponse) => void;
   onEdit: (b: BranchResponse) => void;
   onAssignManager: (b: BranchResponse) => void;
   onToggleActive: (id: string) => Promise<void>;
@@ -32,7 +36,19 @@ const Row = memo(function Row({ branch, onEdit, onAssignManager, onToggleActive,
 }) {
   const b = branch;
   return (
-    <div className="p-4 hover:bg-slate-50/50 transition-colors">
+    <div
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={() => onSelect?.(b)}
+      onKeyDown={(e) => {
+        if (!onSelect) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(b);
+        }
+      }}
+      className={`p-4 transition-colors ${selected ? 'bg-brand-blue/5' : 'hover:bg-slate-50/50'} ${onSelect ? 'cursor-pointer' : ''}`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -47,7 +63,7 @@ const Row = memo(function Row({ branch, onEdit, onAssignManager, onToggleActive,
             {b.phone_number && <span>{b.phone_number}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => onAssignManager(b)} title="Assign Manager"
             className="p-2 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/5 transition-colors">
             <UserPlus className="w-4 h-4" />
@@ -80,7 +96,10 @@ function LoadingSkeleton() {
   );
 }
 
-export const BranchListTable = memo(function BranchListTable({ branches, loading, search, onSearchChange, onEdit, onAssignManager, onToggleActive, onArchive }: Props) {
+export const BranchListTable = memo(function BranchListTable({
+  branches, loading, search, onSearchChange, onSelect, selectedId,
+  onEdit, onAssignManager, onToggleActive, onArchive,
+}: Props) {
   const filtered = useMemo(() =>
     branches.filter(b =>
       b.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -112,7 +131,16 @@ export const BranchListTable = memo(function BranchListTable({ branches, loading
       ) : (
         <div className="divide-y divide-slate-100">
           {filtered.map(b => (
-            <Row key={b.id} branch={b} onEdit={onEdit} onAssignManager={onAssignManager} onToggleActive={onToggleActive} onArchive={onArchive} />
+            <Row
+              key={b.id}
+              branch={b}
+              selected={selectedId === b.id}
+              onSelect={onSelect}
+              onEdit={onEdit}
+              onAssignManager={onAssignManager}
+              onToggleActive={onToggleActive}
+              onArchive={onArchive}
+            />
           ))}
         </div>
       )}

@@ -1,8 +1,8 @@
 import type { DashboardSignal } from '@/shared/ui/DashboardCommandCenter';
 import {
   BarChart3, Users, Shield, FileText, BookOpen, GraduationCap, Award,
-  Calendar, Trophy, Swords, UserPlus, ClipboardList, LayoutDashboard, GitBranch,
-  Bell, MessageSquare,
+  Calendar, Trophy, ClipboardList, LayoutDashboard, GitBranch,
+  MessageSquare, Activity, DollarSign,
 } from 'lucide-react';
 
 export type AdminSectionId =
@@ -11,18 +11,26 @@ export type AdminSectionId =
   | 'tournaments' | 'tournament-teams' | 'matches' | 'workshops'
   | 'event-registrations' | 'certificates' | 'store'
   | 'transfers' | 'bank-accounts'
-  | 'announcements' | 'communications' | 'reports' | 'sponsors';
+  | 'announcements' | 'communications' | 'reports' | 'sponsors'
+  | 'payments' | 'periods' | 'materials' | 'milestones' | 'students';
 
 export interface AdminHubStats {
   totalUsers: number;
   activeUsers: number;
   students: number;
+  instructors: number;
+  secretaries: number;
+  managers: number;
   activeEnrollments: number;
   pendingEnrollments: number;
   paidPayments: number;
+  revenue: number;
   programs: number;
   classes: number;
+  activeClasses: number;
   branches: number;
+  apiHealthy: number;
+  apiTotal: number;
   loading: boolean;
 }
 
@@ -39,8 +47,10 @@ export function getAdminCommandCenter(
   if (section === 'account') return null;
 
   const {
-    totalUsers, activeUsers, students, activeEnrollments, pendingEnrollments,
-    paidPayments, programs, classes, branches, loading,
+    totalUsers, activeUsers, students, instructors, secretaries, managers,
+    activeEnrollments, pendingEnrollments,
+    paidPayments, revenue, programs, classes, activeClasses, branches,
+    apiHealthy, apiTotal, loading,
   } = stats;
 
   if (loading) {
@@ -65,7 +75,13 @@ export function getAdminCommandCenter(
           { label: 'Users', value: String(totalUsers), detail: 'total accounts', icon: Users, tone: 'blue' },
           { label: 'Students', value: String(students), detail: 'registered', icon: GraduationCap, tone: 'emerald' },
           { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: ClipboardList, tone: 'emerald' },
-          { label: 'Programs', value: String(programs), detail: 'academic offers', icon: BookOpen, tone: 'amber' },
+          {
+            label: 'API Health',
+            value: `${apiHealthy}/${apiTotal}`,
+            detail: apiHealthy === apiTotal ? 'all endpoints ok' : 'partial failures',
+            icon: Activity,
+            tone: apiHealthy === apiTotal ? 'emerald' : 'amber',
+          },
         ],
       };
 
@@ -76,19 +92,19 @@ export function getAdminCommandCenter(
         signals: [
           { label: 'Total', value: String(totalUsers), detail: 'all accounts', icon: Users, tone: 'blue' },
           { label: 'Active', value: String(activeUsers), detail: 'active users', icon: Shield, tone: 'emerald' },
-          { label: 'Students', value: String(students), detail: 'student accounts', icon: GraduationCap, tone: 'slate' },
-          { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
+          { label: 'Instructors', value: String(instructors), detail: 'teaching staff', icon: GraduationCap, tone: 'slate' },
+          { label: 'Managers', value: String(managers), detail: 'branch managers', icon: GitBranch, tone: 'purple' },
         ],
       };
 
     case 'roles':
       return {
-        title: 'Roles & Permissions',
-        subtitle: 'Access control and role assignments.',
+        title: 'Role Assignments',
+        subtitle: 'Assign fixed platform roles. Permissions are not editable via API.',
         signals: [
           { label: 'Users', value: String(totalUsers), detail: 'managed accounts', icon: Shield, tone: 'blue' },
-          { label: 'Active', value: String(activeUsers), detail: 'active accounts', icon: Users, tone: 'emerald' },
-          { label: 'Students', value: String(students), detail: 'student role', icon: GraduationCap, tone: 'slate' },
+          { label: 'Secretaries', value: String(secretaries), detail: 'ops staff', icon: Users, tone: 'emerald' },
+          { label: 'Instructors', value: String(instructors), detail: 'teaching', icon: GraduationCap, tone: 'slate' },
           { label: 'Branches', value: String(branches), detail: 'branch access', icon: GitBranch, tone: 'purple' },
         ],
       };
@@ -99,7 +115,7 @@ export function getAdminCommandCenter(
         subtitle: 'Export and analyze platform data.',
         signals: [
           { label: 'Users', value: String(totalUsers), detail: 'reportable accounts', icon: Users, tone: 'blue' },
-          { label: 'Active', value: String(activeUsers), detail: 'active users', icon: Shield, tone: 'emerald' },
+          { label: 'Revenue', value: String(paidPayments), detail: 'paid payments', icon: DollarSign, tone: 'emerald' },
           { label: 'Students', value: String(students), detail: 'student records', icon: GraduationCap, tone: 'slate' },
           { label: 'Branches', value: String(branches), detail: 'branch data', icon: GitBranch, tone: 'purple' },
         ],
@@ -124,7 +140,7 @@ export function getAdminCommandCenter(
         subtitle: section === 'academics' ? 'Programs, sub-programs, and curriculum.' : 'Classes, instructors, and schedules.',
         signals: [
           { label: 'Programs', value: String(programs), detail: 'configured', icon: BookOpen, tone: 'blue' },
-          { label: 'Classes', value: String(classes), detail: 'active classes', icon: GraduationCap, tone: 'emerald' },
+          { label: 'Classes', value: String(classes), detail: `${activeClasses} active`, icon: GraduationCap, tone: 'emerald' },
           { label: 'Active', value: String(activeEnrollments), detail: 'enrollments', icon: ClipboardList, tone: 'slate' },
           { label: 'Students', value: String(students), detail: 'enrolled', icon: Users, tone: 'amber' },
         ],
@@ -136,7 +152,7 @@ export function getAdminCommandCenter(
         subtitle: 'Student enrollment management and status.',
         signals: [
           { label: 'Active', value: String(activeEnrollments), detail: 'in progress', icon: ClipboardList, tone: 'emerald' },
-          { label: 'Pending', value: String(pendingEnrollments), detail: 'awaiting payment', icon: UserPlus, tone: pendingEnrollments ? 'amber' : 'slate' },
+          { label: 'Pending', value: String(pendingEnrollments), detail: 'awaiting payment', icon: Users, tone: pendingEnrollments ? 'amber' : 'slate' },
           { label: 'Students', value: String(students), detail: 'registered', icon: Users, tone: 'blue' },
           { label: 'Paid', value: String(paidPayments), detail: 'completed payments', icon: Award, tone: 'slate' },
         ],
@@ -189,7 +205,7 @@ export function getAdminCommandCenter(
         title: 'Staff Attendance',
         subtitle: 'Instructor and staff attendance tracking.',
         signals: [
-          { label: 'Users', value: String(totalUsers), detail: 'staff accounts', icon: Users, tone: 'blue' },
+          { label: 'Instructors', value: String(instructors), detail: 'staff accounts', icon: Users, tone: 'blue' },
           { label: 'Classes', value: String(classes), detail: 'classes', icon: BookOpen, tone: 'emerald' },
           { label: 'Active', value: String(activeEnrollments), detail: 'sessions', icon: Calendar, tone: 'slate' },
           { label: 'Branches', value: String(branches), detail: 'locations', icon: GitBranch, tone: 'purple' },
@@ -244,4 +260,17 @@ export function getAdminCommandCenter(
         ],
       };
   }
+}
+
+/** Aggregate role counts from assignment-resolved labels. */
+export function countUsersByRole(
+  users: { assignments?: { role: string; is_primary?: boolean; is_active?: boolean }[] }[],
+  resolve: (assignments: { role: string; is_primary?: boolean; is_active?: boolean }[]) => string,
+): Record<string, number> {
+  const roles: Record<string, number> = {};
+  users.forEach((u) => {
+    const role = resolve(u.assignments || []);
+    roles[role] = (roles[role] || 0) + 1;
+  });
+  return roles;
 }

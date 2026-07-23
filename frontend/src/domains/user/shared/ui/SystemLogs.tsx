@@ -12,6 +12,7 @@ import {
 import type { UserProfile } from '@/shared/types';
 import { canViewAuditLogs } from '@/shared/auth/permissions';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { AdminOfflineBanner } from './adminQueryState';
 
 const typeBadge = (action: string) => {
   const a = action.toLowerCase();
@@ -132,6 +133,7 @@ export default function SystemLogs({ currentUser }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      <AdminOfflineBanner />
       {/* ── Stats Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {([

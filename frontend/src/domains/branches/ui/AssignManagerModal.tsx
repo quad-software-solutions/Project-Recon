@@ -14,9 +14,10 @@ interface Props {
   onAssign: (userId: string) => Promise<string | null>;
   users: UserOption[];
   branchName: string;
+  mode?: 'assign' | 'change';
 }
 
-export function AssignManagerModal({ isOpen, onClose, onAssign, users, branchName }: Props) {
+export function AssignManagerModal({ isOpen, onClose, onAssign, users, branchName, mode = 'assign' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,8 +42,12 @@ export function AssignManagerModal({ isOpen, onClose, onAssign, users, branchNam
     }
   };
 
+  const title = mode === 'change'
+    ? `Change Manager — ${branchName}`
+    : `Assign Manager — ${branchName}`;
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={`Assign Manager — ${branchName}`}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="text-xs font-medium text-slate-500 mb-1 block">Manager</label>
@@ -65,7 +70,7 @@ export function AssignManagerModal({ isOpen, onClose, onAssign, users, branchNam
           <button type="submit" disabled={submitting}
             className="flex-1 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {submitting ? 'Assigning...' : 'Assign'}
+            {submitting ? 'Saving...' : mode === 'change' ? 'Change Manager' : 'Assign'}
           </button>
         </div>
       </form>

@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Award, Eye, Download, CheckCircle2, Users, Calendar, ExternalLink } from 'lucide-react';
+import {
+  Search, Award, Eye, Download, CheckCircle2, Users, Calendar, ExternalLink,
+  FileSpreadsheet, ArrowUpDown,
+} from 'lucide-react';
 import type { Certificate, StudentCertificate } from '@/shared/types';
 import CertificateCanvas, {
   issuedToCanvasData,
   resolveCertificateTemplate,
 } from './CertificateCanvas';
+import { downloadCsv } from '@/shared/utils/export';
+import EmptyState from '@/shared/ui/EmptyState';
+
+type SortKey = 'issued_at' | 'student_name' | 'certificate_title';
 
 export default function IssuedTab({ issuedCerts, templates = [], loading, onRefresh }: {
   issuedCerts: StudentCertificate[];
@@ -14,24 +21,58 @@ export default function IssuedTab({ issuedCerts, templates = [], loading, onRefr
   onRefresh: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('issued_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showDetail, setShowDetail] = useState<StudentCertificate | null>(null);
   const detailTemplate = showDetail
     ? resolveCertificateTemplate(showDetail, templates)
     : null;
 
-  const filtered = issuedCerts.filter(c => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (c.student_name || '').toLowerCase().includes(q)
-      || (c.certificate_title || '').toLowerCase().includes(q)
-      || c.certificate_number.toLowerCase().includes(q);
-  });
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let rows = issuedCerts.filter((c) => {
+      if (!q) return true;
+      return (c.student_name || '').toLowerCase().includes(q)
+        || (c.certificate_title || '').toLowerCase().includes(q)
+        || c.certificate_number.toLowerCase().includes(q)
+        || (c.sub_program_name || '').toLowerCase().includes(q);
+    });
+    rows = [...rows].sort((a, b) => {
+      const av = String(a[sortKey] || '');
+      const bv = String(b[sortKey] || '');
+      const cmp = av.localeCompare(bv);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [issuedCerts, searchQuery, sortKey, sortDir]);
 
   const uniqueStudents = new Set(issuedCerts.map(c => c.student));
   const recentCount = issuedCerts.filter(c => {
     const d = new Date(c.issued_at);
     return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   }).length;
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir(key === 'issued_at' ? 'desc' : 'asc');
+    }
+  };
+
+  const handleExport = () => {
+    downloadCsv(
+      filtered.map((c) => ({
+        Student: c.student_name || '',
+        Certificate: c.certificate_title || '',
+        Sub_Program: c.sub_program_name || '',
+        Number: c.certificate_number,
+        Issued: c.issued_at?.slice(0, 10) || '',
+        Issued_By: c.issued_by_name || '',
+      })),
+      'issued-certificates',
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -51,11 +92,34 @@ export default function IssuedTab({ issuedCerts, templates = [], loading, onRefr
         ))}
       </div>
 
-      <div className="relative max-w-xs">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-        <input type="text" placeholder="Search by student, certificate, or number..." value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600" />
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input
+            type="search"
+            placeholder="Search by student, certificate, or number..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" /> CSV
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -63,10 +127,22 @@ export default function IssuedTab({ issuedCerts, templates = [], loading, onRefr
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Student</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Certificate</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => toggleSort('student_name')} className="inline-flex items-center gap-1 hover:text-slate-800">
+                    Student <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => toggleSort('certificate_title')} className="inline-flex items-center gap-1 hover:text-slate-800">
+                    Certificate <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Sub-Program</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Issued</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">
+                  <button type="button" onClick={() => toggleSort('issued_at')} className="inline-flex items-center gap-1 hover:text-slate-800">
+                    Issued <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </th>
                 <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">Number</th>
                 <th className="text-center px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Action</th>
               </tr>
@@ -74,7 +150,7 @@ export default function IssuedTab({ issuedCerts, templates = [], loading, onRefr
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr><td colSpan={6} className="px-4 py-3">
-                  {[1,2,3].map(i => (
+                  {[1, 2, 3].map(i => (
                     <div key={i} className="flex items-center gap-3 px-2 py-3 animate-pulse">
                       <div className="w-7 h-7 rounded-full bg-slate-200" />
                       <div className="flex-1 space-y-1.5">
@@ -85,9 +161,16 @@ export default function IssuedTab({ issuedCerts, templates = [], loading, onRefr
                   ))}
                 </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-400">
-                  {searchQuery ? 'No certificates match your search' : 'No certificates issued yet'}
-                </td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-4">
+                    <EmptyState
+                      icon={Award}
+                      title={searchQuery ? 'No certificates match your search' : 'No certificates issued yet'}
+                      description={searchQuery ? 'Try another name, title, or certificate number.' : 'Issue a certificate from the Issue tab to see it here.'}
+                      compact
+                    />
+                  </td>
+                </tr>
               ) : filtered.map(c => (
                 <tr key={c.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setShowDetail(c)}>
                   <td className="px-4 py-3">
@@ -130,9 +213,13 @@ export default function IssuedTab({ issuedCerts, templates = [], loading, onRefr
             </tbody>
           </table>
         </div>
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 text-right">
+            Showing {filtered.length} of {issuedCerts.length}
+          </div>
+        )}
       </div>
 
-      {/* Detail Modal */}
       <AnimatePresence>
         {showDetail && (
           <>

@@ -16,6 +16,7 @@ import type { UserProfile } from '@/shared/types';
 import { canManageStore, canManageStoreInventory } from '@/shared/auth/permissions';
 import { formatMoney } from '@/domains/store/utils/formatMoney';
 import { getOrderStatusLabel, getOrderStatusTone } from '@/domains/store/utils/orderStatus';
+import { AdminOfflineBanner } from '@/domains/user/shared/ui/adminQueryState';
 import { cn } from '@/shared/utils/cn';
 import { formatApiError } from '@/shared/utils/formatApiError';
 
@@ -25,6 +26,7 @@ interface NavItem {
   id: Section;
   label: string;
   icon: React.ElementType;
+  count?: number;
 }
 
 interface OverviewData {
@@ -165,14 +167,45 @@ export default function StoreDashboard({ currentUser }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
+      <AdminOfflineBanner />
+
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center shrink-0">
+            <LayoutDashboard className="w-4 h-4 text-brand-blue" />
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-brand-ink tracking-tight">
+              {canManageFull ? 'Store operations' : 'Branch inventory'}
+            </h2>
+            <p className="text-xs sm:text-sm text-brand-muted mt-0.5">
+              {canManageFull
+                ? 'Catalog, stock, orders, payments, and sales reports.'
+                : 'Manage stock levels for your assigned branches.'}
+            </p>
+          </div>
+        </div>
+        {section === 'overview' && (
+          <button
+            type="button"
+            onClick={() => void loadOverview()}
+            disabled={overviewLoading}
+            className="inline-flex items-center gap-1.5 self-start px-3 py-2 border border-brand-border rounded-lg text-sm text-brand-muted hover:bg-brand-surface disabled:opacity-50 transition-all"
+          >
+            <RefreshCw className={`w-4 h-4 ${overviewLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        )}
+      </div>
+
       {!canManageFull && (
-        <div className="bg-brand-paper border border-brand-border rounded-xl px-4 py-3 text-xs text-brand-muted">
-          Branch Managers can manage branch inventory. Catalog, products, and orders require Super Admin.
+        <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl px-4 py-3 text-xs text-amber-800 flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          Branch Managers can manage inventory. Catalog, products, orders, and payments require Super Admin.
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <nav className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide bg-white border border-brand-border rounded-xl p-1.5" aria-label="Store management sections">
+      <nav className="flex items-center gap-1 overflow-x-auto scrollbar-hide bg-white border border-brand-border/50 rounded-xl p-1 shadow-premium-sm" aria-label="Store management sections" role="tablist">
         {visibleNav.map(item => {
           const Icon = item.icon;
           const isActive = section === item.id;
@@ -180,23 +213,28 @@ export default function StoreDashboard({ currentUser }: Props) {
             <button
               key={item.id}
               type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => setSection(item.id)}
-              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/30',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/30',
                 isActive
-                  ? 'bg-brand-blue text-white shadow-sm shadow-brand-blue/20'
-                  : 'text-brand-muted hover:text-brand-ink hover:bg-brand-blue/5',
+                  ? 'bg-brand-blue text-white shadow-premium-blue'
+                  : 'text-brand-muted hover:text-brand-ink hover:bg-brand-surface/60',
               )}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               {item.label}
+              {item.id === 'overview' && overview && overview.lowStockCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700">
+                  {overview.lowStockCount}
+                </span>
+              )}
             </button>
           );
         })}
       </nav>
 
-      {/* Section Content */}
       <div className="relative min-h-[400px]">
         <AnimatePresence mode="wait">
           <motion.div
@@ -371,15 +409,15 @@ function OverviewPanel({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 flex items-center justify-between gap-3">
+        <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl px-4 py-3 text-xs text-amber-800 flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5" />
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             Latest refresh failed: {error}
           </span>
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex items-center gap-1 font-semibold hover:underline"
+            className="inline-flex items-center gap-1 font-semibold hover:underline shrink-0"
           >
             <RefreshCw className="w-3 h-3" />
             Retry
@@ -393,7 +431,7 @@ function OverviewPanel({
             key={label}
             type="button"
             onClick={onClick}
-            className="text-left p-4 rounded-xl border border-brand-border bg-white hover:border-brand-blue/30 hover:shadow-sm hover:-translate-y-0.5 transition-all"
+            className="text-left p-4 rounded-xl border border-brand-border bg-white hover:border-brand-blue/30 hover:shadow-premium-md hover:-translate-y-0.5 transition-all interactive-lift"
           >
             <div className="flex items-center gap-2.5 mb-3">
               <div className="p-2 rounded-lg bg-brand-blue/10 border border-brand-blue/15">
@@ -407,7 +445,7 @@ function OverviewPanel({
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className={cn('grid gap-4', isBranchManager ? 'grid-cols-1' : 'lg:grid-cols-2')}>
         {/* Low stock */}
         <div className="bg-white border border-brand-border rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-brand-border">
@@ -448,52 +486,54 @@ function OverviewPanel({
           )}
         </div>
 
-        {/* Recent orders */}
-        <div className="bg-white border border-brand-border rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-brand-border">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-brand-blue" />
-              <h3 className="text-sm font-bold text-brand-ink">Recent orders</h3>
+        {/* Recent orders — Super Admin only */}
+        {!isBranchManager && (
+          <div className="bg-white border border-brand-border rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-brand-border">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-brand-blue" />
+                <h3 className="text-sm font-bold text-brand-ink">Recent orders</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenSection('orders')}
+                className="text-xs font-semibold text-brand-blue hover:text-brand-blue-dark"
+              >
+                View all
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onOpenSection('orders')}
-              className="text-xs font-semibold text-brand-blue hover:text-brand-blue-dark"
-            >
-              View all
-            </button>
+            {data.recentOrders.length === 0 ? (
+              <div className="px-4 py-10 text-center">
+                <ShoppingCart className="w-8 h-8 text-brand-border mx-auto mb-2" />
+                <p className="text-sm text-brand-muted">No orders yet.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-brand-border">
+                {data.recentOrders.map(order => (
+                  <li key={order.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-brand-ink truncate font-mono">#{order.order_number}</p>
+                      <p className="text-xs text-brand-muted mt-0.5">
+                        {new Date(order.created_at).toLocaleString()} · {order.branch_name}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 space-y-1">
+                      <p className="text-sm font-bold text-brand-blue tabular-nums">{formatMoney(order.total)}</p>
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border',
+                          getOrderStatusTone(order.status),
+                        )}
+                      >
+                        {getOrderStatusLabel(order.status)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {data.recentOrders.length === 0 ? (
-            <div className="px-4 py-10 text-center">
-              <ShoppingCart className="w-8 h-8 text-brand-border mx-auto mb-2" />
-              <p className="text-sm text-brand-muted">No orders yet.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-brand-border">
-              {data.recentOrders.map(order => (
-                <li key={order.id} className="px-4 py-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-brand-ink truncate font-mono">#{order.order_number}</p>
-                    <p className="text-xs text-brand-muted mt-0.5">
-                      {new Date(order.created_at).toLocaleString()} · {order.branch_name}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 space-y-1">
-                    <p className="text-sm font-bold text-brand-blue tabular-nums">{formatMoney(order.total)}</p>
-                    <span
-                      className={cn(
-                        'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border',
-                        getOrderStatusTone(order.status),
-                      )}
-                    >
-                      {getOrderStatusLabel(order.status)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

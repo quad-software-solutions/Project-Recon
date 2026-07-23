@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Users, Search, Plus, X, Loader2, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar, Lock
+  Users, Search, Plus, X, Loader2, Eye, Edit3, Trash2, Mail, Phone, Shield, UserCheck, UserX, Archive, MoreVertical, Calendar, Lock, Download
 } from 'lucide-react';
 import {
   fetchAllUsersApi, toggleUserStatusApi, archiveUserApi,
@@ -12,6 +12,8 @@ import { ErrorModal } from '@/shared/ui/ErrorModal';
 import type { UserProfile } from '@/shared/types';
 import { canManageAccounts } from '@/shared/auth/permissions';
 import { formatApiError } from '@/shared/utils/formatApiError';
+import { downloadCsv } from '@/shared/utils/export';
+import { AdminOfflineBanner, AdminRefreshButton, filterBulkActivateTargets } from './adminQueryState';
 
 const ROLE_BADGE: Record<string, string> = {
   Admin: 'bg-purple-50 text-purple-600',
@@ -119,19 +121,6 @@ export default function UserManagementPanel({ title = 'User Management', current
     catch (e) { setError(formatApiError(e)); }
   };
 
-  const handleBulkActivate = async () => {
-    setBulkProcessing(true);
-    try {
-      const ids = Array.from(selectedUserIds);
-      for (const id of ids) {
-        await toggleUserStatusApi(id, 'Pending');
-      }
-      setSelectedUserIds(new Set());
-      await load();
-    } catch (e) { setError(formatApiError(e)); }
-    finally { setBulkProcessing(false); }
-  };
-
   const handleBulkArchive = async () => {
     setBulkProcessing(true);
     try {
@@ -202,6 +191,31 @@ export default function UserManagementPanel({ title = 'User Management', current
     return true;
   });
 
+  const handleBulkActivate = async () => {
+    setBulkProcessing(true);
+    try {
+      const pendingSelected = filterBulkActivateTargets(users, selectedUserIds);
+      for (const u of pendingSelected) {
+        await toggleUserStatusApi(u.id, u.status);
+      }
+      setSelectedUserIds(new Set());
+      await load();
+    } catch (e) { setError(formatApiError(e)); }
+    finally { setBulkProcessing(false); }
+  };
+
+  const handleExportCsv = () => {
+    const rows = filtered.map((u) => ({
+      Name: u.full_name,
+      Email: u.email,
+      Status: u.status,
+      Role: resolveRole(u),
+      Phone: u.phone_number || '',
+      Registered: u.created_at?.slice(0, 10) || '',
+    }));
+    downloadCsv(rows, 'users-export');
+  };
+
   const activeCount = users.filter(u => u.status === 'Active').length;
   const pendingCount = users.filter(u => u.status === 'Pending').length;
   const suspendedCount = users.filter(u => u.status === 'Suspended').length;
@@ -216,13 +230,25 @@ export default function UserManagementPanel({ title = 'User Management', current
 
   return (
     <div className="space-y-4">
+      <AdminOfflineBanner />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="font-bold text-lg text-slate-900">{title}</h2>
-        {canManage && (
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-blue-600 text-white text-sm font-extrabold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg self-start">
-            <Plus className="w-4 h-4" /> Add Staff
+        <div className="flex items-center gap-2 self-start">
+          <AdminRefreshButton onClick={load} loading={loading} />
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" /> CSV
           </button>
-        )}
+          {canManage && (
+            <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-blue-600 text-white text-sm font-extrabold px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg">
+              <Plus className="w-4 h-4" /> Add Staff
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

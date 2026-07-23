@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split } from 'lucide-react';
+import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split, Pencil, LayoutGrid } from 'lucide-react';
 import type { AcademicClass } from '@/shared/types';
 import type { UserProfile } from '@/shared/types';
 import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi, fetchAvailableStaffApi } from '@/domains/learning/academics/api/academicApi';
@@ -198,16 +198,27 @@ export default function ClassManagerPanel({ currentUser }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold text-lg text-slate-900">Classes</h2>
-        <button onClick={openCreate} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center shrink-0">
+            <BookOpen className="w-4 h-4 text-brand-blue" />
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-brand-ink tracking-tight">Classes</h2>
+            <p className="text-xs sm:text-sm text-brand-muted mt-0.5">
+              {classes.length} class{classes.length !== 1 ? 'es' : ''} · {classes.filter(c => c.is_active !== false).length} active
+            </p>
+          </div>
+        </div>
+        <button onClick={openCreate} className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-3.5 py-2 rounded-lg hover:bg-brand-blue-dark transition-all shadow-premium-sm">
           <Plus className="w-3.5 h-3.5" /> New Class
         </button>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
-          <button onClick={() => setError(null)} className="ml-auto"><X className="w-3 h-3" /></button>
+        <div className="flex items-start gap-2 rounded-xl border border-red-200/60 bg-red-50/80 px-3.5 py-2.5 text-xs text-red-700">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="p-0.5 rounded-md hover:bg-red-100/60 transition-colors"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -217,72 +228,105 @@ export default function ClassManagerPanel({ currentUser }: Props) {
           { label: 'Active', value: classes.filter(c => c.is_active !== false).length, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Inactive', value: classes.filter(c => c.is_active === false).length, icon: RotateCcw, color: 'text-slate-600', bg: 'bg-slate-100' },
         ].map((s, i) => (
-          <div key={i} className="bg-white border border-brand-border rounded-xl px-4 py-3">
-            <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}>
-              <s.icon className={`w-4 h-4 ${s.color}`} />
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+            className="bg-white border border-brand-border rounded-xl p-4 hover:border-brand-blue/20 hover:shadow-sm transition-all"
+          >
+            <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center mb-2.5`}>
+              <s.icon className={`w-4.5 h-4.5 ${s.color}`} />
             </div>
-            <p className="font-black text-lg text-slate-900">{s.value}</p>
-            <p className="text-[10px] font-medium text-slate-500">{s.label}</p>
-          </div>
+            <p className="text-xl font-bold text-brand-ink font-display tracking-tight">{s.value}</p>
+            <p className="text-xs text-brand-muted mt-0.5">{s.label}</p>
+          </motion.div>
         ))}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search classes..." className="w-full pl-8 pr-3 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-muted" />
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search classes by name, program, or instructor..."
+            className="w-full pl-8 pr-3 py-2 bg-white border border-brand-border rounded-lg text-xs text-brand-ink placeholder:text-brand-muted/60 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+          />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-2.5 py-1.5 bg-white border border-brand-border rounded-lg text-xs focus:outline-none focus:border-blue-600">
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="px-3 py-2 bg-white border border-brand-border rounded-lg text-xs text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+        >
+          <option value="all">All classes</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
         </select>
       </div>
 
-      <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+      <div className="bg-white border border-brand-border rounded-xl overflow-hidden shadow-premium-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 border-b border-brand-border">
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Class</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden sm:table-cell">Instructor</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase hidden md:table-cell">Type</th>
-                <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Status</th>
-                <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase">Actions</th>
+              <tr className="bg-brand-surface/80 border-b border-brand-border">
+                <th className="text-left px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-wider">Class</th>
+                <th className="text-left px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-wider hidden sm:table-cell">Instructor</th>
+                <th className="text-left px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-wider hidden md:table-cell">Type</th>
+                <th className="text-center px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-wider">Status</th>
+                <th className="text-center px-4 py-3 text-[10px] font-black text-brand-muted uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-border">
+            <tbody className="divide-y divide-brand-border/50">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-brand-muted" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-400">
-                  {searchQuery ? 'No classes matching' : 'No classes defined'}
+                <tr><td colSpan={5} className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <BookOpen className="w-6 h-6 text-brand-border" />
+                    <p className="text-xs text-brand-muted">{searchQuery ? 'No classes match your search.' : 'No classes defined yet.'}</p>
+                  </div>
                 </td></tr>
               ) : filtered.map(c => (
-                <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={c.id} className="hover:bg-brand-surface/40 transition-colors group">
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-brand-blue/5 flex items-center justify-center"><BookOpen className="w-3.5 h-3.5 text-brand-blue" /></div>
-                      <span className="text-xs font-semibold text-slate-900">{c.name}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-brand-blue/5 border border-brand-blue/10 flex items-center justify-center group-hover:bg-brand-blue/10 transition-colors">
+                        <BookOpen className="w-3.5 h-3.5 text-brand-blue" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-brand-ink">{c.name}</span>
+                        <p className="text-[10px] text-brand-muted mt-0.5">{(c as any).sub_program_name || ''}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell">
+                  <td className="px-4 py-3 text-xs text-brand-muted hidden sm:table-cell">
                     {(c as any).instructor_name || (
-                      <button onClick={() => setAssigning({ classId: c.id, instructor: '' })} className="text-blue-600 hover:underline text-[10px] font-bold">Assign</button>
+                      <button onClick={() => setAssigning({ classId: c.id, instructor: '' })} className="text-brand-blue hover:underline text-[10px] font-bold">Assign</button>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{c.class_type || 'GROUP'}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${c.class_type === 'INDIVIDUAL' ? 'bg-purple-50 text-purple-700' : 'bg-cyan-50 text-cyan-700'}`}>
+                      {c.class_type === 'INDIVIDUAL' ? 'Individual' : 'Group'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${c.is_active !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.is_active !== false ? 'bg-emerald-100 text-emerald-700 border border-emerald-200/50' : 'bg-slate-100 text-slate-500 border border-slate-200/50'}`}>
                       {c.is_active !== false ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => setAssigning({ classId: c.id, instructor: (c as any).instructor || '' })} className="p-1 rounded-lg text-slate-400 hover:text-brand-blue hover:bg-brand-blue/10" title="Assign Instructor"><UserCheck className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setSplitting({ sourceId: c.id, sourceName: c.name, sourceCount: (c as any).student_count || 0, targetClass: '', count: '' })} className="p-1 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50" title="Split class"><Split className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => openEdit(c)} className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50" title="Edit"><BookOpen className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => toggleActive(c)} className={`p-1 rounded-lg ${c.is_active !== false ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} title={c.is_active !== false ? 'Deactivate' : 'Activate'}>
+                    <div className="flex items-center justify-center gap-0.5">
+                      <button onClick={() => setAssigning({ classId: c.id, instructor: (c as any).instructor || '' })} className="p-1.5 rounded-lg text-brand-muted hover:text-brand-blue hover:bg-brand-blue/10 transition-all" title="Assign Instructor">
+                        <UserCheck className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setSplitting({ sourceId: c.id, sourceName: c.name, sourceCount: (c as any).student_count || 0, targetClass: '', count: '' })} className="p-1.5 rounded-lg text-brand-muted hover:text-violet-600 hover:bg-violet-50 transition-all" title="Split class">
+                        <Split className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg text-brand-muted hover:text-amber-600 hover:bg-amber-50 transition-all" title="Edit">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => toggleActive(c)} className={`p-1.5 rounded-lg transition-all ${c.is_active !== false ? 'text-brand-muted hover:text-amber-600 hover:bg-amber-50' : 'text-brand-muted hover:text-emerald-600 hover:bg-emerald-50'}`} title={c.is_active !== false ? 'Deactivate' : 'Activate'}>
                         {c.is_active !== false ? <X className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
@@ -301,21 +345,31 @@ export default function ClassManagerPanel({ currentUser }: Props) {
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-md">
-                <div className="flex items-center justify-between p-4 border-b border-brand-border">
-                  <h3 className="font-bold text-base text-slate-900">{editing ? 'Edit Class' : 'New Class'}</h3>
-                  <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+              <div className="bg-white rounded-2xl shadow-premium-xl border border-brand-border w-full max-w-md">
+                <div className="flex items-center justify-between p-4 border-b border-brand-border/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
+                      {editing ? <Pencil className="w-3.5 h-3.5 text-brand-blue" /> : <Plus className="w-3.5 h-3.5 text-brand-blue" />}
+                    </div>
+                    <h3 className="font-bold text-sm text-brand-ink">{editing ? 'Edit Class' : 'New Class'}</h3>
+                  </div>
+                  <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-brand-muted hover:bg-brand-surface transition-colors"><X className="w-4 h-4" /></button>
                 </div>
-                <div className="p-4 space-y-3 max-h-[70vh] overflow-y-visible">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Class Name <span className="text-red-500">*</span></label>
-                    <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="e.g. VEX V5 - Section A" /></div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Sub-Program <span className="text-red-500">*</span></label>
-                      <select value={form.sub_program} onChange={e => setForm(p => ({ ...p, sub_program: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                <div className="p-4 space-y-3.5 max-h-[70vh] overflow-y-auto">
+                  <div>
+                    <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Class Name <span className="text-red-500">*</span></label>
+                    <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" placeholder="e.g. VEX V5 - Section A" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Sub-Program <span className="text-red-500">*</span></label>
+                      <select value={form.sub_program} onChange={e => setForm(p => ({ ...p, sub_program: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
                         <option value="">Select...</option>
                         {subPrograms.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
-                      </select></div>
-                    <div className="relative"><label className="text-[11px] font-bold text-slate-600 mb-1 block">Instructor <span className="text-red-500">*</span></label>
+                      </select>
+                    </div>
+                    <div className="relative">
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Instructor <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <input
                           value={instructorSearch}
@@ -326,12 +380,12 @@ export default function ClassManagerPanel({ currentUser }: Props) {
                           }}
                           onFocus={() => setShowInstructorDropdown(true)}
                           placeholder="Search instructor..."
-                          className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                          className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
                         />
                         {showInstructorDropdown && (
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setShowInstructorDropdown(false)} />
-                            <div className="absolute top-full mt-1 left-0 right-0 max-h-40 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg z-20">
+                            <div className="absolute top-full mt-1 left-0 right-0 max-h-40 overflow-y-auto bg-white border border-brand-border rounded-lg shadow-premium-md z-20">
                               {instructors.filter(i => 
                                 i.full_name.toLowerCase().includes(instructorSearch.toLowerCase()) || 
                                 i.email.toLowerCase().includes(instructorSearch.toLowerCase())
@@ -340,15 +394,15 @@ export default function ClassManagerPanel({ currentUser }: Props) {
                                   setForm(p => ({ ...p, instructor: inst.id }));
                                   setInstructorSearch(`${inst.full_name} (${inst.email})`);
                                   setShowInstructorDropdown(false);
-                                }} className="px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 truncate">
-                                  {inst.full_name} <span className="text-slate-400 text-xs">({inst.email})</span>
+                                }} className="px-3 py-2 text-sm text-brand-ink hover:bg-brand-surface cursor-pointer border-b border-brand-border/30 last:border-0 truncate transition-colors">
+                                  {inst.full_name} <span className="text-brand-muted text-xs">({inst.email})</span>
                                 </div>
                               ))}
                               {instructors.filter(i => 
                                 i.full_name.toLowerCase().includes(instructorSearch.toLowerCase()) || 
                                 i.email.toLowerCase().includes(instructorSearch.toLowerCase())
                               ).length === 0 && (
-                                <div className="px-3 py-2 text-sm text-slate-400 text-center">No instructors found</div>
+                                <div className="px-3 py-3 text-sm text-brand-muted text-center">No instructors found</div>
                               )}
                             </div>
                           </>
@@ -356,41 +410,53 @@ export default function ClassManagerPanel({ currentUser }: Props) {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Type <span className="text-red-500">*</span></label>
-                      <select value={form.class_type} onChange={e => setForm(p => ({ ...p, class_type: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Type <span className="text-red-500">*</span></label>
+                      <select value={form.class_type} onChange={e => setForm(p => ({ ...p, class_type: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
                         <option value="GROUP">Group</option>
                         <option value="INDIVIDUAL">Individual</option>
-                      </select></div>
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Period</label>
-                      <select value={form.class_period} onChange={e => setForm(p => ({ ...p, class_period: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Period</label>
+                      <select value={form.class_period} onChange={e => setForm(p => ({ ...p, class_period: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
                         <option value="">Any</option>
                         <option value="FULL_DAY">Full Day</option>
                         <option value="HALF_DAY">Half Day</option>
-                      </select></div>
+                      </select>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Capacity {form.class_type === 'GROUP' && <span className="text-red-500">*</span>}</label>
-                      <input type="number" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" placeholder="e.g. 20" /></div>
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Branch <span className="text-red-500">*</span></label>
-                      <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Capacity {form.class_type === 'GROUP' && <span className="text-red-500">*</span>}</label>
+                      <input type="number" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" placeholder="e.g. 20" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Branch <span className="text-red-500">*</span></label>
+                      <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
                         <option value="">Select branch...</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name} ({b.code})</option>)}
-                      </select></div>
+                      </select>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Start Date</label>
-                      <input type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" /></div>
-                    <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">End Date</label>
-                      <input type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Start Date</label>
+                      <input type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">End Date</label>
+                      <input type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" />
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
-                  <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border/50 bg-brand-surface/30">
+                  <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
                   <button onClick={handleSave} disabled={saving || !form.name || !form.sub_program || !form.branch || !form.instructor}
-                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                    className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-all shadow-premium-sm">
                     {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {saving ? 'Saving...' : editing ? 'Update' : 'Create Class'}
+                    {saving ? 'Saving...' : editing ? 'Update Class' : 'Create Class'}
                   </button>
                 </div>
               </div>
@@ -404,24 +470,31 @@ export default function ClassManagerPanel({ currentUser }: Props) {
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm">
-                <div className="flex items-center justify-between p-4 border-b border-brand-border">
-                  <h3 className="font-bold text-base text-slate-900">Assign Instructor</h3>
-                  <button onClick={() => setAssigning(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
+              <div className="bg-white rounded-2xl shadow-premium-xl border border-brand-border w-full max-w-sm">
+                <div className="flex items-center justify-between p-4 border-b border-brand-border/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
+                      <UserCheck className="w-3.5 h-3.5 text-brand-blue" />
+                    </div>
+                    <h3 className="font-bold text-sm text-brand-ink">Assign Instructor</h3>
+                  </div>
+                  <button onClick={() => setAssigning(null)} className="p-1.5 rounded-lg text-brand-muted hover:bg-brand-surface transition-colors"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div><label className="text-[11px] font-bold text-slate-600 mb-1 block">Instructor</label>
-                    <select value={assigning.instructor} onChange={e => setAssigning(p => p ? { ...p, instructor: e.target.value } : null)} className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600">
+                  <div>
+                    <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Instructor</label>
+                    <select value={assigning.instructor} onChange={e => setAssigning(p => p ? { ...p, instructor: e.target.value } : null)} className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
                       <option value="">Select instructor...</option>
                       {instructors.map((inst: any) => (
                         <option key={inst.id} value={inst.id}>{inst.full_name} ({inst.email})</option>
                       ))}
-                    </select></div>
+                    </select>
+                  </div>
                 </div>
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
-                  <button onClick={() => setAssigning(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border/50 bg-brand-surface/30">
+                  <button onClick={() => setAssigning(null)} className="px-3 py-1.5 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
                   <button onClick={handleAssign} disabled={assignSaving || !assigning.instructor}
-                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                    className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-all shadow-premium-sm">
                     {assignSaving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {assignSaving ? 'Assigning...' : 'Assign'}
                   </button>
@@ -437,23 +510,33 @@ export default function ClassManagerPanel({ currentUser }: Props) {
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-2xl border border-brand-border w-full max-w-sm">
-                <div className="flex items-center justify-between p-4 border-b border-brand-border">
-                  <h3 className="font-bold text-base text-slate-900">Split Class</h3>
-                  <button onClick={() => setSplitting(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="p-4 space-y-3">
-                  <div className="bg-violet-50 rounded-xl px-3 py-2 text-xs text-violet-700">
-                    <span className="font-bold">{splitting.sourceName}</span>
-                    {splitting.sourceCount > 0 && <span className="ml-2 text-violet-500">({splitting.sourceCount} enrolled)</span>}
+              <div className="bg-white rounded-2xl shadow-premium-xl border border-brand-border w-full max-w-sm">
+                <div className="flex items-center justify-between p-4 border-b border-brand-border/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-violet-50 border border-violet-200/60 flex items-center justify-center">
+                      <Split className="w-3.5 h-3.5 text-violet-600" />
+                    </div>
+                    <h3 className="font-bold text-sm text-brand-ink">Split Class</h3>
                   </div>
-                  <p className="text-xs text-slate-500">Move enrollments from this class into another active class. The oldest enrollments are moved first.</p>
+                  <button onClick={() => setSplitting(null)} className="p-1.5 rounded-lg text-brand-muted hover:bg-brand-surface transition-colors"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-4 space-y-3.5">
+                  <div className="bg-violet-50/80 border border-violet-100 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-white border border-violet-200/50 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-3.5 h-3.5 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-violet-800">{splitting.sourceName}</p>
+                      {splitting.sourceCount > 0 && <p className="text-[10px] text-violet-500 mt-0.5">{splitting.sourceCount} enrolled</p>}
+                    </div>
+                  </div>
+                  <p className="text-xs text-brand-muted leading-relaxed">Move enrollments from this class into another active class. The oldest enrollments are moved first.</p>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Target class</label>
+                    <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Target class</label>
                     <select
                       value={splitting.targetClass}
                       onChange={e => setSplitting(p => p ? { ...p, targetClass: e.target.value } : null)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                      className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
                     >
                       <option value="">Select target...</option>
                       {classes.filter(c => c.id !== splitting.sourceId && c.is_active !== false).map(c => (
@@ -462,22 +545,22 @@ export default function ClassManagerPanel({ currentUser }: Props) {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1 block">Enrollments to move</label>
+                    <label className="text-[11px] font-bold text-brand-muted-dark mb-1 block">Enrollments to move</label>
                     <input
                       type="number"
                       min={1}
                       max={splitting.sourceCount || undefined}
                       value={splitting.count}
                       onChange={e => setSplitting(p => p ? { ...p, count: e.target.value } : null)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-brand-border rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                      className="w-full px-3 py-2 bg-brand-surface border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
                       placeholder="e.g. 5"
                     />
                   </div>
                 </div>
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border">
-                  <button onClick={() => setSplitting(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border/50 bg-brand-surface/30">
+                  <button onClick={() => setSplitting(null)} className="px-3 py-1.5 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
                   <button onClick={handleSplit} disabled={splitSaving || !splitting.targetClass || !splitting.count}
-                    className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+                    className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-all shadow-premium-sm">
                     {splitSaving && <Loader2 className="w-3 h-3 animate-spin" />}
                     {splitSaving ? 'Splitting...' : 'Split'}
                   </button>

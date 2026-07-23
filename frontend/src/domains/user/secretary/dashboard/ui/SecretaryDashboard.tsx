@@ -148,7 +148,7 @@ export default function SecretaryDashboard({ currentUser, onLogout }: Props) {
     switch (activeSection) {
       case 'overview': return <Overview onNavigate={setActiveSection} />;
       case 'admissions': return <AdmissionsPanel currentUser={currentUser} />;
-      case 'enrollments': return <EnrollmentsPanel currentUser={currentUser} />;
+      case 'enrollments': return <EnrollmentsPanel currentUser={currentUser} onNavigate={handleSectionChange} />;
       case 'transfers': return <TransferRequestsPanel currentUser={currentUser} />;
       case 'payments': return <PaymentsPanel />;
       case 'certificates': return <CertificateManager currentUser={currentUser} />;

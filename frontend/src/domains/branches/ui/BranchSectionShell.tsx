@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Building, RefreshCw, Plus } from 'lucide-react';
+import { Building, Plus } from 'lucide-react';
 import { branchesApi, assignmentsApi, type BranchResponse } from '@/domains/user/shared/api/adminApi';
 import { BranchListTable } from './BranchListTable';
 import { BranchFormModal, type BranchFormData } from './BranchFormModal';
@@ -7,6 +7,7 @@ import { BranchDetailPanel } from './BranchDetailPanel';
 import { AssignManagerModal } from './AssignManagerModal';
 import type { UserProfile } from '@/shared/types';
 import { isSuperAdmin } from '@/shared/auth/permissions';
+import { AdminOfflineBanner, AdminRefreshButton, AdminQueryError } from '@/domains/user/shared/ui/adminQueryState';
 
 interface UserOption {
   id: string;
@@ -30,14 +31,26 @@ export function BranchSectionShell({ currentUser }: Props) {
   const [selectedBranch, setSelectedBranch] = useState<BranchResponse | null>(null);
   const [assignTarget, setAssignTarget] = useState<BranchResponse | null>(null);
   const [managerUsers, setManagerUsers] = useState<UserOption[]>([]);
+  const [assignMode, setAssignMode] = useState<'assign' | 'change'>('assign');
+  const [branchManagers, setBranchManagers] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       if (isSuperAdmin(currentUser)) {
-        const data = await branchesApi.list();
+        const [data, assigns] = await Promise.all([
+          branchesApi.list(),
+          assignmentsApi.list().catch(() => []),
+        ]);
         setBranches(data);
+        const mgrMap: Record<string, string> = {};
+        assigns.forEach((a) => {
+          if (a.role === 'branch_manager' && a.is_active && a.branch?.id && a.user?.id) {
+            mgrMap[a.branch.id] = a.user.id;
+          }
+        });
+        setBranchManagers(mgrMap);
       } else {
         const map = new Map<string, BranchResponse>();
         for (const a of currentUser.assignments ?? []) {
@@ -70,10 +83,16 @@ export function BranchSectionShell({ currentUser }: Props) {
     } catch { /* users can still select from empty list */ }
   }, []);
 
-  useEffect(() => { if (assignTarget) loadManagers(); }, [assignTarget, loadManagers]);
+  useEffect(() => { if (assignTarget || showForm) loadManagers(); }, [assignTarget, showForm, loadManagers]);
 
   const handleCreate = useCallback(async (data: BranchFormData) => {
-    await branchesApi.create(data);
+    if (data.manager_user_id) {
+      const { manager_user_id, ...branchFields } = data;
+      await branchesApi.createWithManager({ ...branchFields, manager_user_id });
+    } else {
+      const { manager_user_id: _, ...branchFields } = data;
+      await branchesApi.create(branchFields);
+    }
     await load();
   }, [load]);
 
@@ -100,7 +119,11 @@ export function BranchSectionShell({ currentUser }: Props) {
   const handleAssignManager = useCallback(async (userId: string): Promise<string | null> => {
     if (!assignTarget) return 'No branch selected.';
     try {
-      await branchesApi.assignManager(assignTarget.id, userId);
+      if (assignMode === 'change' || branchManagers[assignTarget.id]) {
+        await branchesApi.changeManager(assignTarget.id, userId);
+      } else {
+        await branchesApi.assignManager(assignTarget.id, userId);
+      }
       setAssignTarget(null);
       await load();
       return null;
@@ -108,7 +131,12 @@ export function BranchSectionShell({ currentUser }: Props) {
       const msg = err instanceof Error ? err.message : 'Failed to assign manager.';
       return msg;
     }
-  }, [assignTarget, load]);
+  }, [assignTarget, assignMode, branchManagers, load]);
+
+  const openAssign = useCallback((b: BranchResponse) => {
+    setAssignMode(branchManagers[b.id] ? 'change' : 'assign');
+    setAssignTarget(b);
+  }, [branchManagers]);
 
   const handleFormSubmit = useCallback(async (data: BranchFormData) => {
     if (editingBranch) await handleUpdate(data);
@@ -129,6 +157,7 @@ export function BranchSectionShell({ currentUser }: Props) {
 
   return (
     <div className="space-y-4">
+      <AdminOfflineBanner />
       {/* Summary cards */}
       <div className="grid grid-cols-4 gap-3">
         {[
@@ -151,10 +180,7 @@ export function BranchSectionShell({ currentUser }: Props) {
           <h2 className="font-bold text-slate-900">Branches</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <AdminRefreshButton onClick={load} loading={loading} />
           {canManage && (
             <button onClick={() => openForm()}
               className="flex items-center gap-1.5 px-3 py-2 bg-brand-red text-white rounded-lg text-sm font-semibold hover:bg-brand-red-dark transition-colors">
@@ -165,7 +191,7 @@ export function BranchSectionShell({ currentUser }: Props) {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
+        <AdminQueryError error={error} onRetry={load} />
       )}
 
       {/* Main content */}
@@ -176,8 +202,10 @@ export function BranchSectionShell({ currentUser }: Props) {
             loading={loading}
             search={search}
             onSearchChange={setSearch}
+            onSelect={setSelectedBranch}
+            selectedId={selectedBranch?.id}
             onEdit={openForm}
-            onAssignManager={setAssignTarget}
+            onAssignManager={openAssign}
             onToggleActive={handleToggleActive}
             onArchive={handleArchive}
           />
@@ -189,7 +217,7 @@ export function BranchSectionShell({ currentUser }: Props) {
               branch={selectedBranch}
               onClose={() => setSelectedBranch(null)}
               onEdit={(b) => { setSelectedBranch(null); openForm(b); }}
-              onAssignManager={(b) => { setSelectedBranch(null); setAssignTarget(b); }}
+              onAssignManager={(b) => { setSelectedBranch(null); openAssign(b); }}
               onToggleActive={handleToggleActive}
               onArchive={handleArchive}
             />
@@ -197,8 +225,21 @@ export function BranchSectionShell({ currentUser }: Props) {
         )}
       </div>
 
-      <BranchFormModal isOpen={showForm} onClose={() => { setShowForm(false); setEditingBranch(null); }} onSubmit={handleFormSubmit} initial={editingBranch} />
-      <AssignManagerModal isOpen={!!assignTarget} onClose={() => setAssignTarget(null)} onAssign={handleAssignManager} users={managerUsers} branchName={assignTarget?.name || ''} />
+      <BranchFormModal
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setEditingBranch(null); }}
+        onSubmit={handleFormSubmit}
+        initial={editingBranch}
+        managerUsers={managerUsers}
+      />
+      <AssignManagerModal
+        isOpen={!!assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssign={handleAssignManager}
+        users={managerUsers}
+        branchName={assignTarget?.name || ''}
+        mode={assignMode}
+      />
     </div>
   );
 }

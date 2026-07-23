@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Search, X, Loader2, AlertCircle, Eye, CheckCircle2, Download, DollarSign,
   ChevronLeft, ChevronRight, ArrowRightLeft, RefreshCw, ThumbsDown, Clock,
-  User, BookOpen, Building2, CreditCard, Ban, CalendarDays,
+  User, BookOpen, Building2, CreditCard, Ban, CalendarDays, ShieldCheck, Filter,
 } from 'lucide-react';
 import type { Enrollment, StudentProfile, AcademicClass, SubProgram, UserProfile, EnrollmentPayment } from '@/shared/types';
 import {
@@ -25,7 +25,6 @@ import EnrollmentDetailWorkspace from './EnrollmentDetailWorkspace';
 
 const PAGE_SIZE = 20;
 
-/** Online enrollments already create a payment row — staff cannot POST /payments/ again. */
 function hasExistingPayment(e: Enrollment): boolean {
   return Boolean(e.payment_status);
 }
@@ -34,7 +33,6 @@ function canRecordApproval(e: Enrollment): boolean {
   return e.status === 'PENDING_VERIFICATION' && !hasExistingPayment(e) && !e.pending_code;
 }
 
-/** Backend reject_payment requires pending_code (online enrollments only). */
 function canRejectEnrollment(e: Enrollment): boolean {
   return e.status === 'PENDING_VERIFICATION' && Boolean(e.pending_code);
 }
@@ -62,7 +60,19 @@ const emptyPaymentForm = () => ({
   verification_notes: '',
 });
 
-export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserProfile }) {
+const STATUS_ICONS: Record<string, React.ElementType> = {
+  ACTIVE: CheckCircle2, PENDING_VERIFICATION: Clock, COMPLETED: BookOpen, CANCELLED: X, REJECTED: Ban,
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+  PENDING_VERIFICATION: 'text-amber-600 bg-amber-50 border-amber-200',
+  COMPLETED: 'text-blue-600 bg-blue-50 border-blue-200',
+  CANCELLED: 'text-red-600 bg-red-50 border-red-200',
+  REJECTED: 'text-rose-600 bg-rose-50 border-rose-200',
+};
+
+export default function EnrollmentsPanel({ currentUser, onNavigate }: { currentUser?: UserProfile; onNavigate?: (section: string) => void }) {
   const isSuper = currentUser ? isSuperAdmin(currentUser) : false;
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
@@ -253,8 +263,8 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === selectablePending.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(selectablePending.map(e => e.id)));
+    if (selectedIds.size === enrollments.length && enrollments.length > 0) setSelectedIds(new Set());
+    else setSelectedIds(new Set(enrollments.map(e => e.id)));
   };
 
   const handleBatchApprove = async () => {
@@ -540,14 +550,9 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     setSelectedIds(new Set());
   }, [statusTab, searchQuery]);
 
-  const pendingFiltered = useMemo(
-    () => filtered.filter(e => e.status === 'PENDING_VERIFICATION'),
+  const selectableEnrollments = useMemo(
+    () => filtered.filter(e => canRecordApproval(e) || canRejectEnrollment(e)),
     [filtered],
-  );
-
-  const selectablePending = useMemo(
-    () => pendingFiltered.filter(e => canRecordApproval(e) || canRejectEnrollment(e)),
-    [pendingFiltered],
   );
 
   const selectedClass = selected
@@ -576,18 +581,96 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const ActionButtons = ({ e, compact = false }: { e: Enrollment; compact?: boolean }) => {
-    const btn = compact
-      ? 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap'
-      : 'inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-xl whitespace-nowrap';
+  function ActionButtons({ e }: { e: Enrollment }) {
+    const isPending = e.status === 'PENDING_VERIFICATION';
+    const isActive = e.status === 'ACTIVE';
+    const canApprove = isPending && canRecordApproval(e);
+    const canReject = isPending && canRejectEnrollment(e);
+    const canVerify = isPending && (Boolean(e.pending_code) || hasExistingPayment(e)) && e.verification_status !== 'VERIFIED';
+    const canReview = isPending && e.verification_status !== 'UNDER_REVIEW' && !canApprove && !canReject && !canVerify;
+    const btn = 'p-1.5 rounded-lg transition-all';
+    const base = 'text-brand-muted';
     return (
-      <div className={`flex flex-wrap items-center ${compact ? 'justify-end gap-1' : 'gap-2'}`}>
-        <button type="button" onClick={() => openDetail(e)} className={`${btn} text-white bg-blue-600 hover:bg-blue-700`} title="Open workspace">
-          <Eye className="w-3 h-3" /> {compact ? 'Open' : 'Open workspace'}
+      <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
+        <button onClick={() => openDetail(e)} className={`${btn} ${base} hover:text-brand-blue hover:bg-brand-blue/10`} title="Open workspace">
+          <Eye className="w-4 h-4" />
+        </button>
+        {canApprove && (
+          <button onClick={() => openApprove(e)} className={`${btn} ${base} hover:text-emerald-600 hover:bg-emerald-50`} title="Approve & record payment">
+            <DollarSign className="w-4 h-4" />
+          </button>
+        )}
+        {canVerify && (
+          <button onClick={() => handleVerifyActivate(e)} className={`${btn} ${base} hover:text-indigo-600 hover:bg-indigo-50`} title="Verify & activate">
+            <ShieldCheck className="w-4 h-4" />
+          </button>
+        )}
+        {canReject && (
+          <button onClick={() => { setShowReject(e); setRejectReason(''); }} className={`${btn} ${base} hover:text-red-600 hover:bg-red-50`} title="Reject enrollment">
+            <Ban className="w-4 h-4" />
+          </button>
+        )}
+        {canReview && (
+          <button onClick={() => handleUnderReview(e.id)} className={`${btn} ${base} hover:text-amber-600 hover:bg-amber-50`} title="Mark under review">
+            <Clock className="w-4 h-4" />
+          </button>
+        )}
+        {isActive && (
+          <>
+            <button onClick={() => setConfirm({ kind: 'complete', enrollment: e })} className={`${btn} ${base} hover:text-emerald-600 hover:bg-emerald-50`} title="Mark completed">
+              <CheckCircle2 className="w-4 h-4" />
+            </button>
+            <button onClick={() => setConfirm({ kind: 'cancel', enrollment: e })} className={`${btn} ${base} hover:text-amber-600 hover:bg-amber-50`} title="Cancel enrollment">
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function ModalShell({ show, onClose, children }: { show: boolean; onClose: () => void; children: React.ReactNode }) {
+    return (
+      <AnimatePresence>
+        {show && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={onClose} className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+              <div className="bg-white rounded-2xl shadow-premium-xl border border-brand-border w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                {children}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  function ModalHeader({ icon: Icon, color, title, onClose }: { icon: React.ElementType; color: string; title: string; onClose: () => void }) {
+    return (
+      <div className="flex items-center justify-between p-4 border-b border-brand-border/50 sticky top-0 bg-white z-10">
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-xl ${color} flex items-center justify-center`}>
+            <Icon className="w-4 h-4 text-white" />
+          </div>
+          <h3 className="font-bold text-sm text-brand-ink">{title}</h3>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg text-brand-muted hover:bg-brand-surface transition-colors">
+          <X className="w-4 h-4" />
         </button>
       </div>
     );
-  };
+  }
+
+  function ModalFooter({ children }: { children: React.ReactNode }) {
+    return (
+      <div className="flex items-center justify-end gap-2 p-4 border-t border-brand-border/50 bg-brand-surface/30 sticky bottom-0 bg-white">
+        {children}
+      </div>
+    );
+  }
 
   const workspaceAndModals = (listMode: boolean) => (
     <>
@@ -613,205 +696,281 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         />
       )}
 
-      {/* Approve & Record Payment modal */}
-      <AnimatePresence>
-        {showPayment && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowPayment(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" onClick={() => setShowPayment(null)}>
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 sticky top-0 bg-white">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div>
-                    <h3 className="font-bold text-slate-900">Approve & Record Payment</h3>
-                  </div>
-                  <button type="button" onClick={() => setShowPayment(null)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="p-4 sm:p-5 space-y-4">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800">
-                    Recording payment activates this enrollment and emails <strong>{showPayment.student_email || 'the student'}</strong>.
-                  </div>
-                  <div className="bg-slate-50 rounded-xl p-3 text-sm space-y-1">
-                    <p><span className="text-slate-500">Student:</span> <span className="font-medium">{displayValue(showPayment.student_name || showPayment.student_email)}</span></p>
-                    <p><span className="text-slate-500">Class:</span> <span className="font-medium">{displayValue(showPayment.class_name)}</span></p>
-                    <p><span className="text-slate-500">Reference:</span> <span className="font-mono text-brand-blue font-medium">{displayValue(showPayment.pending_code || showPayment.enrollment_number)}</span></p>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">
-                      Amount (ETB)
-                      {(() => {
-                        const hint = getFeeHint(showPayment.sub_program_name);
-                        return hint ? (
-                          <button type="button" onClick={() => {
-                            const match = hint.match(/([\d.]+)/);
-                            if (match) setPaymentForm(p => ({ ...p, amount: match[1] }));
-                          }} className="ml-2 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{hint}</button>
-                        ) : null;
-                      })()}
-                    </label>
-                    <input type="number" step="0.01" min="0" value={paymentForm.amount}
-                      onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"
-                      placeholder="Enter fee amount" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Payment Date</label>
-                    <input type="date" value={paymentForm.payment_date}
-                      onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Payment Method</label>
-                    <select value={paymentForm.payment_method}
-                      onChange={e => setPaymentForm(p => ({ ...p, payment_method: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600">
-                      {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                    </select>
-                  </div>
-                  {paymentForm.payment_method !== 'CASH' && (
-                    <>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Transaction Reference *</label>
-                        <input value={paymentForm.transaction_reference}
-                          onChange={e => setPaymentForm(p => ({ ...p, transaction_reference: e.target.value }))}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"
-                          placeholder="Required for non-cash" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Transfer Reference</label>
-                        <input value={paymentForm.transfer_reference}
-                          onChange={e => setPaymentForm(p => ({ ...p, transfer_reference: e.target.value }))}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"
-                          placeholder="Optional" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Bank Name</label>
-                        <input value={paymentForm.bank_name}
-                          onChange={e => setPaymentForm(p => ({ ...p, bank_name: e.target.value }))}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"
-                          placeholder="Optional" />
-                      </div>
-                    </>
-                  )}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Notes</label>
-                    <textarea value={paymentForm.verification_notes}
-                      onChange={e => setPaymentForm(p => ({ ...p, verification_notes: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 min-h-[72px] resize-none"
-                      placeholder="Optional verification notes" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100 sticky bottom-0 bg-white">
-                  <button type="button" onClick={() => setShowPayment(null)} className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
-                  <button type="button" onClick={handleCashPayment} disabled={submitting || !paymentForm.amount}
-                    className="bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
-                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {submitting ? 'Processing...' : 'Confirm & Approve'}
-                  </button>
-                </div>
+      {/* Approve & Record Payment */}
+      <ModalShell show={!!showPayment} onClose={() => setShowPayment(null)}>
+        <ModalHeader icon={DollarSign} color="bg-emerald-600" title="Approve & Record Payment" onClose={() => setShowPayment(null)} />
+        <div className="p-4 space-y-4">
+          <div className="bg-emerald-50/80 border border-emerald-200/60 rounded-xl p-3.5 text-xs text-emerald-800 flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Recording payment activates this enrollment and emails <strong>{showPayment?.student_email || 'the student'}</strong>.</span>
+          </div>
+          <div className="bg-brand-surface rounded-xl p-3.5 space-y-1.5 text-sm">
+            {[
+              ['Student', displayValue(showPayment?.student_name || showPayment?.student_email)],
+              ['Class', displayValue(showPayment?.class_name)],
+              ['Reference', showPayment?.pending_code || showPayment?.enrollment_number || NA],
+            ].map(([l, v]) => (
+              <div key={l as string} className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-medium text-brand-muted">{l as string}</span>
+                <span className={`text-xs font-semibold text-brand-ink ${l === 'Reference' ? 'font-mono text-brand-blue' : ''}`}>{v as string}</span>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            ))}
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">
+              Amount (ETB)
+              {showPayment && getFeeHint(showPayment.sub_program_name) && (
+                <button onClick={() => {
+                  const hint = getFeeHint(showPayment.sub_program_name);
+                  const match = hint?.match(/([\d.]+)/);
+                  if (match) setPaymentForm(p => ({ ...p, amount: match[1] }));
+                }} className="ml-2 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full hover:bg-emerald-100 transition-colors">
+                  {getFeeHint(showPayment.sub_program_name)}
+                </button>
+              )}
+            </label>
+            <input type="number" step="0.01" min="0" value={paymentForm.amount}
+              onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+              placeholder="Enter fee amount" />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Payment Date</label>
+            <input type="date" value={paymentForm.payment_date}
+              onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Payment Method</label>
+            <select value={paymentForm.payment_method}
+              onChange={e => setPaymentForm(p => ({ ...p, payment_method: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
+              {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </div>
+          {paymentForm.payment_method !== 'CASH' && (
+            <>
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Transaction Reference *</label>
+                <input value={paymentForm.transaction_reference}
+                  onChange={e => setPaymentForm(p => ({ ...p, transaction_reference: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+                  placeholder="Required for non-cash" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Transfer Reference</label>
+                <input value={paymentForm.transfer_reference}
+                  onChange={e => setPaymentForm(p => ({ ...p, transfer_reference: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+                  placeholder="Optional" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Bank Name</label>
+                <input value={paymentForm.bank_name}
+                  onChange={e => setPaymentForm(p => ({ ...p, bank_name: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+                  placeholder="Optional" />
+              </div>
+            </>
+          )}
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Notes</label>
+            <textarea value={paymentForm.verification_notes}
+              onChange={e => setPaymentForm(p => ({ ...p, verification_notes: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all min-h-[72px] resize-none"
+              placeholder="Optional verification notes" />
+          </div>
+        </div>
+        <ModalFooter>
+          <button onClick={() => setShowPayment(null)} className="px-4 py-2 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleCashPayment} disabled={submitting || !paymentForm.amount}
+            className="inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-premium-sm">
+            {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+            {submitting ? 'Processing...' : 'Confirm & Approve'}
+          </button>
+        </ModalFooter>
+      </ModalShell>
 
       {/* Reject modal */}
-      <AnimatePresence>
-        {showReject && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowReject(null)} className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowReject(null)}>
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between p-5 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><Ban className="w-4 h-4 text-red-600" /></div>
-                    <h3 className="font-bold text-slate-900">Reject Enrollment</h3>
-                  </div>
-                  <button type="button" onClick={() => setShowReject(null)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <p className="text-xs text-red-800 bg-red-50 border border-red-200 rounded-xl p-3">
-                    An email with this reason will be sent to <strong>{displayValue(showReject.student_email)}</strong>.
-                  </p>
-                  <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm min-h-[90px] resize-none focus:outline-none focus:border-red-400"
-                    placeholder="Explain why this enrollment is being rejected..." />
-                </div>
-                <div className="flex justify-end gap-2 p-5 border-t border-slate-100">
-                  <button type="button" onClick={() => setShowReject(null)} className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
-                  <button type="button" onClick={handleReject} disabled={submitting || !rejectReason.trim()}
-                    className="bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5">
-                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                    Reject Enrollment
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <ModalShell show={!!showReject} onClose={() => setShowReject(null)}>
+        <ModalHeader icon={Ban} color="bg-red-600" title="Reject Enrollment" onClose={() => setShowReject(null)} />
+        <div className="p-4 space-y-4">
+          <div className="bg-red-50/80 border border-red-200/60 rounded-xl p-3.5 text-xs text-red-800 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>An email with this reason will be sent to <strong>{displayValue(showReject?.student_email)}</strong>.</span>
+          </div>
+          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+            className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all min-h-[100px] resize-none"
+            placeholder="Explain why this enrollment is being rejected..." />
+        </div>
+        <ModalFooter>
+          <button onClick={() => setShowReject(null)} className="px-4 py-2 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleReject} disabled={submitting || !rejectReason.trim()}
+            className="inline-flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all shadow-premium-sm">
+            {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+            Reject Enrollment
+          </button>
+        </ModalFooter>
+      </ModalShell>
 
       {/* Move / Switch */}
-      <AnimatePresence>
-        {classAction && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setClassAction(null)} className="fixed inset-0 z-40 bg-black/20" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setClassAction(null)}>
-              <div className="bg-white rounded-2xl shadow-2xl border w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                <div className="p-5 border-b border-slate-100">
-                  <h3 className="font-bold text-slate-900">
-                    {classAction.mode === 'move' ? 'Move Class' : 'Switch Sub-Program'}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {displayValue(classAction.enrollment.student_name)} · current: {displayValue(classAction.enrollment.class_name)}
-                  </p>
-                </div>
-                <div className="p-5">
-                  <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Target class</label>
-                  {classes.length === 0 ? (
-                    <p className="text-xs text-slate-400">No classes available</p>
-                  ) : (<>
-                    <select value={targetClassId} onChange={e => setTargetClassId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm">
-                      <option value="">Select class...</option>
-                      {classes.filter(c => c.id !== classAction.enrollment.enrolled_class).map(c => {
-                        const full = isClassFull(c);
-                        return (
-                          <option key={c.id} value={c.id} disabled={full} className={full ? 'text-slate-400' : ''}>
-                            {classOptionLabel(c)}{full ? ' (FULL)' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    {targetClassId && (() => {
-                      const c = classes.find(x => x.id === targetClassId);
-                      return c && c.capacity && (classEnrollmentCounts.get(c.id) || 0) >= c.capacity ? (
-                        <p className="text-[11px] text-red-600 mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> This class is full - backend may reject.
-                        </p>
-                      ) : null;
-                    })()}
-                  </>)}
-                </div>
-                <div className="flex justify-end gap-2 p-5 border-t">
-                  <button type="button" onClick={() => setClassAction(null)} className="px-4 py-2 text-xs rounded-xl hover:bg-slate-100">Cancel</button>
-                  <button type="button" onClick={handleClassAction} disabled={classActionBusy || !targetClassId}
-                    className="bg-blue-600 text-white text-xs font-bold px-5 py-2 rounded-xl disabled:opacity-50 flex items-center gap-1.5">
-                    {classActionBusy && <Loader2 className="w-3 h-3 animate-spin" />}
-                    Confirm {classAction.mode === 'move' ? 'Move' : 'Switch'}
-                  </button>
-                </div>
+      <ModalShell show={!!classAction} onClose={() => setClassAction(null)}>
+        <ModalHeader icon={ArrowRightLeft} color="bg-brand-blue" title={classAction?.mode === 'move' ? 'Move Class' : 'Switch Sub-Program'} onClose={() => setClassAction(null)} />
+        <div className="p-4 space-y-4">
+          <div className="bg-brand-surface rounded-xl px-3.5 py-2.5 flex items-center gap-2.5">
+            <User className="w-4 h-4 text-brand-muted shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-brand-ink">{displayValue(classAction?.enrollment.student_name)}</p>
+              <p className="text-[10px] text-brand-muted">Current: {displayValue(classAction?.enrollment.class_name)}</p>
+            </div>
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Target class</label>
+            {classes.length === 0 ? (
+              <p className="text-xs text-brand-muted py-2">No classes available</p>
+            ) : (
+              <>
+                <select value={targetClassId} onChange={e => setTargetClassId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
+                  <option value="">Select class...</option>
+                  {classes.filter(c => c.id !== classAction?.enrollment.enrolled_class).map(c => {
+                    const full = isClassFull(c);
+                    return (
+                      <option key={c.id} value={c.id} disabled={full} className={full ? 'text-brand-muted' : ''}>
+                        {classOptionLabel(c)}{full ? ' (FULL)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                {targetClassId && (() => {
+                  const c = classes.find(x => x.id === targetClassId);
+                  return c && c.capacity && (classEnrollmentCounts.get(c.id) || 0) >= c.capacity ? (
+                    <p className="text-[11px] text-red-600 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> This class is full
+                    </p>
+                  ) : null;
+                })()}
+              </>
+            )}
+          </div>
+        </div>
+        <ModalFooter>
+          <button onClick={() => setClassAction(null)} className="px-4 py-2 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleClassAction} disabled={classActionBusy || !targetClassId}
+            className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-5 py-2 rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-all shadow-premium-sm">
+            {classActionBusy && <Loader2 className="w-3 h-3 animate-spin" />}
+            Confirm {classAction?.mode === 'move' ? 'Move' : 'Switch'}
+          </button>
+        </ModalFooter>
+      </ModalShell>
+
+      {/* Batch approve */}
+      <ModalShell show={showBatchApprove} onClose={() => setShowBatchApprove(false)}>
+        <ModalHeader icon={DollarSign} color="bg-emerald-600" title={`Batch Approve (${selectedIds.size})`} onClose={() => setShowBatchApprove(false)} />
+        <div className="p-4 space-y-4">
+          <p className="text-xs text-brand-muted">Records cash payment for walk-in enrollments without an existing payment.</p>
+          <input type="number" step="0.01" min="0" value={batchAmount} onChange={e => setBatchAmount(e.target.value)}
+            className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+            placeholder="Amount (ETB) per enrollment" />
+        </div>
+        <ModalFooter>
+          <button onClick={() => setShowBatchApprove(false)} className="px-4 py-2 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleBatchApprove} disabled={submitting || !batchAmount}
+            className="inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-premium-sm">Approve selected</button>
+        </ModalFooter>
+      </ModalShell>
+
+      {/* Batch reject */}
+      <ModalShell show={showBatchReject} onClose={() => setShowBatchReject(false)}>
+        <ModalHeader icon={ThumbsDown} color="bg-red-600" title="Batch Reject" onClose={() => setShowBatchReject(false)} />
+        <div className="p-4 space-y-4">
+          <textarea value={batchRejectReason} onChange={e => setBatchRejectReason(e.target.value)}
+            className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all min-h-[90px] resize-none"
+            placeholder="Rejection reason" />
+        </div>
+        <ModalFooter>
+          <button onClick={() => setShowBatchReject(false)} className="px-4 py-2 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleBatchReject} disabled={submitting || !batchRejectReason.trim()}
+            className="inline-flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all shadow-premium-sm">Reject</button>
+        </ModalFooter>
+      </ModalShell>
+
+      {/* Enroll Student */}
+      <ModalShell show={showEnroll} onClose={() => setShowEnroll(false)}>
+        <ModalHeader icon={Plus} color="bg-brand-blue" title="Enroll Student" onClose={() => setShowEnroll(false)} />
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Student</label>
+            <div className="relative">
+              <input value={studentSearch} onChange={e => { setStudentSearch(e.target.value); setForm(p => ({ ...p, student: '' })); }}
+                onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                placeholder="Search by name or email..."
+                className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" />
+              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-brand-muted" />}
+            </div>
+            {searchFocused && !form.student && (
+              <div className="mt-1.5 border border-brand-border rounded-xl bg-white max-h-48 overflow-y-auto shadow-premium-sm">
+                {(studentSearch.trim().length === 0 ? allStudents : studentResults).map(s => {
+                  const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
+                  return (
+                    <button key={s.id} type="button" onClick={() => {
+                      setForm(p => ({ ...p, student: s.id }));
+                      setStudentSearch(name);
+                      setSearchFocused(false);
+                    }} className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-brand-blue/5 border-b border-brand-border/30 last:border-0 transition-colors">
+                      <p className="font-semibold text-brand-ink truncate">{name}</p>
+                      <p className="text-[10px] text-brand-muted truncate">{s.email}</p>
+                    </button>
+                  );
+                })}
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            )}
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Class</label>
+            <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all">
+              <option value="">Select class...</option>
+              {classes.map(c => {
+                const full = isClassFull(c);
+                return (
+                  <option key={c.id} value={c.id} disabled={full} className={full ? 'text-brand-muted' : ''}>
+                    {classOptionLabel(c)}{full ? ' (FULL)' : ''}
+                  </option>
+                );
+              })}
+            </select>
+            {form.enrolled_class && (() => {
+              const found = classes.find(c => c.id === form.enrolled_class);
+              return found && found.capacity && (classEnrollmentCounts.get(found.id) || 0) >= found.capacity ? (
+                <p className="text-[11px] text-red-600 mt-1.5 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Class at capacity — enrollment will be rejected.
+                </p>
+              ) : null;
+            })()}
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-brand-muted-dark mb-1.5 block">Remarks</label>
+            <input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-brand-surface border border-brand-border rounded-xl text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all"
+              placeholder="Optional" />
+          </div>
+          {existingFormEnrollment && (
+            <div className="rounded-xl border border-amber-200/60 bg-amber-50/80 px-3.5 py-2.5 text-xs text-amber-800 flex items-start gap-2">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>This student already has an enrollment for this class. Continue to open the existing record.</span>
+            </div>
+          )}
+        </div>
+        <ModalFooter>
+          <button onClick={() => setShowEnroll(false)} className="px-4 py-2 text-xs font-medium text-brand-muted hover:text-brand-ink hover:bg-white rounded-lg transition-colors">Cancel</button>
+          <button onClick={handleEnroll} disabled={submitting || !form.student || !form.enrolled_class}
+            className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-5 py-2 rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 transition-all shadow-premium-sm">
+            {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
+            {existingFormEnrollment ? 'Open Existing' : 'Enroll'}
+          </button>
+        </ModalFooter>
+      </ModalShell>
 
       <ConfirmDialog
         open={confirm?.kind === 'cancel'}
@@ -842,15 +1001,17 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
         <AnimatePresence>
           {actionSuccess && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">
-              <CheckCircle2 className="w-4 h-4 shrink-0" /> {actionSuccess}
+              className="flex items-center gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-700 shadow-sm">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              {actionSuccess}
             </motion.div>
           )}
         </AnimatePresence>
         {error && (
-          <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs text-red-700">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
-            <button type="button" onClick={() => setError(null)} className="ml-auto p-0.5"><X className="w-3 h-3" /></button>
+          <div className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50/80 px-4 py-3 text-xs text-red-700">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="p-0.5 rounded hover:bg-red-100"><X className="w-3 h-3" /></button>
           </div>
         )}
         {workspaceAndModals(false)}
@@ -860,337 +1021,270 @@ export default function EnrollmentsPanel({ currentUser }: { currentUser?: UserPr
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="font-bold text-lg text-slate-900">Enrollments</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {allEnrollments.length} total · {statusCounts.PENDING_VERIFICATION} pending verification
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-blue to-brand-blue-dark flex items-center justify-center shadow-premium-sm shrink-0">
+            <BookOpen className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-brand-ink tracking-tight">Enrollments</h2>
+            <p className="text-xs text-brand-muted mt-0.5">
+              {allEnrollments.length} total · <span className="text-amber-600 font-semibold">{statusCounts.PENDING_VERIFICATION}</span> pending verification
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button type="button" onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 shadow-sm">
+          <button onClick={exportCsv} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-muted bg-white border border-brand-border px-3 py-2 rounded-lg hover:bg-brand-surface hover:border-brand-muted/30 transition-all">
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
-          <button type="button" onClick={() => loadData()} disabled={loading}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 shadow-sm disabled:opacity-50">
+          <button onClick={() => loadData()} disabled={loading}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-muted bg-white border border-brand-border px-3 py-2 rounded-lg hover:bg-brand-surface hover:border-brand-muted/30 transition-all disabled:opacity-50">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
           {classes.length > 0 && (
-            <button type="button" onClick={() => setShowEnroll(true)} className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-blue-700 shadow-sm">
+            <button onClick={() => setShowEnroll(true)} className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-blue-dark transition-all shadow-premium-sm">
               <Plus className="w-3.5 h-3.5" /> Enroll Student
             </button>
           )}
         </div>
       </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Active', value: statusCounts.ACTIVE, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Pending', value: statusCounts.PENDING_VERIFICATION, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Completed', value: statusCounts.COMPLETED, icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Inactive', value: statusCounts.CANCELLED + statusCounts.REJECTED, icon: Ban, color: 'text-red-600', bg: 'bg-red-50' },
+        ].map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="bg-white border border-brand-border rounded-xl p-4 hover:border-brand-blue/20 hover:shadow-sm transition-all cursor-pointer"
+            onClick={() => setStatusTab(s.label.toLowerCase() as StatusTab)}
+          >
+            <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center mb-2.5`}>
+              <s.icon className={`w-4.5 h-4.5 ${s.color}`} />
+            </div>
+            <p className="text-xl font-bold text-brand-ink font-display tracking-tight">{s.value}</p>
+            <p className="text-xs text-brand-muted mt-0.5">{s.label}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Workflow hint */}
       {statusCounts.PENDING_VERIFICATION > 0 && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50/80 px-4 py-2.5 text-xs text-blue-800">
-          <strong>Workflow:</strong> Online applications already include a payment — use Under Review / Reject.
-          Walk-in enrollments without a payment use Approve & Record Payment to activate.
+        <div className="rounded-xl border border-brand-blue/20 bg-gradient-to-r from-brand-blue/5 to-transparent px-4 py-3 text-xs text-brand-blue flex items-start gap-2.5">
+          <div className="w-6 h-6 rounded-lg bg-brand-blue/10 flex items-center justify-center shrink-0 mt-0.5">
+            <AlertCircle className="w-3.5 h-3.5" />
+          </div>
+          <div>
+            <span className="font-bold">Workflow:</span> Online applications already include a payment — use <span className="font-semibold">Under Review / Reject</span>.
+            Walk-in enrollments without a payment use <span className="font-semibold">Approve & Record Payment</span> to activate.
+          </div>
         </div>
       )}
 
+      {/* Alerts */}
       <AnimatePresence>
         {actionSuccess && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700">
-            <CheckCircle2 className="w-4 h-4 shrink-0" /> {actionSuccess}
+            className="flex items-center gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-700 shadow-sm">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            {actionSuccess}
           </motion.div>
         )}
       </AnimatePresence>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs text-red-700">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
-          <div className="flex-1" />
-          <button type="button" onClick={() => loadData()} className="text-xs font-semibold underline shrink-0">Retry</button>
-          <button type="button" onClick={() => setError(null)} className="p-0.5 rounded hover:bg-red-100"><X className="w-3 h-3" /></button>
+        <div className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50/80 px-4 py-3 text-xs text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => loadData()} className="text-xs font-semibold underline shrink-0 hover:no-underline">Retry</button>
+          <button onClick={() => setError(null)} className="p-0.5 rounded hover:bg-red-100"><X className="w-3 h-3" /></button>
         </div>
       )}
 
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search by name, class, or reference..."
-          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 shadow-sm" />
+      {/* Search + Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-muted" />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by name, class, or reference..."
+            className="w-full pl-9 pr-3 py-2 bg-white border border-brand-border rounded-lg text-sm text-brand-ink placeholder:text-brand-muted/50 focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/10 transition-all" />
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+          {tabs.map(tab => {
+            const count = statusCounts[tab.id as keyof typeof statusCounts] ?? 0;
+            const active = statusTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => setStatusTab(tab.id)}
+                className={`shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg transition-all whitespace-nowrap ${
+                  active ? 'bg-brand-blue text-white shadow-premium-sm' : 'bg-white text-brand-muted border border-brand-border hover:text-brand-ink hover:bg-brand-surface/60'
+                }`}>
+                {tab.id !== 'all' && STATUS_ICONS[tab.id] && (() => { const Icon = STATUS_ICONS[tab.id]; return <Icon className="w-3.5 h-3.5" />; })()}
+                {tab.label}
+                {tab.id !== 'all' && count > 0 && (
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-white/20 text-white' : 'bg-brand-surface text-brand-muted'}`}>{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {tabs.map(tab => {
-          const count = statusCounts[tab.id as keyof typeof statusCounts] ?? 0;
-          const active = statusTab === tab.id;
-          return (
-            <button key={tab.id} type="button" onClick={() => setStatusTab(tab.id)}
-              className={`shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all ${
-                active ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm'
-              }`}>
-              {tab.label}
-              {tab.id !== 'all' && count > 0 && (
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
+      {/* Batch actions */}
       {selectedIds.size > 0 && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-center gap-3 bg-slate-900 text-white rounded-xl px-4 py-2.5 shadow-lg">
-          <span className="text-xs font-semibold">{selectedIds.size} selected</span>
+          className="flex flex-wrap items-center gap-3 bg-brand-ink text-white rounded-xl px-4 py-3 shadow-premium-md">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-sm font-semibold">{selectedIds.size} selected</span>
+          </div>
           <div className="flex-1" />
-          <button type="button" onClick={() => setSelectedIds(new Set())} className="text-[11px] text-slate-300 hover:text-white">Clear</button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-[11px] text-brand-muted hover:text-white transition-colors font-medium">Clear</button>
           {[...selectedIds].some(id => {
             const row = allEnrollments.find(e => e.id === id);
             return row && canRecordApproval(row);
           }) && (
-            <button type="button" onClick={() => setShowBatchApprove(true)}
-              className="flex items-center gap-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg">
-              <DollarSign className="w-3 h-3" /> Approve (cash)
+            <button onClick={() => setShowBatchApprove(true)}
+              className="flex items-center gap-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-all">
+              <DollarSign className="w-3 h-3" /> Approve
             </button>
           )}
           {[...selectedIds].some(id => {
             const row = allEnrollments.find(e => e.id === id);
             return row && canRejectEnrollment(row);
           }) && (
-            <button type="button" onClick={() => setShowBatchReject(true)}
-              className="flex items-center gap-1.5 text-[11px] font-bold bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg">
+            <button onClick={() => setShowBatchReject(true)}
+              className="flex items-center gap-1.5 text-[11px] font-bold bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg transition-all">
               <ThumbsDown className="w-3 h-3" /> Reject
             </button>
           )}
         </motion.div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      {/* Table */}
+      <div className="bg-white border border-brand-border rounded-xl overflow-hidden shadow-premium-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="w-full text-sm min-w-[800px]">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="w-10 px-2 py-3 text-center">
+              <tr className="bg-brand-surface/80 border-b border-brand-border/70">
+                <th className="w-10 px-2 py-3.5 text-center">
                   <input type="checkbox"
-                    checked={selectedIds.size > 0 && selectedIds.size === selectablePending.length && selectablePending.length > 0}
+                    checked={selectedIds.size > 0 && selectedIds.size === enrollments.length && enrollments.length > 0}
                     onChange={toggleSelectAll}
-                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    className="w-3.5 h-3.5 rounded border-brand-border text-brand-blue focus:ring-brand-blue/30 cursor-pointer" />
                 </th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-500 uppercase">Student</th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Class</th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Reference</th>
-                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Date</th>
-                <th className="text-center px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-                <th className="text-right px-4 py-3 text-[10px] font-bold text-slate-500 uppercase">Actions</th>
+                <th className="text-left px-3 py-3.5 text-[10px] font-bold text-brand-muted uppercase tracking-wider">Student</th>
+                <th className="text-left px-3 py-3.5 text-[10px] font-bold text-brand-muted uppercase tracking-wider">Class / Branch</th>
+                <th className="text-left px-3 py-3.5 text-[10px] font-bold text-brand-muted uppercase tracking-wider hidden sm:table-cell">Reference</th>
+                <th className="text-left px-3 py-3.5 text-[10px] font-bold text-brand-muted uppercase tracking-wider hidden md:table-cell">Date</th>
+                <th className="text-center px-3 py-3.5 text-[10px] font-bold text-brand-muted uppercase tracking-wider">Status</th>
+                <th className="text-right px-3 py-3.5 text-[10px] font-bold text-brand-muted uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-brand-border/40">
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-16 text-center text-slate-400">
+                <tr><td colSpan={7} className="px-4 py-20 text-center text-brand-muted">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                   <span className="text-xs">Loading enrollments...</span>
                 </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3 text-slate-400">
-                    <BookOpen className="w-10 h-10" />
-                    <p className="text-sm font-medium text-slate-500">No enrollments found</p>
+                <tr><td colSpan={7} className="px-4 py-20 text-center">
+                  <div className="flex flex-col items-center gap-3 text-brand-muted">
+                    <div className="w-12 h-12 rounded-xl bg-brand-surface flex items-center justify-center">
+                      <BookOpen className="w-6 h-6 text-brand-border" />
+                    </div>
+                    <p className="text-sm font-medium text-brand-muted">No enrollments found</p>
                     {classes.length > 0 && (
-                      <button type="button" onClick={() => setShowEnroll(true)}
-                        className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-blue-700">
+                      <button onClick={() => setShowEnroll(true)}
+                        className="inline-flex items-center gap-1.5 bg-brand-blue text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-blue-dark transition-all shadow-premium-sm">
                         <Plus className="w-3.5 h-3.5" /> Enroll Student
                       </button>
                     )}
                   </div>
                 </td></tr>
               ) : enrollments.map(e => (
-                <tr key={e.id} className={`hover:bg-slate-50/50 ${selectedIds.has(e.id) ? 'bg-blue-50/50' : ''}`}>
-                  <td className="px-2 py-3 text-center">
-                    {e.status === 'PENDING_VERIFICATION' ? (
-                      <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                    ) : <span className="inline-block w-3.5" />}
+                <tr key={e.id} className={`hover:bg-brand-surface/40 transition-colors group cursor-pointer ${selectedIds.has(e.id) ? 'bg-brand-blue/5' : ''}`} onClick={() => openDetail(e)}>
+                  <td className="px-2 py-3.5 text-center" onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)}
+                      className="w-3.5 h-3.5 rounded border-brand-border text-brand-blue focus:ring-brand-blue/30 cursor-pointer" />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3.5">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-brand-blue/10 flex items-center justify-center text-[10px] font-bold text-brand-blue shrink-0">
-                        {(e.student_name || '?').charAt(0)}
-                      </div>
+                      <button onClick={ev => { ev.stopPropagation(); if (onNavigate) { try { sessionStorage.setItem('selectedStudentId', e.student || ''); } catch {} onNavigate('students'); } }}
+                        className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-blue to-brand-blue-dark flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-sm hover:opacity-90 transition-opacity cursor-pointer" title="View student profile">
+                        {(e.student_name || '?').charAt(0).toUpperCase()}
+                      </button>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{e.student_name || e.student_email || NA}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{displayValue(e.student_email)}</p>
+                        <p className="text-sm font-semibold text-brand-ink truncate">{e.student_name || e.student_email || NA}</p>
+                        <p className="text-[10px] text-brand-muted truncate">{displayValue(e.student_email)}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-700">
-                    <p className="truncate max-w-[160px]">{displayValue(e.class_name)}</p>
-                    <p className="text-[10px] text-slate-400">{displayValue(e.branch_name)}</p>
+                  <td className="px-3 py-3.5">
+                    <div className="min-w-0 max-w-[180px]">
+                      <p className="text-xs font-semibold text-brand-ink truncate">{displayValue(e.class_name)}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Building2 className="w-3 h-3 text-brand-muted shrink-0" />
+                        <span className="text-[10px] text-brand-muted truncate">{displayValue(e.branch_name)}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-xs font-mono text-brand-blue">{displayValue(e.pending_code || e.enrollment_number)}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{formatDate(e.enrolled_at)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <StatusBadge status={e.status} map={ENROLLMENT_STATUS_META} />
-                      {e.verification_status && e.verification_status !== 'VERIFIED' && (
+                  <td className="px-3 py-3.5 hidden sm:table-cell">
+                    <span className="text-xs font-mono text-brand-blue font-medium bg-brand-blue/5 px-2 py-0.5 rounded-md border border-brand-blue/10">
+                      {displayValue(e.pending_code || e.enrollment_number)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3.5 hidden md:table-cell">
+                    <div className="flex items-center gap-1.5 text-xs text-brand-muted">
+                      <CalendarDays className="w-3 h-3 shrink-0" />
+                      {formatDate(e.enrolled_at)}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3.5">
+                    <div className="flex flex-col items-center gap-1">
+                      <StatusBadge status={e.status} map={ENROLLMENT_STATUS_META} dot />
+                      {e.status === 'PENDING_VERIFICATION' && e.verification_status && e.verification_status !== 'VERIFIED' && (
                         <StatusBadge status={e.verification_status} map={VERIFICATION_META} />
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <ActionButtons e={e} compact />
+                  <td className="px-3 py-3.5" onClick={e => e.stopPropagation()}>
+                    <ActionButtons e={e} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50 gap-2 flex-wrap">
-          <span className="text-[11px] text-slate-500">Showing {enrollments.length} of {totalCount} filtered · {allEnrollments.length} loaded</span>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pageSafe <= 1}
-              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30">
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-brand-border/50 bg-brand-surface/40 gap-2 flex-wrap">
+          <span className="text-[10px] text-brand-muted">
+            Showing <span className="font-semibold text-brand-ink">{enrollments.length}</span> of {totalCount} filtered · {allEnrollments.length} total
+          </span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={pageSafe <= 1}
+              className="p-1.5 rounded-lg text-brand-muted hover:bg-white disabled:opacity-30 transition-all border border-transparent hover:border-brand-border/50">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-[11px] font-mono text-slate-600 px-2">{pageSafe} / {totalPages}</span>
-            <button type="button" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={pageSafe >= totalPages}
-              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-30">
+            <span className="text-[11px] font-semibold text-brand-ink px-3 py-1 bg-white border border-brand-border/50 rounded-lg min-w-[60px] text-center tabular-nums">
+              {pageSafe} / {totalPages}
+            </span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={pageSafe >= totalPages}
+              className="p-1.5 rounded-lg text-brand-muted hover:bg-white disabled:opacity-30 transition-all border border-transparent hover:border-brand-border/50">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
-
-      {/* Batch approve */}
-      <AnimatePresence>
-        {showBatchApprove && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowBatchApprove(false)} className="fixed inset-0 z-40 bg-black/20" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowBatchApprove(false)}>
-              <div className="bg-white rounded-2xl shadow-2xl border w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-900">Batch Approve ({selectedIds.size})</h3>
-                <p className="text-xs text-slate-500">Records cash payment only for walk-in enrollments without an existing payment.</p>
-                <input type="number" step="0.01" min="0" value={batchAmount} onChange={e => setBatchAmount(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm" placeholder="Amount (ETB) per enrollment" />
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setShowBatchApprove(false)} className="px-4 py-2 text-xs rounded-xl hover:bg-slate-100">Cancel</button>
-                  <button type="button" onClick={handleBatchApprove} disabled={submitting || !batchAmount}
-                    className="bg-emerald-600 text-white text-xs font-bold px-5 py-2 rounded-xl disabled:opacity-50">Approve selected</button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Batch reject */}
-      <AnimatePresence>
-        {showBatchReject && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowBatchReject(false)} className="fixed inset-0 z-40 bg-black/20" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowBatchReject(false)}>
-              <div className="bg-white rounded-2xl shadow-2xl border w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-slate-900">Batch Reject</h3>
-                <textarea value={batchRejectReason} onChange={e => setBatchRejectReason(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm min-h-[80px]" placeholder="Rejection reason" />
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setShowBatchReject(false)} className="px-4 py-2 text-xs rounded-xl hover:bg-slate-100">Cancel</button>
-                  <button type="button" onClick={handleBatchReject} disabled={submitting || !batchRejectReason.trim()}
-                    className="bg-red-600 text-white text-xs font-bold px-5 py-2 rounded-xl disabled:opacity-50">Reject</button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Enroll Student */}
-      <AnimatePresence>
-        {showEnroll && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowEnroll(false)} className="fixed inset-0 z-40 bg-black/20" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowEnroll(false)}>
-              <div className="bg-white rounded-2xl shadow-2xl border w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between p-5 border-b">
-                  <h3 className="font-bold text-slate-900">Enroll Student</h3>
-                  <button type="button" onClick={() => setShowEnroll(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Student</label>
-                    <div className="relative">
-                      <input value={studentSearch} onChange={e => { setStudentSearch(e.target.value); setForm(p => ({ ...p, student: '' })); }}
-                        onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-                        placeholder="Search by name or email..."
-                        className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm" />
-                      {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-slate-400" />}
-                    </div>
-                    {searchFocused && !form.student && (
-                      <div className="mt-1.5 border rounded-xl bg-white max-h-48 overflow-y-auto shadow-sm">
-                        {(studentSearch.trim().length === 0 ? allStudents : studentResults).map(s => {
-                          const name = `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.email;
-                          return (
-                            <button key={s.id} type="button" onClick={() => {
-                              setForm(p => ({ ...p, student: s.id }));
-                              setStudentSearch(name);
-                              setSearchFocused(false);
-                            }} className="w-full text-left px-3 py-2.5 text-xs hover:bg-brand-blue/10 border-b border-slate-50 last:border-0">
-                              <p className="font-medium text-slate-900 truncate">{name}</p>
-                              <p className="text-[10px] text-slate-400 truncate">{s.email}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Class</label>
-                    <select value={form.enrolled_class} onChange={e => setForm(p => ({ ...p, enrolled_class: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm">
-                      <option value="">Select class...</option>
-                      {classes.map(c => {
-                        const full = isClassFull(c);
-                        return (
-                          <option key={c.id} value={c.id} disabled={full} className={full ? 'text-slate-400' : ''}>
-                            {classOptionLabel(c)}{full ? ' (FULL)' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    {form.enrolled_class && (() => {
-                      const found = classes.find(c => c.id === form.enrolled_class);
-                      return found && found.capacity && (classEnrollmentCounts.get(found.id) || 0) >= found.capacity ? (
-                        <p className="text-[11px] text-red-600 mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> This class has reached capacity - enrollment will be rejected.
-                        </p>
-                      ) : null;
-                    })()}
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 mb-1.5 block">Remarks</label>
-                    <input value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-slate-50 border rounded-xl text-sm" placeholder="Optional" />
-                  </div>
-                  {existingFormEnrollment && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      This student already has an enrollment for this class. Continue to open the existing record.
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-end gap-2 p-5 border-t">
-                  <button type="button" onClick={() => setShowEnroll(false)} className="px-4 py-2 text-xs rounded-xl hover:bg-slate-100">Cancel</button>
-                  <button type="button" onClick={handleEnroll} disabled={submitting || !form.student || !form.enrolled_class}
-                    className="bg-blue-600 text-white text-xs font-bold px-5 py-2 rounded-xl disabled:opacity-50 flex items-center gap-1.5">
-                    {submitting && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {existingFormEnrollment ? 'Open Existing' : 'Enroll'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
 
       {workspaceAndModals(true)}
     </div>

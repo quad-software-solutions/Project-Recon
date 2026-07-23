@@ -79,7 +79,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'event-registrations', label: 'Event Registrations', icon: UserPlus, group: 'competition' },
   { id: 'announcements', label: 'Announcements', icon: Bell, group: 'communication' },
   { id: 'communications', label: 'Communications', icon: MessageSquare, group: 'communication' },
-  { id: 'sponsors', label: 'Sponsors & Partners', icon: Handshake, group: 'partners' },
   { id: 'reports', label: 'Reports & Data', icon: BarChart3, group: 'reports' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'reports' },
   { id: 'walkin', label: 'Walk-In Registration', icon: ClipboardList, group: 'operations' },
@@ -185,7 +184,6 @@ export default function ManagerDashboard({ currentUser, onLogout }: Props) {
       case 'academic-catalog': return <AcademicCatalogManager />;
       case 'classes': return <ClassManagerPanel currentUser={currentUser} />;
       case 'staff-attendance': return <StaffAttendanceManager currentUser={currentUser} />;
-      case 'sponsors': return <SponsorManagement currentUser={currentUser} />;
       case 'schools': return <SchoolManagement currentUser={currentUser} />;
       case 'enrollments': return <EnrollmentsPanel />;
       case 'periods': return <EnrollmentPeriodsPanel currentUser={currentUser} />;

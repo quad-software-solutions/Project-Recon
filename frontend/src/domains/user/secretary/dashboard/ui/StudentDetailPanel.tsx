@@ -87,15 +87,26 @@ export default function StudentDetailPanel() {
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     fetchStudentsApi().then(res => {
-      setStudents(Array.isArray(res) ? res : []);
+      if (cancelled) return;
+      const list = Array.isArray(res) ? res : [];
+      setStudents(list);
+      const preselectedId = (() => { try { return sessionStorage.getItem('selectedStudentId'); } catch { return null; } })();
+      if (preselectedId) {
+        try { sessionStorage.removeItem('selectedStudentId'); } catch {}
+        const found = list.find(s => s.id === preselectedId || s.user === preselectedId);
+        if (found) loadStudentDetail(found);
+      }
     }).catch((err: unknown) => {
+      if (cancelled) return;
       if (isForbiddenError(err) || (isApiError(err) && err.status === 403)) {
         setPermissionDenied(true);
       } else {
         setError('Failed to load students');
       }
-    }).finally(() => setLoading(false));
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const loadStudentDetail = async (student: StudentProfile) => {
