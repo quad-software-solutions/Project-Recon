@@ -182,21 +182,37 @@ def get_branch_or_404(branch_id):
 
 def list_available_branches_for_enrollment(*, sub_program_id, class_type):
     """
-    Return branches that have an active class for the given sub-program and class type.
-
-    Uses the 'classes' reverse relation from Branch to the academic Class model.
-    No cross-module model import needed — the ORM traversal is string-based.
-
-    Args:
-        sub_program_id: UUID of the sub-program.
-        class_type: ClassType value (e.g. GROUP, INDIVIDUAL).
-
-    Returns:
-        QuerySet of dicts with id, name, city.
+    Return branches that have an active class for the given sub-program and class type,
+    annotated with whether there is an active enrollment period.
     """
-    return Branch.objects.filter(
+    from datetime import date
+    from django.db.models import Exists, OuterRef, Value, BooleanField
+    from apps.academic.models import EnrollmentPeriod
+
+    today = date.today()
+
+    qs = Branch.objects.filter(
         status=BranchStatus.ACTIVE,
         classes__sub_program_id=sub_program_id,
         classes__class_type=class_type,
         classes__is_active=True,
-    ).distinct().values("id", "name", "city")
+    ).distinct()
+
+    if class_type == "GROUP":
+        active_period = EnrollmentPeriod.objects.filter(
+            branch_id=OuterRef("pk"),
+            sub_program_id=sub_program_id,
+            class_type=class_type,
+            is_active=True,
+            start_date__lte=today,
+            end_date__gte=today,
+        )
+        qs = qs.annotate(
+            has_active_registration=Exists(active_period)
+        ).filter(has_active_registration=True)
+    else:
+        qs = qs.annotate(
+            has_active_registration=Value(True, output_field=BooleanField())
+        )
+
+    return qs.values("id", "name", "city", "has_active_registration")
