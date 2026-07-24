@@ -15,7 +15,7 @@ function tabFromPath(path: string): ActiveTab {
   if (path.startsWith('/history')) return 'history';
   if (path.startsWith('/command-center')) return 'command-center';
   if (path.startsWith('/dashboard') || path.startsWith('/manager')) return 'dashboard';
-  if (path.startsWith('/event')) return 'dashboard';
+  if (path.startsWith('/events')) return 'competitions';
   if (path.startsWith('/login')) return 'login';
   if (path.startsWith('/register')) return 'register';
   if (path.startsWith('/forgot-password')) return 'forgot-password';
