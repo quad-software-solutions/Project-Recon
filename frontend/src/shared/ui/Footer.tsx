@@ -13,7 +13,6 @@ const QUICK_LINKS: { label: string; tab: ActiveTab }[] = [
 ];
 
 const LEGAL_LINKS: { label: string; tab: ActiveTab }[] = [
-  { label: 'Verify Certificate', tab: 'cert-verify' },
   { label: 'Privacy Policy', tab: 'privacy' },
   { label: 'Terms of Service', tab: 'terms' },
   { label: 'Contact Us', tab: 'help' },

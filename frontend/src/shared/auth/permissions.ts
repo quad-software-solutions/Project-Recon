@@ -49,7 +49,6 @@ const PUBLIC_TABS: ActiveTab[] = [
   'register',
   'registration',
   'competitions',
-  'cert-verify',
   'forgot-password',
   'reset-password',
   'privacy',
@@ -220,6 +219,7 @@ export function canAccessTab(user: UserProfile | null | undefined, tab: ActiveTa
   if (PUBLIC_TABS.includes(tab)) return true;
   if (tab === 'dashboard') return !!user;
   if (tab === 'command-center') return canAccessCommandCenter(user);
+  if (tab === 'cert-verify') return !!user;
   return false;
 }
 
