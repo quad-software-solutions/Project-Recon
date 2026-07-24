@@ -18,6 +18,7 @@ import type { Tournament, Workshop } from '@/shared/types';
 import EventRegisterButton from '@/domains/competition/shared/EventRegisterButton';
 import EventRegistrationModal from '@/domains/competition/shared/EventRegistrationModal';
 import { formatMoneyCompact } from '@/shared/utils/formatCurrency';
+import { getYouTubeEmbedUrl } from '@/domains/competition/public/utils/youtube';
 
 type DetailState = 'loading' | 'ready' | 'error';
 
@@ -263,6 +264,8 @@ export default function PublicEventDetailsPage({
     return null;
   }, [derived, event]);
 
+  const youtubeEmbedUrl = useMemo(() => getYouTubeEmbedUrl(event?.youtube_live_url), [event?.youtube_live_url]);
+
   if (state === 'loading') {
     return (
       <div className="flex justify-center py-20">
@@ -306,7 +309,15 @@ export default function PublicEventDetailsPage({
       {/* Hero */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white">
         <div className="aspect-[21/9] bg-slate-100 overflow-hidden">
-          {event.banner ? (
+          {youtubeEmbedUrl ? (
+            <iframe
+              src={youtubeEmbedUrl}
+              title={`${event.title} live stream`}
+              className="h-full w-full"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          ) : event.banner ? (
             <img
               src={event.banner}
               alt={event.title}
@@ -319,7 +330,7 @@ export default function PublicEventDetailsPage({
             </div>
           )}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
         <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 md:p-8">
           <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -347,7 +358,7 @@ export default function PublicEventDetailsPage({
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {event.youtube_live_url ? (
+              {event.youtube_live_url && !youtubeEmbedUrl ? (
                 <a
                   href={event.youtube_live_url}
                   target="_blank"
