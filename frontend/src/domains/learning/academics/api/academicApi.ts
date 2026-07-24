@@ -426,7 +426,7 @@ export async function fetchEnrollmentAttendanceHistoryApi(enrollmentId: string):
 
 // ─── Staff Attendance (backend field: `date`, not `session_date`) ───
 
-export async function fetchAvailableStaffApi(params?: { branch?: string; role?: string }): Promise<any[]> {
+export async function fetchAvailableStaffApi(params: { branch: string }): Promise<any[]> {
   return unwrapList(await http.get<ListResponse<any>>(`${BASE}/staff-attendance/sessions/available-staff/${queryString(params)}`));
 }
 

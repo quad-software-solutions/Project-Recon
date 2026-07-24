@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, BookOpen, Users, UserCheck, Filter, CheckCircle2, RotateCcw, Split, Pencil, LayoutGrid } from 'lucide-react';
 import type { AcademicClass } from '@/shared/types';
 import type { UserProfile } from '@/shared/types';
-import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi, fetchAvailableStaffApi } from '@/domains/learning/academics/api/academicApi';
+import { fetchClassesApi, createClassApi, updateClassApi, assignClassInstructorApi, setClassActiveApi, fetchSubProgramsApi, splitClassApi } from '@/domains/learning/academics/api/academicApi';
 import type { Branch } from '@/domains/learning/academics/api/academicApi';
 import { assignmentsApi, branchesApi } from '@/domains/user/shared/api/adminApi';
 import { formatApiError } from '@/shared/utils/formatApiError';
@@ -47,10 +47,6 @@ export default function ClassManagerPanel({ currentUser }: Props) {
   const [splitSaving, setSplitSaving] = useState(false);
 
   const loadInstructors = async (): Promise<any[]> => {
-    try {
-      const staff = await fetchAvailableStaffApi({ role: 'instructor' });
-      if (Array.isArray(staff) && staff.length > 0) return staff;
-    } catch { /* fall back */ }
     try {
       const assignments = await assignmentsApi.list();
       const list = Array.isArray(assignments) ? assignments : [];

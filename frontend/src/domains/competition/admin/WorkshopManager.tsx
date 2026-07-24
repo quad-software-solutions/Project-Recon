@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Loader2, AlertCircle, GraduationCap, Edit3, Trash2, Clock, User } from 'lucide-react';
 import * as eventsApi from '../api/eventsApi';
 import type { BackendWorkshop, BackendEvent, WorkshopLevel } from '../api/eventsApi';
-import { fetchAvailableStaffApi } from '@/domains/learning/academics/api/academicApi';
 import { assignmentsApi } from '@/domains/user/shared/api/adminApi';
 import { formatMoneyCompact } from '@/domains/store/utils/formatMoney';
 
@@ -24,18 +23,6 @@ export default function WorkshopManager() {
   const [form, setForm] = useState(defaultForm);
 
   const fetchInstructors = async (): Promise<UserOption[]> => {
-    const mapStaff = (rows: { id: string; full_name?: string; email?: string; first_name?: string; last_name?: string }[]) =>
-      rows.map(u => ({
-        id: u.id,
-        full_name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Instructor',
-        email: u.email || '',
-      }));
-
-    try {
-      const staff = await fetchAvailableStaffApi({ role: 'instructor' });
-      if (Array.isArray(staff) && staff.length > 0) return mapStaff(staff);
-    } catch { /* fall back to assignments */ }
-
     try {
       const assignments = await assignmentsApi.list();
       const list = Array.isArray(assignments) ? assignments : [];
