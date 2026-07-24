@@ -285,10 +285,9 @@ export default function TournamentManager() {
 
       <AnimatePresence>
         {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowForm(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+          <div onClick={() => setShowForm(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 z-10">
+              onClick={e => e.stopPropagation()} className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-black text-lg text-slate-900">{editingId ? 'Edit Tournament' : 'New Tournament'}</h3>
                 <button onClick={() => setShowForm(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>
