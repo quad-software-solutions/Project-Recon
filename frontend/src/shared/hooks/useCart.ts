@@ -41,6 +41,7 @@ export function useCart() {
       await fetchCart();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add item to cart');
+      throw err;
     }
   };
 

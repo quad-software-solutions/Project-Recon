@@ -65,9 +65,12 @@ CORS_ALLOW_HEADERS = [
     "origin",
     "user-agent",
     "x-csrftoken",
+    "x-cart-token",
     "x-requested-with",
     "x-session-key",
 ]
+
+CORS_EXPOSE_HEADERS = ["X-Cart-Token"]
 
 CORS_ALLOW_METHODS = [
     "DELETE",

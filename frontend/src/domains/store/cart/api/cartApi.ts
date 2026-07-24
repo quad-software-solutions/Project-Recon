@@ -1,5 +1,6 @@
 import { http } from '@/shared/api/http';
-import { getStoreRequestHeaders, setCartToken } from '@/domains/store/utils/session';
+import { getToken } from '@/shared/utils/auth';
+import { getCartToken, getStoreRequestHeaders, setCartToken } from '@/domains/store/utils/session';
 import type { ShoppingCart, CartAddPayload } from '../../model/types';
 
 const BASE = '/store/cart';
@@ -18,6 +19,7 @@ export async function getCart(): Promise<ShoppingCart> {
 }
 
 export async function addCartItem(payload: CartAddPayload): Promise<void> {
+  if (!getToken() && !getCartToken()) await getCart();
   await http.post<void>(`${BASE}/items/`, payload, { headers: getStoreRequestHeaders() });
 }
 
