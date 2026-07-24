@@ -22,7 +22,7 @@ export default function CookieConsent({ onNavigate }: Props) {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-slate-200 shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-slate-200 shadow-2xl sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md sm:rounded-2xl sm:border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         <div className="flex items-start gap-3 flex-1">
           <Cookie className="w-5 h-5 text-brand-blue shrink-0 mt-0.5" />
