@@ -42,7 +42,10 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
     setError(null);
     setVerifiedAt(null);
     try {
-      const data = await http.get<VerifyResult>(`/academic/certificates/verify/${encodeURIComponent(trimmed)}/`);
+      const data = await http.get<VerifyResult>(
+        `/academic/certificates/verify/${encodeURIComponent(trimmed)}/`,
+        { signal: AbortSignal.timeout(7_000) },
+      );
       if (!data.valid) {
         setError('This certificate could not be verified. Please check the number and try again.');
       } else {
@@ -56,13 +59,16 @@ export default function CertificateVerifyPage({ onNavigateHome }: CertificateVer
         } else {
           setError(err.message || 'Verification failed. Please try again.');
         }
+      } else if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
+        setError('Verification timed out. Please try again.');
       } else if (err instanceof TypeError || (err instanceof Error && /network|fetch|failed to fetch/i.test(err.message))) {
         setError('Network error. Please check your connection and try again.');
       } else {
         setError(err instanceof Error ? err.message : 'Verification failed. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
